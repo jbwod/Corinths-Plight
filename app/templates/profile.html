@@ -3,9 +3,106 @@
 {% block title %}My Profile{% endblock %}
 
 {% block content %}
+<style>
+    body {
+        background: #081221 url('{{ url_for("static", filename="img/move.gif") }}') no-repeat center center;
+        background-size: cover;
+    }
+
+    .profile-container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+        background: rgba(10, 20, 30, 0.8);
+        border-radius: 8px;
+        color: #cfd2d6;
+        box-shadow: 0 4px 20px rgba(0, 123, 255, 0.5);
+    }
+
+    h1 {
+        color: #4ED1F7;
+        margin-bottom: 10px;
+    }
+
+    p {
+        margin-bottom: 20px;
+    }
+
+    .btn {
+        background-color: #007bff;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        color: white;
+        transition: background-color 0.3s;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn:hover {
+        background-color: #0056b3;
+    }
+
+    .dashboard {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+    }
+
+    .section {
+        background: rgba(13, 25, 40, 0.9);
+        padding: 20px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+
+    .stats, .guild-summary, .unit-summary {
+        border: 1px solid #007bff;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 10px;
+    }
+
+    .stats h2, .unit-summary h2, .guild-summary h2 {
+        color: #80d4ff;
+        margin-bottom: 10px;
+    }
+
+    .stats p, .unit-summary p, .guild-summary p {
+        font-size: 16px;
+        line-height: 1.6;
+    }
+</style>
 <div class="profile-container">
     <h1>Welcome, {{ name }}!</h1>
-    <p>Manage your units, view your stats, and more.</p>
+    <div class="dashboard">
+        <div>
+            <div class="section stats">
+                <h2>User Stats</h2>
+                <p>Rec Points: 1200</p>
+                <p>Number of Units: 50</p>
+                <p>Active Campaigns: 3</p>
+            </div>
+            <div class="section current-campaigns">
+                <h2>Current Campaigns</h2>
+                <p>Troops Deployed: 200</p>
+                <p>Ongoing Missions: 5</p>
+            </div>
+        </div>
+        <div>
+            <div class="section unit-summary">
+                <h2>Unit Summary</h2>
+                <p>Most Active Unit: Infantry</p>
+                <p>Recently Upgraded: Tank Division</p>
+            </div>
+            <div class="section guild-summary">
+                <h2>Guild Summary</h2>
+                <p>Guild Name: Galactic Warriors</p>
+                <p>Guild Rank: 4</p>
+                <p>Members: 30</p>
+            </div>
+        </div>
+    </div>
     <a href="{{ url_for('my_units') }}" class="btn">View My Units</a>
     <a href="{{ url_for('create_unit_page') }}" class="btn">Create New Unit</a>
 </div>

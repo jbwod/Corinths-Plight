@@ -1,25 +1,144 @@
 {% extends 'layout.html' %}
 
 {% block content %}
-<h1>Create Your Unit</h1>
-<form action="{{ url_for('create_unit') }}" method="post" id="unit_form">
-    <div>
-        <label for="unit_type">Choose Unit Type:</label>
-        <select name="unit_type" id="unit_type">
-            {% for unit in unit_templates %}
-                <option value="{{ unit.id }}">{{ unit.unit_type }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div>
-        <label for="custom_name">Unit Name:</label>
-        <input type="text" id="custom_name" name="custom_name">
-    </div>
-    <div id="unit_info">
-        <!-- Unit info will be dynamically filled here -->
-    </div>
-    <button type="submit">Create Unit</button>
-</form>
+<style>
+
+    body {
+    background: #081221 url('static/img/diver.gif');
+    background-size: cover;
+    overflow-x: hidden;
+}
+.form-container {
+    background: linear-gradient(135deg, #1e2a40 0%, #162233 100%);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.75);
+    width: 90%;
+    max-width: 900px;
+    margin: 30px auto;
+    font-family: 'Orbitron', sans-serif;
+    color: #cfd2d6;
+    font-size: 18px; /* Increase base font size for better readability */
+}
+
+.unit-form {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+}
+
+.unit-info {
+    display: grid;
+    grid-template-columns: 2fr 1fr; /* Adjust for better visual balance */
+    gap: 20px;
+    background: #0a0f20;
+    padding: 20px;
+    border-radius: 8px;
+    color: #80d4ff;
+    box-shadow: inset 0 0 10px rgba(0, 123, 255, 0.5);
+}
+
+.unit-description, .unit-stats, .special-rules, .equipment-slots {
+    background: #13253a;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.unit-image img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 5px;
+}
+
+.equipment-slot {
+    background: #0a0f20;
+    border: 2px solid #007bff;
+    padding: 10px;
+    border-radius: 5px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.equipment-slot:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.8);
+}
+
+.form-select, .form-input {
+    padding: 10px;
+    border-radius: 5px;
+    background: transparent;
+    border: 1px solid #007bff;
+    color: #fff;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+.form-select:hover, .form-input:hover {
+    border-color: #0056b3;
+}
+
+.btn {
+    background-color: #007bff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 5px;
+    cursor: pointer;
+    color: white;
+    transition: background-color 0.3s;
+    font-size: 16px;
+}
+
+.btn:hover {
+    background-color: #0056b3;
+}
+
+label {
+    font-weight: bold;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.special-rules p, .unit-description p {
+    line-height: 1.5; /* Increase line height for better readability */
+}
+
+.unit-stats {
+    font-size: 1.1em; /* Larger font size for stats */
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Two columns for stats for better organization */
+    gap: 10px;
+}
+
+</style>
+<div class="form-container">
+    <h1>Create Your Unit</h1>
+    <form action="{{ url_for('create_unit') }}" method="post" id="unit_form" class="unit-form">
+        <div class="form-group">
+            <label for="unit_type">Choose Unit Type:</label>
+            <select name="unit_type" id="unit_type" class="form-select">
+                {% for unit in unit_templates %}
+                    <option value="{{ unit.id }}">{{ unit.unit_type }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="custom_name">Unit Name:</label>
+            <input type="text" id="custom_name" name="custom_name" class="form-input">
+        </div>
+        <div id="unit_info" class="unit-info">
+            <!-- Unit info will be dynamically filled here -->
+        </div>
+        <button type="submit" class="btn">Create Unit</button>
+    </form>
+</div>
 
 <script>
     document.getElementById('unit_type').addEventListener('change', function() {
@@ -30,19 +149,32 @@
                 if (xhr.status === 200) {
                     var unitInfo = JSON.parse(xhr.responseText);
                     document.getElementById('unit_info').innerHTML = `
-                        <label>Description:</label>
-                        <p>${unitInfo.description}</p>
-                        <label>Fire Support (FS):</label>
-                        <p>${unitInfo.fs}</p>
-                        <label>Armor:</label>
-                        <p>${unitInfo.armor}</p>
-                        <label>Speed:</label>
-                        <p>${unitInfo.speed}</p>
-                        <label>Range:</label>
-                        <p>${unitInfo.range}</p>
-                        <label>Special Rules:</label>
-                        <p>${unitInfo.special_rules}</p>
+                        <div class="unit-image">
+                            <img src="/static/img/${unitInfo.unit_type}.png" alt="${unitInfo.unit_type}" style="max-width: 280px; height: auto;">
+                        </div>
+                        <div class="unit-description">
+                            <strong>Description:</strong>
+                            <p>${unitInfo.description}</p>
+                        </div>
+                        <div class="unit-stats">
+                            <strong>Stats:</strong>
+                            <p>Fire Support (FS): ${unitInfo.fs}</p>
+                            <p>Armor: ${unitInfo.armor}</p>
+                            <p>Speed: ${unitInfo.speed}</p>
+                            <p>Range: ${unitInfo.range}</p>
+                        </div>
+                        <div class="equipment-slots">
+                            <div class="equipment-slot">Primary Slots: ${unitInfo.primary_equipment_slots}</div>
+                            <div class="equipment-slot">Secondary Slots: ${unitInfo.secondary_equipment_slots}</div>
+                            <div class="equipment-slot">Internal Slots: ${unitInfo.internal_slots}</div>
+                        </div>
+                        <div class="special-rules">
+                            <strong>Special Rules:</strong>
+                            <p>${unitInfo.special_rules}</p>
+                        </div>
                     `;
+                } else {
+                    document.getElementById('unit_info').innerHTML = '<p>Error loading unit information.</p>';
                 }
             }
         };

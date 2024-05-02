@@ -77,7 +77,14 @@ def get_unit_template(unit_type_id):
             'armor': unit_template.armor,
             'speed': unit_template.speed,
             'range': unit_template.range,
-            'special_rules': unit_template.special_rules
+            'special_rules': unit_template.special_rules,
+            'primary_equipment_slots': unit_template.primary_equipment_slots,
+            'secondary_equipment_slots': unit_template.secondary_equipment_slots,
+            'internal_slots': unit_template.internal_slots,
+            'structure_build_list': unit_template.structure_build_list,
+            'logistic_needs': unit_template.logistic_needs,
+            'deployment_capabilities': unit_template.deployment_capabilities,
+            'unit_type': unit_template.unit_type
         })
     return jsonify({'error': 'Unit template not found'}), 404
 

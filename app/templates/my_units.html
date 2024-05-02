@@ -3,7 +3,15 @@
 {% block title %}My Units{% endblock %}
 
 {% block content %}
+<style>
+    body {
+    background: #081221 url('static/img/move.gif');
+    background-size: cover;
+    overflow-x: hidden;
+  }
+  </style>
 <h1>My Units</h1>
+
 <ul>
     {% for unit in units %}
         <li>

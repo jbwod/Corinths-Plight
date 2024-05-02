@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}My Game{% endblock %}</title>
+    <title>{% block title %}Corinths Plight{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Adding a favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
 </head>
 <body>
     <header>
@@ -20,5 +22,12 @@
     <main>
         {% block content %}{% endblock %}
     </main>
+    <footer>
+        <p>&copy; {{ current_year }} Qnetica. All rights reserved.</p>
+    </footer>
+    <script>
+        // Set the current year in the footer dynamically
+        document.querySelector('footer p').textContent = `© ${new Date().getFullYear()} Qnetica. All rights reserved.`;
+    </script>
 </body>
 </html>

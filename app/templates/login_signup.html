@@ -3,18 +3,25 @@
 {% block title %}Signup/Login{% endblock %}
 
 {% block content %}
+<style>
+  body {
+  background: #081221 url('static/img/move.gif');
+  background-size: cover;
+  overflow-x: hidden;
+}
+</style>
 <div class="form-container">
     <h2>Signup</h2>
     {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <ul class="alerts">
-        {% for message in messages %}
-          <li>{{ message }}</li>
-        {% endfor %}
-        </ul>
-      {% endif %}
+        {% if messages %}
+            <ul class="alerts">
+            {% for message in messages %}
+                <li>{{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
     {% endwith %}
-    <form action="{{ url_for('signup_user') }}" method="post">
+    <form action="{{ url_for('signup_user') }}" method="post" class="auth-form">
         <input type="text" placeholder="Username" name="setusername" required>
         <input type="email" placeholder="Email" name="setemail" required>
         <input type="password" placeholder="Password" name="createpassword" required>
@@ -23,7 +30,7 @@
     </form>
 
     <h2>Login</h2>
-    <form action="{{ url_for('handle_login') }}" method="post">
+    <form action="{{ url_for('handle_login') }}" method="post" class="auth-form">
         <input type="text" placeholder="Username" name="username" required>
         <input type="password" placeholder="Password" name="password" required>
         <button type="submit" class="btn">Login</button>
