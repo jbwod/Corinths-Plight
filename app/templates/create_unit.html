@@ -1,0 +1,34 @@
+{% extends 'layout.html' %}
+
+{% block title %}Create Unit{% endblock %}
+
+{% block content %}
+<h1>Create a New Unit</h1>
+<form action="{{ url_for('create_unit') }}" method="post">
+    <label for="unit_type">Unit Type:</label>
+    <input type="text" id="unit_type" name="unit_type" required><br><br>
+
+    <label for="description">Description:</label>
+    <textarea id="description" name="description" required></textarea><br><br>
+
+    <label for="fs">Fire Support:</label>
+    <input type="number" id="fs" name="fs" required><br><br>
+
+    <label for="armor">Armor:</label>
+    <input type="number" id="armor" name="armor" required><br><br>
+
+    <label for="speed">Speed:</label>
+    <input type="number" id="speed" name="speed" required><br><br>
+
+    <label for="range">Range:</label>
+    <input type="number" id="range" name="range" required><br><br>
+
+    <label for="special_rules">Special Rules:</label>
+    <textarea id="special_rules" name="special_rules" required></textarea><br><br>
+
+    <label for="upgrades">Upgrades:</label>
+    <textarea id="upgrades" name="upgrades" required></textarea><br><br>
+
+    <button type="submit">Create Unit</button>
+</form>
+{% endblock %}

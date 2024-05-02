@@ -1,0 +1,8 @@
+venv/
+.git copy/
+__pycache__/
+app/__pycache__/
+development/
+*.pyc
+*.db
+.DS_Store

@@ -1,0 +1,9 @@
+{% extends 'layout.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<h1>Welcome to the Strategy Game</h1>
+<p>Experience the thrill of real-time strategy. Command your units, conquer territories, and achieve victory!</p>
+<a href="{{ url_for('login_signup') }}" class="btn">Get Started</a>
+{% endblock %}

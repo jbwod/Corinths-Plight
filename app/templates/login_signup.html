@@ -1,0 +1,32 @@
+{% extends 'layout.html' %}
+
+{% block title %}Signup/Login{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Signup</h2>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="alerts">
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    <form action="{{ url_for('signup_user') }}" method="post">
+        <input type="text" placeholder="Username" name="setusername" required>
+        <input type="email" placeholder="Email" name="setemail" required>
+        <input type="password" placeholder="Password" name="createpassword" required>
+        <input type="password" placeholder="Confirm Password" name="confirmpassword" required>
+        <button type="submit" class="btn">Signup</button>
+    </form>
+
+    <h2>Login</h2>
+    <form action="{{ url_for('handle_login') }}" method="post">
+        <input type="text" placeholder="Username" name="username" required>
+        <input type="password" placeholder="Password" name="password" required>
+        <button type="submit" class="btn">Login</button>
+    </form>
+</div>
+{% endblock %}

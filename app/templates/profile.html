@@ -1,0 +1,11 @@
+{% extends 'layout.html' %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <h1>Welcome, {{ name }}!</h1>
+    <p>Manage your units, view your stats, and more.</p>
+    <a href="{{ url_for('my_units') }}" class="btn">View My Units</a>
+</div>
+{% endblock %}

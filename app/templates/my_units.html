@@ -1,0 +1,21 @@
+{% extends 'layout.html' %}
+
+{% block title %}My Units{% endblock %}
+
+{% block content %}
+<h1>My Units</h1>
+<ul>
+    {% for unit in units %}
+    <li>
+        <strong>{{ unit.unit_type }}</strong><br>
+        Description: {{ unit.description }}<br>
+        Fire Support (FS): {{ unit.fs }} | Armor: {{ unit.armor }} | Speed: {{ unit.speed }} | Range: {{ unit.range }}<br>
+        Special Rules: {{ unit.special_rules }}<br>
+        Upgrades: {{ unit.upgrades }}<br>
+        Created At: {{ unit.created_at.strftime('%Y-%m-%d %H:%M') }}
+    </li>
+    {% else %}
+    <li>No units found.</li>
+    {% endfor %}
+</ul>
+{% endblock %}
