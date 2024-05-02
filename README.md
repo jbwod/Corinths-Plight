@@ -1,2 +1,1 @@
-# Forum-Application
-CITS3403 - Agile Web Development - Group Project, 2024.
+Real-time Strategy Wargames
