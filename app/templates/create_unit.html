@@ -1,34 +1,28 @@
 {% extends 'layout.html' %}
 
-{% block title %}Create Unit{% endblock %}
-
 {% block content %}
-<h1>Create a New Unit</h1>
+<h1>Create Your Unit</h1>
 <form action="{{ url_for('create_unit') }}" method="post">
-    <label for="unit_type">Unit Type:</label>
-    <input type="text" id="unit_type" name="unit_type" required><br><br>
-
-    <label for="description">Description:</label>
-    <textarea id="description" name="description" required></textarea><br><br>
-
-    <label for="fs">Fire Support:</label>
-    <input type="number" id="fs" name="fs" required><br><br>
-
-    <label for="armor">Armor:</label>
-    <input type="number" id="armor" name="armor" required><br><br>
-
-    <label for="speed">Speed:</label>
-    <input type="number" id="speed" name="speed" required><br><br>
-
-    <label for="range">Range:</label>
-    <input type="number" id="range" name="range" required><br><br>
-
-    <label for="special_rules">Special Rules:</label>
-    <textarea id="special_rules" name="special_rules" required></textarea><br><br>
-
-    <label for="upgrades">Upgrades:</label>
-    <textarea id="upgrades" name="upgrades" required></textarea><br><br>
-
+    <div>
+        <label for="unit_type">Choose Unit Type:</label>
+        <select name="unit_type" id="unit_type">
+            {% for unit in unit_templates %}
+            <option value="{{ unit.id }}">{{ unit.unit_type }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label for="custom_name">Unit Name:</label>
+        <input type="text" id="custom_name" name="custom_name">
+    </div>
+    <div>
+        <label for="upgrades">Select Upgrades:</label>
+        <select multiple name="upgrades" id="upgrades">
+            {% for upgrade in upgrades %}
+            <option value="{{ upgrade.id }}">{{ upgrade.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
     <button type="submit">Create Unit</button>
 </form>
 {% endblock %}

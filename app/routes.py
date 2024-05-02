@@ -3,8 +3,9 @@ from flask_login import login_required, current_user, logout_user
 from flask_login import login_user
 from functools import wraps
 from app import app, db
-from app.models import users, unit
+from app.models import User, UnitTemplate, UserUnit, Upgrade
 from sqlalchemy import inspect
+import json
 
 @app.route('/')
 def index():
@@ -20,32 +21,51 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-@app.route('/create_unit', methods=['POST'])
+@app.route('/create_unit', methods=['GET', 'POST'])
 @login_required
 def create_unit():
-    data = request.get_json()
-    new_unit = unit(
-        unit_type=data['unit_type'],
-        description=data['description'],
-        fs=data['fs'],
-        armor=data['armor'],
-        speed=data['speed'],
-        range=data['range'],
-        special_rules=data['special_rules'],
-        upgrades=data['upgrades'],
-        owner_id=current_user.user_id
-    )
-    db.session.add(new_unit)
-    db.session.commit()
-    return jsonify({'message': 'Unit created successfully!'}), 201
+    if request.method == 'POST':
+        # Extract data from form
+        unit_type_id = request.form.get('unit_type')
+        custom_name = request.form.get('custom_name')
+        selected_upgrades = request.form.getlist('upgrades')
+
+        # Create the unit
+        new_unit = UserUnit(
+            custom_name=custom_name,
+            owner_id=current_user.id,
+            template_id=unit_type_id,
+            applied_upgrades=json.dumps(selected_upgrades),
+            fs = UnitTemplate.query.get(unit_type_id).fs,
+            armor = UnitTemplate.query.get(unit_type_id).armor,
+            speed = UnitTemplate.query.get(unit_type_id).speed,
+            range = UnitTemplate.query.get(unit_type_id).range,
+            primary_equipment_slots = UnitTemplate.query.get(unit_type_id).primary_equipment_slots,
+            secondary_equipment_slots = UnitTemplate.query.get(unit_type_id).secondary_equipment_slots,
+            internal_slots = UnitTemplate.query.get(unit_type_id).internal_slots
+        )
+        db.session.add(new_unit)
+        db.session.commit()
+        return redirect(url_for('my_units'))
+
+    unit_templates = UnitTemplate.query.all()
+    upgrades = Upgrade.query.all()
+    return render_template('create_unit.html', unit_templates=unit_templates, upgrades=upgrades)
+
 
 @app.route('/my_units')
 @login_required
 def my_units():
-    units = unit.query.filter_by(owner_id=current_user.user_id).all()
-    return render_template('my_units.html', units=units)
+    # user units
+    units = UserUnit.query.filter_by(owner_id=current_user.id).all()
+    # unit template dictionary
+    unit_templates = UnitTemplate.query.all()
+    return render_template('my_units.html', units=units, unit_templates=unit_templates)
 
-
+@app.route('/create_unit')
+@login_required
+def create_unit_page():
+    return render_template('create_unit.html')
 
 @app.route('/dossier')
 @login_required
@@ -63,7 +83,7 @@ def handle_login():
     password = request.form['password']
 
    # https://docs.sqlalchemy.org/en/14/orm/query.html
-    user = users.query.filter_by(username=username).first()
+    user = User.query.filter_by(username=username).first()
     if user is None or user.password != password:
         #return 'Invalid username or password', 400
         flash('Invalid username or password, please try again')
@@ -83,8 +103,8 @@ def signup_user():
         flash ('Passwords do not match')
         return redirect(url_for('login_signup'))
 
-    user_exists = users.query.filter_by(username=username).first() is not None
-    email_exists = users.query.filter_by(email=email).first() is not None
+    user_exists = User.query.filter_by(username=username).first() is not None
+    email_exists = User.query.filter_by(email=email).first() is not None
 
     if user_exists:
         #return 'Username already exists', 400
@@ -96,7 +116,7 @@ def signup_user():
         return redirect(url_for('login_signup'))
 
     # Some kind of password store/hash thing should go here for now will just use the password as is
-    new_user = users(username=username, email=email, password=password)
+    new_user = User(username=username, email=email, password=password)
     db.session.add(new_user)
     db.session.commit()
     # Successful signup
@@ -125,7 +145,7 @@ def list_columns(table_name):
 @app.route('/list_users')
 def list_users():
     user_array = []
-    users_list = users.query.all()
+    users_list = User.query.all()
     for user in users_list:
         user_array.append({
             'user_id': user.user_id,
