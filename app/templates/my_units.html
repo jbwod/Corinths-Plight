@@ -5,30 +5,126 @@
 {% block content %}
 <style>
     body {
-    background: #081221 url('static/img/move.gif');
-    background-size: cover;
-    overflow-x: hidden;
-  }
-  </style>
+        background: #081221 url('{{ url_for("static", filename="img/move.gif") }}') repeat fixed center;
+        background-size: cover;
+    }
+
+    h1 {
+        text-align: center;
+        color: #4ED1F7;
+        padding: 40px 0;
+        font-size: 2.5em;
+    }
+
+    .unit {
+        list-style: none;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 30px;
+        justify-content: center;
+        align-items: stretch;
+    }
+
+    .unit li {
+        background: linear-gradient(145deg, #112233, #192844);
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 100, 255, 0.5);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        color: #cfd2d6;
+    }
+
+    .unit li:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 12px 40px rgba(0, 100, 255, 0.8);
+    }
+
+    img {
+        width: 100%;
+        height: auto;
+        object-fit: cover;
+        border-top-left-radius: 12px;
+        border-top-right-radius: 12px;
+    }
+
+    .unit-info {
+        padding: 20px;
+        font-size: 1rem;
+    }
+
+    .unit-info strong {
+        color: #80d4ff;
+        font-size: 1.4em;
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    .unit-info p {
+        margin: 10px 0;
+        line-height: 1.4;
+    }
+
+    .unit-actions {
+        display: flex;
+        justify-content: space-evenly;
+        padding: 10px;
+        background: rgba(10, 20, 30, 0.9);
+        border-top: 1px solid #007bff;
+        margin-top: auto;
+    }
+
+    .unit-actions a {
+        background-color: #007bff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        color: white;
+        text-decoration: none;
+        transition: background-color 0.3s, transform 0.3s;
+        font-size: 0.9em;
+    }
+
+    .unit-actions a:hover {
+        background-color: #0056b3;
+        transform: translateY(-2px);
+    }
+
+    .created-at {
+        text-align: right;
+        font-style: italic;
+        font-size: 0.8em;
+        opacity: 0.8;
+    }
+</style>
+<script src="{{ url_for('static', filename='js/all.min.js') }}"></script>
 <h1>My Units</h1>
 
-<ul>
+<ul class="unit">
     {% for unit in units %}
         <li>
-            <div style="display: flex;">
-                <img src="{{ url_for('static', filename='img/' + unit.template.unit_type + '.png') }}" alt="{{ unit.template.unit_type }}" style="width: 200px; height: auto; margin-right: 20px;">
-                <div>
-                    <strong>{{ unit.custom_name }} - {{ unit.template.unit_type }}</strong><br>
-                    Description: {{ unit.template.description }}<br>
-                    Fire Support (FS): {{ unit.fs }} | Armor: {{ unit.armor }} | Speed: {{ unit.speed }} | Range: {{ unit.range }}<br>
-                    Special Rules: {{ unit.template.special_rules }}<br>
-                    Upgrades: {{ unit.applied_upgrades }}<br>
-                    Created At: {{ unit.created_at.strftime('%Y-%m-%d %H:%M') }}
-                </div>
+            <img src="{{ url_for('static', filename='img/' + unit.template.unit_type + '.png') }}" alt="{{ unit.template.unit_type }}">
+            <div class="unit-info">
+                <strong>{{ unit.custom_name }}</strong> - {{ unit.template.unit_type }}
+                <p><i class="fas fa-book"></i> Description: {{ unit.template.description }}</p>
+                <p><i class="fas fa-crosshairs"></i> FS: {{ unit.fs }} | <i class="fas fa-shield-alt"></i> Armor: {{ unit.armor }} | <i class="fas fa-tachometer-alt"></i> Speed: {{ unit.speed }} | <i class="fas fa-ruler"></i> Range: {{ unit.range }}</p>
+                <p><i class="fas fa-rules"></i> Special Rules: {{ unit.template.special_rules }}</p>
+                <p><i class="fas fa-upgrade"></i> Upgrades: {{ unit.applied_upgrades }}</p>
+                <p class="created-at">Created At: {{ unit.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+            </div>
+            <div class="unit-actions">
+                <a href="#">Edit</a>
+                <a href="#">Deploy</a>
+                <a href="#">De-list</a>
+                <a href="#">Armory</a>
             </div>
         </li>
     {% else %}
         <li>No units found.</li>
     {% endfor %}
 </ul>
+<br>
+<br>
 {% endblock %}
