@@ -2,12 +2,12 @@
 
 {% block content %}
 <h1>Create Your Unit</h1>
-<form action="{{ url_for('create_unit') }}" method="post">
+<form action="{{ url_for('create_unit') }}" method="post" id="unit_form">
     <div>
         <label for="unit_type">Choose Unit Type:</label>
         <select name="unit_type" id="unit_type">
             {% for unit in unit_templates %}
-            <option value="{{ unit.id }}">{{ unit.unit_type }}</option>
+                <option value="{{ unit.id }}">{{ unit.unit_type }}</option>
             {% endfor %}
         </select>
     </div>
@@ -15,14 +15,39 @@
         <label for="custom_name">Unit Name:</label>
         <input type="text" id="custom_name" name="custom_name">
     </div>
-    <div>
-        <label for="upgrades">Select Upgrades:</label>
-        <select multiple name="upgrades" id="upgrades">
-            {% for upgrade in upgrades %}
-            <option value="{{ upgrade.id }}">{{ upgrade.name }}</option>
-            {% endfor %}
-        </select>
+    <div id="unit_info">
+        <!-- Unit info will be dynamically filled here -->
     </div>
     <button type="submit">Create Unit</button>
 </form>
+
+<script>
+    document.getElementById('unit_type').addEventListener('change', function() {
+        var unitTypeId = this.value;
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    var unitInfo = JSON.parse(xhr.responseText);
+                    document.getElementById('unit_info').innerHTML = `
+                        <label>Description:</label>
+                        <p>${unitInfo.description}</p>
+                        <label>Fire Support (FS):</label>
+                        <p>${unitInfo.fs}</p>
+                        <label>Armor:</label>
+                        <p>${unitInfo.armor}</p>
+                        <label>Speed:</label>
+                        <p>${unitInfo.speed}</p>
+                        <label>Range:</label>
+                        <p>${unitInfo.range}</p>
+                        <label>Special Rules:</label>
+                        <p>${unitInfo.special_rules}</p>
+                    `;
+                }
+            }
+        };
+        xhr.open('GET', '/unit_template/' + unitTypeId);
+        xhr.send();
+    });
+</script>
 {% endblock %}

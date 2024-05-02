@@ -67,6 +67,20 @@ def my_units():
 def create_unit_page():
     return render_template('create_unit.html')
 
+@app.route('/unit_template/<int:unit_type_id>')
+def get_unit_template(unit_type_id):
+    unit_template = UnitTemplate.query.get(unit_type_id)
+    if unit_template:
+        return jsonify({
+            'description': unit_template.description,
+            'fs': unit_template.fs,
+            'armor': unit_template.armor,
+            'speed': unit_template.speed,
+            'range': unit_template.range,
+            'special_rules': unit_template.special_rules
+        })
+    return jsonify({'error': 'Unit template not found'}), 404
+
 @app.route('/dossier')
 @login_required
 def profile():

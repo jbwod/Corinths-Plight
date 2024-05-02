@@ -7,12 +7,17 @@
 <ul>
     {% for unit in units %}
         <li>
-            <strong>{{ unit.custom_name }} - {{ unit.template.unit_type }}</strong><br>
-            Description: {{ unit.template.description }}<br>
-            Fire Support (FS): {{ unit.fs }} | Armor: {{ unit.armor }} | Speed: {{ unit.speed }} | Range: {{ unit.range }}<br>
-            Special Rules: {{ unit.template.special_rules }}<br>
-            Upgrades: {{ unit.applied_upgrades }}<br>
-            Created At: {{ unit.created_at.strftime('%Y-%m-%d %H:%M') }}
+            <div style="display: flex;">
+                <img src="{{ url_for('static', filename='img/' + unit.template.unit_type + '.png') }}" alt="{{ unit.template.unit_type }}" style="width: 200px; height: auto; margin-right: 20px;">
+                <div>
+                    <strong>{{ unit.custom_name }} - {{ unit.template.unit_type }}</strong><br>
+                    Description: {{ unit.template.description }}<br>
+                    Fire Support (FS): {{ unit.fs }} | Armor: {{ unit.armor }} | Speed: {{ unit.speed }} | Range: {{ unit.range }}<br>
+                    Special Rules: {{ unit.template.special_rules }}<br>
+                    Upgrades: {{ unit.applied_upgrades }}<br>
+                    Created At: {{ unit.created_at.strftime('%Y-%m-%d %H:%M') }}
+                </div>
+            </div>
         </li>
     {% else %}
         <li>No units found.</li>
