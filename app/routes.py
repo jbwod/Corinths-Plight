@@ -3,7 +3,7 @@ from flask_login import login_required, current_user, logout_user
 from flask_login import login_user
 from functools import wraps
 from app import app, db
-from app.models import User, UnitTemplate, UserUnit, Upgrade
+from app.models import User, UnitTemplate, UserUnit, Upgrade, Legion, UserLegion
 from sqlalchemy import inspect
 import json
 
@@ -26,6 +26,7 @@ def login_required(f):
 def create_unit():
     if request.method == 'POST':
         # Extract data from form
+        # CONFIRM CSRF TOKEN
         unit_type_id = request.form.get('unit_type')
         custom_name = request.form.get('custom_name')
         selected_upgrades = request.form.getlist('upgrades')
@@ -62,10 +63,10 @@ def my_units():
     unit_templates = UnitTemplate.query.all()
     return render_template('my_units.html', units=units, unit_templates=unit_templates)
 
-@app.route('/create_unit')
-@login_required
-def create_unit_page():
-    return render_template('create_unit.html')
+# @app.route('/create_unit')
+# @login_required
+# def create_unit_page():
+#     return render_template('create_unit.html')
 
 @app.route('/unit_template/<int:unit_type_id>')
 def get_unit_template(unit_type_id):
@@ -150,31 +151,108 @@ def logout():
     flash('You have been logged out')
     return redirect(url_for('login_signup'))
 
-@app.route('/list_tables')
-def list_tables():
-    inspector = inspect(db.engine)
-    tables = inspector.get_table_names()
-    return jsonify(tables)
 
-@app.route('/list_columns/<table_name>')
-def list_columns(table_name):
-    inspector = inspect(db.engine)
-    columns = inspector.get_columns(table_name)
-    column_info = [{ 'name': col['name'], 'type': str(col['type']) } for col in columns]
-    return jsonify(column_info)
 
-@app.route('/list_users')
-def list_users():
-    user_array = []
-    users_list = User.query.all()
-    for user in users_list:
-        user_array.append({
-            'user_id': user.user_id,
-            'username': user.username,
-            'email': user.email,
-            'password': user.password,
-            'sign_up_date': user.sign_up_date,
-            'points': user.points
-        })
-    return jsonify(user_array)
+@app.route('/legion_dashboard/<int:legion_id>')
+@login_required
+def legion_dashboard(legion_id):
+    legion = Legion.query.get(legion_id)
+    if not legion:
+        flash('Legion not found', 'error')
+        return redirect(url_for('index'))
+
+    # Check if current user is part of this legion
+    current_user_legion = UserLegion.query.filter_by(user_id=current_user.id, legion_id=legion_id).first()
+    if not current_user_legion:
+        flash('You are not a member of this legion.', 'error')
+        return redirect(url_for('index'))
+
+    total_units = sum(len(member_link.user.user_units.all()) for member_link in legion.legion_members)
+
+    return render_template('legion_dashboard.html', legion=legion, total_units=total_units, current_user_legion=current_user_legion)
+
+@app.route('/promote_member/<int:legion_id>/<int:user_id>', methods=['POST'])
+@login_required
+def promote_member(legion_id, user_id):
+    # Check if the current user is a leader in the legion
+    user_legion_link = UserLegion.query.filter_by(legion_id=legion_id, user_id=current_user.id).first()
+    if not user_legion_link or user_legion_link.role != 'leader':
+        return jsonify({'success': False, 'message': 'You do not have permission to promote members.'}), 403
+
+    # Fetch the user_legion link of the member to be promoted
+    member_to_promote = UserLegion.query.filter_by(legion_id=legion_id, user_id=user_id).first()
+    if member_to_promote:
+        member_to_promote.role = 'leader'
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Member promoted successfully.'})
+    else:
+        return jsonify({'success': False, 'message': 'Member not found'}), 404
+
+@app.route('/demote_member/<int:legion_id>/<int:user_id>', methods=['POST'])
+@login_required
+def demote_member(legion_id, user_id):
+    # Check if the current user is a leader in the legion
+    user_legion_link = UserLegion.query.filter_by(legion_id=legion_id, user_id=current_user.id).first()
+    if not user_legion_link or user_legion_link.role != 'leader':
+        return jsonify({'success': False, 'message': 'You do not have permission to demote members.'}), 403
+
+    # Fetch the user_legion link of the member to be demoted
+    member_to_demote = UserLegion.query.filter_by(legion_id=legion_id, user_id=user_id).first()
+    if member_to_demote:
+        member_to_demote.role = 'member'
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Member demoted successfully.'})
+    else:
+        return jsonify({'success': False, 'message': 'Member not found'}), 404
+
+@app.route('/remove_member/<int:legion_id>/<int:user_id>', methods=['POST'])
+@login_required
+def remove_member(legion_id, user_id):
+    # Check if the current user is a leader in the legion
+    user_legion_link = UserLegion.query.filter_by(legion_id=legion_id, user_id=current_user.id).first()
+    if not user_legion_link or user_legion_link.role != 'leader':
+        return jsonify({'success': False, 'message': 'You do not have permission to remove members.'}), 403
+
+    # Fetch the user_legion link of the member to be removed
+    member_to_remove = UserLegion.query.filter_by(legion_id=legion_id, user_id=user_id).first()
+    if member_to_remove:
+        db.session.delete(member_to_remove)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Member removed successfully.'})
+    else:
+        return jsonify({'success': False, 'message': 'Member not found'}), 404
+
+
+@app.route('/update_legion_coa/<int:legion_id>', methods=['POST'])
+@login_required
+def update_legion_coa(legion_id):
+    if not current_user.is_leader(legion_id):  # Implement this method or check based on your user's role.
+        return jsonify({'success': False, 'message': 'You do not have permission to update the legion COA.'}), 403
+    legion = Legion.query.get_or_404(legion_id)
+    legion.coa_string = request.form['coa_string']
+    db.session.commit()
+    flash('Legion COA updated successfully!', 'success')
+    return redirect(url_for('legion_dashboard', legion_id=legion_id))
+
+@app.route('/update_legion_name/<int:legion_id>', methods=['POST'])
+@login_required
+def update_legion_name(legion_id):
+    if not current_user.is_leader(legion_id):
+        return jsonify({'success': False, 'message': 'You do not have permission to update the legion name.'}), 403
+    legion = Legion.query.get_or_404(legion_id)
+    legion.name = request.form['name']
+    db.session.commit()
+    flash('Legion name updated successfully!', 'success')
+    return redirect(url_for('legion_dashboard', legion_id=legion_id))
+
+@app.route('/update_legion_description/<int:legion_id>', methods=['POST'])
+@login_required
+def update_legion_description(legion_id):
+    if not current_user.is_leader(legion_id):
+        return jsonify({'success': False, 'message': 'You do not have permission to update the legion description.'}), 403
+    legion = Legion.query.get_or_404(legion_id)
+    legion.description = request.form['description']
+    db.session.commit()
+    flash('Legion description updated successfully!', 'success')
+    return redirect(url_for('legion_dashboard', legion_id=legion_id))
 

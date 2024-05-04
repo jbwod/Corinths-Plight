@@ -1,0 +1,169 @@
+{% extends 'layout.html' %}
+
+{% block title %}Legion Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    body {
+        background: #081221 url('{{ url_for("static", filename="img/strategy.gif") }}') repeat fixed center;
+        background-size: cover;
+    }
+    .legion-container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+        background: rgba(10, 20, 30, 0.9);
+        border-radius: 8px;
+        color: #cfd2d6;
+        box-shadow: 0 4px 20px rgba(0, 123, 255, 0.5);
+    }
+    .legion-icon {
+        width: 100px; /* Adjust size as needed */
+        height: 100px;
+        margin: 20px auto;
+        display: block;
+        background-image: url('https://armoria.herokuapp.com/?size=500&format=png&coa={{ legion.coa_string }}');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+    .section {
+        margin-bottom: 20px;
+    }
+    .section-header {
+        color: #ffcc00; /* Gold color for headers */
+        margin-bottom: 10px;
+    }
+    .member, .leader {
+        padding: 10px;
+        border-radius: 5px;
+        background: rgba(13, 25, 40, 0.95);
+        margin-bottom: 5px;
+        cursor: pointer;
+    }
+    .leader {
+        background: rgba(25, 40, 55, 0.95); /* Slightly different background for leaders */
+    }
+    .units-collapse {
+        display: none;
+        background: rgba(8, 16, 25, 0.9);
+        border-radius: 5px;
+        padding: 10px;
+        margin-top: 5px;
+    }
+    .unit-info {
+        color: #80d4ff;
+        margin-bottom: 5px;
+    }
+    .edit-icon {
+        cursor: pointer;
+        color: #ffcc00;
+        margin-left: 10px;
+    }
+    .hidden {
+        display: none;
+    }
+</style>
+<script src="{{ url_for('static', filename='js/all.min.js') }}"></script>
+
+<div class="legion-container">
+    <div class="legion-icon">
+        <img src="https://armoria.herokuapp.com/?size=500&format=png&coa={{ legion.coa_string }}" alt="Legion Emblem" style="width: 100px; height: 100px;">
+        {% if current_user_legion.role == 'leader' %}
+            <i class="fas fa-edit edit-icon" onclick="toggleEdit('coa-form')"></i>
+            <div id="coa-form" class="hidden">
+                <form action="{{ url_for('update_legion_coa', legion_id=legion.id) }}" method="post">
+                    <input type="text" name="coa_string" placeholder="Enter new COA string" required>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit">Update</button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+    <h1>{{ legion.name }}
+        {% if current_user_legion.role == 'leader' %}
+            <i class="fas fa-edit edit-icon" onclick="toggleEdit('name-form')"></i>
+        {% endif %}
+    </h1>
+    <div id="name-form" class="hidden">
+        <form action="{{ url_for('update_legion_name', legion_id=legion.id) }}" method="post">
+            <input type="text" name="name" value="{{ legion.name }}" required>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit">Update</button>
+        </form>
+    </div>
+    <p>{{ legion.description }}
+        {% if current_user_legion.role == 'leader' %}
+            <i class="fas fa-edit edit-icon" onclick="toggleEdit('desc-form')"></i>
+        {% endif %}
+    </p>
+    <div id="desc-form" class="hidden">
+        <form action="{{ url_for('update_legion_description', legion_id=legion.id) }}" method="post">
+            <textarea name="description" rows="4" required>{{ legion.description }}</textarea>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit">Update</button>
+        </form>
+    </div>
+    <p>Members: {{ legion.legion_members|length }}</p>
+    <p>Total Units: {{ total_units }}</p>
+
+    <div class="section">
+        <h2 class="section-header">Leaders</h2>
+        {% for member_link in legion.legion_members if member_link.role == 'leader' %}
+        <div class="leader" onclick="toggleUnits('units-{{ member_link.user.id }}')">
+            {{ member_link.user.username }}
+            <div id="units-{{ member_link.user.id }}" class="units-collapse">
+                {% for unit in member_link.user.user_units %}
+                <div class="unit-info">
+                    <strong>{{ unit.custom_name }} - Type: {{ unit.template.unit_type }}</strong><br>
+                    <i class="fas fa-shield-alt"></i><span class="icon-text">Armor: {{ unit.armor }}</span>
+                    <i class="fas fa-tachometer-alt"></i><span class="icon-text">Speed: {{ unit.speed }}</span>
+                    <i class="fas fa-ruler-horizontal"></i><span class="icon-text">Range: {{ unit.range }}</span>
+                    <i class="fas fa-fighter-jet"></i><span class="icon-text">FS: {{ unit.fs }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="section">
+        <h2 class="section-header">Members</h2>
+        {% for member_link in legion.legion_members if member_link.role == 'member' %}
+        <div class="member" onclick="toggleUnits('units-{{ member_link.user.id }}')">
+            {{ member_link.user.username }}
+            <div id="units-{{ member_link.user.id }}" class="units-collapse">
+                {% for unit in member_link.user.user_units %}
+                <div class="unit-info">
+                    <strong>{{ unit.custom_name }} - Type: {{ unit.template.unit_type }}</strong><br>
+                    <i class="fas fa-shield-alt"></i><span class="icon-text">Armor: {{ unit.armor }}</span>
+                    <i class="fas fa-tachometer-alt"></i><span class="icon-text">Speed: {{ unit.speed }}</span>
+                    <i class="fas fa-ruler-horizontal"></i><span class="icon-text">Range: {{ unit.range }}</span>
+                    <i class="fas fa-fighter-jet"></i><span class="icon-text">FS: {{ unit.fs }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function toggleUnits(id) {
+    var element = document.getElementById(id);
+    if (element.style.display === 'block') {
+        element.style.display = 'none';
+    } else {
+        element.style.display = 'block';
+    }
+}
+function toggleEdit(formId) {
+    var form = document.getElementById(formId);
+    if (form.style.display === 'none' || form.style.display === '') {
+        form.style.display = 'block';
+    } else {
+        form.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

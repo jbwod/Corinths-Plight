@@ -1,0 +1,55 @@
+{% extends 'layout.html' %}
+
+{% block title %}Create Legion{% endblock %}
+
+{% block content %}
+<style>
+    .form-container {
+        max-width: 600px;
+        background: rgba(10, 20, 30, 0.9);
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px auto;
+        box-shadow: 0 4px 20px rgba(0, 123, 255, 0.5);
+        color: #cfd2d6;
+    }
+
+    input, textarea {
+        width: 100%;
+        padding: 10px;
+        margin-top: 8px;
+        border: 1px solid #007bff;
+        border-radius: 4px;
+        background-color: #081221;
+        color: #fff;
+    }
+
+    .btn {
+        width: 100%;
+        padding: 10px;
+        margin-top: 10px;
+        background-color: #007bff;
+        border: none;
+        border-radius: 4px;
+        color: white;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .btn:hover {
+        background-color: #0056b3;
+    }
+</style>
+<div class="form-container">
+    <h1>Create a New Legion</h1>
+    <form method="post">
+        <label for="name">Legion Name:</label>
+        <input type="text" id="name" name="name" required>
+
+        <label for="description">Description:</label>
+        <textarea id="description" name="description" rows="4"></textarea>
+
+        <button type="submit" class="btn">Create Legion</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,11 +1,22 @@
 from app import db
 from datetime import datetime
 from flask_login import UserMixin
+from sqlalchemy.orm import relationship
 
 unit_upgrades = db.Table('unit_upgrades',
     db.Column('unit_template_id', db.Integer, db.ForeignKey('unit_template.id'), primary_key=True),
     db.Column('upgrade_id', db.Integer, db.ForeignKey('upgrade.id'), primary_key=True)
 )
+class UserLegion(db.Model):
+    __tablename__ = 'user_legions'
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    legion_id = db.Column(db.Integer, db.ForeignKey('legion.id'), primary_key=True)
+    role = db.Column(db.String(100), nullable=False, default='member')
+    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Explicitly define the relationships with clear names
+    user = relationship("User", back_populates="user_legions")
+    legion = relationship("Legion", back_populates="legion_members")
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -15,8 +26,25 @@ class User(db.Model, UserMixin):
     sign_up_date = db.Column(db.DateTime, default=datetime.utcnow)
     user_units = db.relationship('UserUnit', backref='owner', lazy='dynamic')
 
+    # Adjust the back_populates to match the corrected relationship name
+    user_legions = relationship("UserLegion", back_populates="user")
+
+    def is_leader(self, legion_id):
+        return UserLegion.query.filter_by(user_id=self.id, legion_id=legion_id, role='leader').first() is not None
+
+class Legion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), unique=True, nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    coa_string = db.Column(db.String(512), nullable=True)  # New field for storing the COA string
+
+    # Adjust the back_populates to match the corrected relationship name
+    legion_members = relationship("UserLegion", back_populates="legion")
+
     def __repr__(self):
-        return f'<User {self.username}>'
+        return f'<Legion {self.name}>'
+
 
 class UnitTemplate(db.Model):
     id = db.Column(db.Integer, primary_key=True)

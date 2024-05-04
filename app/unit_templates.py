@@ -1,5 +1,5 @@
 from app import app, db
-from app.models import UnitTemplate
+from app.models import UnitTemplate, Legion, User, UserLegion
 
 
 def updateTemplates():
@@ -251,9 +251,26 @@ def updateTemplates():
 
     db.session.add_all(infantry_units)
     db.session.add_all(vehicle_units)
-    db.session.add_all(mech_units)
+    #db.session.add_all(mech_units)
     db.session.add_all(aerial_units)
     db.session.add_all(artillery_units)
-    db.session.add_all(orbital_units)
+    #db.session.add_all(orbital_units)
     db.session.commit()
 
+
+def legionTemplates():
+    user = User(username='test', password='test', email='test@test.com')
+    user1 = User(username='test1', password='test1', email='test1@test.com')
+    db.session.add_all([user, user1])
+    db.session.commit()
+
+    legion = Legion(name='Test Legion', description='A test legion for debugging.')
+    db.session.add(legion)
+    db.session.commit()
+
+    user_legion_link = UserLegion(user_id=user.id, legion_id=legion.id, role='leader')
+    user_legion_link1 = UserLegion(user_id=user1.id, legion_id=legion.id, role='member')
+    db.session.add_all([user_legion_link, user_legion_link1])
+    db.session.commit()
+
+    print("Test Legion and user setup complete.")

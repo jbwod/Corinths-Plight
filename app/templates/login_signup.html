@@ -22,6 +22,7 @@
         {% endif %}
     {% endwith %}
     <form action="{{ url_for('signup_user') }}" method="post" class="auth-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="text" placeholder="Username" name="setusername" required>
         <input type="email" placeholder="Email" name="setemail" required>
         <input type="password" placeholder="Password" name="createpassword" required>
@@ -31,6 +32,7 @@
 
     <h2>Login</h2>
     <form action="{{ url_for('handle_login') }}" method="post" class="auth-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <input type="text" placeholder="Username" name="username" required>
         <input type="password" placeholder="Password" name="password" required>
         <button type="submit" class="btn">Login</button>
