@@ -97,7 +97,9 @@
     /* New Section: Dynamic Campaigns */
     .dynamic-campaigns {
         padding: 80px 0;
-        background: linear-gradient(to bottom, #081221, #162233 100%);
+        background: linear-gradient( rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8) ), url('{{ url_for("static", filename="img/outbound.gif") }}');
+        background-size: cover;
+        background-position: center -56%;
         text-align: center;
         color: #fff;
     }

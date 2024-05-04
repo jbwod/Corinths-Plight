@@ -32,6 +32,15 @@
         {% block content %}{% endblock %}
     </main>
     <footer>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <ul class="alerts">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
         <p>&copy; {{ current_year }} Qnetica. All rights reserved.</p>
     </footer>
     <script>
