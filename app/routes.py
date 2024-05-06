@@ -1,10 +1,12 @@
 from flask import render_template, request, redirect, url_for, jsonify, flash
 from flask_login import login_required, current_user, logout_user
 from flask_login import login_user
+from flask_paginate import get_page_parameter, Pagination
 from functools import wraps
 from app import app, db
 from app.models import User, UnitTemplate, UserUnit, Upgrade, Legion, UserLegion
 from sqlalchemy import inspect
+from secrets import token_urlsafe
 import json
 
 @app.route('/')
@@ -151,7 +153,22 @@ def logout():
     flash('You have been logged out')
     return redirect(url_for('login_signup'))
 
+@app.route('/legion_directory')
+def legion_directory():
+    search_query = request.args.get('search', '', type=str)
+    page = request.args.get(get_page_parameter(), type=int, default=1)
 
+    # Query for preset legions to display at the top
+    preset_legions = Legion.query.filter(Legion.id.in_([1, 2, 3])).all()  # Adjust IDs based on your presets
+
+    # Query for public legions considering the search query
+    legions_query = Legion.query.filter(Legion.is_public == True)
+    if search_query:
+        legions_query = legions_query.filter(Legion.name.ilike(f'%{search_query}%'))
+
+    legions = legions_query.paginate(page=page, per_page=10, error_out=False)
+
+    return render_template('legion_directory.html', legions=legions, preset_legions=preset_legions, search_query=search_query)
 
 @app.route('/legion_dashboard/<int:legion_id>')
 @login_required
@@ -170,57 +187,6 @@ def legion_dashboard(legion_id):
     total_units = sum(len(member_link.user.user_units.all()) for member_link in legion.legion_members)
 
     return render_template('legion_dashboard.html', legion=legion, total_units=total_units, current_user_legion=current_user_legion)
-
-@app.route('/promote_member/<int:legion_id>/<int:user_id>', methods=['POST'])
-@login_required
-def promote_member(legion_id, user_id):
-    # Check if the current user is a leader in the legion
-    user_legion_link = UserLegion.query.filter_by(legion_id=legion_id, user_id=current_user.id).first()
-    if not user_legion_link or user_legion_link.role != 'leader':
-        return jsonify({'success': False, 'message': 'You do not have permission to promote members.'}), 403
-
-    # Fetch the user_legion link of the member to be promoted
-    member_to_promote = UserLegion.query.filter_by(legion_id=legion_id, user_id=user_id).first()
-    if member_to_promote:
-        member_to_promote.role = 'leader'
-        db.session.commit()
-        return jsonify({'success': True, 'message': 'Member promoted successfully.'})
-    else:
-        return jsonify({'success': False, 'message': 'Member not found'}), 404
-
-@app.route('/demote_member/<int:legion_id>/<int:user_id>', methods=['POST'])
-@login_required
-def demote_member(legion_id, user_id):
-    # Check if the current user is a leader in the legion
-    user_legion_link = UserLegion.query.filter_by(legion_id=legion_id, user_id=current_user.id).first()
-    if not user_legion_link or user_legion_link.role != 'leader':
-        return jsonify({'success': False, 'message': 'You do not have permission to demote members.'}), 403
-
-    # Fetch the user_legion link of the member to be demoted
-    member_to_demote = UserLegion.query.filter_by(legion_id=legion_id, user_id=user_id).first()
-    if member_to_demote:
-        member_to_demote.role = 'member'
-        db.session.commit()
-        return jsonify({'success': True, 'message': 'Member demoted successfully.'})
-    else:
-        return jsonify({'success': False, 'message': 'Member not found'}), 404
-
-@app.route('/remove_member/<int:legion_id>/<int:user_id>', methods=['POST'])
-@login_required
-def remove_member(legion_id, user_id):
-    # Check if the current user is a leader in the legion
-    user_legion_link = UserLegion.query.filter_by(legion_id=legion_id, user_id=current_user.id).first()
-    if not user_legion_link or user_legion_link.role != 'leader':
-        return jsonify({'success': False, 'message': 'You do not have permission to remove members.'}), 403
-
-    # Fetch the user_legion link of the member to be removed
-    member_to_remove = UserLegion.query.filter_by(legion_id=legion_id, user_id=user_id).first()
-    if member_to_remove:
-        db.session.delete(member_to_remove)
-        db.session.commit()
-        return jsonify({'success': True, 'message': 'Member removed successfully.'})
-    else:
-        return jsonify({'success': False, 'message': 'Member not found'}), 404
 
 
 @app.route('/update_legion_coa/<int:legion_id>', methods=['POST'])
@@ -256,3 +222,21 @@ def update_legion_description(legion_id):
     flash('Legion description updated successfully!', 'success')
     return redirect(url_for('legion_dashboard', legion_id=legion_id))
 
+@app.route('/toggle_public_status/<int:legion_id>', methods=['POST'])
+@login_required
+def toggle_public_status(legion_id):
+    legion = Legion.query.get_or_404(legion_id)
+    if current_user.is_leader(legion_id):
+        legion.toggle_public()
+        return jsonify(success=True, message="Legion status updated.")
+    return jsonify(success=False, message="Not authorized."), 403
+
+@app.route('/regenerate_invite_code/<int:legion_id>', methods=['POST'])
+@login_required
+def regenerate_invite_code(legion_id):
+    legion = Legion.query.get_or_404(legion_id)
+    if current_user.is_leader(legion_id) and legion.is_public:
+        legion.invite_code = token_urlsafe(16)
+        db.session.commit()
+        return jsonify(success=True, new_code=legion.invite_code)
+    return jsonify(success=False, message="Not authorized."), 403

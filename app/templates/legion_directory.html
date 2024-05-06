@@ -1,0 +1,59 @@
+{% extends 'layout.html' %}
+
+{% block title %}Legion Directory{% endblock %}
+
+{% block content %}
+<style>
+       body {
+        background: #081221 url('{{ url_for("static", filename="img/move.gif") }}') no-repeat center center;
+        background-size: cover;
+    }
+</style>
+<div class="profile-container">
+    <h1>Legion Directory</h1>
+
+    <!-- Search form -->
+    <div class="form-container" style="width: 100%; max-width: 500px;">
+        <form action="{{ url_for('legion_directory') }}" method="get">
+            <input type="text" name="search" placeholder="Search for Legions..." value="{{ request.args.get('search', '') }}">
+            <button type="submit" class="btn">Search</button>
+        </form>
+    </div>
+
+    <!-- Preset Legions -->
+    <div class="section">
+        <h2>Preset Legions</h2>
+        <div class="legion-grid">
+            {% for legion in preset_legions %}
+            <div class="legion-entry">
+                <img src="https://armoria.herokuapp.com/?size=500&format=png&coa={{ legion.coa_string }}" class="legion-icon">
+                <h3>{{ legion.name }}</h3>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Public Legions -->
+    <div class="section">
+        <h2>Public Legions</h2>
+        <div class="legion-grid">
+            {% for legion in legions.items %}
+            <div class="legion-entry">
+                <img src="https://armoria.herokuapp.com/?size=500&format=png&coa={{ legion.coa_string }}" class="legion-icon">
+                <h3>{{ legion.name }}</h3>
+                <p>Members: {{ legion.legion_members|length }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        <!-- Pagination -->
+        {% if legions.pages > 1 %}
+        <div class="pagination">
+            {% for page in legions.iter_pages() %}
+            <a href="{{ url_for('legion_directory', page=page) }}" class="btn">{{ page }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

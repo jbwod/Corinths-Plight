@@ -15,6 +15,7 @@
                 <li><a href="{{ url_for('index') }}">Home</a></li>
                 <li><a href="{{ url_for('profile') }}">Profile</a></li>
                 <li><a href="{{ url_for('my_units') }}">My Units</a></li>
+                <li><a href="{{ url_for('legion_directory') }}">Legion Directory</a></li>
                 {% if current_user.is_authenticated %}
                 {% if current_user.user_legions %}
                     <li><a href="{{ url_for('legion_dashboard', legion_id=current_user.user_legions[0].legion_id) }}">My Legion</a></li>

@@ -2,6 +2,7 @@ from app import db
 from datetime import datetime
 from flask_login import UserMixin
 from sqlalchemy.orm import relationship
+from secrets import token_urlsafe
 
 unit_upgrades = db.Table('unit_upgrades',
     db.Column('unit_template_id', db.Integer, db.ForeignKey('unit_template.id'), primary_key=True),
@@ -42,8 +43,19 @@ class Legion(db.Model):
     # Adjust the back_populates to match the corrected relationship name
     legion_members = relationship("UserLegion", back_populates="legion")
 
+    is_public = db.Column(db.Boolean, default=True)  # Indicates if the legion is public
+    invite_code = db.Column(db.String(120), nullable=True)  # Invite code required for joining private legions
+
     def __repr__(self):
         return f'<Legion {self.name}>'
+
+    def toggle_public(self):
+        self.is_public = not self.is_public
+        if self.is_public:
+            self.invite_code = token_urlsafe(16)
+        else:
+            self.invite_code = None
+        db.session.commit()
 
 
 class UnitTemplate(db.Model):

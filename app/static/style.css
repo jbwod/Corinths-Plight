@@ -117,12 +117,168 @@ footer {
     width: 100%;
 }
 
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px;
+}
+
+.pagination a {
+    text-decoration: none;
+    color: #4ED1F7;
+    background: #081221;
+    padding: 10px 15px;
+    border-radius: 5px;
+}
+
+.pagination a:hover {
+    background: #007bff;
+    color: white;
+}
+
 .alerts {
     list-style: none;
     margin: 10px 0;
     padding: 10px;
     background: #162233;
     border-left: 5px solid #ff4757;
+}
+
+
+/* Profile Page Styles */
+.profile-container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 20px;
+    background: rgba(10, 20, 30, 0.8);
+    border-radius: 8px;
+    color: #cfd2d6;
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.5);
+}
+
+h1 {
+    color: #4ED1F7;
+    margin-bottom: 10px;
+}
+
+p {
+    margin-bottom: 20px;
+}
+
+.btn {
+    background-color: #007bff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    color: white;
+    transition: background-color 0.3s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn:hover {
+    background-color: #0056b3;
+}
+
+.dashboard {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+}
+
+.section {
+    background: rgba(13, 25, 40, 0.9);
+    padding: 20px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+.stats, .guild-summary, .unit-summary {
+    border: 1px solid #007bff;
+    padding: 15px;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+.stats h2, .unit-summary h2, .guild-summary h2 {
+    color: #80d4ff;
+    margin-bottom: 10px;
+}
+
+.stats p, .unit-summary p, .guild-summary p {
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+
+/* Legion Page Styles */
+/* Legion Dashboard Styles */
+.legion-container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 20px;
+    background: rgba(10, 20, 30, 0.9);
+    border-radius: 8px;
+    color: #cfd2d6;
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.5);
+}
+
+.legion-icon {
+    width: 100px;
+    height: 100px;
+    display: block;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.section {
+    margin-bottom: 20px;
+}
+
+.section-header {
+    color: #ffcc00; /* Gold color for headers */
+    margin-bottom: 10px;
+}
+
+.member, .leader {
+    padding: 10px;
+    border-radius: 5px;
+    background: rgba(13, 25, 40, 0.95);
+    margin-bottom: 5px;
+    cursor: pointer;
+}
+
+.leader {
+    background: rgba(25, 40, 55, 0.95);
+}
+
+.units-collapse {
+    display: none;
+    background: rgba(8, 16, 25, 0.9);
+    border-radius: 5px;
+    padding: 10px;
+    margin-top: 5px;
+}
+
+.unit-info {
+    color: #80d4ff;
+    margin-bottom: 5px;
+}
+
+.edit-icon {
+    cursor: pointer;
+    color: #ffcc00;
+    margin-left: 10px;
+}
+
+.hidden {
+    display: none;
+}
+
+.icon-text {
+    padding-left: 5px;
 }
 
 @media (max-width: 768px) {
@@ -134,4 +290,293 @@ footer {
     .form-container {
         width: 90%;
     }
+}
+
+
+/* My Units Page Styles */
+.unit {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 30px;
+    justify-content: center;
+    align-items: stretch;
+}
+
+.unit li {
+    background: linear-gradient(145deg, #112233, #192844);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 100, 255, 0.5);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    color: #cfd2d6;
+}
+
+.unit li:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 12px 40px rgba(0, 100, 255, 0.8);
+}
+
+.unit-info {
+    padding: 20px;
+    font-size: 1rem;
+}
+
+.unit-info strong {
+    color: #80d4ff;
+    font-size: 1.4em;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.unit-info p {
+    margin: 10px 0;
+    line-height: 1.4;
+}
+
+.unit-actions {
+    display: flex;
+    justify-content: space-evenly;
+    padding: 10px;
+    background: rgba(10, 20, 30, 0.9);
+    border-top: 1px solid #007bff;
+    margin-top: auto;
+}
+
+.unit-actions a {
+    background-color: #007bff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    color: white;
+    text-decoration: none;
+    transition: background-color 0.3s, transform 0.3s;
+    font-size: 0.9em;
+}
+
+.unit-actions a:hover {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+}
+
+.created-at {
+    text-align: right;
+    font-style: italic;
+    font-size: 0.8em;
+    opacity: 0.8;
+}
+
+
+/* Hero Section */
+.hero {
+    background: #081221 url('{{ url_for("static", filename="img/outbound.gif") }}');
+    background-size: cover;
+    color: #fff;
+    text-align: center;
+    padding: 150px 0;
+    background-position: center center;
+}
+
+.hero-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.hero h1 {
+    font-size: 48px;
+    margin-bottom: 30px;
+}
+
+.hero p {
+    font-size: 20px;
+    margin-bottom: 40px;
+}
+
+.hero a.btn {
+    background-color: #007bff;
+    border: none;
+    color: white;
+    padding: 12px 24px;
+    font-size: 18px;
+    border-radius: 5px;
+    transition: background-color 0.3s, transform 0.3s;
+}
+
+.hero a.btn:hover {
+    background-color: #0056b3;
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,123,255,0.6);
+}/* Features Section */
+.features {
+    padding: 80px 0;
+    display: flex;
+    justify-content: space-around;
+    align-items: stretch; /* Align items to stretch to fill the container */
+    flex-wrap: wrap;
+}
+
+.feature-item {
+    display: flex;
+    flex-direction: column; /* Stack image and text vertically */
+    align-items: center; /* Center-align the content */
+    justify-content: center; /* Center content vertically */
+    text-align: center;
+    flex: 1 1 200px; /* Ensure items take up equal space and wrap when necessary */
+    margin: 20px;
+    min-height: 300px; /* Minimum height to ensure alignment in case of less content */
+}
+
+.feature-item img {
+    display: block; /* Ensures the image is centered in its container */
+    margin: auto; /* Centers the image horizontally */
+    width: 200px;
+    height: 150px;
+    object-fit: contain; /* Background color to fill any empty space */
+}
+
+
+.feature-item h2 {
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+.feature-item p {
+    font-size: 18px;
+}
+
+
+/* Emergent Gameplay Section */
+.emergent-gameplay {
+    background: #162233;
+    color: #fff;
+    padding: 80px 0;
+    text-align: center;
+}
+
+.emergent-gameplay h2 {
+    font-size: 36px;
+    margin-bottom: 20px;
+}
+
+.emergent-gameplay p {
+    font-size: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* New Section: Dynamic Campaigns */
+.dynamic-campaigns {
+    padding: 80px 0;
+    background: linear-gradient( rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8) ), url('/img/outbound.gif');
+    background-size: cover;
+    background-position: center -56%;
+    text-align: center;
+    color: #fff;
+}
+
+.dynamic-campaigns h2 {
+    font-size: 36px;
+    margin-bottom: 20px;
+}
+
+.dynamic-campaigns p {
+    font-size: 18px;
+    max-width: 800px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+
+.legion-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+}
+
+.legion-entry {
+    background: rgba(10, 20, 30, 0.9);
+    padding: 15px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.legion-icon {
+    width: 50px; /* Adjust size as needed */
+    height: 50px;
+    border-radius: 50%;
+    background-size: cover;
+}
+
+h3 {
+    margin: 0;
+    font-size: 1.2em; /* Adjust size as needed */
+    color: #cfd2d6;
+}
+
+/* Existing styles for .profile-container, .form-container, etc., remain unchanged */
+
+.legion-dashboard-container {
+    max-width: 1200px;
+    margin: 20px auto;
+    background: rgba(10, 20, 30, 0.9);
+    padding: 20px;
+    border-radius: 8px;
+    color: #cfd2d6;
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.5);
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    align-items: start;
+}
+
+.header-section {
+    display: flex;
+    justify-content: space-between;
+}
+
+.legion-logo {
+    width: 100px;
+    height: 100px;
+}
+
+.legion-name-toggle {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.toggle-public-container {
+    position: relative;
+}
+
+.toggle-public-container button {
+    display: none;
+    background-color: #007bff;
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.toggle-public-container:hover button {
+    display: block;
+}
+
+.legion-description {
+    grid-column: 1 / -1; /* Spans full width */
+    padding: 10px;
+    background: rgba(8, 16, 25, 0.9);
+    border-radius: 5px;
+    margin-top: 20px;
+}
+
+.legion-members {
+    grid-column: 1 / -1; /* Spans full width */
+    margin-top: 20px;
 }
