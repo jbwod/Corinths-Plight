@@ -235,7 +235,7 @@ def toggle_public_status(legion_id):
 @login_required
 def regenerate_invite_code(legion_id):
     legion = Legion.query.get_or_404(legion_id)
-    if current_user.is_leader(legion_id) and legion.is_public:
+    if current_user.is_leader(legion_id) and not legion.is_public:
         legion.invite_code = token_urlsafe(16)
         db.session.commit()
         return jsonify(success=True, new_code=legion.invite_code)

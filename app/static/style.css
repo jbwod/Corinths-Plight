@@ -92,6 +92,16 @@ input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focu
     background-color: #012749;
 }
 
+textarea[type="description"] {
+    background-color: #082233;
+    border: none;
+    border-bottom: 2px solid #007bff;
+    padding: 10px;
+    color: #ffffff;
+    transition: border-color 0.3s;
+}
+
+
 button.btn {
     background-color: #006fdb;
     border: none;
@@ -177,7 +187,23 @@ p {
     display: inline-block;
 }
 
+.pub-btn {
+    background-color: #007bff;
+    border: none;
+    padding: 5px 5px;
+    border-radius: 4px;
+    color: white;
+    transition: background-color 0.3s;
+    text-decoration: none;
+    display: inline-block;
+}
+
 .btn:hover {
+    background-color: #0056b3;
+}
+
+
+.pub-btn:hover {
     background-color: #0056b3;
 }
 
@@ -528,7 +554,6 @@ h3 {
     border-radius: 8px;
     color: #cfd2d6;
     box-shadow: 0 4px 20px rgba(0, 123, 255, 0.5);
-    display: grid;
     grid-template-columns: 1fr 2fr;
     align-items: start;
 }
