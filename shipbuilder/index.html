@@ -1,17 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Ship Builder</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Corvette Configurator</title>
+<style>
+    #imageDisplay {
+        width: 500px;
+        height: auto;
+    }
+</style>
 </head>
 <body>
-    <div id="componentsLibrary" style="position: absolute; left: 0; top: 0; width: 200px; height: 100%; overflow-y: auto; background: #ccc;">
-        <!-- Components will be dynamically populated here -->
-    </div>
-    <canvas id="pixiCanvas"></canvas>
+<h1>Corvette Configurator</h1>
+<form>
+    <h2>Select First External Equipment:</h2>
+    <input type="radio" id="scanning" name="firstEquip" value="scan">
+    <label for="scanning">Scanning System</label><br>
+    <input type="radio" id="rapidFire" name="firstEquip" value="rapid">
+    <label for="rapidFire">Rapid Fire Anti-Air Cannons</label><br>
+    <input type="radio" id="rail" name="firstEquip" value="rail">
+    <label for="rail">Rail Cannon</label><br>
+    <input type="radio" id="orbitalBombardment" name="firstEquip" value="orbital">
+    <label for="orbitalBombardment">Orbital Bombardment Cannons</label><br>
+    <input type="radio" id="laser" name="firstEquip" value="laser">
+    <label for="laser">Orbital Laser</label><br>
+    <input type="radio" id="broadside" name="firstEquip" value="broad">
+    <label for="broadside">Broadside Cannons</label><br>
+    <input type="radio" id="drop" name="firstEquip" value="drop">
+    <label for="drop">Orbital Structure Drop</label><br>
+    <input type="radio" id="vtol" name="firstEquip" value="hang">
+    <label for="vtol">VTOL Bay</label><br>
 
-    <script src="https://pixijs.download/v5.3.7/pixi.min.js"></script>
+    <h2>Select Second External Equipment:</h2>
+    <input type="radio" id="scanning" name="secondEquip" value="scan">
+    <label for="scanning">Scanning System</label><br>
+    <input type="radio" id="rapidFire" name="secondEquip" value="rapid">
+    <label for="rapidFire">Rapid Fire Anti-Air Cannons</label><br>
+    <input type="radio" id="rail" name="secondEquip" value="rail">
+    <label for="rail">Rail Cannon</label><br>
+    <input type="radio" id="orbitalBombardment" name="secondEquip" value="orbital">
+    <label for="orbitalBombardment">Orbital Bombardment Cannons</label><br>
+    <input type="radio" id="laser" name="secondEquip" value="laser">
+    <label for="laser">Orbital Laser</label><br>
+    <input type="radio" id="broadside" name="secondEquip" value="broad">
+    <label for="broadside">Broadside Cannons</label><br>
+    <input type="radio" id="drop" name="secondEquip" value="drop">
+    <label for="drop">Orbital Structure Drop</label><br>
+    <input type="radio" id="vtol" name="secondEquip" value="hang">
+    <label for="vtol">VTOL Bay</label><br>
 
-    <script src="shipBuilder.js" defer></script>
+</form>
+
+<img id="imageDisplay" src="sprites/ship_template/corvette/corvette.png" alt="Corvette Image">
+
+<script>
+document.querySelectorAll('input').forEach(item => {
+    item.addEventListener('change', updateImage);
+});
+
+function updateImage() {
+    const firstEquip = document.querySelector('input[name="firstEquip"]:checked')?.value;
+    const secondEquip = document.querySelector('input[name="secondEquip"]:checked')?.value;
+    if (firstEquip && secondEquip) {
+        const imageName = `corvette_${firstEquip}_${secondEquip}.png`;
+        const altImageName = `corvette_${secondEquip}_${firstEquip}.png`;
+        const imagePath = `sprites/ship_template/corvette/${imageName}`;
+        const altImagePath = `sprites/ship_template/corvette/${altImageName}`;
+        fetch(imagePath)
+            .then(response => {
+                if (response.ok) {
+                    document.getElementById('imageDisplay').src = imagePath;
+                } else {
+                    fetch(altImagePath)
+                        .then(response => {
+                            if (response.ok) {
+                                document.getElementById('imageDisplay').src = altImagePath;
+                            } else {
+                                document.getElementById('imageDisplay').src = 'sprites/ship_template/corvette/corvette.png';
+                            }
+                        })
+                        .catch(() => {
+                            document.getElementById('imageDisplay').src = 'sprites/ship_template/corvette/corvette.png';
+                        });
+
+                }
+            })
+            .catch(() => {
+                document.getElementById('imageDisplay').src = 'sprites/ship_template/corvette/corvette.png';
+            });
+
+    }
+}
+</script>
 </body>
 </html>
