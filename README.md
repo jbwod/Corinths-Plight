@@ -1,5 +1,6 @@
 # Corinth's Plight
 Welcome to the official repository for Corinth's Plight, a real-time strategy war game set in a sprawling sci-fi universe where every action and order unfolds in real time, spanning actual days to complete. Inspired by games like Helldivers and Neptunes Pride - Corinth's Plight offers deep strategic gameplay featuring infantry, vehicles, and orbital units, set against a backdrop of emergent gameplay dynamics.
+![image](https://github.com/QuamCode/Corinths-Plight/assets/36869195/4866a56d-f97e-4933-ac66-d57a899a36f1)
 
 # Game Overview
 In Corinth's Plight, players command forces in a dynamically evolving galaxy where strategy and tactics are not just about the heat of the moment, but about long-term planning and foresight. Every decision, from deploying troops to launching interstellar assaults, takes place in real-world time, making anticipation and prediction of enemy moves critical to capturing territories and achieving victory.
