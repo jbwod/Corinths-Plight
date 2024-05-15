@@ -1,12 +1,14 @@
 # Corinth's Plight
 Welcome to the official repository for Corinth's Plight, a real-time strategy war game set in a sprawling sci-fi universe where every action and order unfolds in real time, spanning actual days to complete. Inspired by games like Helldivers and Neptunes Pride - Corinth's Plight offers deep strategic gameplay featuring infantry, vehicles, and orbital units, set against a backdrop of emergent gameplay dynamics.
-![image](https://github.com/QuamCode/Corinths-Plight/assets/36869195/4866a56d-f97e-4933-ac66-d57a899a36f1)
-![image](https://github.com/QuamCode/Corinths-Plight/assets/36869195/3c4e5a43-81e0-4be4-ad94-89f545160132)
+![image](https://github.com/QuamCode/Corinths-Plight/assets/36869195/42edde12-58e0-4f49-a280-f89aa394e6ca)
 
 
 # Game Overview
 In Corinth's Plight, players command forces in a dynamically evolving galaxy where strategy and tactics are not just about the heat of the moment, but about long-term planning and foresight. Every decision, from deploying troops to launching interstellar assaults, takes place in real-world time, making anticipation and prediction of enemy moves critical to capturing territories and achieving victory.
+![image](https://github.com/QuamCode/Corinths-Plight/assets/36869195/682d7db2-860b-4bf1-9cb0-2da995e94f62)
+
 ![Screenshot 2024-05-02 220530](https://github.com/QuamCode/Corinths-Plight/assets/36869195/8d302d4a-dd61-4ea9-ab8e-65c39b104462)
+![image](https://github.com/QuamCode/Corinths-Plight/assets/36869195/e17a3184-0eae-4bae-8278-bef2b62286fb)
 
 # Features
 - "Real" Real-Time Strategy: Every order and action takes real-life days to execute, mimicking the command and control challenges of real-world military operations.
@@ -21,4 +23,5 @@ In Corinth's Plight, players command forces in a dynamically evolving galaxy whe
 
 You control one piece on the game board in a dynamic multiplayer environment where you all each contribute to the state of the game.
 
-![image](https://github.com/QuamCode/Corinths-Plight/assets/36869195/e17a3184-0eae-4bae-8278-bef2b62286fb)
+
+![image](https://github.com/QuamCode/Corinths-Plight/assets/36869195/0c106648-60f2-496e-88c1-77c15c84636f)
