@@ -1,55 +1,350 @@
 {% extends 'layout.html' %}
 
-{% block title %}Create Legion{% endblock %}
+{% block title %}Create Legion - Corinth's Plight{% endblock %}
 
 {% block content %}
-<style>
-    .form-container {
-        max-width: 600px;
-        background: rgba(10, 20, 30, 0.9);
-        padding: 20px;
-        border-radius: 8px;
-        margin: 20px auto;
-        box-shadow: 0 4px 20px rgba(0, 123, 255, 0.5);
-        color: #cfd2d6;
-    }
+<div class="create-legion-page">
+    <!-- Hero Section -->
+    <section class="create-legion-hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title">Create a New Legion</h1>
+                <p class="hero-subtitle">Establish your military organization and lead your forces to victory</p>
+                <div class="hero-features">
+                    <div class="feature-item">
+                        <span class="feature-icon"><i class="fas fa-sword"></i></span>
+                        <span class="feature-text">Command Units</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon"><i class="fas fa-users"></i></span>
+                        <span class="feature-text">Recruit Members</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon"><i class="fas fa-trophy"></i></span>
+                        <span class="feature-text">Earn Glory</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
-    input, textarea {
-        width: 100%;
-        padding: 10px;
-        margin-top: 8px;
-        border: 1px solid #007bff;
-        border-radius: 4px;
-        background-color: #081221;
-        color: #fff;
-    }
+    <!-- Create Legion Form -->
+    <section class="create-legion-form">
+        <div class="container">
+            <div class="form-container">
+                <div class="form-header">
+                    <h2 class="form-title">Legion Information</h2>
+                    <p class="form-subtitle">Fill in the details for your new legion</p>
+                </div>
 
-    .btn {
-        width: 100%;
-        padding: 10px;
-        margin-top: 10px;
-        background-color: #007bff;
-        border: none;
-        border-radius: 4px;
-        color: white;
-        cursor: pointer;
-        transition: background-color 0.3s;
-    }
+                <form method="POST" id="createLegionForm" class="legion-form">
+                    {{ csrf_token() }}
+                    
+                    <!-- Basic Information -->
+                    <div class="form-section">
+                        <h3 class="section-title">
+                            <span class="section-icon">📝</span>
+                            Basic Information
+                        </h3>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="name" class="form-label">Legion Name *</label>
+                                <input type="text" id="name" name="name" class="form-input" 
+                                       placeholder="Enter your legion name" required>
+                                <small class="form-help">Choose a memorable and unique name for your legion</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="motto" class="form-label">Legion Motto</label>
+                                <input type="text" id="motto" name="motto" class="form-input" 
+                                       placeholder="Enter your legion motto">
+                                <small class="form-help">A short phrase that represents your legion</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="description" class="form-label">Description *</label>
+                            <textarea id="description" name="description" class="form-textarea" 
+                                      placeholder="Describe your legion's purpose, goals, and values" required></textarea>
+                            <small class="form-help">Tell others what your legion is about and what makes it special</small>
+                        </div>
+                    </div>
 
-    .btn:hover {
-        background-color: #0056b3;
-    }
-</style>
-<div class="form-container">
-    <h1>Create a New Legion</h1>
-    <form method="post">
-        <label for="name">Legion Name:</label>
-        <input type="text" id="name" name="name" required>
+                    <!-- Legion Identity -->
+                    <div class="form-section">
+                        <h3 class="section-title">
+                            <span class="section-icon"><i class="fas fa-users"></i></span>
+                            Legion Identity
+                        </h3>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="headquarters" class="form-label">Headquarters</label>
+                                <input type="text" id="headquarters" name="headquarters" class="form-input" 
+                                       placeholder="Enter headquarters location">
+                                <small class="form-help">Where is your legion based?</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="faction" class="form-label">Faction Alignment</label>
+                                <select id="faction" name="faction" class="form-select">
+                                    <option value="">Independent</option>
+                                    <option value="Imperial">Imperial</option>
+                                    <option value="Rebel">Rebel</option>
+                                    <option value="Mercenary">Mercenary</option>
+                                    <option value="Corporate">Corporate</option>
+                                    <option value="Religious">Religious</option>
+                                    <option value="Criminal">Criminal</option>
+                                </select>
+                                <small class="form-help">Choose your legion's faction alignment</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="coa_string" class="form-label">Coat of Arms</label>
+                            <input type="text" id="coa_string" name="coa_string" class="form-input" 
+                                   placeholder="Enter COA string from armoria.herokuapp.com">
+                            <small class="form-help">Create your legion's emblem at <a href="https://armoria.herokuapp.com" target="_blank">armoria.herokuapp.com</a></small>
+                            <div class="emblem-preview" id="emblemPreview">
+                                <div class="preview-placeholder">
+                                    <span class="preview-icon"><i class="fas fa-shield-alt"></i></span>
+                                    <span class="preview-text">Emblem Preview</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-        <label for="description">Description:</label>
-        <textarea id="description" name="description" rows="4"></textarea>
+                    <!-- Legion Settings -->
+                    <div class="form-section">
+                        <h3 class="section-title">
+                            <span class="section-icon"><i class="fas fa-cog"></i></span>
+                            Legion Settings
+                        </h3>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="max_members" class="form-label">Maximum Members</label>
+                                <input type="number" id="max_members" name="max_members" class="form-input" 
+                                       value="50" min="5" max="100">
+                                <small class="form-help">Maximum number of members allowed (5-100)</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="recruitment_status" class="form-label">Recruitment Status</label>
+                                <select id="recruitment_status" name="recruitment_status" class="form-select">
+                                    <option value="open">Open - Anyone can join</option>
+                                    <option value="invite_only">Invite Only - Requires invitation</option>
+                                    <option value="closed">Closed - No new members</option>
+                                </select>
+                                <small class="form-help">Control who can join your legion</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Legion Visibility</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="is_public" value="true" checked>
+                                    <span class="checkbox-custom"></span>
+                                    <span class="checkbox-text">Make legion visible in directory</span>
+                                </label>
+                                <small class="form-help">Public legions appear in the legion directory</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Recruitment Settings</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="allow_public_join" value="true" checked>
+                                    <span class="checkbox-custom"></span>
+                                    <span class="checkbox-text">Allow public joining</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="require_approval" value="true">
+                                    <span class="checkbox-custom"></span>
+                                    <span class="checkbox-text">Require leader approval for new members</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="auto_accept_invites" value="true" checked>
+                                    <span class="checkbox-custom"></span>
+                                    <span class="checkbox-text">Auto-accept invitations</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
 
-        <button type="submit" class="btn">Create Legion</button>
-    </form>
+                    <!-- Form Actions -->
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="previewLegion()">
+                            <span class="btn-icon"><i class="fas fa-eye"></i></span>
+                            <span class="btn-text">Preview Legion</span>
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <span class="btn-icon"><i class="fas fa-sword"></i></span>
+                            <span class="btn-text">Create Legion</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
 </div>
+
+<!-- Legion Preview Modal -->
+<div class="modal" id="legionPreviewModal">
+    <div class="modal-content legion-preview-modal">
+        <div class="modal-header">
+            <h2 class="modal-title">Legion Preview</h2>
+            <button class="modal-close" onclick="closeModal('legionPreviewModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="legionPreviewContent">
+                <!-- Preview content will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Create Legion JavaScript
+class CreateLegion {
+    constructor() {
+        this.initializeEventListeners();
+    }
+    
+    initializeEventListeners() {
+        // COA string input for live preview
+        document.getElementById('coa_string').addEventListener('input', (e) => {
+            this.updateEmblemPreview(e.target.value);
+        });
+        
+        // Form submission
+        document.getElementById('createLegionForm').addEventListener('submit', (e) => {
+            this.validateForm(e);
+        });
+        
+        // Close modal on outside click
+        document.getElementById('legionPreviewModal').addEventListener('click', (e) => {
+            if (e.target.id === 'legionPreviewModal') {
+                this.closeModal('legionPreviewModal');
+            }
+        });
+    }
+    
+    updateEmblemPreview(coaString) {
+        const preview = document.getElementById('emblemPreview');
+        
+        if (coaString.trim()) {
+            preview.innerHTML = `
+                <img src="https://armoria.herokuapp.com/?size=150&format=png&coa=${encodeURIComponent(coaString)}" 
+                     alt="Legion Emblem" class="emblem-image">
+            `;
+        } else {
+            preview.innerHTML = `
+                <div class="preview-placeholder">
+                    <span class="preview-icon"><i class="fas fa-shield-alt"></i></span>
+                    <span class="preview-text">Emblem Preview</span>
+                </div>
+            `;
+        }
+    }
+    
+    validateForm(e) {
+        const name = document.getElementById('name').value.trim();
+        const description = document.getElementById('description').value.trim();
+        
+        if (!name) {
+            e.preventDefault();
+            alert('Please enter a legion name');
+            return;
+        }
+        
+        if (!description) {
+            e.preventDefault();
+            alert('Please enter a legion description');
+            return;
+        }
+        
+        // Form is valid, allow submission
+    }
+    
+    previewLegion() {
+        const formData = new FormData(document.getElementById('createLegionForm'));
+        const preview = document.getElementById('legionPreviewContent');
+        
+        const legionData = {
+            name: formData.get('name') || 'Unnamed Legion',
+            motto: formData.get('motto') || '',
+            description: formData.get('description') || 'No description provided',
+            headquarters: formData.get('headquarters') || 'No Headquarters',
+            faction: formData.get('faction') || 'Independent',
+            coa_string: formData.get('coa_string') || '',
+            max_members: formData.get('max_members') || '50',
+            recruitment_status: formData.get('recruitment_status') || 'open',
+            is_public: formData.get('is_public') === 'true'
+        };
+        
+        preview.innerHTML = `
+            <div class="legion-preview-card">
+                <div class="preview-header">
+                    <div class="preview-emblem">
+                        ${legionData.coa_string ? 
+                            `<img src="https://armoria.herokuapp.com/?size=150&format=png&coa=${encodeURIComponent(legionData.coa_string)}" alt="Legion Emblem">` :
+                            `<div class="preview-placeholder"><span class="preview-icon"><i class="fas fa-shield-alt"></i></span></div>`
+                        }
+                    </div>
+                    <div class="preview-info">
+                        <h3>${legionData.name}</h3>
+                        ${legionData.motto ? `<p class="preview-motto">"${legionData.motto}"</p>` : ''}
+                        <div class="preview-meta">
+                            <span class="meta-item"><i class="fas fa-users"></i> ${legionData.headquarters}</span>
+                            <span class="meta-item"><i class="fas fa-sword"></i> ${legionData.faction}</span>
+                            <span class="meta-item"><i class="fas fa-users"></i> Max ${legionData.max_members} members</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="preview-content">
+                    <h4>Description</h4>
+                    <p>${legionData.description}</p>
+                    
+                    <h4>Settings</h4>
+                    <div class="preview-settings">
+                        <div class="setting-item">
+                            <span class="setting-label">Recruitment:</span>
+                            <span class="setting-value">${legionData.recruitment_status.replace('_', ' ').toUpperCase()}</span>
+                        </div>
+                        <div class="setting-item">
+                            <span class="setting-label">Visibility:</span>
+                            <span class="setting-value">${legionData.is_public ? 'PUBLIC' : 'PRIVATE'}</span>
+                        </div>
+                    </div>
+                </div>
+</div>
+        `;
+        
+        document.getElementById('legionPreviewModal').style.display = 'block';
+    }
+    
+    closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+}
+
+// Global functions
+function previewLegion() {
+    window.createLegion.previewLegion();
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    window.createLegion = new CreateLegion();
+});
+</script>
 {% endblock %}

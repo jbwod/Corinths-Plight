@@ -28,17 +28,15 @@ def login_required(f):
 def create_unit():
     if request.method == 'POST':
         # Extract data from form
-        # CONFIRM CSRF TOKEN
         unit_type_id = request.form.get('unit_type')
         custom_name = request.form.get('custom_name')
-        selected_upgrades = request.form.getlist('upgrades')
 
         # Create the unit
         new_unit = UserUnit(
             custom_name=custom_name,
             owner_id=current_user.id,
             template_id=unit_type_id,
-            applied_upgrades=json.dumps(selected_upgrades),
+            applied_upgrades=json.dumps([]),  # Empty upgrades list
             fs = UnitTemplate.query.get(unit_type_id).fs,
             armor = UnitTemplate.query.get(unit_type_id).armor,
             speed = UnitTemplate.query.get(unit_type_id).speed,
@@ -52,8 +50,7 @@ def create_unit():
         return redirect(url_for('my_units'))
 
     unit_templates = UnitTemplate.query.all()
-    upgrades = Upgrade.query.all()
-    return render_template('create_unit.html', unit_templates=unit_templates, upgrades=upgrades)
+    return render_template('create_unit.html', unit_templates=unit_templates)
 
 
 @app.route('/my_units')
@@ -63,7 +60,24 @@ def my_units():
     units = UserUnit.query.filter_by(owner_id=current_user.id).all()
     # unit template dictionary
     unit_templates = UnitTemplate.query.all()
-    return render_template('my_units.html', units=units, unit_templates=unit_templates)
+    
+    # Calculate category counts
+    infantry_count = len([u for u in units if 'Infantry' in u.template.unit_type or 'Unit' in u.template.unit_type])
+    vehicle_count = len([u for u in units if any(x in u.template.unit_type for x in ['Vehicle', 'Tank', 'Truck'])])
+    mech_count = len([u for u in units if 'Mech' in u.template.unit_type])
+    aircraft_count = len([u for u in units if any(x in u.template.unit_type for x in ['Aircraft', 'Fighter', 'Bomber', 'VTOL', 'Transport'])])
+    artillery_count = len([u for u in units if 'Artillery' in u.template.unit_type])
+    orbital_count = len([u for u in units if any(x in u.template.unit_type for x in ['Corvette', 'Destroyer', 'Cruiser', 'Battleship'])])
+    
+    return render_template('my_units.html', 
+                         units=units, 
+                         unit_templates=unit_templates,
+                         infantry_count=infantry_count,
+                         vehicle_count=vehicle_count,
+                         mech_count=mech_count,
+                         aircraft_count=aircraft_count,
+                         artillery_count=artillery_count,
+                         orbital_count=orbital_count)
 
 # @app.route('/create_unit')
 # @login_required
@@ -90,6 +104,29 @@ def get_unit_template(unit_type_id):
             'unit_type': unit_template.unit_type
         })
     return jsonify({'error': 'Unit template not found'}), 404
+
+@app.route('/api/unit-templates')
+def api_unit_templates():
+    unit_templates = UnitTemplate.query.all()
+    
+    return jsonify({
+        'unit_templates': [{
+            'id': unit.id,
+            'unit_type': unit.unit_type,
+            'description': unit.description,
+            'fs': unit.fs,
+            'armor': unit.armor,
+            'speed': unit.speed,
+            'range': unit.range,
+            'special_rules': unit.special_rules,
+            'primary_equipment_slots': unit.primary_equipment_slots,
+            'secondary_equipment_slots': unit.secondary_equipment_slots,
+            'internal_slots': unit.internal_slots,
+            'structure_build_list': unit.structure_build_list,
+            'logistic_needs': unit.logistic_needs,
+            'deployment_capabilities': unit.deployment_capabilities
+        } for unit in unit_templates]
+    })
 
 @app.route('/dossier')
 @login_required
@@ -167,8 +204,12 @@ def legion_directory():
         legions_query = legions_query.filter(Legion.name.ilike(f'%{search_query}%'))
 
     legions = legions_query.paginate(page=page, per_page=10, error_out=False)
+    
+    # Calculate total members for all legions
+    total_members = sum(legion.get_member_count() for legion in legions.items)
+    public_legions_count = len([l for l in legions.items if l.is_public])
 
-    return render_template('legion_directory.html', legions=legions, preset_legions=preset_legions, search_query=search_query)
+    return render_template('legion_directory.html', legions=legions, preset_legions=preset_legions, search_query=search_query, total_members=total_members, public_legions_count=public_legions_count)
 
 @app.route('/legion_dashboard/<int:legion_id>')
 @login_required
@@ -239,4 +280,74 @@ def regenerate_invite_code(legion_id):
         legion.invite_code = token_urlsafe(16)
         db.session.commit()
         return jsonify(success=True, new_code=legion.invite_code)
-    return jsonify(success=False, message="Not authorized."), 403
+
+@app.route('/create_legion', methods=['GET', 'POST'])
+@login_required
+def create_legion():
+    if request.method == 'POST':
+        # Extract form data
+        name = request.form.get('name')
+        description = request.form.get('description')
+        motto = request.form.get('motto')
+        headquarters = request.form.get('headquarters')
+        faction = request.form.get('faction')
+        coa_string = request.form.get('coa_string')
+        max_members = int(request.form.get('max_members', 50))
+        recruitment_status = request.form.get('recruitment_status', 'open')
+        is_public = request.form.get('is_public') == 'true'
+        allow_public_join = request.form.get('allow_public_join') == 'true'
+        require_approval = request.form.get('require_approval') == 'true'
+        auto_accept_invites = request.form.get('auto_accept_invites') == 'true'
+        
+        # Create new legion
+        legion = Legion(
+            name=name,
+            description=description,
+            motto=motto,
+            headquarters=headquarters,
+            faction=faction,
+            coa_string=coa_string,
+            max_members=max_members,
+            recruitment_status=recruitment_status,
+            is_public=is_public,
+            allow_public_join=allow_public_join,
+            require_approval=require_approval,
+            auto_accept_invites=auto_accept_invites
+        )
+        
+        db.session.add(legion)
+        db.session.commit()
+        
+        # Add creator as leader
+        user_legion = UserLegion(
+            user_id=current_user.id,
+            legion_id=legion.id,
+            role='leader'
+        )
+        db.session.add(user_legion)
+        db.session.commit()
+        
+        flash('Legion created successfully!', 'success')
+        return redirect(url_for('legion_dashboard', legion_id=legion.id))
+    
+    return render_template('create_legion.html')
+
+@app.route('/join_legion/<int:legion_id>', methods=['POST'])
+@login_required
+def join_legion(legion_id):
+    legion = Legion.query.get_or_404(legion_id)
+    
+    # Check if user can join
+    if not legion.can_join(current_user):
+        return jsonify(success=False, message='Cannot join this legion')
+    
+    # Add user to legion
+    user_legion = UserLegion(
+        user_id=current_user.id,
+        legion_id=legion_id,
+        role='member'
+    )
+    db.session.add(user_legion)
+    db.session.commit()
+    
+    return jsonify(success=True, message='Successfully joined the legion!')

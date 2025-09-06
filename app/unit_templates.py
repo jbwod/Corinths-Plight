@@ -251,10 +251,10 @@ def updateTemplates():
 
     db.session.add_all(infantry_units)
     db.session.add_all(vehicle_units)
-    #db.session.add_all(mech_units)
+    db.session.add_all(mech_units)
     db.session.add_all(aerial_units)
     db.session.add_all(artillery_units)
-    #db.session.add_all(orbital_units)
+    db.session.add_all(orbital_units)
     db.session.commit()
 
 

@@ -1,59 +1,463 @@
 {% extends 'layout.html' %}
 
-{% block title %}Legion Directory{% endblock %}
+{% block title %}Legion Directory - Corinth's Plight{% endblock %}
 
 {% block content %}
-<style>
-       body {
-        background: #081221 url('{{ url_for("static", filename="img/move.gif") }}') no-repeat center center;
-        background-size: cover;
-    }
-</style>
-<div class="profile-container">
-    <h1>Legion Directory</h1>
-
-    <!-- Search form -->
-    <div class="form-container" style="width: 100%; max-width: 500px;">
-        <form action="{{ url_for('legion_directory') }}" method="get">
-            <input type="text" name="search" placeholder="Search for Legions..." value="{{ request.args.get('search', '') }}">
-            <button type="submit" class="btn">Search</button>
-        </form>
-    </div>
-
-    <!-- Preset Legions -->
-    <div class="section">
-        <h2>Preset Legions</h2>
-        <div class="legion-grid">
-            {% for legion in preset_legions %}
-            <div class="legion-entry">
-                <img src="https://armoria.herokuapp.com/?size=500&format=png&coa={{ legion.coa_string }}" class="legion-icon">
-                <h3>{{ legion.name }}</h3>
+<div class="legion-directory-page">
+    <!-- Hero Section -->
+    <section class="directory-hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title">Legion Directory</h1>
+                <p class="hero-subtitle">Discover and join military legions across the galaxy</p>
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <span class="stat-number">{{ legions.total }}</span>
+                        <span class="stat-label">Total Legions</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ public_legions_count }}</span>
+                        <span class="stat-label">Public Legions</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ total_members }}</span>
+                        <span class="stat-label">Total Members</span>
+                    </div>
+                </div>
             </div>
-            {% endfor %}
         </div>
-    </div>
+    </section>
 
-    <!-- Public Legions -->
-    <div class="section">
-        <h2>Public Legions</h2>
-        <div class="legion-grid">
-            {% for legion in legions.items %}
-            <div class="legion-entry">
-                <img src="https://armoria.herokuapp.com/?size=500&format=png&coa={{ legion.coa_string }}" class="legion-icon">
-                <h3>{{ legion.name }}</h3>
-                <p>Members: {{ legion.legion_members|length }}</p>
+    <!-- Search and Filter Section -->
+    <section class="search-section">
+        <div class="container">
+            <div class="search-interface">
+                <div class="search-bar">
+                    <form action="{{ url_for('legion_directory') }}" method="get" class="search-form">
+                        <div class="search-input-group">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" name="search" placeholder="Search legions by name, faction, or description..." 
+                                   value="{{ request.args.get('search', '') }}" class="search-input">
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <span class="btn-icon">🔍</span>
+                            <span class="btn-text">Search</span>
+                        </button>
+                    </form>
+                </div>
+                
+                <div class="filter-tabs">
+                    <button class="filter-tab active" data-filter="all">
+                        <span class="tab-icon"><i class="fas fa-star"></i></span>
+                        <span class="tab-text">All Legions</span>
+                    </button>
+                    <button class="filter-tab" data-filter="public">
+                        <span class="tab-icon"><i class="fas fa-globe"></i></span>
+                        <span class="tab-text">Public</span>
+                    </button>
+                    <button class="filter-tab" data-filter="recruiting">
+                        <span class="tab-icon"><i class="fas fa-bullhorn"></i></span>
+                        <span class="tab-text">Recruiting</span>
+                    </button>
+                    <button class="filter-tab" data-filter="elite">
+                        <span class="tab-icon"><i class="fas fa-star"></i></span>
+                        <span class="tab-text">Elite</span>
+                    </button>
+                </div>
             </div>
-            {% endfor %}
         </div>
-        <!-- Pagination -->
-        {% if legions.pages > 1 %}
-        <div class="pagination">
-            {% for page in legions.iter_pages() %}
-            <a href="{{ url_for('legion_directory', page=page) }}" class="btn">{{ page }}</a>
-            {% endfor %}
+    </section>
+
+    <!-- Featured Legions -->
+    {% if preset_legions %}
+    <section class="featured-legions">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span class="section-icon"><i class="fas fa-star"></i></span>
+                    Featured Legions
+                </h2>
+                <p class="section-subtitle">Premier military organizations</p>
+            </div>
+            
+            <div class="legions-grid featured-grid">
+                {% for legion in preset_legions %}
+                <div class="legion-card featured">
+                    <div class="legion-header">
+                        <div class="legion-emblem">
+                            <img src="https://armoria.herokuapp.com/?size=150&format=png&coa={{ legion.coa_string }}" 
+                                 alt="{{ legion.name }} Emblem" class="emblem-image">
+                        </div>
+                        <div class="legion-info">
+                            <h3 class="legion-name">{{ legion.name }}</h3>
+                            <p class="legion-faction">{{ legion.faction or 'Independent' }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="legion-content">
+                        <p class="legion-description">{{ legion.description[:150] }}{% if legion.description|length > 150 %}...{% endif %}</p>
+                        
+                        <div class="legion-stats">
+                            <div class="stat-item">
+                                <span class="stat-icon"><i class="fas fa-users"></i></span>
+                                <span class="stat-value">{{ legion.get_member_count() }}</span>
+                                <span class="stat-label">Members</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-icon"><i class="fas fa-star"></i></span>
+                                <span class="stat-value">{{ legion.get_legion_level() }}</span>
+                                <span class="stat-label">Level</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-icon">🏆</span>
+                                <span class="stat-value">{{ "%.1f"|format(legion.get_win_rate()) }}%</span>
+                                <span class="stat-label">Win Rate</span>
+                            </div>
+                        </div>
+                        
+                        <div class="legion-meta">
+                            <span class="meta-item">
+                                <span class="meta-icon"><i class="fas fa-users"></i></span>
+                                {{ legion.headquarters or 'No Headquarters' }}
+                            </span>
+                            <span class="meta-item">
+                                <span class="meta-icon"><i class="fas fa-calendar"></i></span>
+                                Founded {{ legion.created_at.strftime('%Y') }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="legion-actions">
+                        <a href="{{ url_for('legion_dashboard', legion_id=legion.id) }}" class="btn btn-primary">
+                            <span class="btn-icon"><i class="fas fa-eye"></i></span>
+                            <span class="btn-text">View Details</span>
+                        </a>
+                        {% if legion.can_join(current_user) %}
+                        <button class="btn btn-secondary" onclick="joinLegion({{ legion.id }})">
+                            <span class="btn-icon"><i class="fas fa-plus"></i></span>
+                            <span class="btn-text">Join Legion</span>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
-        {% endif %}
+    </section>
+    {% endif %}
+
+    <!-- All Legions -->
+    <section class="all-legions">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <span class="section-icon"><i class="fas fa-sword"></i></span>
+                    All Legions
+                </h2>
+                <div class="section-controls">
+                    <div class="sort-controls">
+                        <label for="sortBy">Sort by:</label>
+                        <select id="sortBy" onchange="sortLegions()">
+                            <option value="name">Name</option>
+                            <option value="members">Members</option>
+                            <option value="level">Level</option>
+                            <option value="win_rate">Win Rate</option>
+                            <option value="created">Created</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            {% if legions.items %}
+            <div class="legions-grid" id="legionsGrid">
+                {% for legion in legions.items %}
+                <div class="legion-card" data-legion-id="{{ legion.id }}">
+                    <div class="legion-header">
+                        <div class="legion-emblem">
+                            <img src="https://armoria.herokuapp.com/?size=120&format=png&coa={{ legion.coa_string }}" 
+                                 alt="{{ legion.name }} Emblem" class="emblem-image">
+                        </div>
+                        <div class="legion-info">
+                            <h3 class="legion-name">{{ legion.name }}</h3>
+                            <p class="legion-faction">{{ legion.faction or 'Independent' }}</p>
+                        </div>
+                        <div class="legion-status">
+                            <span class="status-badge {{ legion.recruitment_status }}">
+                                {{ legion.recruitment_status.replace('_', ' ').title() }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="legion-content">
+                        <p class="legion-description">{{ legion.description[:120] }}{% if legion.description|length > 120 %}...{% endif %}</p>
+                        
+                        <div class="legion-stats">
+                            <div class="stat-item">
+                                <span class="stat-icon"><i class="fas fa-users"></i></span>
+                                <span class="stat-value">{{ legion.get_member_count() }}</span>
+                                <span class="stat-label">Members</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-icon"><i class="fas fa-star"></i></span>
+                                <span class="stat-value">{{ legion.get_legion_level() }}</span>
+                                <span class="stat-label">Level</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-icon">🏆</span>
+                                <span class="stat-value">{{ "%.1f"|format(legion.get_win_rate()) }}%</span>
+                                <span class="stat-label">Win Rate</span>
+                            </div>
+                        </div>
+                        
+                        <div class="legion-meta">
+                            <span class="meta-item">
+                                <span class="meta-icon"><i class="fas fa-users"></i></span>
+                                {{ legion.headquarters or 'No Headquarters' }}
+                            </span>
+                            <span class="meta-item">
+                                <span class="meta-icon"><i class="fas fa-calendar"></i></span>
+                                Founded {{ legion.created_at.strftime('%Y') }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="legion-actions">
+                        <a href="{{ url_for('legion_dashboard', legion_id=legion.id) }}" class="btn btn-primary">
+                            <span class="btn-icon"><i class="fas fa-eye"></i></span>
+                            <span class="btn-text">View Details</span>
+                        </a>
+                        {% if legion.can_join(current_user) %}
+                        <button class="btn btn-secondary" onclick="joinLegion({{ legion.id }})">
+                            <span class="btn-icon"><i class="fas fa-plus"></i></span>
+                            <span class="btn-text">Join Legion</span>
+                        </button>
+                        {% else %}
+                        <button class="btn btn-disabled" disabled>
+                            <span class="btn-icon">🔒</span>
+                            <span class="btn-text">Cannot Join</span>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if legions.pages > 1 %}
+            <div class="pagination">
+                <div class="pagination-info">
+                    Showing {{ legions.page * legions.per_page - legions.per_page + 1 }} to 
+                    {{ legions.page * legions.per_page if legions.page * legions.per_page < legions.total else legions.total }} 
+                    of {{ legions.total }} legions
+                </div>
+                
+                <div class="pagination-controls">
+                    {% if legions.has_prev %}
+                    <a href="{{ url_for('legion_directory', page=legions.prev_num, search=request.args.get('search', '')) }}" 
+                       class="btn btn-secondary">
+                        <span class="btn-icon">←</span>
+                        <span class="btn-text">Previous</span>
+                    </a>
+                    {% endif %}
+                    
+                    <div class="page-numbers">
+                        {% for page_num in legions.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != legions.page %}
+                                <a href="{{ url_for('legion_directory', page=page_num, search=request.args.get('search', '')) }}" 
+                                   class="page-number">{{ page_num }}</a>
+                                {% else %}
+                                <span class="page-number current">{{ page_num }}</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="page-ellipsis">...</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    
+                    {% if legions.has_next %}
+                    <a href="{{ url_for('legion_directory', page=legions.next_num, search=request.args.get('search', '')) }}" 
+                       class="btn btn-secondary">
+                        <span class="btn-text">Next</span>
+                        <span class="btn-icon">→</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon"><i class="fas fa-sword"></i></div>
+                <h3>No Legions Found</h3>
+                <p>No legions match your search criteria. Try adjusting your filters or search terms.</p>
+                <a href="{{ url_for('create_legion') }}" class="btn btn-primary">
+                    <span class="btn-icon"><i class="fas fa-plus"></i></span>
+                    <span class="btn-text">Create a Legion</span>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+</div>
+
+<!-- Join Legion Modal -->
+<div class="modal" id="joinLegionModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Join Legion</h2>
+            <button class="modal-close" onclick="closeModal('joinLegionModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="joinLegionContent">
+                <!-- Content will be populated dynamically -->
+            </div>
+        </div>
     </div>
 </div>
 
+<script>
+// Legion Directory JavaScript
+class LegionDirectory {
+    constructor() {
+        this.currentFilter = 'all';
+        this.currentSort = 'name';
+        this.initializeEventListeners();
+    }
+    
+    initializeEventListeners() {
+        // Filter tabs
+        document.querySelectorAll('.filter-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                this.setFilter(tab.dataset.filter);
+            });
+        });
+        
+        // Close modals on outside click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.closeModal(modal.id);
+                }
+            });
+        });
+    }
+    
+    setFilter(filter) {
+        this.currentFilter = filter;
+        
+        // Update active tab
+        document.querySelectorAll('.filter-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelector(`[data-filter="${filter}"]`).classList.add('active');
+        
+        // Filter legions
+        this.filterLegions();
+    }
+    
+    filterLegions() {
+        const legions = document.querySelectorAll('.legion-card');
+        
+        legions.forEach(legion => {
+            if (this.currentFilter === 'all') {
+                legion.style.display = 'block';
+            } else if (this.currentFilter === 'public') {
+                const isPublic = legion.querySelector('.status-badge')?.textContent.includes('Open');
+                legion.style.display = isPublic ? 'block' : 'none';
+            } else if (this.currentFilter === 'recruiting') {
+                const isRecruiting = legion.querySelector('.status-badge')?.textContent.includes('Open');
+                legion.style.display = isRecruiting ? 'block' : 'none';
+            } else if (this.currentFilter === 'elite') {
+                const level = parseInt(legion.querySelector('.stat-value')?.textContent);
+                legion.style.display = level >= 10 ? 'block' : 'none';
+            }
+        });
+    }
+    
+    sortLegions() {
+        const sortBy = document.getElementById('sortBy').value;
+        const grid = document.getElementById('legionsGrid');
+        const legions = Array.from(grid.children);
+        
+        legions.sort((a, b) => {
+            switch (sortBy) {
+                case 'name':
+                    return a.querySelector('.legion-name').textContent.localeCompare(b.querySelector('.legion-name').textContent);
+                case 'members':
+                    return parseInt(b.querySelector('.stat-value').textContent) - parseInt(a.querySelector('.stat-value').textContent);
+                case 'level':
+                    return parseInt(b.querySelectorAll('.stat-value')[1].textContent) - parseInt(a.querySelectorAll('.stat-value')[1].textContent);
+                case 'win_rate':
+                    return parseFloat(b.querySelectorAll('.stat-value')[2].textContent) - parseFloat(a.querySelectorAll('.stat-value')[2].textContent);
+                case 'created':
+                    return new Date(b.querySelector('.meta-item:last-child').textContent) - new Date(a.querySelector('.meta-item:last-child').textContent);
+                default:
+                    return 0;
+            }
+        });
+        
+        legions.forEach(legion => grid.appendChild(legion));
+    }
+    
+    closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+}
+
+// Global functions
+function joinLegion(legionId) {
+    // Open join legion modal
+    const modal = document.getElementById('joinLegionModal');
+    const content = document.getElementById('joinLegionContent');
+    
+    content.innerHTML = `
+        <div class="join-legion-content">
+            <h3>Join Legion</h3>
+            <p>Are you sure you want to join this legion?</p>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeModal('joinLegionModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmJoinLegion(${legionId})">Join Legion</button>
+            </div>
+        </div>
+    `;
+    
+    modal.style.display = 'block';
+}
+
+function confirmJoinLegion(legionId) {
+    // Send join request
+    fetch(`/join_legion/${legionId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Successfully joined the legion!');
+            location.reload();
+        } else {
+            alert('Error joining legion: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error joining legion');
+    });
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+function sortLegions() {
+    window.legionDirectory.sortLegions();
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    window.legionDirectory = new LegionDirectory();
+});
+</script>
 {% endblock %}

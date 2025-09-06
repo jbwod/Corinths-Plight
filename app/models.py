@@ -2,6 +2,7 @@ from app import db
 from datetime import datetime
 from flask_login import UserMixin
 from sqlalchemy.orm import relationship
+import secrets
 from secrets import token_urlsafe
 
 unit_upgrades = db.Table('unit_upgrades',
@@ -44,17 +45,96 @@ class Legion(db.Model):
     legion_members = relationship("UserLegion", back_populates="legion")
 
     is_public = db.Column(db.Boolean, default=True)  # Indicates if the legion is public
-    invite_code = db.Column(db.String(120), nullable=True)  # Invite code required for joining private legions
+    invite_code = db.Column(db.String(32), nullable=True)  # Invite code for private legions
+    
+    # Enhanced fields
+    motto = db.Column(db.String(255), nullable=True)  # Legion motto
+    headquarters = db.Column(db.String(120), nullable=True)  # Legion headquarters location
+    faction = db.Column(db.String(60), nullable=True)  # Legion faction alignment
+    recruitment_status = db.Column(db.String(20), default='open')  # open, closed, invite_only
+    max_members = db.Column(db.Integer, default=50)  # Maximum number of members
+    level = db.Column(db.Integer, default=1)  # Legion level
+    experience = db.Column(db.Integer, default=0)  # Legion experience points
+    reputation = db.Column(db.Integer, default=0)  # Legion reputation score
+    
+    # Legion statistics
+    total_battles = db.Column(db.Integer, default=0)
+    battles_won = db.Column(db.Integer, default=0)
+    total_units_created = db.Column(db.Integer, default=0)
+    total_resources_earned = db.Column(db.Integer, default=0)
+    
+    # Legion settings
+    allow_public_join = db.Column(db.Boolean, default=True)
+    require_approval = db.Column(db.Boolean, default=False)
+    auto_accept_invites = db.Column(db.Boolean, default=True)
+    
+    # Timestamps
+    last_activity = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):
         return f'<Legion {self.name}>'
-
+    
+    def get_member_count(self):
+        """Get the current number of members in the legion"""
+        return len(self.legion_members)
+    
+    def get_leader(self):
+        """Get the leader of the legion"""
+        leader_link = UserLegion.query.filter_by(legion_id=self.id, role='leader').first()
+        return leader_link.user if leader_link else None
+    
+    def get_officers(self):
+        """Get all officers of the legion"""
+        officer_links = UserLegion.query.filter_by(legion_id=self.id, role='officer').all()
+        return [link.user for link in officer_links]
+    
+    def get_members(self):
+        """Get all members of the legion"""
+        member_links = UserLegion.query.filter_by(legion_id=self.id, role='member').all()
+        return [link.user for link in member_links]
+    
+    def get_win_rate(self):
+        """Calculate the legion's win rate"""
+        if self.total_battles == 0:
+            return 0
+        return (self.battles_won / self.total_battles) * 100
+    
+    def get_legion_level(self):
+        """Calculate legion level based on experience"""
+        return min(self.level, 100)  # Cap at level 100
+    
+    def can_join(self, user):
+        """Check if a user can join this legion"""
+        if not self.is_public and not self.allow_public_join:
+            return False
+        if self.get_member_count() >= self.max_members:
+            return False
+        # Check if user is already a member
+        existing_membership = UserLegion.query.filter_by(user_id=user.id, legion_id=self.id).first()
+        return existing_membership is None
+    
     def toggle_public(self):
+        """Toggle the public status of the legion"""
         self.is_public = not self.is_public
-        if self.is_public:
-            self.invite_code = token_urlsafe(16)
-        else:
+        if not self.is_public and not self.invite_code:
+            self.invite_code = secrets.token_urlsafe(16)
+        elif self.is_public:
             self.invite_code = None
+        db.session.commit()
+    
+    def add_experience(self, amount):
+        """Add experience points to the legion"""
+        self.experience += amount
+        # Level up logic
+        new_level = (self.experience // 1000) + 1
+        if new_level > self.level:
+            self.level = new_level
+        db.session.commit()
+    
+    def update_activity(self):
+        """Update the last activity timestamp"""
+        self.last_activity = datetime.utcnow()
         db.session.commit()
 
 

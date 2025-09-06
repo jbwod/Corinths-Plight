@@ -1,58 +1,1531 @@
 {% extends 'layout.html' %}
 
-{% block title %}Home{% endblock %}
+{% block title %}Home - Corinth's Plight{% endblock %}
 
 {% block content %}
-<style>
-    /* Hero Section */
-    .hero {
-        background: #081221 url('{{ url_for("static", filename="img/outbound.gif") }}');
-        background-size: cover;
-        color: #fff;
-        text-align: center;
-        padding: 150px 0;
-        background-position: center center;
-    }
-
-</style>
-
 <!-- Hero Section -->
 <section class="hero">
+    <div class="hero-background">
+        <div class="hero-particles">
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+        </div>
+        <div class="pixel-stars">
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+            <div class="star"></div>
+        </div>
+        <div class="flying-corvettes">
+            <div class="corvette" id="corvette1"></div>
+            <div class="corvette" id="corvette2"></div>
+        </div>
+    </div>
+    
+    <div class="container">
     <div class="hero-content">
-        <h1>Welcome Recruit, welcome to the Campaign</h1>
-        <p>Experience the thrill of "real"-real-time strategy. Command your units, conquer territories, and achieve victory!</p>
-        <a href="{{ url_for('login_signup') }}" class="btn">Get Started</a>
+            <div class="hero-badge">
+                <span class="badge-icon"><i class="fas fa-sword"></i></span>
+                <span class="badge-text">Welcome to the Campaign</span>
+            </div>
+            
+            <h1 class="hero-title">
+                <span class="title-line">Welcome to the</span>
+                <span class="title-line title-highlight">Campaign</span>
+            </h1>
+            
+            <p class="hero-subtitle">Experience the thrill of "real"-real-time strategy warfare. Command your units, conquer territories, and achieve victory in a persistent sci-fi universe where every decision matters.</p>
+            
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <div class="stat-number">1,247</div>
+                    <div class="stat-label">Active Commanders</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">89</div>
+                    <div class="stat-label">Territories Controlled</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">24/7</div>
+                    <div class="stat-label">Persistent Universe</div>
+                </div>
+            </div>
+            
+            <div class="hero-actions">
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('my_units') }}" class="btn btn-primary btn-lg">
+                        <span class="btn-icon"><i class="fas fa-shield-alt"></i></span>
+                        <span class="btn-text">View My Units</span>
+                    </a>
+                    <a href="{{ url_for('create_unit') }}" class="btn btn-secondary btn-lg">
+                        <span class="btn-icon"><i class="fas fa-tools"></i></span>
+                        <span class="btn-text">Create New Unit</span>
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('login_signup') }}" class="btn btn-primary btn-lg">
+                        <span class="btn-icon"><i class="fas fa-rocket"></i></span>
+                        <span class="btn-text">Join the War</span>
+                    </a>
+                    <a href="#features" class="btn btn-ghost btn-lg">
+                        <span class="btn-icon"><i class="fas fa-book"></i></span>
+                        <span class="btn-text">Learn More</span>
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Floating Planet Elements -->
+    <div class="floating-elements">
+        <div class="floating-planet animate-float" style="top: 20%; left: 10%; animation-delay: 0s;">
+            <img src="{{ url_for('static', filename='img/planets/1304798445.gif') }}" alt="Planet" class="planet-gif">
+            <div class="planet-glow"></div>
+        </div>
+        <div class="floating-planet animate-float" style="top: 60%; right: 15%; animation-delay: 1s;">
+            <img src="{{ url_for('static', filename='img/planets/1656541488.gif') }}" alt="Planet" class="planet-gif">
+            <div class="planet-glow"></div>
+        </div>
+        <div class="floating-planet animate-float" style="bottom: 30%; left: 20%; animation-delay: 2s;">
+            <img src="{{ url_for('static', filename='img/planets/1977032279.gif') }}" alt="Planet" class="planet-gif">
+            <div class="planet-glow"></div>
+        </div>
+        <div class="floating-planet animate-float" style="top: 40%; right: 30%; animation-delay: 3s;">
+            <img src="{{ url_for('static', filename='img/planets/2844030690.gif') }}" alt="Planet" class="planet-gif">
+            <div class="planet-glow"></div>
+        </div>
+        <div class="floating-planet animate-float" style="top: 10%; right: 5%; animation-delay: 4s;">
+            <img src="{{ url_for('static', filename='img/planets/2861018619.gif') }}" alt="Planet" class="planet-gif">
+            <div class="planet-glow"></div>
+        </div>
+        <div class="floating-planet animate-float" style="bottom: 10%; right: 25%; animation-delay: 5s;">
+            <img src="{{ url_for('static', filename='img/planets/3492348600.gif') }}" alt="Planet" class="planet-gif">
+            <div class="planet-glow"></div>
+        </div>
+    </div>
+    
+    <!-- Scroll Indicator -->
+    <div class="scroll-indicator">
+        <div class="scroll-arrow"></div>
+        <span class="scroll-text">Explore</span>
     </div>
 </section>
 
 <!-- Features Section -->
-<section class="features">
-    <div class="feature-item">
-        <img src="{{ url_for('static', filename='img/planet.png') }}" alt="Multi-world Campaigns">
-        <h2>Multi-world Campaigns</h2>
-        <p>Engage in epic campaigns spanning multiple worlds. Conquer new territories and expand your empire.</p>
-    </div>
-    <div class="feature-item">
-        <img src="{{ url_for('static', filename='img/helmets.png') }}" alt="Control Your Units">
-        <h2>Control Your Units</h2>
-        <p>Command a diverse range of units, each with unique abilities. Lead them to victory with strategic brilliance.</p>
-    </div>
-    <div class="feature-item">
-        <img src="{{ url_for('static', filename='img/squad.png') }}" alt="Join a Legion">
-        <h2>Join a Legion</h2>
-        <p>Collaborate with fellow players by joining a legion. Coordinate your efforts, plan attacks, and dominate the battlefield together.</p>
+<section class="features" id="features">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="text-4xl font-bold text-primary mb-4">Strategic Warfare Redefined</h2>
+            <p class="text-xl text-secondary max-w-3xl mx-auto">Command forces across multiple worlds in a persistent universe where strategy meets real-time consequences.</p>
+        </div>
+        
+        <div class="features-grid">
+            <div class="feature-card animate-fadeIn">
+                <div class="feature-icon">
+                    <img src="{{ url_for('static', filename='img/planet.png') }}" alt="Multi-world Campaigns" style="width: 50px; height: 50px;">
+                </div>
+                <h3 class="feature-title">Multi-world Campaigns</h3>
+                <p class="feature-description">Engage in epic campaigns spanning multiple worlds. Conquer new territories, establish supply lines, and expand your empire across the galaxy.</p>
+            </div>
+            
+            <div class="feature-card animate-fadeIn" style="animation-delay: 0.2s;">
+                <div class="feature-icon">
+                    <img src="{{ url_for('static', filename='img/helmets.png') }}" alt="Control Your Units" style="width: 50px; height: 50px;">
+                </div>
+                <h3 class="feature-title">Command Your Forces</h3>
+                <p class="feature-description">Command a diverse range of units from infantry to orbital platforms. Each unit has unique abilities and strategic value in the battlefield.</p>
+            </div>
+            
+            <div class="feature-card animate-fadeIn" style="animation-delay: 0.4s;">
+                <div class="feature-icon">
+                    <img src="{{ url_for('static', filename='img/squad.png') }}" alt="Join a Legion" style="width: 50px; height: 50px;">
+                </div>
+                <h3 class="feature-title">Legion Warfare</h3>
+                <p class="feature-description">Join forces with other commanders in powerful legions. Coordinate massive offensives and dominate the battlefield together.</p>
+            </div>
+            
+            <div class="feature-card animate-fadeIn" style="animation-delay: 0.6s;">
+                <div class="feature-icon">
+                    <img src="{{ url_for('static', filename='img/strat.gif') }}" alt="Real-time Strategy" style="width: 50px; height: 50px;">
+                </div>
+                <h3 class="feature-title">Real-time Strategy</h3>
+                <p class="feature-description">Experience true real-time strategy where every order takes actual time to execute. Plan your moves carefully as each decision has lasting consequences.</p>
+            </div>
+            
+            <div class="feature-card animate-fadeIn" style="animation-delay: 0.8s;">
+                <div class="feature-icon">
+                    <img src="{{ url_for('static', filename='img/outbound.gif') }}" alt="Persistent Universe" style="width: 50px; height: 50px;">
+                </div>
+                <h3 class="feature-title">Persistent Universe</h3>
+                <p class="feature-description">The war never stops. Your empire continues to operate even when you're offline, creating a truly persistent strategic experience.</p>
+            </div>
+            
+            <div class="feature-card animate-fadeIn" style="animation-delay: 1.0s;">
+                <div class="feature-icon">
+                    <img src="{{ url_for('static', filename='img/mech.gif') }}" alt="Advanced Technology" style="width: 50px; height: 50px;">
+                </div>
+                <h3 class="feature-title">Advanced Technology</h3>
+                <p class="feature-description">Research and deploy cutting-edge technology. From orbital platforms to advanced weaponry, technology gives you the edge in battle.</p>
+            </div>
+        </div>
     </div>
 </section>
 
-<!-- Emergent Gameplay Section -->
-<section class="emergent-gameplay">
-    <h2>Emergent Gameplay</h2>
-    <p>Experience emergent gameplay where every decision and action shapes the course of the game. Forge alliances, betray enemies, and create your own path to victory.</p>
+<!-- Game Mechanics Section -->
+<section class="py-20 bg-primary">
+    <div class="container">
+        <div class="grid grid-cols-2 gap-12 items-center">
+            <div class="animate-slideIn">
+                <h2 class="text-4xl font-bold text-primary mb-6">Real-Time Strategy</h2>
+                <p class="text-lg text-secondary mb-6">Experience true real-time strategy where every order takes actual time to execute. Plan your moves carefully, as each decision has lasting consequences in the persistent universe.</p>
+                <ul class="space-y-4">
+                    <li class="flex items-center gap-3">
+                        <div class="w-2 h-2 bg-accent-cyan rounded-full"></div>
+                        <span class="text-secondary">Orders execute over real-world time</span>
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <div class="w-2 h-2 bg-accent-cyan rounded-full"></div>
+                        <span class="text-secondary">Persistent universe that never sleeps</span>
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <div class="w-2 h-2 bg-accent-cyan rounded-full"></div>
+                        <span class="text-secondary">Emergent gameplay from player interactions</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="animate-slideIn" style="animation-delay: 0.2s;">
+                <div class="relative">
+                    <div class="bg-card p-8 rounded-2xl border border-primary shadow-glow">
+                        <h3 class="text-2xl font-bold text-primary mb-4">Strategic Depth</h3>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-secondary">Territory Control</span>
+                                <div class="w-32 h-2 bg-secondary rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-accent-cyan to-accent-purple rounded-full" style="width: 85%"></div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-secondary">Resource Management</span>
+                                <div class="w-32 h-2 bg-secondary rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-accent-cyan to-accent-purple rounded-full" style="width: 72%"></div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-secondary">Diplomatic Relations</span>
+                                <div class="w-32 h-2 bg-secondary rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-accent-cyan to-accent-purple rounded-full" style="width: 68%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    </div>
+    </div>
+    </div>
 </section>
 
-<!-- New Section: Dynamic Campaigns -->
-<section class="dynamic-campaigns">
-    <h2>Dynamic Campaigns</h2>
-    <p>Dynamic campaigns adjust in real-time to your strategies and decisions, providing a unique experience for every player. Each battle impacts the outcome of the war, crafting a personal and evolving narrative.</p>
+<!-- Game Showcase Section -->
+<section class="game-showcase">
+    <div class="container">
+        <div class="showcase-header text-center mb-16">
+            <h2 class="text-5xl font-bold text-primary mb-6">Experience the War</h2>
+            <p class="text-xl text-secondary max-w-3xl mx-auto">See what makes Corinth's Plight the ultimate strategic warfare experience</p>
+        </div>
+        
+        <div class="showcase-grid">
+            <div class="showcase-item animate-fadeIn">
+                <div class="showcase-image">
+                    <img src="{{ url_for('static', filename='img/background.png') }}" alt="Strategic Map" style="width: 100%; height: 200px; object-fit: cover; border-radius: var(--radius-lg);">
+                </div>
+                <div class="showcase-content">
+                    <h3 class="text-2xl font-bold text-primary mb-4">Strategic World Map</h3>
+                    <p class="text-secondary mb-4">Navigate a vast hex-based world map where every territory matters. Plan your conquests, establish supply lines, and dominate the galaxy.</p>
+                    <a href="/worldmap" class="btn btn-primary">Explore Map</a>
+                </div>
+            </div>
+            
+            <div class="showcase-item animate-fadeIn" style="animation-delay: 0.2s;">
+                <div class="showcase-image">
+                    <img src="{{ url_for('static', filename='img/units/Infantry Unit.png') }}" alt="Unit Management" style="width: 100%; height: 200px; object-fit: cover; border-radius: var(--radius-lg);">
+                </div>
+                <div class="showcase-content">
+                    <h3 class="text-2xl font-bold text-primary mb-4">Unit Management</h3>
+                    <p class="text-secondary mb-4">Command diverse units from infantry to orbital platforms. Each unit has unique abilities and strategic value in the battlefield.</p>
+                    <a href="{{ url_for('create_unit') }}" class="btn btn-primary">Create Units</a>
+                </div>
+            </div>
+            
+            <div class="showcase-item animate-fadeIn" style="animation-delay: 0.4s;">
+                <div class="showcase-image">
+                    <img src="{{ url_for('static', filename='img/sci_fi_gui_thumbnail_by_finnmercury_dgtgnmx-fullview.jpg') }}" alt="Ship Builder" style="width: 100%; height: 200px; object-fit: cover; border-radius: var(--radius-lg);">
+                </div>
+                <div class="showcase-content">
+                    <h3 class="text-2xl font-bold text-primary mb-4">Ship Configuration</h3>
+                    <p class="text-secondary mb-4">Design and configure your warships with advanced equipment systems. Create the perfect vessel for your fleet's needs.</p>
+                    <a href="/shipbuilder" class="btn btn-primary">Build Ships</a>
+                </div>
+            </div>
+        </div>
+    </div>
 </section>
+
+<!-- Call to Action Section -->
+<section class="py-20 bg-secondary">
+    <div class="container text-center">
+        <h2 class="text-5xl font-bold text-primary mb-6">Ready to Command?</h2>
+        <p class="text-xl text-secondary mb-8 max-w-2xl mx-auto">Join thousands of commanders in the ultimate strategic warfare experience. Your decisions will shape the fate of the galaxy.</p>
+        <div class="flex flex-wrap justify-center gap-4">
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('create_unit') }}" class="btn btn-primary btn-lg">
+                    <span class="btn-icon"><i class="fas fa-tools"></i></span>
+                    <span class="btn-text">Create Your First Unit</span>
+                </a>
+                <a href="{{ url_for('legion_directory') }}" class="btn btn-secondary btn-lg">
+                    <span class="btn-icon"><i class="fas fa-users"></i></span>
+                    <span class="btn-text">Find a Legion</span>
+                </a>
+            {% else %}
+                <a href="{{ url_for('login_signup') }}" class="btn btn-primary btn-lg">
+                    <span class="btn-icon"><i class="fas fa-rocket"></i></span>
+                    <span class="btn-text">Start Your Journey</span>
+                </a>
+                <a href="#features" class="btn btn-ghost btn-lg">
+                    <span class="btn-icon"><i class="fas fa-book"></i></span>
+                    <span class="btn-text">Explore Features</span>
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<style>
+/* Enhanced Hero Section */
+.hero-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 30%, rgba(0, 50, 100, 0.8) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(50, 0, 100, 0.6) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(0, 100, 150, 0.4) 0%, transparent 70%),
+        linear-gradient(135deg, 
+            #0a0f1a 0%,
+            #1a1f2a 25%,
+            #0f141f 50%,
+            #1a1f2a 75%,
+            #0a0f1a 100%
+        );
+    z-index: 0;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+.hero-particles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+}
+
+.particle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background: #00d4ff;
+    border-radius: 0;
+    animation: particleFloat 8s infinite linear;
+    opacity: 0.8;
+    box-shadow: 
+        0 0 2px #00d4ff,
+        0 0 4px rgba(0, 212, 255, 0.5);
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+.particle:nth-child(1) {
+    left: 10%;
+    animation-delay: 0s;
+    animation-duration: 8s;
+}
+
+.particle:nth-child(2) {
+    left: 20%;
+    animation-delay: 2s;
+    animation-duration: 10s;
+}
+
+.particle:nth-child(3) {
+    left: 30%;
+    animation-delay: 4s;
+    animation-duration: 12s;
+}
+
+.particle:nth-child(4) {
+    left: 70%;
+    animation-delay: 1s;
+    animation-duration: 9s;
+}
+
+.particle:nth-child(5) {
+    left: 80%;
+    animation-delay: 3s;
+    animation-duration: 11s;
+}
+
+/* Pixel Art Stars */
+.pixel-stars {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+}
+
+.star {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: #ffffff;
+    border-radius: 0;
+    animation: starTwinkle 3s infinite ease-in-out;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+.star:nth-child(1) {
+    top: 15%;
+    left: 15%;
+    animation-delay: 0s;
+}
+
+.star:nth-child(2) {
+    top: 25%;
+    left: 75%;
+    animation-delay: 0.5s;
+}
+
+.star:nth-child(3) {
+    top: 35%;
+    left: 45%;
+    animation-delay: 1s;
+}
+
+.star:nth-child(4) {
+    top: 45%;
+    left: 25%;
+    animation-delay: 1.5s;
+}
+
+.star:nth-child(5) {
+    top: 55%;
+    left: 85%;
+    animation-delay: 2s;
+}
+
+.star:nth-child(6) {
+    top: 65%;
+    left: 35%;
+    animation-delay: 2.5s;
+}
+
+.star:nth-child(7) {
+    top: 75%;
+    left: 65%;
+    animation-delay: 0.3s;
+}
+
+.star:nth-child(8) {
+    top: 85%;
+    left: 5%;
+    animation-delay: 0.8s;
+}
+
+.star:nth-child(9) {
+    top: 10%;
+    left: 55%;
+    animation-delay: 1.3s;
+}
+
+.star:nth-child(10) {
+    top: 40%;
+    left: 95%;
+    animation-delay: 1.8s;
+}
+
+.star:nth-child(11) {
+    top: 60%;
+    left: 15%;
+    animation-delay: 2.3s;
+}
+
+.star:nth-child(12) {
+    top: 80%;
+    left: 45%;
+    animation-delay: 0.7s;
+}
+
+@keyframes starTwinkle {
+    0%, 100% {
+        opacity: 0.3;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.5);
+    }
+}
+
+/* Flying Corvettes */
+.flying-corvettes {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.corvette {
+    position: absolute;
+    width: 60px;
+    height: 30px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0;
+    z-index: 2;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+    .corvette.flying {
+        animation: flyAcross1 30s ease-in-out infinite;
+    }
+
+#corvette1.flying {
+    animation: flyAcross1 30s ease-in-out infinite;
+}
+
+#corvette2.flying {
+    animation: flyAcross2 30s ease-in-out infinite;
+}
+
+.corvette::before {
+    content: '';
+    position: absolute;
+    left: -25px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 4px;
+    background: linear-gradient(90deg, #00d4ff, #0099cc, transparent);
+    border-radius: 2px;
+    opacity: 0.9;
+    animation: engineGlow 0.8s ease-in-out infinite alternate;
+    box-shadow: 0 0 6px rgba(0, 212, 255, 0.6);
+}
+
+@keyframes engineGlow {
+    0% {
+        opacity: 0.6;
+        transform: translateY(-50%) scaleX(1);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(-50%) scaleX(1.2);
+    }
+}
+
+/* Battlecruiser Formation Styles */
+.battlecruiser {
+    position: absolute;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+    transition: all 0.3s ease;
+}
+
+.formation-corvette {
+    position: absolute;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    transition: all 0.3s ease;
+}
+
+/* Formation corvette engine effects */
+.formation-corvette::before {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 15px;
+    height: 4px;
+    background: linear-gradient(90deg, #00d4ff, #0099cc, transparent);
+    border-radius: 2px;
+    opacity: 0.8;
+    animation: corvetteEngineGlow 0.8s ease-in-out infinite alternate;
+    box-shadow: 0 0 6px rgba(0, 212, 255, 0.6);
+}
+
+.battlecruiser.flying-formation {
+    animation: battlecruiserFly 60s linear infinite;
+}
+
+.formation-corvette.flying-formation {
+    animation: formationCorvetteFly 60s linear infinite;
+}
+
+@keyframes battlecruiserFly {
+    0% { 
+        left: -300px; 
+        transform: translateY(0px) rotate(0deg);
+    }
+    100% { 
+        left: calc(100vw + 300px); 
+        transform: translateY(0px) rotate(0deg);
+    }
+}
+
+@keyframes formationCorvetteFly {
+    0% { 
+        left: -300px; 
+        transform: translateX(0px) translateY(0px) rotate(0deg);
+    }
+    100% { 
+        left: calc(100vw + 300px); 
+        transform: translateX(0px) translateY(0px) rotate(0deg);
+    }
+}
+
+/* Battlecruiser engine effects */
+.battlecruiser::before {
+    content: '';
+    position: absolute;
+    left: -50px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 10px;
+    background: linear-gradient(90deg, #ff6b35, #ff8c42, transparent);
+    border-radius: 5px;
+    opacity: 0.9;
+    animation: battlecruiserEngineGlow 1.2s ease-in-out infinite alternate;
+    box-shadow: 0 0 12px rgba(255, 107, 53, 0.8);
+}
+
+@keyframes battlecruiserEngineGlow {
+    0% { opacity: 0.7; transform: translateY(-50%) scaleX(1); }
+    100% { opacity: 1; transform: translateY(-50%) scaleX(1.3); }
+}
+
+@keyframes corvetteEngineGlow {
+    0% { opacity: 0.6; transform: translateY(-50%) scaleX(1); }
+    100% { opacity: 1; transform: translateY(-50%) scaleX(1.2); }
+}
+
+#corvette1 {
+    top: 20%;
+    left: -150px;
+}
+
+#corvette2 {
+    top: 60%;
+    left: -150px;
+}
+
+/* Corvette 1 - High trajectory with smooth curves */
+@keyframes flyAcross1 {
+    0% {
+        left: -150px;
+        top: 15%;
+        opacity: 0;
+        transform: translateY(0) rotate(0deg);
+    }
+    5% {
+        opacity: 0.9;
+    }
+    15% {
+        top: 8%;
+        transform: translateY(-20px) rotate(-3deg);
+    }
+    30% {
+        top: 25%;
+        transform: translateY(30px) rotate(2deg);
+    }
+    45% {
+        top: 12%;
+        transform: translateY(-15px) rotate(-1deg);
+    }
+    60% {
+        top: 35%;
+        transform: translateY(40px) rotate(3deg);
+    }
+    75% {
+        top: 18%;
+        transform: translateY(-10px) rotate(-2deg);
+    }
+    90% {
+        top: 28%;
+        transform: translateY(25px) rotate(1deg);
+    }
+    100% {
+        left: calc(100vw + 150px);
+        top: 20%;
+        opacity: 0;
+        transform: translateY(0) rotate(0deg);
+    }
+}
+
+/* Corvette 2 - Low trajectory with gentle waves */
+@keyframes flyAcross2 {
+    0% {
+        left: -150px;
+        top: 65%;
+        opacity: 0;
+        transform: translateY(0) rotate(0deg);
+    }
+    5% {
+        opacity: 0.9;
+    }
+    20% {
+        top: 55%;
+        transform: translateY(-15px) rotate(-1deg);
+    }
+    35% {
+        top: 75%;
+        transform: translateY(20px) rotate(2deg);
+    }
+    50% {
+        top: 60%;
+        transform: translateY(-10px) rotate(-1deg);
+    }
+    65% {
+        top: 80%;
+        transform: translateY(25px) rotate(2deg);
+    }
+    80% {
+        top: 70%;
+        transform: translateY(-5px) rotate(-1deg);
+    }
+    95% {
+        top: 75%;
+        transform: translateY(10px) rotate(1deg);
+    }
+    100% {
+        left: calc(100vw + 150px);
+        top: 65%;
+        opacity: 0;
+        transform: translateY(0) rotate(0deg);
+    }
+}
+
+@keyframes particleFloat {
+    0% {
+        transform: translateY(100vh) translateX(0);
+        opacity: 0;
+    }
+    10% {
+        opacity: 0.6;
+    }
+    90% {
+        opacity: 0.6;
+    }
+    100% {
+        transform: translateY(-100px) translateX(50px);
+        opacity: 0;
+    }
+}
+
+.hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    background: var(--bg-glass);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-full);
+    padding: var(--space-sm) var(--space-lg);
+    margin-bottom: var(--space-xl);
+    backdrop-filter: blur(10px);
+    animation: slideIn 0.8s ease-out;
+}
+
+.badge-icon {
+    font-size: var(--text-lg);
+}
+
+.badge-text {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.hero-title {
+    margin-bottom: var(--space-lg);
+}
+
+.title-line {
+    display: block;
+    font-size: var(--text-6xl);
+    font-weight: 900;
+    line-height: 0.9;
+    margin-bottom: var(--space-sm);
+}
+
+.title-highlight {
+    background: linear-gradient(135deg, var(--primary-cyan), var(--accent-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+    animation: glow 3s ease-in-out infinite alternate;
+}
+
+.hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-2xl);
+    margin: var(--space-2xl) 0;
+    flex-wrap: wrap;
+}
+
+.hero-stats .stat-item {
+    text-align: center;
+    padding: var(--space-lg);
+    background: var(--bg-glass);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-xl);
+    backdrop-filter: blur(10px);
+    transition: all var(--transition-normal);
+    min-width: 120px;
+}
+
+.hero-stats .stat-item:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-primary);
+    box-shadow: var(--shadow-glow);
+}
+
+.stat-number {
+    font-family: var(--font-primary);
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    color: var(--text-accent);
+    margin-bottom: var(--space-xs);
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+}
+
+.stat-label {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.hero-actions {
+    display: flex;
+    gap: var(--space-lg);
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: var(--space-2xl);
+}
+
+.hero-actions .btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-icon {
+    font-size: var(--text-lg);
+    transition: transform var(--transition-normal);
+}
+
+.hero-actions .btn:hover .btn-icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.floating-elements {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.floating-icon {
+    position: absolute;
+    font-size: var(--text-4xl);
+    opacity: 0.4;
+    animation: float 6s ease-in-out infinite;
+}
+
+.icon-bg {
+    position: relative;
+    z-index: 2;
+    filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.3));
+}
+
+.icon-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 60px;
+    height: 60px;
+    background: radial-gradient(circle, rgba(0, 212, 255, 0.2) 0%, transparent 70%);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    animation: pulse 2s infinite;
+    z-index: 1;
+}
+
+.scroll-indicator {
+    position: absolute;
+    bottom: var(--space-2xl);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm);
+    color: var(--text-muted);
+    animation: bounce 2s infinite;
+    cursor: pointer;
+    transition: color var(--transition-normal);
+}
+
+.scroll-indicator:hover {
+    color: var(--text-accent);
+}
+
+.scroll-arrow {
+    width: 2px;
+    height: 30px;
+    background: currentColor;
+    position: relative;
+}
+
+.scroll-arrow::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -4px;
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+}
+
+.scroll-text {
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateX(-50%) translateY(0);
+    }
+    40% {
+        transform: translateX(-50%) translateY(-10px);
+    }
+    60% {
+        transform: translateX(-50%) translateY(-5px);
+    }
+}
+
+@media (max-width: 768px) {
+    .title-line {
+        font-size: var(--text-4xl);
+    }
+    
+    .hero-stats {
+        gap: var(--space-lg);
+    }
+    
+    .hero-stats .stat-item {
+        min-width: 100px;
+        padding: var(--space-md);
+    }
+    
+    .stat-number {
+        font-size: var(--text-2xl);
+    }
+    
+    .hero-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .hero-actions .btn {
+        width: 100%;
+        max-width: 300px;
+    }
+    
+    .floating-icon {
+        font-size: var(--text-2xl);
+    }
+}
+
+/* Game Showcase Section */
+.game-showcase {
+    padding: var(--space-3xl) 0;
+    background: var(--bg-primary);
+    position: relative;
+}
+
+.game-showcase::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 30% 30%, rgba(0, 212, 255, 0.03) 0%, transparent 50%),
+        radial-gradient(circle at 70% 70%, rgba(139, 92, 246, 0.03) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+.showcase-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-2xl);
+    position: relative;
+    z-index: 1;
+}
+
+.showcase-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-2xl);
+    overflow: hidden;
+    transition: all var(--transition-normal);
+    backdrop-filter: blur(10px);
+    position: relative;
+}
+
+.showcase-item:hover {
+    transform: translateY(-8px);
+    border-color: var(--border-primary);
+    box-shadow: var(--shadow-glow);
+}
+
+.showcase-image {
+    position: relative;
+    overflow: hidden;
+}
+
+.showcase-image img {
+    transition: transform var(--transition-slow);
+}
+
+.showcase-item:hover .showcase-image img {
+    transform: scale(1.05);
+}
+
+.showcase-content {
+    padding: var(--space-xl);
+}
+
+.showcase-content h3 {
+    font-family: var(--font-primary);
+    margin-bottom: var(--space-md);
+}
+
+.showcase-content p {
+    margin-bottom: var(--space-lg);
+    line-height: 1.6;
+}
+
+/* Responsive Showcase */
+@media (max-width: 1024px) {
+    .showcase-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-xl);
+    }
+}
+
+@media (max-width: 768px) {
+    .showcase-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-lg);
+    }
+    
+    .showcase-content {
+        padding: var(--space-lg);
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-badge {
+        padding: var(--space-xs) var(--space-md);
+    }
+    
+    .title-line {
+        font-size: var(--text-3xl);
+    }
+    
+    .hero-stats {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .hero-stats .stat-item {
+        width: 100%;
+        max-width: 200px;
+    }
+}
+</style>
+
+<script>
+// Randomly select planet GIFs on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const planetGifs = [
+        '1304798445.gif',
+        '1656541488.gif', 
+        '1977032279.gif',
+        '2844030690.gif',
+        '2861018619.gif',
+        '3492348600.gif',
+        '3624772883.gif',
+        '3678779074.gif',
+        '3687967867.gif',
+        '3775762136.gif',
+        '556519756.gif',
+        '738759179.gif',
+        '912163924.gif'
+    ];
+    
+    const floatingPlanets = document.querySelectorAll('.floating-planet .planet-gif');
+    
+    // Better planet distribution system
+    const planetPositions = [];
+    const minDistanceBetweenPlanets = 15; // Minimum distance between planets (15%)
+    const centerDeadZone = 25; // Distance from center to avoid (25%)
+    
+    floatingPlanets.forEach((planet, index) => {
+        const randomGif = planetGifs[Math.floor(Math.random() * planetGifs.length)];
+        planet.src = `{{ url_for('static', filename='img/planets/') }}${randomGif}`;
+        
+        // Generate position with better distribution and spacing
+        const planetContainer = planet.closest('.floating-planet');
+        if (planetContainer) {
+            let validPosition = false;
+            let attempts = 0;
+            let finalX, finalY;
+            
+            while (!validPosition && attempts < 50) {
+                // Generate random position avoiding center zone
+                const centerX = 50;
+                const centerY = 50;
+                let candidateX, candidateY;
+                
+                // Generate position outside center dead zone
+                do {
+                    candidateX = Math.random() * 100;
+                    candidateY = Math.random() * 100;
+                } while (Math.sqrt(Math.pow(candidateX - centerX, 2) + Math.pow(candidateY - centerY, 2)) < centerDeadZone);
+                
+                // Check distance from other planets
+                let tooClose = false;
+                for (const existingPos of planetPositions) {
+                    const distance = Math.sqrt(
+                        Math.pow(candidateX - existingPos.x, 2) + Math.pow(candidateY - existingPos.y, 2)
+                    );
+                    if (distance < minDistanceBetweenPlanets) {
+                        tooClose = true;
+                        break;
+                    }
+                }
+                
+                if (!tooClose) {
+                    validPosition = true;
+                    finalX = candidateX;
+                    finalY = candidateY;
+                    planetPositions.push({ x: finalX, y: finalY });
+                }
+                
+                attempts++;
+            }
+            
+            // If we couldn't find a good position, use a fallback
+            if (!validPosition) {
+                // Use a grid-based fallback system
+                const gridSize = 4; // 4x4 grid
+                const gridX = (index % gridSize) * (80 / (gridSize - 1)) + 10; // 10% to 90%
+                const gridY = Math.floor(index / gridSize) * (80 / (gridSize - 1)) + 10; // 10% to 90%
+                
+                // Add some randomness to grid positions
+                finalX = gridX + (Math.random() - 0.5) * 10;
+                finalY = gridY + (Math.random() - 0.5) * 10;
+                
+                // Ensure we're not in center zone
+                const centerDistance = Math.sqrt(Math.pow(finalX - 50, 2) + Math.pow(finalY - 50, 2));
+                if (centerDistance < centerDeadZone) {
+                    // Push away from center
+                    const angle = Math.atan2(finalY - 50, finalX - 50);
+                    finalX = 50 + Math.cos(angle) * centerDeadZone;
+                    finalY = 50 + Math.sin(angle) * centerDeadZone;
+                }
+                
+                planetPositions.push({ x: finalX, y: finalY });
+            }
+            
+            // Apply the position
+            planetContainer.style.left = finalX + '%';
+            planetContainer.style.top = finalY + '%';
+            planetContainer.style.right = 'auto';
+            planetContainer.style.bottom = 'auto';
+            
+            // Randomize planet size slightly
+            const randomSize = 60 + Math.random() * 40; // 60px to 100px
+            planet.style.width = randomSize + 'px';
+            planet.style.height = randomSize + 'px';
+            
+            // Update glow size to match
+            const glow = planetContainer.querySelector('.planet-glow');
+            if (glow) {
+                const glowSize = randomSize + 20;
+                glow.style.width = glowSize + 'px';
+                glow.style.height = glowSize + 'px';
+            }
+            
+            // Calculate final distance from center for logging
+            const finalDistance = Math.sqrt(
+                Math.pow(finalX - 50, 2) + Math.pow(finalY - 50, 2)
+            );
+            
+            // Calculate distance from nearest planet
+            let nearestDistance = Infinity;
+            for (let i = 0; i < planetPositions.length - 1; i++) {
+                const distance = Math.sqrt(
+                    Math.pow(finalX - planetPositions[i].x, 2) + Math.pow(finalY - planetPositions[i].y, 2)
+                );
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                }
+            }
+            
+            // Determine quadrant for debugging
+            let quadrant = '';
+            if (finalX < 50 && finalY < 50) quadrant = 'Top-Left';
+            else if (finalX >= 50 && finalY < 50) quadrant = 'Top-Right';
+            else if (finalX < 50 && finalY >= 50) quadrant = 'Bottom-Left';
+            else quadrant = 'Bottom-Right';
+            
+            console.log(`Planet ${index + 1} positioned at:`, {
+                position: `(${finalX.toFixed(1)}%, ${finalY.toFixed(1)}%)`,
+                size: randomSize + 'px',
+                distanceFromCenter: finalDistance.toFixed(1) + '%',
+                nearestPlanetDistance: nearestDistance.toFixed(1) + '%',
+                quadrant: quadrant,
+                attempts: attempts
+            });
+        }
+    });
+    
+    // Flying corvettes
+    const corvetteSprites = [
+        'corvette.png',
+        'corvette_broad_drop.png',
+        'corvette_broad_hang.png',
+        'corvette_drop_hang.png',
+        'corvette_laser_broad.png',
+        'corvette_laser_drop.png',
+        'corvette_laser_hang.png',
+        'corvette_orbital_broad.png',
+        'corvette_orbital_hang.png',
+        'corvette_orbital_laser.png',
+        'corvette_rail_broad.png',
+        'corvette_rail_drop.png',
+        'corvette_rail_hang.png',
+        'corvette_rail_laser.png',
+        'corvette_rail_orbital.png',
+        'corvette_rapid_broad.png',
+        'corvette_rapid_drop.png',
+        'corvette_rapid_hang.png',
+        'corvette_rapid_laser.png',
+        'corvette_rapid_orbital.png',
+        'corvette_rapid_rail.png',
+        'corvette_scan_broad.png',
+        'corvette_scan_drop.png',
+        'corvette_scan_hang.png',
+        'corvette_scan_laser.png',
+        'corvette_scan_orbital.png',
+        'corvette_scan_rail.png',
+        'corvette_scan_rapid.png',
+        'corvette_scan.png'
+    ];
+    
+    // Battlecruiser sprites
+    const battlecruiserSprites = [
+        'battlecruiser.png'
+
+    ];
+    
+    const corvette1 = document.getElementById('corvette1');
+    const corvette2 = document.getElementById('corvette2');
+    
+    console.log('Corvette1 found:', corvette1);
+    console.log('Corvette2 found:', corvette2);
+    
+    function initializeCorvette(corvette, delay) {
+        // Randomly select a corvette sprite
+        const randomSprite = corvetteSprites[Math.floor(Math.random() * corvetteSprites.length)];
+        corvette.style.backgroundImage = `url('{{ url_for('static', filename='img/units/sprites/orbitals/corvette/') }}${randomSprite}')`;
+        
+        // Set initial position and visibility
+        corvette.style.opacity = '0.9';
+        corvette.style.zIndex = '2';
+        corvette.style.left = '-150px';
+        
+        // Use different base heights for each corvette
+        if (corvette.id === 'corvette1') {
+            corvette.style.top = '15%';
+        } else {
+            corvette.style.top = '65%';
+        }
+        
+        // Start flying animation after delay
+        setTimeout(() => {
+            corvette.classList.add('flying');
+            console.log('Corvette started flying:', corvette.id);
+        }, delay);
+    }
+    
+    function changeCorvetteSprite(corvette) {
+        // Randomly select a new corvette sprite
+        const randomSprite = corvetteSprites[Math.floor(Math.random() * corvetteSprites.length)];
+        corvette.style.backgroundImage = `url('{{ url_for('static', filename='img/units/sprites/orbitals/corvette/') }}${randomSprite}')`;
+        
+        console.log('Corvette sprite updated:', corvette.id);
+    }
+    
+    // Initialize corvettes with staggered delays
+    initializeCorvette(corvette1, 1000);
+    initializeCorvette(corvette2, 3000);
+    
+    // Force visibility for debugging
+    setTimeout(() => {
+        console.log('Corvette1 opacity:', corvette1.style.opacity);
+        console.log('Corvette1 background:', corvette1.style.backgroundImage);
+        console.log('Corvette1 classes:', corvette1.className);
+        console.log('Corvette2 opacity:', corvette2.style.opacity);
+        console.log('Corvette2 background:', corvette2.style.backgroundImage);
+        console.log('Corvette2 classes:', corvette2.className);
+    }, 5000);
+    
+    // Change sprites occasionally for variety
+    setInterval(() => {
+        changeCorvetteSprite(corvette1);
+        changeCorvetteSprite(corvette2);
+    }, 30000); // Change every 30 seconds
+    
+    // Battlecruiser formation (rare event)
+    let battlecruiserFormation = null;
+    let formationActive = false;
+    
+    function createBattlecruiserFormation() {
+        if (formationActive) return;
+        
+        formationActive = true;
+        console.log('Creating battlecruiser formation...');
+        
+        // Create battlecruiser
+        const battlecruiser = document.createElement('div');
+        battlecruiser.className = 'battlecruiser';
+        battlecruiser.id = 'battlecruiser';
+        
+        // Create corvette formation (2-4 corvettes)
+        const corvetteCount = Math.floor(Math.random() * 3) + 2; // 2-4 corvettes
+        const formationCorvettes = [];
+        
+        for (let i = 0; i < corvetteCount; i++) {
+            const corvette = document.createElement('div');
+            corvette.className = 'formation-corvette';
+            corvette.id = `formation-corvette-${i}`;
+            formationCorvettes.push(corvette);
+        }
+        
+        // Add to flying-corvettes container
+        const flyingContainer = document.querySelector('.flying-corvettes');
+        if (flyingContainer) {
+            flyingContainer.appendChild(battlecruiser);
+            formationCorvettes.forEach(corvette => {
+                flyingContainer.appendChild(corvette);
+            });
+        }
+        
+        // Initialize battlecruiser
+        const randomBattlecruiser = battlecruiserSprites[Math.floor(Math.random() * battlecruiserSprites.length)];
+        battlecruiser.style.backgroundImage = `url('{{ url_for('static', filename='img/units/sprites/orbitals/battlecruiser/') }}${randomBattlecruiser}')`;
+        battlecruiser.style.opacity = '0.95';
+        battlecruiser.style.zIndex = '3';
+        battlecruiser.style.left = '-300px';
+        battlecruiser.style.top = '45%'; // Center height
+        battlecruiser.style.width = '200px';
+        battlecruiser.style.height = '100px';
+        
+        // Initialize formation corvettes with unique positions
+        const usedPositions = new Set();
+        const formationPositions = [
+            { x: -160, y: -60 },  // Front left (further out front)
+            { x: 160, y: -60 },   // Front right (further out front)
+            { x: -140, y: 80 },   // Bottom left (lower)
+            { x: 140, y: 80 },    // Bottom right (lower)
+            { x: -180, y: -20 },  // Far left top
+            { x: 180, y: -20 },   // Far right top
+            { x: -180, y: 40 },   // Far left bottom (lower)
+            { x: 180, y: 40 }     // Far right bottom (lower)
+        ];
+        
+        formationCorvettes.forEach((corvette, index) => {
+            const randomCorvette = corvetteSprites[Math.floor(Math.random() * corvetteSprites.length)];
+            corvette.style.backgroundImage = `url('{{ url_for('static', filename='img/units/sprites/orbitals/corvette/') }}${randomCorvette}')`;
+            corvette.style.opacity = '0.9';
+            corvette.style.zIndex = '4';
+            corvette.style.width = '50px';
+            corvette.style.height = '25px';
+            
+            // Get unique position for this corvette
+            let position;
+            let attempts = 0;
+            let positionIndex;
+            
+            do {
+                positionIndex = Math.floor(Math.random() * formationPositions.length);
+                position = formationPositions[positionIndex];
+                attempts++;
+            } while (usedPositions.has(positionIndex) && attempts < 20);
+            
+            // If we couldn't find an unused position, use the next available one
+            if (usedPositions.has(positionIndex)) {
+                for (let i = 0; i < formationPositions.length; i++) {
+                    if (!usedPositions.has(i)) {
+                        positionIndex = i;
+                        position = formationPositions[i];
+                        break;
+                    }
+                }
+            }
+            
+            // Mark this position as used
+            usedPositions.add(positionIndex);
+            
+            // Apply position with slight random variation to prevent exact overlap
+            const randomOffsetX = (Math.random() - 0.5) * 20; // ±10px variation
+            const randomOffsetY = (Math.random() - 0.5) * 20; // ±10px variation
+            
+            corvette.style.left = `-300px`;
+            corvette.style.top = `calc(45% + ${position.y + randomOffsetY}px)`;
+            corvette.style.transform = `translateX(${position.x + randomOffsetX}px)`;
+            
+            console.log(`Corvette ${index + 1} positioned at: x=${position.x + randomOffsetX}, y=${position.y + randomOffsetY} (base: ${positionIndex})`);
+        });
+        
+        // Start formation animation with speed variation
+        setTimeout(() => {
+            battlecruiser.classList.add('flying-formation');
+            formationCorvettes.forEach((corvette, index) => {
+                corvette.classList.add('flying-formation');
+                
+                // Add slight speed variation to corvettes (±2 seconds)
+                const speedVariation = (Math.random() - 0.5) * 4; // -2 to +2 seconds
+                const baseDuration = 60; // Base 60 seconds
+                const variedDuration = baseDuration + speedVariation;
+                
+                // Apply custom animation duration
+                corvette.style.animationDuration = `${variedDuration}s`;
+                
+                console.log(`Corvette ${index + 1} speed: ${variedDuration.toFixed(1)}s`);
+            });
+            console.log(`Battlecruiser formation launched with ${corvetteCount} corvettes (2-4 range)`);
+        }, 1000);
+        
+        // Clean up formation after animation
+        setTimeout(() => {
+            if (battlecruiser.parentNode) {
+                battlecruiser.parentNode.removeChild(battlecruiser);
+            }
+            formationCorvettes.forEach(corvette => {
+                if (corvette.parentNode) {
+                    corvette.parentNode.removeChild(corvette);
+                }
+            });
+            formationActive = false;
+            console.log('Battlecruiser formation completed');
+        }, 60000); // 60 seconds for slow formation
+    }
+    
+    // Randomly trigger battlecruiser formation (5% chance every 2 minutes)
+    setInterval(() => {
+        if (Math.random() < 0.5) { // 5% chance
+            createBattlecruiserFormation();
+        }
+    }, 45000); // Check every 2 minutes
+    
+    // Debug command - run in console: triggerBattlecruiser()
+    window.triggerBattlecruiser = function() {
+        console.log('Debug: Triggering battlecruiser formation...');
+        createBattlecruiserFormation();
+    };
+    
+    // Debug command - run in console: setBattlecruiserChance(0.1) for 10% chance
+    window.setBattlecruiserChance = function(chance) {
+        console.log(`Debug: Setting battlecruiser chance to ${chance * 100}%`);
+        // Clear existing interval
+        clearInterval(window.battlecruiserInterval);
+        // Set new interval with custom chance
+        window.battlecruiserInterval = setInterval(() => {
+            if (Math.random() < chance) {
+                createBattlecruiserFormation();
+            }
+        }, 45000);
+    };
+    
+    console.log('Debug commands available:');
+    console.log('- triggerBattlecruiser() - Trigger formation immediately');
+    console.log('- setBattlecruiserChance(0.1) - Set chance (0.1 = 10%)');
+});
+</script>
 {% endblock %}

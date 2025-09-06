@@ -3,14 +3,525 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>World Map with Draggable Hex Grid</title>
+    <title>Galactic Map - Corinth's Plight</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700;800&display=swap">
     <style>
-        body { margin: 0; overflow: hidden; }
-        canvas { display: block; }
+        :root {
+            --primary-cyan: #00D4FF;
+            --primary-cyan-dark: #0099CC;
+            --primary-cyan-light: #33E0FF;
+            --secondary-blue: #0066FF;
+            --accent-purple: #8B5CF6;
+            --accent-gold: #FFD700;
+            --bg-primary: #0A0E1A;
+            --bg-secondary: #1A1F2E;
+            --bg-tertiary: #2A2F3E;
+            --bg-card: rgba(26, 31, 46, 0.8);
+            --bg-glass: rgba(255, 255, 255, 0.05);
+            --text-primary: #FFFFFF;
+            --text-secondary: #B8C5D1;
+            --text-muted: #7A8A9A;
+            --text-accent: var(--primary-cyan);
+            --border-primary: rgba(0, 212, 255, 0.3);
+            --border-secondary: rgba(255, 255, 255, 0.1);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 20px rgba(0, 212, 255, 0.3);
+            --shadow-glow-strong: 0 0 30px rgba(0, 212, 255, 0.5);
+            --space-xs: 0.25rem;
+            --space-sm: 0.5rem;
+            --space-md: 1rem;
+            --space-lg: 1.5rem;
+            --space-xl: 2rem;
+            --space-2xl: 3rem;
+            --radius-sm: 0.25rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+            --radius-2xl: 1.5rem;
+            --transition-fast: 0.15s ease-out;
+            --transition-normal: 0.3s ease-out;
+            --transition-slow: 0.5s ease-out;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Exo 2', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(0, 102, 255, 0.1) 0%, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        canvas {
+            display: block;
+            cursor: grab;
+        }
+
+        canvas:active {
+            cursor: grabbing;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .ui-panel {
+            position: absolute;
+            background: var(--bg-card);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--radius-xl);
+            padding: var(--space-lg);
+            backdrop-filter: blur(10px);
+            box-shadow: var(--shadow-lg);
+            pointer-events: auto;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .ui-panel.top-left {
+            top: var(--space-lg);
+            left: var(--space-lg);
+        }
+
+        .ui-panel.top-right {
+            top: var(--space-lg);
+            right: var(--space-lg);
+        }
+
+        .ui-panel.bottom-left {
+            bottom: var(--space-lg);
+            left: var(--space-lg);
+        }
+
+        .ui-panel.bottom-right {
+            bottom: var(--space-lg);
+            right: var(--space-lg);
+        }
+
+        .panel-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-accent);
+            margin-bottom: var(--space-md);
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .control-group {
+            margin-bottom: var(--space-lg);
+        }
+
+        .control-label {
+            display: block;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--space-sm);
+            font-size: 0.875rem;
+        }
+
+        .control-input {
+            width: 100%;
+            padding: var(--space-sm) var(--space-md);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            transition: all var(--transition-normal);
+        }
+
+        .control-input:focus {
+            outline: none;
+            border-color: var(--primary-cyan);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-sm);
+            padding: var(--space-sm) var(--space-md);
+            font-family: 'Exo 2', sans-serif;
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-decoration: none;
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-primary);
+        }
+
+        .btn:hover {
+            background: var(--bg-glass);
+            border-color: var(--primary-cyan);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-cyan), var(--secondary-blue));
+            color: var(--text-primary);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .btn-primary:hover {
+            box-shadow: var(--shadow-glow-strong);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-md);
+            margin-top: var(--space-md);
+        }
+
+        .info-item {
+            text-align: center;
+            padding: var(--space-sm);
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-secondary);
+        }
+
+        .info-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-accent);
+            margin-bottom: var(--space-xs);
+        }
+
+        .info-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .hex-info {
+            background: var(--bg-card);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-md);
+            margin-top: var(--space-md);
+            backdrop-filter: blur(10px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .hex-coordinates {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: var(--space-sm);
+        }
+
+        .hex-terrain {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--space-xs);
+        }
+
+        .hex-resources {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .loading-content {
+            text-align: center;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-secondary);
+            border-radius: 50%;
+            border-top-color: var(--primary-cyan);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: var(--space-lg);
+        }
+
+        .loading-text {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.25rem;
+            color: var(--text-accent);
+            margin-bottom: var(--space-sm);
+        }
+
+        .loading-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .ui-panel {
+                padding: var(--space-md);
+            }
+            
+            .ui-panel.top-left,
+            .ui-panel.top-right {
+                top: var(--space-sm);
+            }
+            
+            .ui-panel.bottom-left,
+            .ui-panel.bottom-right {
+                bottom: var(--space-sm);
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
+    <div id="gameContainer">
+        <!-- Loading Screen -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading Galactic Map</div>
+                <div class="loading-subtitle">Initializing strategic warfare interface...</div>
+            </div>
+        </div>
+
+        <!-- UI Overlay -->
+        <div class="ui-overlay">
+            <!-- Map Controls -->
+            <div class="ui-panel top-left">
+                <div class="panel-title">
+                    <span>🗺️</span>
+                    Map Controls
+                </div>
+                <div class="control-group">
+                    <label class="control-label">Zoom Level</label>
+                    <input type="range" class="control-input" id="zoomSlider" min="0.1" max="3" step="0.1" value="1">
+                </div>
+                <div class="control-group">
+                    <button class="btn btn-primary" onclick="resetView()">
+                        <span>🎯</span>
+                        Reset View
+                    </button>
+                </div>
+            </div>
+
+            <!-- Hex Information -->
+            <div class="ui-panel top-right" id="hexInfoPanel" style="display: none;">
+                <div class="panel-title">
+                    <span>📍</span>
+                    Territory Information
+                </div>
+                <div class="hex-info">
+                    <div class="hex-coordinates" id="hexCoordinates">Coordinates: 0, 0</div>
+                    <div class="hex-terrain" id="hexTerrain">Unknown Territory</div>
+                    <div class="hex-resources" id="hexResources">No resources detected</div>
+                </div>
+            </div>
+
+            <!-- Map Statistics -->
+            <div class="ui-panel bottom-left">
+                <div class="panel-title">
+                    <span>📊</span>
+                    Map Statistics
+                </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-value" id="totalHexes">0</div>
+                        <div class="info-label">Total Territories</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-value" id="exploredHexes">0</div>
+                        <div class="info-label">Explored</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-value" id="controlledHexes">0</div>
+                        <div class="info-label">Controlled</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-value" id="hostileHexes">0</div>
+                        <div class="info-label">Hostile</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="ui-panel bottom-right">
+                <div class="panel-title">
+                    <span>⚡</span>
+                    Quick Actions
+                </div>
+                <div class="control-group">
+                    <button class="btn btn-primary" onclick="centerOnHome()">
+                        <span>🏠</span>
+                        Home Base
+                    </button>
+                </div>
+                <div class="control-group">
+                    <button class="btn" onclick="toggleHexGrid()">
+                        <span>🔲</span>
+                        Toggle Grid
+                    </button>
+                </div>
+                <div class="control-group">
+                    <button class="btn" onclick="exportMapData()">
+                        <span>💾</span>
+                        Export Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="js/phaser.min.js"></script>
     <script src="js/game.js"></script>
+    <script>
+        // Hide loading screen when game is ready
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                if (loadingOverlay) {
+                    loadingOverlay.style.opacity = '0';
+                    setTimeout(() => {
+                        loadingOverlay.style.display = 'none';
+                    }, 600);
+                }
+            }, 2000);
+        });
+
+        // Map control functions
+        function resetView() {
+            if (window.game && window.game.scene && window.game.scene.scenes[0]) {
+                const scene = window.game.scene.scenes[0];
+                scene.cameras.main.setZoom(1);
+                scene.cameras.main.centerOn(1132.5, 658.5);
+            }
+        }
+
+        function centerOnHome() {
+            if (window.game && window.game.scene && window.game.scene.scenes[0]) {
+                const scene = window.game.scene.scenes[0];
+                scene.cameras.main.pan(1132.5, 658.5, 1000, 'Power2');
+            }
+        }
+
+        function toggleHexGrid() {
+            if (window.game && window.game.scene && window.game.scene.scenes[0]) {
+                const scene = window.game.scene.scenes[0];
+                if (scene.graphics) {
+                    scene.graphics.visible = !scene.graphics.visible;
+                }
+            }
+        }
+
+        function exportMapData() {
+            const mapData = {
+                timestamp: new Date().toISOString(),
+                totalHexes: document.getElementById('totalHexes').textContent,
+                exploredHexes: document.getElementById('exploredHexes').textContent,
+                controlledHexes: document.getElementById('controlledHexes').textContent,
+                hostileHexes: document.getElementById('hostileHexes').textContent
+            };
+
+            const dataString = JSON.stringify(mapData, null, 2);
+            const blob = new Blob([dataString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'galactic-map-data.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Update hex information display
+        function updateHexInfo(x, y, terrain, resources) {
+            const hexInfoPanel = document.getElementById('hexInfoPanel');
+            const hexCoordinates = document.getElementById('hexCoordinates');
+            const hexTerrain = document.getElementById('hexTerrain');
+            const hexResources = document.getElementById('hexResources');
+
+            if (hexInfoPanel && hexCoordinates && hexTerrain && hexResources) {
+                hexCoordinates.textContent = `Coordinates: ${Math.round(x)}, ${Math.round(y)}`;
+                hexTerrain.textContent = terrain || 'Unknown Territory';
+                hexResources.textContent = resources || 'No resources detected';
+                hexInfoPanel.style.display = 'block';
+            }
+        }
+
+        // Hide hex info when clicking empty space
+        function hideHexInfo() {
+            const hexInfoPanel = document.getElementById('hexInfoPanel');
+            if (hexInfoPanel) {
+                hexInfoPanel.style.display = 'none';
+            }
+        }
+
+        // Update map statistics
+        function updateMapStats(total, explored, controlled, hostile) {
+            const totalHexes = document.getElementById('totalHexes');
+            const exploredHexes = document.getElementById('exploredHexes');
+            const controlledHexes = document.getElementById('controlledHexes');
+            const hostileHexes = document.getElementById('hostileHexes');
+
+            if (totalHexes) totalHexes.textContent = total || '0';
+            if (exploredHexes) exploredHexes.textContent = explored || '0';
+            if (controlledHexes) controlledHexes.textContent = controlled || '0';
+            if (hostileHexes) hostileHexes.textContent = hostile || '0';
+        }
+
+        // Initialize map statistics
+        updateMapStats(156, 23, 5, 8);
+    </script>
 </body>
 </html>

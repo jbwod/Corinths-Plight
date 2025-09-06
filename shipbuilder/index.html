@@ -3,140 +3,677 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Corvette Configurator</title>
+    <title>Corvette Ship Builder - Corinth's Plight</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700;800&display=swap">
 <style>
-    body {
-        background-color: black;
-        color: lightblue;
-        font-family: 'Courier New', Courier, monospace;
+        :root {
+            --primary-cyan: #00D4FF;
+            --primary-cyan-dark: #0099CC;
+            --primary-cyan-light: #33E0FF;
+            --secondary-blue: #0066FF;
+            --accent-purple: #8B5CF6;
+            --accent-gold: #FFD700;
+            --bg-primary: #0A0E1A;
+            --bg-secondary: #1A1F2E;
+            --bg-tertiary: #2A2F3E;
+            --bg-card: rgba(26, 31, 46, 0.8);
+            --bg-glass: rgba(255, 255, 255, 0.05);
+            --text-primary: #FFFFFF;
+            --text-secondary: #B8C5D1;
+            --text-muted: #7A8A9A;
+            --text-accent: var(--primary-cyan);
+            --border-primary: rgba(0, 212, 255, 0.3);
+            --border-secondary: rgba(255, 255, 255, 0.1);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 20px rgba(0, 212, 255, 0.3);
+            --shadow-glow-strong: 0 0 30px rgba(0, 212, 255, 0.5);
+            --space-xs: 0.25rem;
+            --space-sm: 0.5rem;
+            --space-md: 1rem;
+            --space-lg: 1.5rem;
+            --space-xl: 2rem;
+            --space-2xl: 3rem;
+            --radius-sm: 0.25rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+            --radius-2xl: 1.5rem;
+            --transition-fast: 0.15s ease-out;
+            --transition-normal: 0.3s ease-out;
+            --transition-slow: 0.5s ease-out;
+        }
+
+        * {
         margin: 0;
         padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Exo 2', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(0, 102, 255, 0.1) 0%, transparent 50%);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--space-xl);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: var(--space-2xl);
+        }
+
+        .header h1 {
+            font-family: 'Orbitron', monospace;
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: var(--space-md);
+            text-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+        }
+
+        .header p {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .ship-builder {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: var(--space-2xl);
+            align-items: start;
+        }
+
+        .equipment-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--radius-2xl);
+            padding: var(--space-xl);
+            backdrop-filter: blur(10px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .equipment-section {
+            margin-bottom: var(--space-2xl);
+        }
+
+        .equipment-section h3 {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-accent);
+            margin-bottom: var(--space-lg);
         display: flex;
-        justify-content: center;
         align-items: center;
-        height: 100vh;
-    }
+            gap: var(--space-sm);
+        }
 
-    #imageDisplay {
-        width: 500px;
+        .equipment-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-md);
+        }
+
+        .equipment-option {
+            position: relative;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-secondary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            text-align: center;
+        }
+
+        .equipment-option:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-primary);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .equipment-option.selected {
+            border-color: var(--primary-cyan);
+            background: var(--bg-glass);
+            box-shadow: var(--shadow-glow-strong);
+        }
+
+        .equipment-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .equipment-icon {
+            font-size: 2rem;
+            margin-bottom: var(--space-sm);
+            display: block;
+        }
+
+        .equipment-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--space-xs);
+        }
+
+        .equipment-description {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .ship-display {
+            position: sticky;
+            top: var(--space-xl);
+            text-align: center;
+        }
+
+        .ship-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--radius-2xl);
+            padding: var(--space-2xl);
+            backdrop-filter: blur(10px);
+            box-shadow: var(--shadow-md);
+            margin-bottom: var(--space-xl);
+        }
+
+        .ship-image {
+            max-width: 100%;
         height: auto;
-        border: 3px solid #00bfff;
-        box-shadow: 0 0 15px #00bfff, 0 0 25px #00bfff, 0 0 35px #00bfff;
-        animation: flickerAnimation 5s infinite;
-        filter: brightness(150%);
-    }
-
-    @keyframes flickerAnimation {
-        0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
-            opacity: 1;
-            filter: blur(0px);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-glow);
+            transition: all var(--transition-normal);
+            filter: brightness(1.1) contrast(1.1);
         }
-        20%, 24%, 55% {
-            opacity: 0.5;
-            filter: blur(8px);
+
+        .ship-image:hover {
+            transform: scale(1.05);
+            box-shadow: var(--shadow-glow-strong);
         }
-    }
 
-    form {
-        margin: 20px;
-        padding: 20px;
-        background: rgba(0, 0, 0, 0.5);
-        border: 1px solid #00bfff;
-        border-radius: 10px;
-        box-shadow: 0 0 10px #00bfff, 0 0 20px #00bfff;
-    }
+        .ship-info {
+            margin-top: var(--space-lg);
+        }
 
-    label {
-        font-weight: bold;
-        color: #00bfff;
-    }
+        .ship-name {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-accent);
+            margin-bottom: var(--space-sm);
+        }
 
-    input[type="radio"] {
-        accent-color: #00bfff;
+        .ship-config {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .action-buttons {
+        display: flex;
+            gap: var(--space-md);
+        justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+        align-items: center;
+            justify-content: center;
+            gap: var(--space-sm);
+            padding: var(--space-md) var(--space-xl);
+            font-family: 'Exo 2', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            text-decoration: none;
+            border: none;
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left var(--transition-slow);
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-cyan), var(--secondary-blue));
+            color: var(--text-primary);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-glow-strong);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-glass);
+            border-color: var(--primary-cyan);
+            transform: translateY(-2px);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-secondary);
+            border-radius: 50%;
+            border-top-color: var(--primary-cyan);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-fadeIn {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @media (max-width: 1024px) {
+            .ship-builder {
+                grid-template-columns: 1fr;
+                gap: var(--space-xl);
+            }
+            
+            .ship-display {
+                position: static;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: var(--space-lg);
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .equipment-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
     }
 </style>
 </head>
 <body>
-<h1>Corvette Configurator</h1>
-<form>
-    <h2>Select First External Equipment:</h2>
-    <input type="radio" id="scanning" name="firstEquip" value="scan">
-    <label for="scanning">Scanning System</label><br>
-    <input type="radio" id="rapidFire" name="firstEquip" value="rapid">
-    <label for="rapidFire">Rapid Fire Anti-Air Cannons</label><br>
-    <input type="radio" id="rail" name="firstEquip" value="rail">
-    <label for="rail">Rail Cannon</label><br>
-    <input type="radio" id="orbitalBombardment" name="firstEquip" value="orbital">
-    <label for="orbitalBombardment">Orbital Bombardment Cannons</label><br>
-    <input type="radio" id="laser" name="firstEquip" value="laser">
-    <label for="laser">Orbital Laser</label><br>
-    <input type="radio" id="broadside" name="firstEquip" value="broad">
-    <label for="broadside">Broadside Cannons</label><br>
-    <input type="radio" id="drop" name="firstEquip" value="drop">
-    <label for="drop">Orbital Structure Drop</label><br>
-    <input type="radio" id="vtol" name="firstEquip" value="hang">
-    <label for="vtol">VTOL Bay</label><br>
+    <div class="container">
+        <div class="header animate-fadeIn">
+            <h1>Corvette Ship Builder</h1>
+            <p>Design and configure your corvette-class warship with advanced equipment systems. Choose your weapons, sensors, and support systems to create the perfect vessel for your fleet.</p>
+        </div>
 
-    <h2>Select Second External Equipment:</h2>
-    <input type="radio" id="scanning" name="secondEquip" value="scan">
-    <label for="scanning">Scanning System</label><br>
-    <input type="radio" id="rapidFire" name="secondEquip" value="rapid">
-    <label for="rapidFire">Rapid Fire Anti-Air Cannons</label><br>
-    <input type="radio" id="rail" name="secondEquip" value="rail">
-    <label for="rail">Rail Cannon</label><br>
-    <input type="radio" id="orbitalBombardment" name="secondEquip" value="orbital">
-    <label for="orbitalBombardment">Orbital Bombardment Cannons</label><br>
-    <input type="radio" id="laser" name="secondEquip" value="laser">
-    <label for="laser">Orbital Laser</label><br>
-    <input type="radio" id="broadside" name="secondEquip" value="broad">
-    <label for="broadside">Broadside Cannons</label><br>
-    <input type="radio" id="drop" name="secondEquip" value="drop">
-    <label for="drop">Orbital Structure Drop</label><br>
-    <input type="radio" id="vtol" name="secondEquip" value="hang">
-    <label for="vtol">VTOL Bay</label><br>
+        <div class="ship-builder">
+            <!-- Equipment Selection Panel -->
+            <div class="equipment-panel animate-fadeIn">
+                <form id="shipConfigForm">
+                    <!-- First Equipment Slot -->
+                    <div class="equipment-section">
+                        <h3>
+                            <span>⚔️</span>
+                            Primary Equipment
+                        </h3>
+                        <div class="equipment-grid">
+                            <label class="equipment-option">
+                                <input type="radio" name="firstEquip" value="scan">
+                                <span class="equipment-icon">🔍</span>
+                                <div class="equipment-name">Scanning System</div>
+                                <div class="equipment-description">Advanced sensor array for reconnaissance and target acquisition</div>
+                            </label>
+                            
+                            <label class="equipment-option">
+                                <input type="radio" name="firstEquip" value="rapid">
+                                <span class="equipment-icon">💥</span>
+                                <div class="equipment-name">Rapid Fire Cannons</div>
+                                <div class="equipment-description">High-rate anti-aircraft weapon systems</div>
+                            </label>
+                            
+                            <label class="equipment-option">
+                                <input type="radio" name="firstEquip" value="rail">
+                                <span class="equipment-icon">⚡</span>
+                                <div class="equipment-name">Rail Cannon</div>
+                                <div class="equipment-description">Electromagnetic projectile weapon for long-range engagement</div>
+                            </label>
+                            
+                            <label class="equipment-option">
+                                <input type="radio" name="firstEquip" value="orbital">
+                                <span class="equipment-icon">🌍</span>
+                                <div class="equipment-name">Orbital Bombardment</div>
+                                <div class="equipment-description">Heavy cannons for planetary assault operations</div>
+                            </label>
+                            
+                            <label class="equipment-option">
+                                <input type="radio" name="firstEquip" value="laser">
+                                <span class="equipment-icon">🔴</span>
+                                <div class="equipment-name">Orbital Laser</div>
+                                <div class="equipment-description">Precision energy weapon for surgical strikes</div>
+                            </label>
+                            
+                            <label class="equipment-option">
+                                <input type="radio" name="firstEquip" value="broad">
+                                <span class="equipment-icon">💢</span>
+                                <div class="equipment-name">Broadside Cannons</div>
+                                <div class="equipment-description">Lateral firing weapons for ship-to-ship combat</div>
+                            </label>
+                            
+                            <label class="equipment-option">
+                                <input type="radio" name="firstEquip" value="drop">
+                                <span class="equipment-icon">📦</span>
+                                <div class="equipment-name">Structure Drop</div>
+                                <div class="equipment-description">Deployable orbital structures and platforms</div>
+                            </label>
+                            
+                            <label class="equipment-option">
+                                <input type="radio" name="firstEquip" value="hang">
+                                <span class="equipment-icon">🚁</span>
+                                <div class="equipment-name">VTOL Bay</div>
+                                <div class="equipment-description">Vertical takeoff and landing craft deployment</div>
+                            </label>
+                        </div>
+                    </div>
 
+                    <!-- Second Equipment Slot -->
+                    <div class="equipment-section">
+                        <h3>
+                            <span>🛡️</span>
+                            Secondary Equipment
+                        </h3>
+                        <div class="equipment-grid">
+                            <label class="equipment-option">
+                                <input type="radio" name="secondEquip" value="scan">
+                                <span class="equipment-icon">🔍</span>
+                                <div class="equipment-name">Scanning System</div>
+                                <div class="equipment-description">Advanced sensor array for reconnaissance and target acquisition</div>
+                            </label>
+                            
+                            <label class="equipment-option">
+                                <input type="radio" name="secondEquip" value="rapid">
+                                <span class="equipment-icon">💥</span>
+                                <div class="equipment-name">Rapid Fire Cannons</div>
+                                <div class="equipment-description">High-rate anti-aircraft weapon systems</div>
+                            </label>
+                            
+                            <label class="equipment-option">
+                                <input type="radio" name="secondEquip" value="rail">
+                                <span class="equipment-icon">⚡</span>
+                                <div class="equipment-name">Rail Cannon</div>
+                                <div class="equipment-description">Electromagnetic projectile weapon for long-range engagement</div>
+                            </label>
+                            
+                            <label class="equipment-option">
+                                <input type="radio" name="secondEquip" value="orbital">
+                                <span class="equipment-icon">🌍</span>
+                                <div class="equipment-name">Orbital Bombardment</div>
+                                <div class="equipment-description">Heavy cannons for planetary assault operations</div>
+                            </label>
+                            
+                            <label class="equipment-option">
+                                <input type="radio" name="secondEquip" value="laser">
+                                <span class="equipment-icon">🔴</span>
+                                <div class="equipment-name">Orbital Laser</div>
+                                <div class="equipment-description">Precision energy weapon for surgical strikes</div>
+                            </label>
+                            
+                            <label class="equipment-option">
+                                <input type="radio" name="secondEquip" value="broad">
+                                <span class="equipment-icon">💢</span>
+                                <div class="equipment-name">Broadside Cannons</div>
+                                <div class="equipment-description">Lateral firing weapons for ship-to-ship combat</div>
+                            </label>
+                            
+                            <label class="equipment-option">
+                                <input type="radio" name="secondEquip" value="drop">
+                                <span class="equipment-icon">📦</span>
+                                <div class="equipment-name">Structure Drop</div>
+                                <div class="equipment-description">Deployable orbital structures and platforms</div>
+                            </label>
+                            
+                            <label class="equipment-option">
+                                <input type="radio" name="secondEquip" value="hang">
+                                <span class="equipment-icon">🚁</span>
+                                <div class="equipment-name">VTOL Bay</div>
+                                <div class="equipment-description">Vertical takeoff and landing craft deployment</div>
+                            </label>
+                        </div>
+                    </div>
 </form>
+            </div>
 
-<img id="imageDisplay" src="sprites/ship_template/corvette/corvette.png" alt="Corvette Image">
+            <!-- Ship Display Panel -->
+            <div class="ship-display animate-fadeIn" style="animation-delay: 0.2s;">
+                <div class="ship-container">
+                    <img id="shipImage" src="sprites/ship_template/corvette/corvette.png" alt="Corvette Configuration" class="ship-image">
+                    <div class="ship-info">
+                        <div class="ship-name" id="shipName">Corvette Base Model</div>
+                        <div class="ship-config" id="shipConfig">Select equipment to configure your ship</div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="exportConfiguration()">
+                        <span>💾</span>
+                        Export Configuration
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetConfiguration()">
+                        <span>🔄</span>
+                        Reset Design
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 <script>
-document.querySelectorAll('input').forEach(item => {
-    item.addEventListener('change', updateImage);
-});
+        // Equipment data for display
+        const equipmentData = {
+            scan: { name: 'Scanning System', icon: '🔍' },
+            rapid: { name: 'Rapid Fire Cannons', icon: '💥' },
+            rail: { name: 'Rail Cannon', icon: '⚡' },
+            orbital: { name: 'Orbital Bombardment', icon: '🌍' },
+            laser: { name: 'Orbital Laser', icon: '🔴' },
+            broad: { name: 'Broadside Cannons', icon: '💢' },
+            drop: { name: 'Structure Drop', icon: '📦' },
+            hang: { name: 'VTOL Bay', icon: '🚁' }
+        };
 
-function updateImage() {
+        // Add event listeners to all radio buttons
+        document.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', updateShipDisplay);
+        });
+
+        // Update ship display when equipment changes
+        function updateShipDisplay() {
     const firstEquip = document.querySelector('input[name="firstEquip"]:checked')?.value;
     const secondEquip = document.querySelector('input[name="secondEquip"]:checked')?.value;
+            
+            // Update visual selection
+            document.querySelectorAll('.equipment-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            document.querySelectorAll('input[type="radio"]:checked').forEach(radio => {
+                radio.closest('.equipment-option').classList.add('selected');
+            });
+
     if (firstEquip && secondEquip) {
-        const imageName = `corvette_${firstEquip}_${secondEquip}.png`;
-        const altImageName = `corvette_${secondEquip}_${firstEquip}.png`;
+                updateShipImage(firstEquip, secondEquip);
+                updateShipInfo(firstEquip, secondEquip);
+            } else if (firstEquip) {
+                updateShipImage(firstEquip, null);
+                updateShipInfo(firstEquip, null);
+            } else {
+                resetToBase();
+            }
+        }
+
+        // Update ship image based on equipment
+        function updateShipImage(firstEquip, secondEquip) {
+            const shipImage = document.getElementById('shipImage');
+            const imageName = `corvette_${firstEquip}_${secondEquip || 'base'}.png`;
+            const altImageName = `corvette_${secondEquip || 'base'}_${firstEquip}.png`;
         const imagePath = `sprites/ship_template/corvette/${imageName}`;
         const altImagePath = `sprites/ship_template/corvette/${altImageName}`;
+
+            // Show loading state
+            shipImage.style.opacity = '0.5';
+            shipImage.style.filter = 'blur(2px)';
+
         fetch(imagePath)
             .then(response => {
                 if (response.ok) {
-                    document.getElementById('imageDisplay').src = imagePath;
+                        shipImage.src = imagePath;
+                        shipImage.style.opacity = '1';
+                        shipImage.style.filter = 'brightness(1.1) contrast(1.1)';
+                    } else if (secondEquip) {
+                        return fetch(altImagePath);
                 } else {
-                    fetch(altImagePath)
+                        throw new Error('No valid image found');
+                    }
+                })
                         .then(response => {
-                            if (response.ok) {
-                                document.getElementById('imageDisplay').src = altImagePath;
+                    if (response && response.ok) {
+                        shipImage.src = altImagePath;
+                        shipImage.style.opacity = '1';
+                        shipImage.style.filter = 'brightness(1.1) contrast(1.1)';
                             } else {
-                                document.getElementById('imageDisplay').src = 'sprites/ship_template/corvette/corvette.png';
-                            }
-                        })
-                        .catch(() => {
-                            document.getElementById('imageDisplay').src = 'sprites/ship_template/corvette/corvette.png';
-                        });
-
+                        throw new Error('No valid image found');
                 }
             })
             .catch(() => {
-                document.getElementById('imageDisplay').src = 'sprites/ship_template/corvette/corvette.png';
-            });
+                    shipImage.src = 'sprites/ship_template/corvette/corvette.png';
+                    shipImage.style.opacity = '1';
+                    shipImage.style.filter = 'brightness(1.1) contrast(1.1)';
+                });
+        }
 
-    }
-}
+        // Update ship information display
+        function updateShipInfo(firstEquip, secondEquip) {
+            const shipName = document.getElementById('shipName');
+            const shipConfig = document.getElementById('shipConfig');
+            
+            if (firstEquip && secondEquip) {
+                const firstData = equipmentData[firstEquip];
+                const secondData = equipmentData[secondEquip];
+                shipName.textContent = `Corvette ${firstData.name} + ${secondData.name}`;
+                shipConfig.textContent = `Primary: ${firstData.name} | Secondary: ${secondData.name}`;
+            } else if (firstEquip) {
+                const firstData = equipmentData[firstEquip];
+                shipName.textContent = `Corvette ${firstData.name}`;
+                shipConfig.textContent = `Primary: ${firstData.name} | Secondary: None`;
+            }
+        }
+
+        // Reset to base configuration
+        function resetToBase() {
+            document.getElementById('shipImage').src = 'sprites/ship_template/corvette/corvette.png';
+            document.getElementById('shipName').textContent = 'Corvette Base Model';
+            document.getElementById('shipConfig').textContent = 'Select equipment to configure your ship';
+        }
+
+        // Export configuration
+        function exportConfiguration() {
+            const firstEquip = document.querySelector('input[name="firstEquip"]:checked')?.value;
+            const secondEquip = document.querySelector('input[name="secondEquip"]:checked')?.value;
+            
+            if (!firstEquip && !secondEquip) {
+                alert('Please select at least one equipment type before exporting.');
+                return;
+            }
+
+            const config = {
+                primary: firstEquip ? equipmentData[firstEquip].name : 'None',
+                secondary: secondEquip ? equipmentData[secondEquip].name : 'None',
+                timestamp: new Date().toISOString()
+            };
+
+            const configString = JSON.stringify(config, null, 2);
+            const blob = new Blob([configString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'corvette-configuration.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Reset configuration
+        function resetConfiguration() {
+            document.querySelectorAll('input[type="radio"]').forEach(radio => {
+                radio.checked = false;
+            });
+            document.querySelectorAll('.equipment-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            resetToBase();
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add smooth transitions
+            document.querySelectorAll('.equipment-option').forEach(option => {
+                option.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-4px) scale(1.02)';
+                });
+                option.addEventListener('mouseleave', function() {
+                    if (!this.classList.contains('selected')) {
+                        this.style.transform = 'translateY(0) scale(1)';
+                    }
+                });
+            });
+        });
 </script>
 </body>
 </html>

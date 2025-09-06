@@ -1,130 +1,586 @@
 {% extends 'layout.html' %}
 
-{% block title %}My Units{% endblock %}
+{% block title %}My Units - Corinth's Plight{% endblock %}
 
 {% block content %}
-<style>
-    body {
-        background: #081221 url('{{ url_for("static", filename="img/move.gif") }}') repeat fixed center;
-        background-size: cover;
-    }
-
-    h1 {
-        text-align: center;
-        color: #4ED1F7;
-        padding: 40px 0;
-        font-size: 2.5em;
-    }
-
-    .unit {
-        list-style: none;
-        padding: 0;
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 30px;
-        justify-content: center;
-        align-items: stretch;
-    }
-
-    .unit li {
-        background: linear-gradient(145deg, #112233, #192844);
-        border-radius: 12px;
-        box-shadow: 0 10px 30px rgba(0, 100, 255, 0.5);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        color: #cfd2d6;
-    }
-
-    .unit li:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 12px 40px rgba(0, 100, 255, 0.8);
-    }
-
-    img {
-        width: 100%;
-        height: auto;
-        object-fit: cover;
-        border-top-left-radius: 12px;
-        border-top-right-radius: 12px;
-    }
-
-    .unit-info {
-        padding: 20px;
-        font-size: 1rem;
-    }
-
-    .unit-info strong {
-        color: #80d4ff;
-        font-size: 1.4em;
-        display: block;
-        margin-bottom: 5px;
-    }
-
-    .unit-info p {
-        margin: 10px 0;
-        line-height: 1.4;
-    }
-
-    .unit-actions {
-        display: flex;
-        justify-content: space-evenly;
-        padding: 10px;
-        background: rgba(10, 20, 30, 0.9);
-        border-top: 1px solid #007bff;
-        margin-top: auto;
-    }
-
-    .unit-actions a {
-        background-color: #007bff;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        color: white;
-        text-decoration: none;
-        transition: background-color 0.3s, transform 0.3s;
-        font-size: 0.9em;
-    }
-
-    .unit-actions a:hover {
-        background-color: #0056b3;
-        transform: translateY(-2px);
-    }
-
-    .created-at {
-        text-align: right;
-        font-style: italic;
-        font-size: 0.8em;
-        opacity: 0.8;
-    }
-</style>
-<script src="{{ url_for('static', filename='js/all.min.js') }}"></script>
-<h1>My Units</h1>
-
-<ul class="unit">
-    {% for unit in units %}
-        <li>
-            <img src="{{ url_for('static', filename='img/' + unit.template.unit_type + '.png') }}" alt="{{ unit.template.unit_type }}">
-            <div class="unit-info">
-                <strong>{{ unit.custom_name }}</strong> - {{ unit.template.unit_type }}
-                <p><i class="fas fa-book"></i> Description: {{ unit.template.description }}</p>
-                <p><i class="fas fa-crosshairs"></i> FS: {{ unit.fs }} | <i class="fas fa-shield-alt"></i> Armor: {{ unit.armor }} | <i class="fas fa-tachometer-alt"></i> Speed: {{ unit.speed }} | <i class="fas fa-ruler"></i> Range: {{ unit.range }}</p>
-                <p><i class="fas fa-rules"></i> Special Rules: {{ unit.template.special_rules }}</p>
-                <p><i class="fas fa-upgrade"></i> Upgrades: {{ unit.applied_upgrades }}</p>
-                <p class="created-at">Created At: {{ unit.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+<div class="my-units-page">
+    <!-- Hero Section -->
+    <section class="units-hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title">My Units</h1>
+                <p class="hero-subtitle">Manage and deploy your military forces</p>
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <span class="stat-number">{{ units|length }}</span>
+                        <span class="stat-label">Total Units</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ infantry_count }}</span>
+                        <span class="stat-label">Infantry</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ vehicle_count }}</span>
+                        <span class="stat-label">Vehicles</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ mech_count }}</span>
+                        <span class="stat-label">Mechs</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ aircraft_count }}</span>
+                        <span class="stat-label">Aircraft</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ artillery_count }}</span>
+                        <span class="stat-label">Artillery</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ orbital_count }}</span>
+                        <span class="stat-label">Orbital</span>
+                    </div>
+                </div>
             </div>
-            <div class="unit-actions">
-                <a href="#">Edit</a>
-                <a href="#">Deploy</a>
-                <a href="#">De-list</a>
-                <a href="#">Armory</a>
+        </div>
+    </section>
+
+    <!-- Units Management Interface -->
+    <section class="units-interface">
+        <div class="container">
+            <!-- Action Bar -->
+            <div class="action-bar">
+                <div class="action-left">
+                    <h2 class="section-title">
+                        <span class="section-icon">⚔️</span>
+                        Your Military Forces
+                    </h2>
+                    <p class="section-subtitle">Deploy, manage, and upgrade your units</p>
+                </div>
+                <div class="action-right">
+                    <a href="{{ url_for('create_unit') }}" class="btn btn-primary">
+                        <span class="btn-icon">➕</span>
+                        <span class="btn-text">Create New Unit</span>
+                    </a>
+                    <button class="btn btn-secondary" id="toggleViewMode">
+                        <span class="btn-icon">📋</span>
+                        <span class="btn-text">List View</span>
+                    </button>
+                </div>
             </div>
-        </li>
-    {% else %}
-        <li>No units found.</li>
-    {% endfor %}
-</ul>
-<br>
-<br>
+
+            <!-- Filter and Search -->
+            <div class="filter-section">
+                <div class="filter-tabs">
+                    <button class="filter-tab active" data-filter="all">
+                        <span class="tab-icon"><i class="fas fa-star"></i></span>
+                        <span class="tab-text">All Units</span>
+                        <span class="tab-count">{{ units|length }}</span>
+                    </button>
+                    <button class="filter-tab" data-filter="infantry">
+                        <span class="tab-icon"><i class="fas fa-users"></i></span>
+                        <span class="tab-text">Infantry</span>
+                        <span class="tab-count">{{ infantry_count }}</span>
+                    </button>
+                    <button class="filter-tab" data-filter="vehicle">
+                        <span class="tab-icon"><i class="fas fa-car"></i></span>
+                        <span class="tab-text">Vehicles</span>
+                        <span class="tab-count">{{ vehicle_count }}</span>
+                    </button>
+                    <button class="filter-tab" data-filter="mech">
+                        <span class="tab-icon"><i class="fas fa-robot"></i></span>
+                        <span class="tab-text">Mechs</span>
+                        <span class="tab-count">{{ mech_count }}</span>
+                    </button>
+                    <button class="filter-tab" data-filter="aerial">
+                        <span class="tab-icon"><i class="fas fa-plane"></i></span>
+                        <span class="tab-text">Aircraft</span>
+                        <span class="tab-count">{{ aircraft_count }}</span>
+                    </button>
+                    <button class="filter-tab" data-filter="artillery">
+                        <span class="tab-icon"><i class="fas fa-bomb"></i></span>
+                        <span class="tab-text">Artillery</span>
+                        <span class="tab-count">{{ artillery_count }}</span>
+                    </button>
+                    <button class="filter-tab" data-filter="orbital">
+                        <span class="tab-icon"><i class="fas fa-rocket"></i></span>
+                        <span class="tab-text">Orbital</span>
+                        <span class="tab-count">{{ orbital_count }}</span>
+                    </button>
+                </div>
+                <div class="search-bar">
+                    <div class="search-input-group">
+                        <span class="search-icon"><i class="fas fa-search"></i></span>
+                        <input type="text" id="unitSearch" placeholder="Search units by name or type..." class="search-input">
+                    </div>
+                    <button class="btn btn-secondary btn-small" id="clearSearch">
+                        <span class="btn-icon"><i class="fas fa-times"></i></span>
+                        <span class="btn-text">Clear</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Units Grid -->
+            <div class="units-container">
+                {% if units %}
+                    <div class="units-grid" id="unitsGrid">
+                        {% for unit in units %}
+                        <div class="unit-card" data-category="{{ unit.template.unit_type.lower().replace(' ', '-') }}" data-unit-id="{{ unit.id }}">
+                            <div class="unit-icon-container">
+                                <div class="unit-icon">
+                                    {% if 'infantry' in unit.template.unit_type.lower() or 'unit' in unit.template.unit_type.lower() %}
+                                        {% if 'combat engineer' in unit.template.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/combat_engineer.png') }}" alt="{{ unit.template.unit_type }}">
+                                        {% elif 'combat medical' in unit.template.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/combat_medic.png') }}" alt="{{ unit.template.unit_type }}">
+                                        {% elif 'power armored' in unit.template.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/power_infantry.png') }}" alt="{{ unit.template.unit_type }}">
+                                        {% elif 'irregular' in unit.template.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/irregular.png') }}" alt="{{ unit.template.unit_type }}">
+                                        {% elif 'special forces' in unit.template.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/special_forces.png') }}" alt="{{ unit.template.unit_type }}">
+                                        {% elif 'sapper' in unit.template.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/sapper.png') }}" alt="{{ unit.template.unit_type }}">
+                                        {% else %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/infantry.png') }}" alt="{{ unit.template.unit_type }}">
+                                        {% endif %}
+                                    {% elif 'vehicle' in unit.template.unit_type.lower() or 'tank' in unit.template.unit_type.lower() or 'truck' in unit.template.unit_type.lower() or 'mechanized' in unit.template.unit_type.lower() %}
+                                        {% if 'heavy battle tank' in unit.template.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/vehicles/heavy_tank.png') }}" alt="{{ unit.template.unit_type }}">
+                                        {% elif 'light battle tank' in unit.template.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/vehicles/light_tank.png') }}" alt="{{ unit.template.unit_type }}">
+                                        {% elif 'main battle tank' in unit.template.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/vehicles/main_tank.png') }}" alt="{{ unit.template.unit_type }}">
+                                        {% elif 'super heavy tank' in unit.template.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/vehicles/super_heavy.png') }}" alt="{{ unit.template.unit_type }}">
+                                        {% elif 'logistic truck' in unit.template.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/vehicles/logistic.png') }}" alt="{{ unit.template.unit_type }}">
+                                        {% elif 'light vehicle' in unit.template.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/vehicles/light_vehicle.png') }}" alt="{{ unit.template.unit_type }}">
+                                        {% elif 'mechanized' in unit.template.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/mechanized.png') }}" alt="{{ unit.template.unit_type }}">
+                                        {% else %}
+                                            <div class="icon-placeholder vehicle-icon"><i class="fas fa-car"></i></div>
+                                        {% endif %}
+                                    {% elif 'mech' in unit.template.unit_type.lower() %}
+                                        <div class="icon-placeholder mech-icon"><i class="fas fa-robot"></i></div>
+                                    {% elif 'aircraft' in unit.template.unit_type.lower() or 'fighter' in unit.template.unit_type.lower() or 'bomber' in unit.template.unit_type.lower() or 'vtol' in unit.template.unit_type.lower() or 'transport' in unit.template.unit_type.lower() %}
+                                        <div class="icon-placeholder aircraft-icon"><i class="fas fa-plane"></i></div>
+                                    {% elif 'artillery' in unit.template.unit_type.lower() %}
+                                        <div class="icon-placeholder artillery-icon"><i class="fas fa-bomb"></i></div>
+                                    {% elif 'corvette' in unit.template.unit_type.lower() or 'destroyer' in unit.template.unit_type.lower() or 'cruiser' in unit.template.unit_type.lower() or 'battleship' in unit.template.unit_type.lower() %}
+                                        <div class="icon-placeholder orbital-icon"><i class="fas fa-rocket"></i></div>
+                                    {% else %}
+                                        <div class="icon-placeholder default-icon"><i class="fas fa-sword"></i></div>
+                                    {% endif %}
+                                </div>
+                                <div class="unit-category-badge">
+                                    {% if 'infantry' in unit.template.unit_type.lower() or 'unit' in unit.template.unit_type.lower() %}
+                                        <span class="category-icon"><i class="fas fa-users"></i></span>
+                                    {% elif 'vehicle' in unit.template.unit_type.lower() or 'tank' in unit.template.unit_type.lower() or 'truck' in unit.template.unit_type.lower() or 'mechanized' in unit.template.unit_type.lower() %}
+                                        <span class="category-icon"><i class="fas fa-car"></i></span>
+                                    {% elif 'mech' in unit.template.unit_type.lower() %}
+                                        <span class="category-icon"><i class="fas fa-robot"></i></span>
+                                    {% elif 'aircraft' in unit.template.unit_type.lower() or 'fighter' in unit.template.unit_type.lower() or 'bomber' in unit.template.unit_type.lower() or 'vtol' in unit.template.unit_type.lower() or 'transport' in unit.template.unit_type.lower() %}
+                                        <span class="category-icon"><i class="fas fa-plane"></i></span>
+                                    {% elif 'artillery' in unit.template.unit_type.lower() %}
+                                        <span class="category-icon"><i class="fas fa-bomb"></i></span>
+                                    {% elif 'corvette' in unit.template.unit_type.lower() or 'destroyer' in unit.template.unit_type.lower() or 'cruiser' in unit.template.unit_type.lower() or 'battleship' in unit.template.unit_type.lower() %}
+                                        <span class="category-icon"><i class="fas fa-rocket"></i></span>
+                                    {% else %}
+                                        <span class="category-icon"><i class="fas fa-sword"></i></span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="unit-content">
+                                <div class="unit-header">
+                                    <h3 class="unit-name">{{ unit.custom_name }}</h3>
+                                    <p class="unit-type">{{ unit.template.unit_type }}</p>
+                                </div>
+                                
+                                <div class="unit-main-info">
+                                    <div class="unit-icon-main">
+                                        {% if 'infantry' in unit.template.unit_type.lower() or 'unit' in unit.template.unit_type.lower() %}
+                                            {% if 'combat engineer' in unit.template.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/combat_engineer.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
+                                            {% elif 'combat medical' in unit.template.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/combat_medic.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
+                                            {% elif 'power armored' in unit.template.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/power_infantry.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
+                                            {% elif 'irregular' in unit.template.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/irregular.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
+                                            {% elif 'special forces' in unit.template.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/special_forces.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
+                                            {% elif 'sapper' in unit.template.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/sapper.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
+                                            {% else %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/infantry.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
+                                            {% endif %}
+                                        {% elif 'vehicle' in unit.template.unit_type.lower() or 'tank' in unit.template.unit_type.lower() or 'truck' in unit.template.unit_type.lower() or 'mechanized' in unit.template.unit_type.lower() %}
+                                            {% if 'heavy battle tank' in unit.template.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/vehicles/heavy_tank.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
+                                            {% elif 'light battle tank' in unit.template.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/vehicles/light_tank.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
+                                            {% elif 'main battle tank' in unit.template.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/vehicles/main_tank.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
+                                            {% elif 'super heavy tank' in unit.template.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/vehicles/super_heavy.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
+                                            {% elif 'logistic truck' in unit.template.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/vehicles/logistic.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
+                                            {% elif 'light vehicle' in unit.template.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/vehicles/light_vehicle.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
+                                            {% elif 'mechanized' in unit.template.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/mechanized.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
+                                            {% else %}
+                                                <div class="main-icon-placeholder vehicle-icon"><i class="fas fa-car"></i></div>
+                                            {% endif %}
+                                        {% elif 'mech' in unit.template.unit_type.lower() %}
+                                            <div class="main-icon-placeholder mech-icon"><i class="fas fa-robot"></i></div>
+                                        {% elif 'aircraft' in unit.template.unit_type.lower() or 'fighter' in unit.template.unit_type.lower() or 'bomber' in unit.template.unit_type.lower() or 'vtol' in unit.template.unit_type.lower() or 'transport' in unit.template.unit_type.lower() %}
+                                            <div class="main-icon-placeholder aircraft-icon"><i class="fas fa-plane"></i></div>
+                                        {% elif 'artillery' in unit.template.unit_type.lower() %}
+                                            <div class="main-icon-placeholder artillery-icon"><i class="fas fa-bomb"></i></div>
+                                        {% elif 'corvette' in unit.template.unit_type.lower() or 'destroyer' in unit.template.unit_type.lower() or 'cruiser' in unit.template.unit_type.lower() or 'battleship' in unit.template.unit_type.lower() %}
+                                            <div class="main-icon-placeholder orbital-icon"><i class="fas fa-rocket"></i></div>
+                                        {% else %}
+                                            <div class="main-icon-placeholder default-icon"><i class="fas fa-sword"></i></div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="unit-stats">
+                                        <div class="stat-item">
+                                            <span class="stat-icon"><i class="fas fa-fire"></i></span>
+                                            <span class="stat-value">{{ unit.fs }}</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <span class="stat-icon"><i class="fas fa-shield-alt"></i></span>
+                                            <span class="stat-value">{{ unit.armor }}</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <span class="stat-icon"><i class="fas fa-running"></i></span>
+                                            <span class="stat-value">{{ unit.speed }}</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <span class="stat-icon"><i class="fas fa-crosshairs"></i></span>
+                                            <span class="stat-value">{{ unit.range }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <p class="unit-description">{{ unit.template.description[:80] }}{% if unit.template.description|length > 80 %}...{% endif %}</p>
+                                
+                                <div class="unit-meta">
+                                    <span class="created-date">
+                                        <span class="meta-icon">📅</span>
+                                        Created {{ unit.created_at.strftime('%Y-%m-%d') }}
+                                    </span>
+                                    {% if unit.applied_upgrades and unit.applied_upgrades != '[]' %}
+                                    <span class="upgrades-count">
+                                        <span class="meta-icon">🔧</span>
+                                        {{ unit.applied_upgrades|from_json|length }} Upgrades
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="unit-actions">
+                                <div class="action-row">
+                                    <button class="action-btn primary" onclick="editUnit({{ unit.id }})" title="Edit Unit">
+                                        <span class="btn-icon">✏️</span>
+                                        <span class="btn-text">Edit</span>
+                                    </button>
+                                    <button class="action-btn success" onclick="deployUnit({{ unit.id }})" title="Deploy Unit">
+                                        <span class="btn-icon">🚀</span>
+                                        <span class="btn-text">Deploy</span>
+                                    </button>
+                                </div>
+                                <div class="action-row">
+                                    <button class="action-btn info" onclick="viewDetails({{ unit.id }})" title="View Details">
+                                        <span class="btn-icon">👁️</span>
+                                        <span class="btn-text">Details</span>
+                                    </button>
+                                    <button class="action-btn danger" onclick="deleteUnit({{ unit.id }})" title="Delete Unit">
+                                        <span class="btn-icon">🗑️</span>
+                                        <span class="btn-text">Delete</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">⚔️</div>
+                        <h3>No Units Yet</h3>
+                        <p>You haven't created any units yet. Start building your military forces!</p>
+                        <a href="{{ url_for('create_unit') }}" class="btn btn-primary">
+                            <span class="btn-icon">➕</span>
+                            <span class="btn-text">Create Your First Unit</span>
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- Unit Details Modal -->
+<div class="modal" id="unitDetailsModal">
+    <div class="modal-content unit-details-modal">
+        <div class="modal-header">
+            <h2 class="modal-title">Unit Details</h2>
+            <button class="modal-close" id="closeUnitDetails">&times;</button>
+        </div>
+        <div class="modal-body" id="unitDetailsContent">
+            <!-- Unit details will be populated dynamically -->
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal" id="deleteModal">
+    <div class="modal-content delete-modal">
+        <div class="modal-header">
+            <h2 class="modal-title">Delete Unit</h2>
+            <button class="modal-close" id="closeDeleteModal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete this unit? This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button class="btn btn-danger" id="confirmDelete">Delete Unit</button>
+                <button class="btn btn-secondary" id="cancelDelete">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// My Units JavaScript
+class MyUnitsManager {
+    constructor() {
+        this.currentFilter = 'all';
+        this.viewMode = 'grid'; // 'grid' or 'list'
+        this.units = [];
+        
+        this.initializeEventListeners();
+        this.loadUnits();
+    }
+    
+    loadUnits() {
+        // Load units from the page data
+        const unitCards = document.querySelectorAll('.unit-card');
+        this.units = Array.from(unitCards).map(card => ({
+            id: card.dataset.unitId,
+            category: card.dataset.category,
+            element: card
+        }));
+    }
+    
+    initializeEventListeners() {
+        // Filter tabs
+        document.querySelectorAll('.filter-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                this.setFilter(tab.dataset.filter);
+            });
+        });
+        
+        // Search functionality
+        document.getElementById('unitSearch').addEventListener('input', (e) => {
+            this.searchUnits(e.target.value);
+        });
+        
+        // Clear search
+        document.getElementById('clearSearch').addEventListener('click', () => {
+            document.getElementById('unitSearch').value = '';
+            this.searchUnits('');
+        });
+        
+        // View mode toggle
+        document.getElementById('toggleViewMode').addEventListener('click', () => {
+            this.toggleViewMode();
+        });
+        
+        // Modal close handlers
+        document.getElementById('closeUnitDetails').addEventListener('click', () => {
+            this.closeModal('unitDetailsModal');
+        });
+        
+        document.getElementById('closeDeleteModal').addEventListener('click', () => {
+            this.closeModal('deleteModal');
+        });
+        
+        // Close modals on outside click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.closeModal(modal.id);
+                }
+            });
+        });
+    }
+    
+    setFilter(filter) {
+        this.currentFilter = filter;
+        
+        // Update active tab
+        document.querySelectorAll('.filter-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelector(`[data-filter="${filter}"]`).classList.add('active');
+        
+        // Filter units
+        this.filterUnits();
+    }
+    
+    filterUnits() {
+        const units = document.querySelectorAll('.unit-card');
+        
+        units.forEach(unit => {
+            if (this.currentFilter === 'all') {
+                unit.style.display = 'block';
+            } else {
+                const category = this.getUnitCategory(unit.dataset.category);
+                if (category === this.currentFilter) {
+                    unit.style.display = 'block';
+                } else {
+                    unit.style.display = 'none';
+                }
+            }
+        });
+    }
+    
+    getUnitCategory(unitType) {
+        const type = unitType.toLowerCase();
+        if (type.includes('infantry') || type.includes('unit') || type.includes('medical') || type.includes('engineer') || type.includes('sapper') || type.includes('special') || type.includes('irregular')) {
+            return 'infantry';
+        } else if (type.includes('vehicle') || type.includes('tank') || type.includes('truck') || type.includes('mechanized')) {
+            return 'vehicle';
+        } else if (type.includes('mech')) {
+            return 'mech';
+        } else if (type.includes('aircraft') || type.includes('fighter') || type.includes('bomber') || type.includes('vtol') || type.includes('transport')) {
+            return 'aerial';
+        } else if (type.includes('artillery')) {
+            return 'artillery';
+        } else if (type.includes('corvette') || type.includes('destroyer') || type.includes('cruiser') || type.includes('battleship')) {
+            return 'orbital';
+        }
+        return 'all';
+    }
+    
+    searchUnits(query) {
+        const units = document.querySelectorAll('.unit-card');
+        const searchTerm = query.toLowerCase();
+        
+        units.forEach(unit => {
+            const name = unit.querySelector('.unit-name').textContent.toLowerCase();
+            const type = unit.querySelector('.unit-type').textContent.toLowerCase();
+            
+            if (name.includes(searchTerm) || type.includes(searchTerm)) {
+                unit.style.display = 'block';
+            } else {
+                unit.style.display = 'none';
+            }
+        });
+    }
+    
+    toggleViewMode() {
+        const grid = document.getElementById('unitsGrid');
+        const toggleBtn = document.getElementById('toggleViewMode');
+        
+        if (this.viewMode === 'grid') {
+            this.viewMode = 'list';
+            grid.classList.add('list-view');
+            toggleBtn.innerHTML = '<span class="btn-icon">⚏</span><span class="btn-text">Grid View</span>';
+        } else {
+            this.viewMode = 'grid';
+            grid.classList.remove('list-view');
+            toggleBtn.innerHTML = '<span class="btn-icon">📋</span><span class="btn-text">List View</span>';
+        }
+    }
+    
+    closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+}
+
+// Global functions for unit actions
+function editUnit(unitId) {
+    // Redirect to edit page or open edit modal
+    window.location.href = `/edit_unit/${unitId}`;
+}
+
+function deployUnit(unitId) {
+    // Open deployment interface
+    alert(`Deploying unit ${unitId}...`);
+}
+
+function viewDetails(unitId) {
+    // Open unit details modal
+    const modal = document.getElementById('unitDetailsModal');
+    const content = document.getElementById('unitDetailsContent');
+    
+    // Find unit data
+    const unitCard = document.querySelector(`[data-unit-id="${unitId}"]`);
+    const unitName = unitCard.querySelector('.unit-name').textContent;
+    const unitType = unitCard.querySelector('.unit-type').textContent;
+    
+    content.innerHTML = `
+        <div class="unit-details-content">
+            <h3>${unitName}</h3>
+            <p><strong>Type:</strong> ${unitType}</p>
+            <p><strong>Status:</strong> Ready for deployment</p>
+            <p><strong>Created:</strong> ${new Date().toLocaleDateString()}</p>
+        </div>
+    `;
+    
+    modal.style.display = 'block';
+}
+
+function deleteUnit(unitId) {
+    // Open delete confirmation modal
+    const modal = document.getElementById('deleteModal');
+    modal.style.display = 'block';
+    
+    // Set up delete confirmation
+    document.getElementById('confirmDelete').onclick = () => {
+        // Send delete request
+        fetch(`/delete_unit/${unitId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove unit from DOM
+                const unitCard = document.querySelector(`[data-unit-id="${unitId}"]`);
+                unitCard.remove();
+                
+                // Close modal
+                document.getElementById('deleteModal').style.display = 'none';
+                
+                // Show success message
+                alert('Unit deleted successfully!');
+            } else {
+                alert('Error deleting unit: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting unit');
+        });
+    };
+    
+    document.getElementById('cancelDelete').onclick = () => {
+        modal.style.display = 'none';
+    };
+}
+
+// Initialize the units manager when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    new MyUnitsManager();
+});
+</script>
 {% endblock %}
+

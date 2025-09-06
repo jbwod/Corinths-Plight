@@ -3,50 +3,321 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Corinths Plight{% endblock %}</title>
+    <title>{% block title %}Corinth's Plight{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <!-- Adding a favicon -->
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta name="description" content="Corinth's Plight - A real-time strategy war game set in a sprawling sci-fi universe">
+    <meta name="theme-color" content="#00D4FF">
 </head>
 <body>
-    <header>
-        <nav>
-            <ul>
-                <li><a href="{{ url_for('index') }}">Home</a></li>
-                <li><a href="{{ url_for('profile') }}">Profile</a></li>
-                <li><a href="{{ url_for('my_units') }}">My Units</a></li>
-                <li><a href="{{ url_for('legion_directory') }}">Legion Directory</a></li>
-                {% if current_user.is_authenticated %}
+    <!-- Header -->
+    <header class="header" id="mainHeader">
+        <div class="nav-container">
+            <a href="{{ url_for('index') }}" class="nav-brand">
+                <div class="brand-icon">
+                    <img src="{{ url_for('static', filename='img/brand-icon.gif') }}" alt="Corinth's Plight" class="brand-icon-img">
+                </div>
+                <div class="brand-text">
+                    <span class="brand-title">CORINTH'S PLIGHT</span>
+                    <span class="brand-subtitle">Welcome to the Campaign</span>
+                </div>
+            </a>
+            
+            <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+            
+            <nav class="nav-menu" id="navMenu">
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">
+                            <span class="nav-icon"><i class="fas fa-home"></i></span>
+                            <span class="nav-text">Home</span>
+                        </a>
+                    </li>
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item">
+                            <a href="{{ url_for('profile') }}" class="nav-link {% if request.endpoint == 'profile' %}active{% endif %}">
+                                <span class="nav-icon"><i class="fas fa-user"></i></span>
+                                <span class="nav-text">Profile</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('my_units') }}" class="nav-link {% if request.endpoint == 'my_units' %}active{% endif %}">
+                                <span class="nav-icon"><i class="fas fa-shield-alt"></i></span>
+                                <span class="nav-text">My Units</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('create_unit') }}" class="nav-link {% if request.endpoint == 'create_unit' %}active{% endif %}">
+                                <span class="nav-icon"><i class="fas fa-tools"></i></span>
+                                <span class="nav-text">Create Unit</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('legion_directory') }}" class="nav-link {% if request.endpoint == 'legion_directory' %}active{% endif %}">
+                                <span class="nav-icon"><i class="fas fa-users"></i></span>
+                                <span class="nav-text">Legions</span>
+                            </a>
+                        </li>
                 {% if current_user.user_legions %}
-                    <li><a href="{{ url_for('legion_dashboard', legion_id=current_user.user_legions[0].legion_id) }}">My Legion</a></li>
+                            <li class="nav-item">
+                                <a href="{{ url_for('legion_dashboard', legion_id=current_user.user_legions[0].legion_id) }}" class="nav-link {% if request.endpoint == 'legion_dashboard' %}active{% endif %}">
+                                    <span class="nav-icon"><i class="fas fa-flag"></i></span>
+                                    <span class="nav-text">My Legion</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                        <li class="nav-divider"></li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('logout') }}" class="nav-link nav-logout">
+                                <span class="nav-icon"><i class="fas fa-sign-out-alt"></i></span>
+                                <span class="nav-text">Logout</span>
+                            </a>
+                        </li>
                 {% else %}
-                    <li>No Legion Found</li>
-                {% endif %}
-                <li><a href="{{ url_for('logout') }}">Logout</a></li>
-                {% else %}
-                <li><a href="{{ url_for('login_signup') }}">Login</a></li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('login_signup') }}" class="nav-link {% if request.endpoint == 'login_signup' %}active{% endif %}">
+                                <span class="nav-icon"><i class="fas fa-key"></i></span>
+                                <span class="nav-text">Login</span>
+                            </a>
+                        </li>
                 {% endif %}
             </ul>
+                
+                <!-- User Status -->
+                {% if current_user.is_authenticated %}
+                <div class="user-status">
+                    <div class="user-avatar">
+                        <span>{{ current_user.username[0].upper() }}</span>
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name">{{ current_user.username }}</div>
+                        <div class="user-status-text">Commander</div>
+                    </div>
+                </div>
+                {% endif %}
         </nav>
+        </div>
     </header>
-    <main>
+
+    <!-- Main Content -->
+    <main class="main">
         {% block content %}{% endblock %}
     </main>
-    <footer>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 Qnetica. All rights reserved. | Corinth's Plight - Real-Time Strategy Warfare</p>
+        </div>
+    </footer>
+
+    <!-- Flash Messages -->
         {% with messages = get_flashed_messages() %}
             {% if messages %}
                 <ul class="alerts">
                 {% for message in messages %}
-                    <li>{{ message }}</li>
+                    <li class="alert alert-success">{{ message }}</li>
                 {% endfor %}
                 </ul>
             {% endif %}
         {% endwith %}
-        <p>&copy; {{ current_year }} Qnetica. All rights reserved.</p>
-    </footer>
+
+    <!-- JavaScript -->
     <script>
-        // Set the current year in the footer dynamically
-        document.querySelector('footer p').textContent = `© ${new Date().getFullYear()} Qnetica. All rights reserved.`;
+        // Enhanced Mobile Navigation Toggle
+        const navToggle = document.getElementById('navToggle');
+        const navMenu = document.getElementById('navMenu');
+        const header = document.getElementById('mainHeader');
+
+        if (navToggle && navMenu) {
+            navToggle.addEventListener('click', function() {
+                navMenu.classList.toggle('active');
+                navToggle.classList.toggle('active');
+                
+                // Animate hamburger lines
+                const lines = navToggle.querySelectorAll('.hamburger-line');
+                lines.forEach((line, index) => {
+                    if (navMenu.classList.contains('active')) {
+                        if (index === 0) line.style.transform = 'rotate(45deg) translate(5px, 5px)';
+                        if (index === 1) line.style.opacity = '0';
+                        if (index === 2) line.style.transform = 'rotate(-45deg) translate(7px, -6px)';
+                    } else {
+                        line.style.transform = 'none';
+                        line.style.opacity = '1';
+                    }
+                });
+            });
+
+            // Close mobile menu when clicking on a link
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', () => {
+                    navMenu.classList.remove('active');
+                    navToggle.classList.remove('active');
+                    
+                    // Reset hamburger lines
+                    const lines = navToggle.querySelectorAll('.hamburger-line');
+                    lines.forEach(line => {
+                        line.style.transform = 'none';
+                        line.style.opacity = '1';
+                    });
+                });
+            });
+        }
+
+        // Header scroll effect
+        let lastScrollY = window.scrollY;
+        window.addEventListener('scroll', () => {
+            const currentScrollY = window.scrollY;
+            
+            if (currentScrollY > 100) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+            
+            lastScrollY = currentScrollY;
+        });
+
+        // Auto-hide flash messages with enhanced animation
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach((alert, index) => {
+                setTimeout(() => {
+                    alert.style.transition = 'all 0.5s ease-out';
+                    alert.style.opacity = '0';
+                    alert.style.transform = 'translateX(100%) scale(0.8)';
+                    setTimeout(() => alert.remove(), 500);
+                }, index * 100);
+            });
+        }, 3000);
+
+        // Enhanced smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    const headerHeight = header.offsetHeight;
+                    const targetPosition = target.offsetTop - headerHeight - 20;
+                    
+                    window.scrollTo({
+                        top: targetPosition,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+
+        // Enhanced form loading states
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function() {
+                const submitBtn = this.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    const originalText = submitBtn.innerHTML;
+                    submitBtn.innerHTML = '<span class="loading"></span> Processing...';
+                    submitBtn.disabled = true;
+                    
+                    // Re-enable after 10 seconds as fallback
+                    setTimeout(() => {
+                        if (submitBtn.disabled) {
+                            submitBtn.innerHTML = originalText;
+                            submitBtn.disabled = false;
+                        }
+                    }, 10000);
+                }
+            });
+        });
+
+        // Add hover effects to navigation items
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-2px) scale(1.05)';
+            });
+            
+            link.addEventListener('mouseleave', function() {
+                if (!this.classList.contains('active')) {
+                    this.style.transform = 'translateY(0) scale(1)';
+                }
+            });
+        });
+
+        // Add click ripple effect to buttons
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                const ripple = document.createElement('span');
+                const rect = this.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                const x = e.clientX - rect.left - size / 2;
+                const y = e.clientY - rect.top - size / 2;
+                
+                ripple.style.width = ripple.style.height = size + 'px';
+                ripple.style.left = x + 'px';
+                ripple.style.top = y + 'px';
+                ripple.classList.add('ripple');
+                
+                this.appendChild(ripple);
+                
+                setTimeout(() => {
+                    ripple.remove();
+                }, 600);
+            });
+        });
+
+        // Initialize page animations
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate elements on scroll
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            }, observerOptions);
+
+            // Observe elements with animation classes
+            document.querySelectorAll('.animate-fadeIn, .animate-slideIn').forEach(el => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(20px)';
+                el.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+                observer.observe(el);
+            });
+        });
     </script>
+    
+    <style>
+        /* Ripple effect for buttons */
+        .btn {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(0);
+            animation: ripple-animation 0.6s linear;
+            pointer-events: none;
+        }
+        
+        @keyframes ripple-animation {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+    </style>
 </body>
 </html>

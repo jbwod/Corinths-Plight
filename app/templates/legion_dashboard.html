@@ -1,176 +1,517 @@
 {% extends 'layout.html' %}
 
-{% block title %}Legion Dashboard{% endblock %}
+{% block title %}{{ legion.name }} - Legion Dashboard{% endblock %}
 
 {% block content %}
-<style>
-    body {
-        background: #081221 url('{{ url_for("static", filename="img/strategy.gif") }}') repeat fixed center;
-        background-size: cover;
-    }
-
-</style>
-<script src="{{ url_for('static', filename='js/all.min.js') }}"></script>
-
-
-<div class="legion-dashboard-container">
-    <div class="header-secion">
-        <div class="legion-logo">
-            <img src="https://armoria.herokuapp.com/?size=500&format=png&coa={{ legion.coa_string }}" alt="Legion Emblem" style="width: 100px; height: 100px;">
-        </div>
-        {% if current_user_legion.role == 'leader' %}
-            <i class="fas fa-edit edit-icon" onclick="toggleEdit('coa-form')"></i>
-            <div id="coa-form" class="hidden">
-                <form action="{{ url_for('update_legion_coa', legion_id=legion.id) }}" method="post">
-                    <input type="text" name="coa_string" placeholder="Enter new COA string" required>
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <button class="btn" type="submit">Update</button>
-                </form>
+<div class="legion-dashboard-page">
+    <!-- Legion Header -->
+    <section class="legion-header">
+        <div class="container">
+            <div class="legion-hero">
+                <div class="legion-banner">
+                    <div class="legion-emblem">
+                        <img src="https://armoria.herokuapp.com/?size=200&format=png&coa={{ legion.coa_string }}" 
+                             alt="{{ legion.name }} Emblem" 
+                             class="emblem-image">
+                        {% if current_user_legion.role == 'leader' %}
+                        <button class="edit-emblem-btn" onclick="openEmblemEditor()">
+                            <span class="btn-icon"><i class="fas fa-edit"></i></span>
+                        </button>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="legion-info">
+                        <div class="legion-title">
+                            <h1 class="legion-name">{{ legion.name }}</h1>
+                            {% if current_user_legion.role == 'leader' %}
+                            <button class="edit-btn" onclick="editLegionName()">
+                                <span class="btn-icon"><i class="fas fa-edit"></i></span>
+                            </button>
+                            {% endif %}
+                        </div>
+                        
+                        {% if legion.motto %}
+                        <p class="legion-motto">"{{ legion.motto }}"</p>
+                        {% endif %}
+                        
+                        <div class="legion-meta">
+                            <div class="meta-item">
+                                <span class="meta-icon"><i class="fas fa-users"></i></span>
+                                <span class="meta-text">{{ legion.headquarters or 'No Headquarters' }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-icon"><i class="fas fa-sword"></i></span>
+                                <span class="meta-text">{{ legion.faction or 'Independent' }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-icon"><i class="fas fa-calendar"></i></span>
+                                <span class="meta-text">Founded {{ legion.created_at.strftime('%B %Y') }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="legion-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-users"></i></div>
+                        <div class="stat-content">
+                            <span class="stat-number">{{ legion.get_member_count() }}</span>
+                            <span class="stat-label">Members</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-star"></i></div>
+                        <div class="stat-content">
+                            <span class="stat-number">{{ legion.get_legion_level() }}</span>
+                            <span class="stat-label">Level</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🏆</div>
+                        <div class="stat-content">
+                            <span class="stat-number">{{ "%.1f"|format(legion.get_win_rate()) }}%</span>
+                            <span class="stat-label">Win Rate</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-sword"></i></div>
+                        <div class="stat-content">
+                            <span class="stat-number">{{ legion.total_battles }}</span>
+                            <span class="stat-label">Battles</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-        {% endif %}
-        <div class ="legion-name">
-            <h1>{{ legion.name }}
+        </div>
+    </section>
+
+    <!-- Legion Management -->
+    <section class="legion-management">
+        <div class="container">
+            <div class="management-grid">
+                <!-- Legion Overview -->
+                <div class="overview-panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <span class="panel-icon"><i class="fas fa-chart-line"></i></span>
+                            Legion Overview
+                        </h2>
+                        {% if current_user_legion.role == 'leader' %}
+                        <button class="btn btn-secondary btn-small" onclick="editLegionDescription()">
+                            <span class="btn-icon"><i class="fas fa-edit"></i></span>
+                            <span class="btn-text">Edit</span>
+                        </button>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="overview-content">
+                        <div class="description-section">
+                            <h3>Description</h3>
+                            <p class="legion-description">{{ legion.description or 'No description provided.' }}</p>
+                        </div>
+                        
+                        <div class="recruitment-section">
+                            <h3>Recruitment Status</h3>
+                            <div class="recruitment-info">
+                                <span class="status-badge {{ legion.recruitment_status }}">
+                                    {{ legion.recruitment_status.replace('_', ' ').title() }}
+                                </span>
+                                <span class="member-count">{{ legion.get_member_count() }}/{{ legion.max_members }} members</span>
+                            </div>
+                        </div>
+                        
+                        {% if legion.invite_code and not legion.is_public %}
+                        <div class="invite-section">
+                            <h3>Invite Code</h3>
+                            <div class="invite-code-display">
+                                <code class="invite-code">{{ legion.invite_code }}</code>
+                                {% if current_user_legion.role == 'leader' %}
+                                <button class="btn btn-small" onclick="regenerateInviteCode()">
+                                    <span class="btn-icon">🔄</span>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Legion Members -->
+                <div class="members-panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <span class="panel-icon"><i class="fas fa-users"></i></span>
+                            Legion Members
+                        </h2>
+                        <span class="member-count">{{ legion.get_member_count() }} members</span>
+                    </div>
+                    
+                    <div class="members-list">
+                        {% for member_link in legion.legion_members %}
+                        <div class="member-card">
+                            <div class="member-avatar">
+                                <img src="{{ url_for('static', filename='img/misc_sprites/Profile Pic/1px/profile_pic_001.png') }}" 
+                                     alt="{{ member_link.user.username }}" 
+                                     class="avatar-image">
+                            </div>
+                            <div class="member-info">
+                                <h4 class="member-name">{{ member_link.user.username }}</h4>
+                                <span class="member-role {{ member_link.role }}">{{ member_link.role.title() }}</span>
+                                <span class="member-joined">Joined {{ member_link.joined_at.strftime('%b %Y') }}</span>
+                            </div>
+                            {% if current_user_legion.role == 'leader' and member_link.role != 'leader' %}
+                            <div class="member-actions">
+                                <button class="action-btn" onclick="manageMember({{ member_link.user.id }})">
+                                    <span class="btn-icon"><i class="fas fa-cog"></i></span>
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Legion Statistics -->
+                <div class="stats-panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <span class="panel-icon">📈</span>
+                            Legion Statistics
+                        </h2>
+                    </div>
+                    
+                    <div class="stats-content">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Battles</span>
+                            <span class="stat-value">{{ legion.total_battles }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Battles Won</span>
+                            <span class="stat-value">{{ legion.battles_won }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Units Created</span>
+                            <span class="stat-value">{{ legion.total_units_created }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Resources Earned</span>
+                            <span class="stat-value">{{ legion.total_resources_earned }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Experience Points</span>
+                            <span class="stat-value">{{ legion.experience }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Reputation</span>
+                            <span class="stat-value">{{ legion.reputation }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Legion Settings -->
                 {% if current_user_legion.role == 'leader' %}
-                <i class="fas fa-edit edit-icon" onclick="toggleEdit('name-form')"></i>
-                <div id="name-form" class="hidden">
-                    <form action="{{ url_for('update_legion_name', legion_id=legion.id) }}" method="post">
-                        <input type="text" name="name" value="{{ legion.name }}" required>
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <button class="btn" type="submit">Update</button>
-                    </form>
+                <div class="settings-panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <span class="panel-icon"><i class="fas fa-cog"></i></span>
+                            Legion Settings
+                        </h2>
+                    </div>
+                    
+                    <div class="settings-content">
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h4>Public Status</h4>
+                                <p>Allow this legion to be visible in the directory</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="publicStatus" {{ 'checked' if legion.is_public else '' }} 
+                                       onchange="togglePublicStatus()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h4>Recruitment</h4>
+                                <p>Allow new members to join</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="allowRecruitment" {{ 'checked' if legion.allow_public_join else '' }} 
+                                       onchange="toggleRecruitment()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h4>Require Approval</h4>
+                                <p>Require leader approval for new members</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="requireApproval" {{ 'checked' if legion.require_approval else '' }} 
+                                       onchange="toggleApproval()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h4>Max Members</h4>
+                                <p>Maximum number of members allowed</p>
+                            </div>
+                            <input type="number" id="maxMembers" value="{{ legion.max_members }}" 
+                                   min="5" max="100" class="setting-input" onchange="updateMaxMembers()">
+                        </div>
+                    </div>
                 </div>
                 {% endif %}
-            </h1>
-        </div>
-        {% if current_user_legion.role == 'leader' %}
-        <div class="legion-description">
-            <button class="pub-btn" onclick="togglePublicStatus()">{{ 'Make Private' if legion.is_public else 'Make Public' }}</button>
-            <div id="invite-code" class="{{'hidden' if legion.is_public}}">
-                Invite Code: {{ legion.invite_code }}             <button class="pub-btn" onclick="regenerateCode()"><i class="fa-solid fa-rotate-right"></i></button>
-
-
-
             </div>
         </div>
-        {% endif %}
-    </div>
-    <div class="legion-description">
-        <p>Members: {{ legion.legion_members|length }}</p>
-        <p>Total Units: {{ total_units }}</p>
-        <p>{{ legion.description }}
-            {% if current_user_legion.role == 'leader' %}
-            <i class="fas fa-edit edit-icon" onclick="toggleEdit('desc-form')"></i>
-            <div id="desc-form" class="hidden">
-                <form action="{{ url_for('update_legion_description', legion_id=legion.id) }}" method="post">
-                    <textarea name="description" rows="4" required>{{ legion.description }}</textarea>
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <button type="submit">Update</button>
-                </form>
-                </div>
-            {% endif %}
-        </p>
-    </div>
-    </div>
+    </section>
+</div>
 
-    <div class="legion-dashboard-container">
-        <h1 class="section-header">Space Fleet</h1>
-    </div>
-
-
-
-    <div class="section">
-        <h2 class="section-header">Leaders</h2>
-        {% for member_link in legion.legion_members if member_link.role == 'leader' %}
-        <div class="leader" onclick="toggleUnits('units-{{ member_link.user.id }}')">
-            <i class="fa-solid fa-user"></i> <span>  {{ member_link.user.username }}</span>
-            <div id="units-{{ member_link.user.id }}" class="units-collapse">
-                {% for unit in member_link.user.user_units %}
-                <div class="unit-info">
-                    <strong>{{ unit.custom_name }} - Type: {{ unit.template.unit_type }}</strong><br>
-                    <i class="fas fa-shield-alt"></i><span class="icon-text">Armor: {{ unit.armor }}</span>
-                    <i class="fas fa-tachometer-alt"></i><span class="icon-text">Speed: {{ unit.speed }}</span>
-                    <i class="fas fa-ruler-horizontal"></i><span class="icon-text">Range: {{ unit.range }}</span>
-                    <i class="fas fa-fighter-jet"></i><span class="icon-text">FS: {{ unit.fs }}</span>
-                </div>
-                {% endfor %}
-            </div>
+<!-- Edit Legion Name Modal -->
+<div class="modal" id="editNameModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Edit Legion Name</h2>
+            <button class="modal-close" onclick="closeModal('editNameModal')">&times;</button>
         </div>
-        {% endfor %}
-    </div>
-
-    <div class="section">
-        <h2 class="section-header">Members</h2>
-        {% for member_link in legion.legion_members if member_link.role == 'member' %}
-        <div class="leader" onclick="toggleUnits('units-{{ member_link.user.id }}')">
-            <i class="fa-solid fa-user"></i> <span>  {{ member_link.user.username }}</span>
-            <div id="units-{{ member_link.user.id }}" class="units-collapse">
-                {% for unit in member_link.user.user_units %}
-                <div class="unit-info">
-                    <strong>{{ unit.custom_name }} - Type: {{ unit.template.unit_type }}</strong><br>
-                    <i class="fas fa-shield-alt"></i><span class="icon-text">  Armor: {{ unit.armor }}</span>
-                    <i class="fas fa-tachometer-alt"></i><span class="icon-text">  Speed: {{ unit.speed }}</span>
-                    <i class="fas fa-ruler-horizontal"></i><span class="icon-text">  Range: {{ unit.range }}</span>
-                    <i class="fas fa-fighter-jet"></i><span class="icon-text">  FS: {{ unit.fs }}</span>
+        <div class="modal-body">
+            <form id="editNameForm">
+                <div class="form-group">
+                    <label for="legionName">Legion Name</label>
+                    <input type="text" id="legionName" name="name" value="{{ legion.name }}" required>
                 </div>
-                {% endfor %}
-            </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editNameModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
         </div>
-        {% endfor %}
     </div>
 </div>
-<br>
-<br>
-<br>
+
+<!-- Edit Legion Description Modal -->
+<div class="modal" id="editDescriptionModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Edit Legion Description</h2>
+            <button class="modal-close" onclick="closeModal('editDescriptionModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="editDescriptionForm">
+                <div class="form-group">
+                    <label for="legionDescription">Description</label>
+                    <textarea id="legionDescription" name="description" rows="4">{{ legion.description or '' }}</textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editDescriptionModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Emblem Modal -->
+<div class="modal" id="editEmblemModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Edit Legion Emblem</h2>
+            <button class="modal-close" onclick="closeModal('editEmblemModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="editEmblemForm">
+                <div class="form-group">
+                    <label for="coaString">Coat of Arms String</label>
+                    <input type="text" id="coaString" name="coa_string" value="{{ legion.coa_string or '' }}" 
+                           placeholder="Enter COA string for armoria.herokuapp.com">
+                    <small class="form-help">Use the format from armoria.herokuapp.com</small>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editEmblemModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <script>
-function toggleUnits(id) {
-    var element = document.getElementById(id);
-    if (element.style.display === 'block') {
-        element.style.display = 'none';
-    } else {
-        element.style.display = 'block';
+// Legion Dashboard JavaScript
+class LegionDashboard {
+    constructor() {
+        this.legionId = {{ legion.id }};
+        this.initializeEventListeners();
+    }
+    
+    initializeEventListeners() {
+        // Form submissions
+        document.getElementById('editNameForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.updateLegionName();
+        });
+        
+        document.getElementById('editDescriptionForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.updateLegionDescription();
+        });
+        
+        document.getElementById('editEmblemForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.updateLegionEmblem();
+        });
+        
+        // Close modals on outside click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.closeModal(modal.id);
+                }
+            });
+        });
+    }
+    
+    async updateLegionName() {
+        const formData = new FormData(document.getElementById('editNameForm'));
+        
+        try {
+            const response = await fetch(`/update_legion_name/${this.legionId}`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error updating legion name');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error updating legion name');
+        }
+    }
+    
+    async updateLegionDescription() {
+        const formData = new FormData(document.getElementById('editDescriptionForm'));
+        
+        try {
+            const response = await fetch(`/update_legion_description/${this.legionId}`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error updating legion description');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error updating legion description');
+        }
+    }
+    
+    async updateLegionEmblem() {
+        const formData = new FormData(document.getElementById('editEmblemForm'));
+        
+        try {
+            const response = await fetch(`/update_legion_coa/${this.legionId}`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error updating legion emblem');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error updating legion emblem');
+        }
+    }
+    
+    async togglePublicStatus() {
+        try {
+            const response = await fetch(`/toggle_public_status/${this.legionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error updating public status');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error updating public status');
+        }
+    }
+    
+    async regenerateInviteCode() {
+        try {
+            const response = await fetch(`/regenerate_invite_code/${this.legionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error regenerating invite code');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error regenerating invite code');
+        }
+    }
+    
+    closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
     }
 }
-function toggleEdit(formId) {
-    var form = document.getElementById(formId);
-    if (form.style.display === 'none' || form.style.display === '') {
-        form.style.display = 'block';
-    } else {
-        form.style.display = 'none';
-    }
+
+// Global functions
+function editLegionName() {
+    document.getElementById('editNameModal').style.display = 'block';
+}
+
+function editLegionDescription() {
+    document.getElementById('editDescriptionModal').style.display = 'block';
+}
+
+function openEmblemEditor() {
+    document.getElementById('editEmblemModal').style.display = 'block';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
 }
 
 function togglePublicStatus() {
-        fetch('{{ url_for("toggle_public_status", legion_id=legion.id) }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            }
-        }).then(response => response.json())
-          .then(data => {
-            alert(data.message);
-            if (data.success) {
-                window.location.reload();
-            }
-          });
-    }
+    window.legionDashboard.togglePublicStatus();
+}
 
-    function regenerateCode() {
-        fetch('{{ url_for("regenerate_invite_code", legion_id=legion.id) }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            }
-        }).then(response => response.json())
-          .then(data => {
-            if (data.success) {
-                document.getElementById('invite-code').textContent = 'Invite Code: ' + data.new_code;
-            } else {
-                alert(data.message);
-            }
-          });
-    }
+function regenerateInviteCode() {
+    window.legionDashboard.regenerateInviteCode();
+}
+
+function manageMember(userId) {
+    // Implement member management functionality
+    alert(`Manage member ${userId}`);
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    window.legionDashboard = new LegionDashboard();
+});
 </script>
 {% endblock %}

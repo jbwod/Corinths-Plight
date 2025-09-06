@@ -1,109 +1,256 @@
 {% extends 'layout.html' %}
 
-{% block title %}My Profile{% endblock %}
+{% block title %}Commander Profile - {{ current_user.username }}{% endblock %}
 
 {% block content %}
-<style>
-    body {
-        background: #081221 url('{{ url_for("static", filename="img/move.gif") }}') no-repeat center center;
-        background-size: cover;
-    }
-
-    .profile-container {
-        max-width: 1200px;
-        margin: 20px auto;
-        padding: 20px;
-        background: rgba(10, 20, 30, 0.8);
-        border-radius: 8px;
-        color: #cfd2d6;
-        box-shadow: 0 4px 20px rgba(0, 123, 255, 0.5);
-    }
-
-    h1 {
-        color: #4ED1F7;
-        margin-bottom: 10px;
-    }
-
-    p {
-        margin-bottom: 20px;
-    }
-
-    .btn {
-        background-color: #007bff;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 4px;
-        color: white;
-        transition: background-color 0.3s;
-        text-decoration: none;
-        display: inline-block;
-    }
-
-    .btn:hover {
-        background-color: #0056b3;
-    }
-
-    .dashboard {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 20px;
-    }
-
-    .section {
-        background: rgba(13, 25, 40, 0.9);
-        padding: 20px;
-        border-radius: 5px;
-        margin-bottom: 20px;
-    }
-
-    .stats, .guild-summary, .unit-summary {
-        border: 1px solid #007bff;
-        padding: 15px;
-        border-radius: 5px;
-        margin-top: 10px;
-    }
-
-    .stats h2, .unit-summary h2, .guild-summary h2 {
-        color: #80d4ff;
-        margin-bottom: 10px;
-    }
-
-    .stats p, .unit-summary p, .guild-summary p {
-        font-size: 16px;
-        line-height: 1.6;
-    }
-</style>
-<div class="profile-container">
-    <h1>Welcome, {{ name }}!</h1>
-    <div class="dashboard">
-        <div>
-            <div class="section stats">
-                <h2>User Stats</h2>
-                <p>Rec Points: 1200</p>
-                <p>Number of Units: 50</p>
-                <p>Active Campaigns: 3</p>
-            </div>
-            <div class="section current-campaigns">
-                <h2>Current Campaigns</h2>
-                <p>Troops Deployed: 200</p>
-                <p>Ongoing Missions: 5</p>
+<div class="profile-page">
+    <!-- Profile Header -->
+    <section class="profile-header">
+        <div class="container">
+            <div class="profile-banner">
+                <div class="profile-avatar">
+                    <div class="avatar-circle">
+                        <span class="avatar-text">{{ current_user.username[0].upper() }}</span>
+                    </div>
+                    <div class="avatar-badge">
+                        <span class="badge-icon"><i class="fas fa-sword"></i></span>
+                        <span class="badge-text">Commander</span>
+                    </div>
+                </div>
+                
+                <div class="profile-info">
+                    <h1 class="profile-name">{{ current_user.username }}</h1>
+                    <p class="profile-title">Strategic Commander</p>
+                    <div class="profile-stats">
+                        <div class="stat-item">
+                            <span class="stat-number">{{ current_user.user_units.count() }}</span>
+                            <span class="stat-label">Units</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">{{ current_user.user_legions|length }}</span>
+                            <span class="stat-label">Legions</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">1</span>
+                            <span class="stat-label">Days Active</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="profile-actions">
+                    <a href="{{ url_for('create_unit') }}" class="btn btn-primary">
+                        <span class="btn-icon"><i class="fas fa-tools"></i></span>
+                        <span class="btn-text">Create Unit</span>
+                    </a>
+                    <a href="{{ url_for('my_units') }}" class="btn btn-secondary">
+                        <span class="btn-icon"><i class="fas fa-shield-alt"></i></span>
+                        <span class="btn-text">View Units</span>
+                    </a>
+                </div>
             </div>
         </div>
-        <div>
-            <div class="section unit-summary">
-                <h2>Unit Summary</h2>
-                <p>Most Active Unit: Infantry</p>
-                <p>Recently Upgraded: Tank Division</p>
+    </section>
+
+    <!-- Profile Content -->
+    <section class="profile-content">
+        <div class="container">
+            <div class="profile-grid">
+                <!-- Main Content -->
+                <div class="profile-main">
+                    <!-- Units Overview -->
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h2 class="card-title">
+                                <span class="card-icon"><i class="fas fa-shield-alt"></i></span>
+                                My Units
+                            </h2>
+                            <a href="{{ url_for('my_units') }}" class="card-action">View All</a>
+                        </div>
+                        <div class="card-content">
+                            {% if current_user.user_units.count() > 0 %}
+                                <div class="units-grid">
+                                    {% for unit in current_user.user_units.limit(6) %}
+                                    <div class="unit-card">
+                                        <div class="unit-image">
+                                            <img src="{{ url_for('static', filename='img/units/' + unit.template.unit_type + '.png') }}" 
+                                                 alt="{{ unit.template.unit_type }}" 
+                                                 onerror="this.src='{{ url_for('static', filename='img/units/Infantry Unit.png') }}'">
+                                        </div>
+                                        <div class="unit-info">
+                                            <h3 class="unit-name">{{ unit.custom_name or unit.template.unit_type }}</h3>
+                                            <p class="unit-type">{{ unit.template.unit_type }}</p>
+                                            <div class="unit-stats">
+                                                <span class="stat">FS: {{ unit.fs }}</span>
+                                                <span class="stat">Armor: {{ unit.armor }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="empty-state">
+                                    <div class="empty-icon"><i class="fas fa-shield-alt"></i></div>
+                                    <h3>No Units Yet</h3>
+                                    <p>Create your first unit to start building your army</p>
+                                    <a href="{{ url_for('create_unit') }}" class="btn btn-primary">Create Unit</a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h2 class="card-title">
+                                <span class="card-icon"><i class="fas fa-chart-line"></i></span>
+                                Recent Activity
+                            </h2>
+                        </div>
+                        <div class="card-content">
+                            <div class="activity-list">
+                                <div class="activity-item">
+                                    <div class="activity-icon"><i class="fas fa-tools"></i></div>
+                                    <div class="activity-content">
+                                        <h4>Unit Created</h4>
+                                        <p>Created a new Infantry Unit</p>
+                                        <span class="activity-time">2 hours ago</span>
+                                    </div>
+                                </div>
+                                <div class="activity-item">
+                                    <div class="activity-icon"><i class="fas fa-users"></i></div>
+                                    <div class="activity-content">
+                                        <h4>Joined Legion</h4>
+                                        <p>Became a member of Galactic Warriors</p>
+                                        <span class="activity-time">1 day ago</span>
+                                    </div>
+                                </div>
+                                <div class="activity-item">
+                                    <div class="activity-icon"><i class="fas fa-sword"></i></div>
+                                    <div class="activity-content">
+                                        <h4>Unit Deployed</h4>
+                                        <p>Deployed units to Sector Alpha</p>
+                                        <span class="activity-time">3 days ago</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="profile-sidebar">
+                    <!-- Legion Information -->
+                    {% if current_user.user_legions %}
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h2 class="card-title">
+                                <span class="card-icon"><i class="fas fa-users"></i></span>
+                                My Legion
+                            </h2>
+                        </div>
+                        <div class="card-content">
+                            {% for user_legion in current_user.user_legions %}
+                            <div class="legion-info">
+                                <h3 class="legion-name">{{ user_legion.legion.name }}</h3>
+                                <p class="legion-description">{{ user_legion.legion.description or 'No description available' }}</p>
+                                <div class="legion-stats">
+                                    <div class="legion-stat">
+                                        <span class="stat-label">Role</span>
+                                        <span class="stat-value">{{ user_legion.role.title() }}</span>
+                                    </div>
+                                    <div class="legion-stat">
+                                        <span class="stat-label">Members</span>
+                                        <span class="stat-value">{{ user_legion.legion.legion_members|length }}</span>
+                                    </div>
+                                </div>
+                                <a href="{{ url_for('legion_dashboard', legion_id=user_legion.legion.id) }}" class="btn btn-secondary btn-small">
+                                    View Legion
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h2 class="card-title">
+                                <span class="card-icon"><i class="fas fa-users"></i></span>
+                                Join a Legion
+                            </h2>
+                        </div>
+                        <div class="card-content">
+                            <div class="empty-state">
+                                <div class="empty-icon"><i class="fas fa-users"></i></div>
+                                <h3>No Legion</h3>
+                                <p>Join a legion to coordinate with other commanders</p>
+                                <a href="{{ url_for('legion_directory') }}" class="btn btn-primary">Find Legions</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Quick Stats -->
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h2 class="card-title">
+                                <span class="card-icon">📈</span>
+                                Statistics
+                            </h2>
+                        </div>
+                        <div class="card-content">
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <span class="stat-number">{{ current_user.user_units.count() }}</span>
+                                    <span class="stat-label">Total Units</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number">{{ current_user.user_legions|length }}</span>
+                                    <span class="stat-label">Legions</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number">1</span>
+                                    <span class="stat-label">Days Active</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number">0</span>
+                                    <span class="stat-label">Battles Won</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h2 class="card-title">
+                                <span class="card-icon"><i class="fas fa-bolt"></i></span>
+                                Quick Actions
+                            </h2>
             </div>
-            <div class="section guild-summary">
-                <h2>Guild Summary</h2>
-                <p>Guild Name: Galactic Warriors</p>
-                <p>Guild Rank: 4</p>
-                <p>Members: 30</p>
+                        <div class="card-content">
+                            <div class="quick-actions">
+                                <a href="{{ url_for('create_unit') }}" class="quick-action">
+                                    <span class="action-icon"><i class="fas fa-tools"></i></span>
+                                    <span class="action-text">Create Unit</span>
+                                </a>
+                                <a href="{{ url_for('my_units') }}" class="quick-action">
+                                    <span class="action-icon"><i class="fas fa-shield-alt"></i></span>
+                                    <span class="action-text">Manage Units</span>
+                                </a>
+                                <a href="{{ url_for('legion_directory') }}" class="quick-action">
+                                    <span class="action-icon"><i class="fas fa-users"></i></span>
+                                    <span class="action-text">Find Legions</span>
+                                </a>
+                                <a href="/worldmap" class="quick-action">
+                                    <span class="action-icon"><i class="fas fa-map"></i></span>
+                                    <span class="action-text">World Map</span>
+                                </a>
+            </div>
+        </div>
+            </div>
             </div>
         </div>
     </div>
-    <a href="{{ url_for('my_units') }}" class="btn">View My Units</a>
-    <a href="{{ url_for('create_unit') }}" class="btn">Create New Unit</a>
+    </section>
 </div>
 {% endblock %}
