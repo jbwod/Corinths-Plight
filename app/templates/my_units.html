@@ -51,18 +51,18 @@
             <div class="action-bar">
                 <div class="action-left">
                     <h2 class="section-title">
-                        <span class="section-icon">⚔️</span>
+                        <span class="section-icon"><i class="fas fa-shield-alt"></i></span>
                         Your Military Forces
                     </h2>
                     <p class="section-subtitle">Deploy, manage, and upgrade your units</p>
                 </div>
                 <div class="action-right">
                     <a href="{{ url_for('create_unit') }}" class="btn btn-primary">
-                        <span class="btn-icon">➕</span>
+                        <span class="btn-icon"><i class="fas fa-plus"></i></span>
                         <span class="btn-text">Create New Unit</span>
                     </a>
                     <button class="btn btn-secondary" id="toggleViewMode">
-                        <span class="btn-icon">📋</span>
+                        <span class="btn-icon"><i class="fas fa-list"></i></span>
                         <span class="btn-text">List View</span>
                     </button>
                 </div>
@@ -70,6 +70,22 @@
 
             <!-- Filter and Search -->
             <div class="filter-section">
+                <div class="filter-header">
+                    <h3 class="filter-title">
+                        <span class="filter-icon"><i class="fas fa-filter"></i></span>
+                        Filter Units
+                    </h3>
+                    <div class="search-bar">
+                        <div class="search-input-group">
+                            <span class="search-icon"><i class="fas fa-search"></i></span>
+                            <input type="text" id="unitSearch" placeholder="Search units by name or type..." class="search-input">
+                        </div>
+                        <button class="btn btn-secondary btn-small" id="clearSearch">
+                            <span class="btn-icon"><i class="fas fa-times"></i></span>
+                            <span class="btn-text">Clear</span>
+                        </button>
+                    </div>
+                </div>
                 <div class="filter-tabs">
                     <button class="filter-tab active" data-filter="all">
                         <span class="tab-icon"><i class="fas fa-star"></i></span>
@@ -107,16 +123,6 @@
                         <span class="tab-count">{{ orbital_count }}</span>
                     </button>
                 </div>
-                <div class="search-bar">
-                    <div class="search-input-group">
-                        <span class="search-icon"><i class="fas fa-search"></i></span>
-                        <input type="text" id="unitSearch" placeholder="Search units by name or type..." class="search-input">
-                    </div>
-                    <button class="btn btn-secondary btn-small" id="clearSearch">
-                        <span class="btn-icon"><i class="fas fa-times"></i></span>
-                        <span class="btn-text">Clear</span>
-                    </button>
-                </div>
             </div>
 
             <!-- Units Grid -->
@@ -125,185 +131,205 @@
                     <div class="units-grid" id="unitsGrid">
                         {% for unit in units %}
                         <div class="unit-card" data-category="{{ unit.template.unit_type.lower().replace(' ', '-') }}" data-unit-id="{{ unit.id }}">
-                            <div class="unit-icon-container">
-                                <div class="unit-icon">
-                                    {% if 'infantry' in unit.template.unit_type.lower() or 'unit' in unit.template.unit_type.lower() %}
-                                        {% if 'combat engineer' in unit.template.unit_type.lower() %}
-                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/combat_engineer.png') }}" alt="{{ unit.template.unit_type }}">
-                                        {% elif 'combat medical' in unit.template.unit_type.lower() %}
-                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/combat_medic.png') }}" alt="{{ unit.template.unit_type }}">
-                                        {% elif 'power armored' in unit.template.unit_type.lower() %}
-                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/power_infantry.png') }}" alt="{{ unit.template.unit_type }}">
-                                        {% elif 'irregular' in unit.template.unit_type.lower() %}
-                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/irregular.png') }}" alt="{{ unit.template.unit_type }}">
-                                        {% elif 'special forces' in unit.template.unit_type.lower() %}
-                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/special_forces.png') }}" alt="{{ unit.template.unit_type }}">
-                                        {% elif 'sapper' in unit.template.unit_type.lower() %}
-                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/sapper.png') }}" alt="{{ unit.template.unit_type }}">
+                            <!-- Unit Header with Image and Basic Info -->
+                            <div class="unit-header">
+                                <div class="unit-image-container">
+                                    <img src="{{ unit.get_display_image() }}" 
+                                         alt="{{ unit.template.unit_type }}" 
+                                         class="unit-image"
+                                         style="{{ unit.get_image_style() }}"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="image-placeholder" style="display: none;">
+                                        <i class="fas fa-sword"></i>
+                                    </div>
+                                    <div class="unit-category-badge">
+                                        {% if 'infantry' in unit.template.unit_type.lower() or 'unit' in unit.template.unit_type.lower() %}
+                                            <i class="fas fa-users"></i>
+                                        {% elif 'vehicle' in unit.template.unit_type.lower() or 'tank' in unit.template.unit_type.lower() or 'truck' in unit.template.unit_type.lower() or 'mechanized' in unit.template.unit_type.lower() %}
+                                            <i class="fas fa-car"></i>
+                                        {% elif 'mech' in unit.template.unit_type.lower() %}
+                                            <i class="fas fa-robot"></i>
+                                        {% elif 'aircraft' in unit.template.unit_type.lower() or 'fighter' in unit.template.unit_type.lower() or 'bomber' in unit.template.unit_type.lower() or 'vtol' in unit.template.unit_type.lower() or 'transport' in unit.template.unit_type.lower() %}
+                                            <i class="fas fa-plane"></i>
+                                        {% elif 'artillery' in unit.template.unit_type.lower() %}
+                                            <i class="fas fa-bomb"></i>
+                                        {% elif 'corvette' in unit.template.unit_type.lower() or 'destroyer' in unit.template.unit_type.lower() or 'cruiser' in unit.template.unit_type.lower() or 'battleship' in unit.template.unit_type.lower() %}
+                                            <i class="fas fa-rocket"></i>
                                         {% else %}
-                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/infantry.png') }}" alt="{{ unit.template.unit_type }}">
+                                            <i class="fas fa-sword"></i>
                                         {% endif %}
-                                    {% elif 'vehicle' in unit.template.unit_type.lower() or 'tank' in unit.template.unit_type.lower() or 'truck' in unit.template.unit_type.lower() or 'mechanized' in unit.template.unit_type.lower() %}
-                                        {% if 'heavy battle tank' in unit.template.unit_type.lower() %}
-                                            <img src="{{ url_for('static', filename='img/units/icons/vehicles/heavy_tank.png') }}" alt="{{ unit.template.unit_type }}">
-                                        {% elif 'light battle tank' in unit.template.unit_type.lower() %}
-                                            <img src="{{ url_for('static', filename='img/units/icons/vehicles/light_tank.png') }}" alt="{{ unit.template.unit_type }}">
-                                        {% elif 'main battle tank' in unit.template.unit_type.lower() %}
-                                            <img src="{{ url_for('static', filename='img/units/icons/vehicles/main_tank.png') }}" alt="{{ unit.template.unit_type }}">
-                                        {% elif 'super heavy tank' in unit.template.unit_type.lower() %}
-                                            <img src="{{ url_for('static', filename='img/units/icons/vehicles/super_heavy.png') }}" alt="{{ unit.template.unit_type }}">
-                                        {% elif 'logistic truck' in unit.template.unit_type.lower() %}
-                                            <img src="{{ url_for('static', filename='img/units/icons/vehicles/logistic.png') }}" alt="{{ unit.template.unit_type }}">
-                                        {% elif 'light vehicle' in unit.template.unit_type.lower() %}
-                                            <img src="{{ url_for('static', filename='img/units/icons/vehicles/light_vehicle.png') }}" alt="{{ unit.template.unit_type }}">
-                                        {% elif 'mechanized' in unit.template.unit_type.lower() %}
-                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/mechanized.png') }}" alt="{{ unit.template.unit_type }}">
-                                        {% else %}
-                                            <div class="icon-placeholder vehicle-icon"><i class="fas fa-car"></i></div>
-                                        {% endif %}
-                                    {% elif 'mech' in unit.template.unit_type.lower() %}
-                                        <div class="icon-placeholder mech-icon"><i class="fas fa-robot"></i></div>
-                                    {% elif 'aircraft' in unit.template.unit_type.lower() or 'fighter' in unit.template.unit_type.lower() or 'bomber' in unit.template.unit_type.lower() or 'vtol' in unit.template.unit_type.lower() or 'transport' in unit.template.unit_type.lower() %}
-                                        <div class="icon-placeholder aircraft-icon"><i class="fas fa-plane"></i></div>
-                                    {% elif 'artillery' in unit.template.unit_type.lower() %}
-                                        <div class="icon-placeholder artillery-icon"><i class="fas fa-bomb"></i></div>
-                                    {% elif 'corvette' in unit.template.unit_type.lower() or 'destroyer' in unit.template.unit_type.lower() or 'cruiser' in unit.template.unit_type.lower() or 'battleship' in unit.template.unit_type.lower() %}
-                                        <div class="icon-placeholder orbital-icon"><i class="fas fa-rocket"></i></div>
-                                    {% else %}
-                                        <div class="icon-placeholder default-icon"><i class="fas fa-sword"></i></div>
-                                    {% endif %}
+                                    </div>
                                 </div>
-                                <div class="unit-category-badge">
-                                    {% if 'infantry' in unit.template.unit_type.lower() or 'unit' in unit.template.unit_type.lower() %}
-                                        <span class="category-icon"><i class="fas fa-users"></i></span>
-                                    {% elif 'vehicle' in unit.template.unit_type.lower() or 'tank' in unit.template.unit_type.lower() or 'truck' in unit.template.unit_type.lower() or 'mechanized' in unit.template.unit_type.lower() %}
-                                        <span class="category-icon"><i class="fas fa-car"></i></span>
-                                    {% elif 'mech' in unit.template.unit_type.lower() %}
-                                        <span class="category-icon"><i class="fas fa-robot"></i></span>
-                                    {% elif 'aircraft' in unit.template.unit_type.lower() or 'fighter' in unit.template.unit_type.lower() or 'bomber' in unit.template.unit_type.lower() or 'vtol' in unit.template.unit_type.lower() or 'transport' in unit.template.unit_type.lower() %}
-                                        <span class="category-icon"><i class="fas fa-plane"></i></span>
-                                    {% elif 'artillery' in unit.template.unit_type.lower() %}
-                                        <span class="category-icon"><i class="fas fa-bomb"></i></span>
-                                    {% elif 'corvette' in unit.template.unit_type.lower() or 'destroyer' in unit.template.unit_type.lower() or 'cruiser' in unit.template.unit_type.lower() or 'battleship' in unit.template.unit_type.lower() %}
-                                        <span class="category-icon"><i class="fas fa-rocket"></i></span>
-                                    {% else %}
-                                        <span class="category-icon"><i class="fas fa-sword"></i></span>
-                                    {% endif %}
+                                
+                                <div class="unit-info">
+                                    <h3 class="unit-name">{{ unit.custom_name or 'Unnamed Unit' }}</h3>
+                                    <p class="unit-type">{{ unit.template.unit_type }}</p>
+                                    <div class="unit-status">
+                                        <span class="status-indicator ready"></span>
+                                        <span class="status-text">Ready for Deployment</span>
+                                    </div>
                                 </div>
                             </div>
                             
-                            <div class="unit-content">
-                                <div class="unit-header">
-                                    <h3 class="unit-name">{{ unit.custom_name }}</h3>
-                                    <p class="unit-type">{{ unit.template.unit_type }}</p>
-                                </div>
-                                
-                                <div class="unit-main-info">
-                                    <div class="unit-icon-main">
-                                        {% if 'infantry' in unit.template.unit_type.lower() or 'unit' in unit.template.unit_type.lower() %}
-                                            {% if 'combat engineer' in unit.template.unit_type.lower() %}
-                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/combat_engineer.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
-                                            {% elif 'combat medical' in unit.template.unit_type.lower() %}
-                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/combat_medic.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
-                                            {% elif 'power armored' in unit.template.unit_type.lower() %}
-                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/power_infantry.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
-                                            {% elif 'irregular' in unit.template.unit_type.lower() %}
-                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/irregular.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
-                                            {% elif 'special forces' in unit.template.unit_type.lower() %}
-                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/special_forces.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
-                                            {% elif 'sapper' in unit.template.unit_type.lower() %}
-                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/sapper.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
-                                            {% else %}
-                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/infantry.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
-                                            {% endif %}
-                                        {% elif 'vehicle' in unit.template.unit_type.lower() or 'tank' in unit.template.unit_type.lower() or 'truck' in unit.template.unit_type.lower() or 'mechanized' in unit.template.unit_type.lower() %}
-                                            {% if 'heavy battle tank' in unit.template.unit_type.lower() %}
-                                                <img src="{{ url_for('static', filename='img/units/icons/vehicles/heavy_tank.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
-                                            {% elif 'light battle tank' in unit.template.unit_type.lower() %}
-                                                <img src="{{ url_for('static', filename='img/units/icons/vehicles/light_tank.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
-                                            {% elif 'main battle tank' in unit.template.unit_type.lower() %}
-                                                <img src="{{ url_for('static', filename='img/units/icons/vehicles/main_tank.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
-                                            {% elif 'super heavy tank' in unit.template.unit_type.lower() %}
-                                                <img src="{{ url_for('static', filename='img/units/icons/vehicles/super_heavy.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
-                                            {% elif 'logistic truck' in unit.template.unit_type.lower() %}
-                                                <img src="{{ url_for('static', filename='img/units/icons/vehicles/logistic.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
-                                            {% elif 'light vehicle' in unit.template.unit_type.lower() %}
-                                                <img src="{{ url_for('static', filename='img/units/icons/vehicles/light_vehicle.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
-                                            {% elif 'mechanized' in unit.template.unit_type.lower() %}
-                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/mechanized.png') }}" alt="{{ unit.template.unit_type }}" class="main-icon">
-                                            {% else %}
-                                                <div class="main-icon-placeholder vehicle-icon"><i class="fas fa-car"></i></div>
-                                            {% endif %}
-                                        {% elif 'mech' in unit.template.unit_type.lower() %}
-                                            <div class="main-icon-placeholder mech-icon"><i class="fas fa-robot"></i></div>
-                                        {% elif 'aircraft' in unit.template.unit_type.lower() or 'fighter' in unit.template.unit_type.lower() or 'bomber' in unit.template.unit_type.lower() or 'vtol' in unit.template.unit_type.lower() or 'transport' in unit.template.unit_type.lower() %}
-                                            <div class="main-icon-placeholder aircraft-icon"><i class="fas fa-plane"></i></div>
-                                        {% elif 'artillery' in unit.template.unit_type.lower() %}
-                                            <div class="main-icon-placeholder artillery-icon"><i class="fas fa-bomb"></i></div>
-                                        {% elif 'corvette' in unit.template.unit_type.lower() or 'destroyer' in unit.template.unit_type.lower() or 'cruiser' in unit.template.unit_type.lower() or 'battleship' in unit.template.unit_type.lower() %}
-                                            <div class="main-icon-placeholder orbital-icon"><i class="fas fa-rocket"></i></div>
-                                        {% else %}
-                                            <div class="main-icon-placeholder default-icon"><i class="fas fa-sword"></i></div>
-                                        {% endif %}
+                            <!-- Unit Stats Display -->
+                            <div class="unit-stats-section">
+                                <h4 class="stats-title">Combat Statistics</h4>
+                                <div class="stats-grid">
+                                    <div class="stat-item">
+                                        <div class="stat-header">
+                                            <span class="stat-icon"><i class="fas fa-fire"></i></span>
+                                            <span class="stat-label">Firepower</span>
+                                        </div>
+                                        <div class="stat-value">
+                                            <span class="current-value">{{ unit.fs }}</span>
+                                            <span class="max-value">/ {{ unit.template.fs }}</span>
+                                        </div>
+                                        <div class="stat-bar">
+                                            <div class="stat-fill" style="width: {{ (unit.fs / unit.template.fs * 100) if unit.template.fs > 0 else 0 }}%"></div>
+                                        </div>
                                     </div>
                                     
-                                    <div class="unit-stats">
-                                        <div class="stat-item">
-                                            <span class="stat-icon"><i class="fas fa-fire"></i></span>
-                                            <span class="stat-value">{{ unit.fs }}</span>
-                                        </div>
-                                        <div class="stat-item">
+                                    <div class="stat-item">
+                                        <div class="stat-header">
                                             <span class="stat-icon"><i class="fas fa-shield-alt"></i></span>
-                                            <span class="stat-value">{{ unit.armor }}</span>
+                                            <span class="stat-label">Armor</span>
                                         </div>
-                                        <div class="stat-item">
+                                        <div class="stat-value">
+                                            <span class="current-value">{{ unit.armor }}</span>
+                                            <span class="max-value">/ {{ unit.template.armor }}</span>
+                                        </div>
+                                        <div class="stat-bar">
+                                            <div class="stat-fill" style="width: {{ (unit.armor / unit.template.armor * 100) if unit.template.armor > 0 else 0 }}%"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="stat-item">
+                                        <div class="stat-header">
                                             <span class="stat-icon"><i class="fas fa-running"></i></span>
-                                            <span class="stat-value">{{ unit.speed }}</span>
+                                            <span class="stat-label">Speed</span>
                                         </div>
-                                        <div class="stat-item">
+                                        <div class="stat-value">
+                                            <span class="current-value">{{ unit.speed }}</span>
+                                            <span class="max-value">/ {{ unit.template.speed }}</span>
+                                        </div>
+                                        <div class="stat-bar">
+                                            <div class="stat-fill" style="width: {{ (unit.speed / unit.template.speed * 100) if unit.template.speed > 0 else 0 }}%"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="stat-item">
+                                        <div class="stat-header">
                                             <span class="stat-icon"><i class="fas fa-crosshairs"></i></span>
-                                            <span class="stat-value">{{ unit.range }}</span>
+                                            <span class="stat-label">Range</span>
+                                        </div>
+                                        <div class="stat-value">
+                                            <span class="current-value">{{ unit.range }}</span>
+                                            <span class="max-value">/ {{ unit.template.range }}</span>
+                                        </div>
+                                        <div class="stat-bar">
+                                            <div class="stat-fill" style="width: {{ (unit.range / unit.template.range * 100) if unit.template.range > 0 else 0 }}%"></div>
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <p class="unit-description">{{ unit.template.description[:80] }}{% if unit.template.description|length > 80 %}...{% endif %}</p>
-                                
-                                <div class="unit-meta">
-                                    <span class="created-date">
-                                        <span class="meta-icon">📅</span>
-                                        Created {{ unit.created_at.strftime('%Y-%m-%d') }}
-                                    </span>
-                                    {% if unit.applied_upgrades and unit.applied_upgrades != '[]' %}
-                                    <span class="upgrades-count">
-                                        <span class="meta-icon">🔧</span>
-                                        {{ unit.applied_upgrades|from_json|length }} Upgrades
-                                    </span>
+                            </div>
+                            
+                            <!-- Equipment & Loadout (Merged) -->
+                            {% set applied_list = unit.applied_upgrades|from_json %}
+                            {% set primaries = applied_list|selectattr('slot_type', 'equalto', 'primary')|list if applied_list else [] %}
+                            {% set secondaries = applied_list|selectattr('slot_type', 'equalto', 'secondary')|list if applied_list else [] %}
+                            {% set internals = applied_list|selectattr('slot_type', 'equalto', 'internal')|list if applied_list else [] %}
+                            {% set upgrades = applied_list|selectattr('slot_type', 'equalto', 'upgrade')|list if applied_list else [] %}
+                            <div class="equipment-section">
+                                <h4 class="equipment-title">Equipment & Loadout</h4>
+                                <div class="equipment-slots merged">
+                                    <div class="slot-group">
+                                        <div class="slot-header">
+                                            <span class="slot-label"><i class="fas fa-gun"></i> Primary</span>
+                                            <span class="slot-count">{{ primaries|length }}/{{ unit.template.primary_equipment_slots }}</span>
+                                        </div>
+                                        {% if primaries %}
+                                        <div class="applied-list">
+                                            {% for eq in primaries %}
+                                            <div class="applied-item" title="{{ eq.rule }}">{{ eq.name }}</div>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="slot-group">
+                                        <div class="slot-header">
+                                            <span class="slot-label"><i class="fas fa-bolt"></i> Secondary</span>
+                                            <span class="slot-count">{{ secondaries|length }}/{{ unit.template.secondary_equipment_slots }}</span>
+                                        </div>
+                                        {% if secondaries %}
+                                        <div class="applied-list">
+                                            {% for eq in secondaries %}
+                                            <div class="applied-item" title="{{ eq.rule }}">{{ eq.name }}</div>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% if unit.template.internal_slots > 0 or internals|length > 0 %}
+                                    <div class="slot-group">
+                                        <div class="slot-header">
+                                            <span class="slot-label"><i class="fas fa-tools"></i> Internal</span>
+                                            <span class="slot-count">{{ internals|length }}/{{ unit.template.internal_slots }}</span>
+                                        </div>
+                                        {% if internals %}
+                                        <div class="applied-list">
+                                            {% for eq in internals %}
+                                            <div class="applied-item" title="{{ eq.rule }}">{{ eq.name }}</div>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                    {% if upgrades %}
+                                    <div class="slot-group">
+                                        <div class="slot-header">
+                                            <span class="slot-label"><i class="fas fa-plus"></i> Upgrades</span>
+                                            <span class="slot-count">{{ upgrades|length }}</span>
+                                        </div>
+                                        <div class="applied-list">
+                                            {% for eq in upgrades %}
+                                            <div class="applied-item" title="{{ eq.rule }}">{{ eq.name }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
                                     {% endif %}
                                 </div>
                             </div>
                             
+
+                            <!-- Unit Actions -->
                             <div class="unit-actions">
-                                <div class="action-row">
-                                    <button class="action-btn primary" onclick="editUnit({{ unit.id }})" title="Edit Unit">
-                                        <span class="btn-icon">✏️</span>
-                                        <span class="btn-text">Edit</span>
-                                    </button>
-                                    <button class="action-btn success" onclick="deployUnit({{ unit.id }})" title="Deploy Unit">
-                                        <span class="btn-icon">🚀</span>
-                                        <span class="btn-text">Deploy</span>
-                                    </button>
+                                <button class="action-btn requisition-btn" onclick="requisitionUnit({{ unit.id }})" title="Requisition Equipment">
+                                    <span class="btn-icon"><i class="fas fa-shopping-cart"></i></span>
+                                    <span class="btn-text">Requisition</span>
+                                </button>
+                                
+                                <button class="action-btn deployment-btn" onclick="deployUnit({{ unit.id }})" title="Deploy Unit">
+                                    <span class="btn-icon"><i class="fas fa-paper-plane"></i></span>
+                                    <span class="btn-text">Deploy</span>
+                                </button>
+                                
+                                <button class="action-btn orders-btn" onclick="viewOrders({{ unit.id }})" title="View Orders">
+                                    <span class="btn-icon"><i class="fas fa-clipboard-list"></i></span>
+                                    <span class="btn-text">Orders</span>
+                                </button>
+                            </div>
+                            
+                            <!-- Unit Meta Info -->
+                            <div class="unit-meta">
+                                <div class="meta-item">
+                                    <span class="meta-icon"><i class="fas fa-calendar"></i></span>
+                                    <span class="meta-text">Created {{ unit.created_at.strftime('%Y-%m-%d') }}</span>
                                 </div>
-                                <div class="action-row">
-                                    <button class="action-btn info" onclick="viewDetails({{ unit.id }})" title="View Details">
-                                        <span class="btn-icon">👁️</span>
-                                        <span class="btn-text">Details</span>
-                                    </button>
-                                    <button class="action-btn danger" onclick="deleteUnit({{ unit.id }})" title="Delete Unit">
-                                        <span class="btn-icon">🗑️</span>
-                                        <span class="btn-text">Delete</span>
-                                    </button>
+                                {% if unit.applied_upgrades and unit.applied_upgrades != '[]' %}
+                                <div class="meta-item">
+                                    <span class="meta-icon"><i class="fas fa-cog"></i></span>
+                                    <span class="meta-text">{{ unit.applied_upgrades|from_json|length }} Upgrades</span>
                                 </div>
+                                {% endif %}
                             </div>
                         </div>
                         {% endfor %}
@@ -314,7 +340,7 @@
                         <h3>No Units Yet</h3>
                         <p>You haven't created any units yet. Start building your military forces!</p>
                         <a href="{{ url_for('create_unit') }}" class="btn btn-primary">
-                            <span class="btn-icon">➕</span>
+                            <span class="btn-icon"><i class="fas fa-plus"></i></span>
                             <span class="btn-text">Create Your First Unit</span>
                         </a>
                     </div>
@@ -359,11 +385,12 @@
 class MyUnitsManager {
     constructor() {
         this.currentFilter = 'all';
-        this.viewMode = 'grid'; // 'grid' or 'list'
+        this.viewMode = 'list'; // 'grid' or 'list' - list is now default
         this.units = [];
         
         this.initializeEventListeners();
         this.loadUnits();
+        this.initializeDefaultView();
     }
     
     loadUnits() {
@@ -374,6 +401,15 @@ class MyUnitsManager {
             category: card.dataset.category,
             element: card
         }));
+    }
+    
+    initializeDefaultView() {
+        // Set list view as default
+        const grid = document.getElementById('unitsGrid');
+        const toggleBtn = document.getElementById('toggleViewMode');
+        
+        grid.classList.add('list-view');
+        toggleBtn.innerHTML = '<span class="btn-icon"><i class="fas fa-th"></i></span><span class="btn-text">Grid View</span>';
     }
     
     initializeEventListeners() {
@@ -437,13 +473,16 @@ class MyUnitsManager {
         
         units.forEach(unit => {
             if (this.currentFilter === 'all') {
-                unit.style.display = 'block';
+                unit.style.display = '';
+                unit.classList.remove('hidden');
             } else {
                 const category = this.getUnitCategory(unit.dataset.category);
                 if (category === this.currentFilter) {
-                    unit.style.display = 'block';
+                    unit.style.display = '';
+                    unit.classList.remove('hidden');
                 } else {
                     unit.style.display = 'none';
+                    unit.classList.add('hidden');
                 }
             }
         });
@@ -476,9 +515,11 @@ class MyUnitsManager {
             const type = unit.querySelector('.unit-type').textContent.toLowerCase();
             
             if (name.includes(searchTerm) || type.includes(searchTerm)) {
-                unit.style.display = 'block';
+                unit.style.display = '';
+                unit.classList.remove('hidden');
             } else {
                 unit.style.display = 'none';
+                unit.classList.add('hidden');
             }
         });
     }
@@ -487,14 +528,14 @@ class MyUnitsManager {
         const grid = document.getElementById('unitsGrid');
         const toggleBtn = document.getElementById('toggleViewMode');
         
-        if (this.viewMode === 'grid') {
-            this.viewMode = 'list';
-            grid.classList.add('list-view');
-            toggleBtn.innerHTML = '<span class="btn-icon">⚏</span><span class="btn-text">Grid View</span>';
-        } else {
+        if (this.viewMode === 'list') {
             this.viewMode = 'grid';
             grid.classList.remove('list-view');
-            toggleBtn.innerHTML = '<span class="btn-icon">📋</span><span class="btn-text">List View</span>';
+            toggleBtn.innerHTML = '<span class="btn-icon"><i class="fas fa-list"></i></span><span class="btn-text">List View</span>';
+        } else {
+            this.viewMode = 'list';
+            grid.classList.add('list-view');
+            toggleBtn.innerHTML = '<span class="btn-icon"><i class="fas fa-th"></i></span><span class="btn-text">Grid View</span>';
         }
     }
     
@@ -504,14 +545,27 @@ class MyUnitsManager {
 }
 
 // Global functions for unit actions
-function editUnit(unitId) {
-    // Redirect to edit page or open edit modal
-    window.location.href = `/edit_unit/${unitId}`;
+function requisitionUnit(unitId) {
+    // Open requisition/loadout interface
+    alert(`Opening requisition interface for unit ${unitId}...`);
+    // TODO: Implement requisition/loadout page
 }
 
 function deployUnit(unitId) {
     // Open deployment interface
-    alert(`Deploying unit ${unitId}...`);
+    alert(`Opening deployment interface for unit ${unitId}...`);
+    // TODO: Implement deployment interface
+}
+
+function viewOrders(unitId) {
+    // Open orders interface
+    alert(`Opening orders interface for unit ${unitId}...`);
+    // TODO: Implement orders interface
+}
+
+function editUnit(unitId) {
+    // Redirect to edit page or open edit modal
+    window.location.href = `/edit_unit/${unitId}`;
 }
 
 function viewDetails(unitId) {
@@ -582,5 +636,776 @@ document.addEventListener('DOMContentLoaded', () => {
     new MyUnitsManager();
 });
 </script>
+
+<style>
+/* My Units Page Redesign Styles */
+
+/* Unit Card Redesign */
+.unit-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-2xl);
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+    transition: all var(--transition-normal);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    padding: 28px;
+    margin-bottom: 24px;
+    min-height: 420px;
+}
+
+/* Override main CSS hover effects for My Units page */
+.units-grid .unit-card {
+    transition: none !important;
+}
+
+.units-grid .unit-card:hover {
+    transform: none !important;
+    border-color: var(--border-secondary) !important;
+    box-shadow: none !important;
+}
+
+/* Disable the sliding animation effect */
+.units-grid .unit-card::before {
+    display: none !important;
+}
+
+.units-grid .unit-card:hover::before {
+    display: none !important;
+}
+
+
+/* Unit Header */
+.unit-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    margin-bottom: 28px;
+}
+
+.unit-image-container {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    overflow: visible;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.unit-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+    border: 2px solid rgba(0, 212, 255, 0.3);
+    background: rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+
+.image-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(0, 212, 255, 0.3);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 24px;
+}
+
+.unit-category-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #00d4ff, #0099cc);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+    border: 2px solid rgba(0, 0, 0, 0.3);
+}
+
+.unit-info {
+    flex: 1;
+}
+
+.unit-name {
+    font-size: 22px;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0 0 8px 0;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    line-height: 1.4;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    padding-right: 8px;
+    max-width: 100%;
+}
+
+.unit-type {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 16px 0;
+    line-height: 1.4;
+    padding-right: 8px;
+}
+
+.unit-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #00ff00;
+    box-shadow: 0 0 6px rgba(0, 255, 0, 0.6);
+}
+
+.status-indicator.ready {
+    background: #00ff00;
+    box-shadow: 0 0 6px rgba(0, 255, 0, 0.6);
+}
+
+.status-indicator.deployed {
+    background: #ffaa00;
+    box-shadow: 0 0 6px rgba(255, 170, 0, 0.6);
+}
+
+.status-indicator.damaged {
+    background: #ff4444;
+    box-shadow: 0 0 6px rgba(255, 68, 68, 0.6);
+}
+
+.status-text {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+}
+
+/* Unit Stats Section */
+.unit-stats-section {
+    margin-bottom: 28px;
+}
+
+.stats-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #00d4ff;
+    margin: 0 0 16px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.stat-item {
+    background: linear-gradient(135deg, rgba(0, 20, 40, 0.4), rgba(0, 40, 80, 0.3));
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    border-radius: 10px;
+    padding: 18px;
+    min-height: 90px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+
+.stat-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.stat-icon {
+    color: #ffffff;
+    font-size: 18px;
+    text-shadow: 0 0 8px rgba(0, 212, 255, 0.8);
+    filter: drop-shadow(0 0 4px rgba(0, 212, 255, 0.6));
+}
+
+.stat-label {
+    font-size: 13px;
+    color: #00d4ff;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 10px;
+    justify-content: center;
+}
+
+.current-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #00d4ff;
+    text-shadow: 0 2px 4px rgba(0, 212, 255, 0.3);
+}
+
+.max-value {
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 600;
+}
+
+.stat-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.stat-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00d4ff, #0099cc, #00a8ff);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
+}
+
+/* Equipment Section */
+.equipment-section {
+    margin-bottom: 28px;
+}
+
+.equipment-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #00d4ff;
+    margin: 0 0 12px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.equipment-slots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+}
+
+.equipment-slots.merged .slot-group {
+    flex: 1 1 220px;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.equipment-slots.merged .slot-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.slot-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+
+.slot-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+}
+
+.slot-count {
+    font-size: 12px;
+    color: #00d4ff;
+    font-weight: 600;
+}
+
+/* Applied Equipment Section */
+.applied-equipment-section {
+    margin: 16px 0 20px 0;
+    padding: 12px;
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(0,20,40,0.35), rgba(0,40,80,0.25));
+}
+
+.applied-equipment-section .equipment-title {
+    margin: 0 0 10px 0;
+}
+
+.applied-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.applied-group {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.applied-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #00d4ff;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.applied-list {
+    display: grid;
+    gap: 6px;
+}
+
+.applied-item {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+    padding: 6px 8px;
+    background: rgba(0, 212, 255, 0.08);
+    border: 1px solid rgba(0, 212, 255, 0.15);
+    border-radius: 6px;
+    line-height: 1.3;
+}
+
+/* Unit Actions */
+.unit-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    align-items: stretch;
+}
+
+.action-btn {
+    flex: 1 1 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 18px 22px;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    text-decoration: none;
+    min-height: 56px;
+    white-space: nowrap;
+    overflow: hidden;
+    position: relative;
+}
+
+.requisition-btn {
+    background: linear-gradient(135deg, #ff6b35, #f7931e);
+    color: white;
+    border: 1px solid rgba(255, 107, 53, 0.3);
+}
+
+.requisition-btn:hover {
+    background: linear-gradient(135deg, #ff5722, #ff9800);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255, 107, 53, 0.35);
+    border-color: rgba(255, 107, 53, 0.6);
+}
+
+.deployment-btn {
+    background: linear-gradient(135deg, #00d4ff, #0099cc);
+    color: white;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+}
+
+.deployment-btn:hover {
+    background: linear-gradient(135deg, #00bcd4, #007bb5);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 212, 255, 0.35);
+    border-color: rgba(0, 212, 255, 0.6);
+}
+
+.orders-btn {
+    background: linear-gradient(135deg, #9c27b0, #673ab7);
+    color: white;
+    border: 1px solid rgba(156, 39, 176, 0.3);
+}
+
+.orders-btn:hover {
+    background: linear-gradient(135deg, #8e24aa, #5e35b1);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(156, 39, 176, 0.35);
+    border-color: rgba(156, 39, 176, 0.6);
+}
+
+.btn-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.btn-text {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+/* Unit Meta */
+.unit-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.meta-icon {
+    color: rgba(0, 212, 255, 0.7);
+    font-size: 12px;
+}
+
+.meta-text {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* List View Styles */
+.units-grid.list-view {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px 0;
+}
+
+.units-grid.list-view .unit-card {
+    display: grid;
+    grid-template-columns: 260px 1fr 200px;
+    grid-template-areas:
+        "header stats actions";
+    align-items: start;
+    padding: 24px 28px;
+    min-height: 200px;
+    gap: 20px;
+    border-radius: 16px;
+}
+
+.units-grid.list-view .unit-header {
+    grid-area: header;
+    display: flex;
+    flex-direction: row;
+    margin: 0;
+    min-width: 240px;
+    gap: 16px;
+}
+
+.units-grid.list-view .unit-image-container {
+    width: 90px;
+    height: 90px;
+    flex-shrink: 0;
+}
+
+.units-grid.list-view .unit-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.units-grid.list-view .unit-info {
+    min-width: 160px;
+    flex-shrink: 0;
+}
+
+.units-grid.list-view .unit-stats-section {
+    grid-area: stats;
+    margin: 0;
+    min-width: 0;
+}
+
+.units-grid.list-view .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+}
+
+.units-grid.list-view .stat-item {
+    padding: 18px;
+    min-height: 85px;
+    background: linear-gradient(135deg, rgba(0, 20, 40, 0.7), rgba(0, 40, 80, 0.6));
+    border: 1px solid rgba(0, 212, 255, 0.5);
+    border-radius: 12px;
+}
+
+.units-grid.list-view .stat-label {
+    font-size: 12px;
+    color: #00d4ff;
+    font-weight: 700;
+}
+
+.units-grid.list-view .current-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.units-grid.list-view .max-value {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 600;
+}
+
+.units-grid.list-view .equipment-section {
+    margin-bottom: 0;
+    margin-right: 0;
+    min-width: 120px;
+    flex-shrink: 0;
+}
+
+.units-grid.list-view .unit-actions {
+    grid-area: actions;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0;
+    min-width: 180px;
+}
+
+.units-grid.list-view .action-btn {
+    padding: 18px 22px;
+    min-height: 65px;
+    font-size: 14px;
+    white-space: nowrap;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 12px;
+}
+
+.units-grid.list-view .unit-meta {
+    display: none;
+}
+
+/* List view filtering */
+.units-grid.list-view .unit-card.hidden {
+    display: none;
+}
+
+.units-grid.list-view .unit-card:not(.hidden) {
+    display: grid;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .unit-header {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .unit-image-container {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .unit-actions {
+        flex-direction: column;
+    }
+    
+    .equipment-slots {
+        justify-content: center;
+    }
+    
+    .unit-actions {
+        gap: 12px;
+    }
+    
+    .action-btn {
+        padding: 16px 20px;
+        min-height: 56px;
+        font-size: 14px;
+    }
+    
+    .units-grid.list-view .unit-card {
+        flex-direction: column;
+        max-height: none;
+        padding: 20px;
+    }
+    
+    .units-grid.list-view .unit-header {
+        margin-right: 0;
+        margin-bottom: 20px;
+        flex-direction: column;
+        text-align: center;
+        align-items: center;
+    }
+    
+    .units-grid.list-view .unit-stats-section {
+        margin-right: 0;
+        margin-bottom: 20px;
+    }
+    
+    .units-grid.list-view .equipment-section {
+        margin-right: 0;
+        margin-bottom: 20px;
+    }
+    
+    .units-grid.list-view .unit-actions {
+        flex-direction: row;
+        min-width: auto;
+    }
+}
+
+/* Grid Layout Updates */
+.units-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(520px, 1fr));
+    gap: 32px;
+    padding: 20px 0;
+}
+
+.units-grid .unit-card {
+    min-height: 480px;
+    max-width: 100%;
+    overflow: visible;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Ensure grid layout is maintained when filtering */
+.units-grid:not(.list-view) .unit-card.hidden {
+    display: none;
+}
+
+.units-grid:not(.list-view) .unit-card:not(.hidden) {
+    display: block;
+}
+
+/* Responsive grid adjustments */
+@media (min-width: 1200px) {
+    .units-grid {
+        grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+        gap: 28px;
+    }
+}
+
+@media (min-width: 1400px) {
+    .units-grid {
+        grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+        gap: 24px;
+    }
+}
+
+@media (max-width: 768px) {
+    .units-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .unit-card {
+        padding: 20px;
+        min-height: auto;
+    }
+    
+    .unit-header {
+        flex-direction: column;
+        text-align: center;
+        align-items: center;
+    }
+    
+    .unit-image-container {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .unit-actions {
+        flex-direction: column;
+    }
+    
+    .equipment-slots {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .units-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .unit-card {
+        padding: 16px;
+    }
+}
+
+/* Filter Header Styling */
+.filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.filter-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #00d4ff;
+    margin: 0;
+}
+
+.filter-icon {
+    font-size: 16px;
+}
+
+@media (max-width: 768px) {
+    .filter-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+    
+    .search-bar {
+        width: 100%;
+    }
+}
+</style>
 {% endblock %}
 

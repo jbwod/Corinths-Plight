@@ -1,4 +1,5 @@
 from flask import Flask
+import json
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from config import Config
@@ -22,3 +23,15 @@ from app import routes, models
 @login_manager.user_loader
 def load_user(id):
     return models.User.query.get(int(id))
+
+# Jinja filters
+@app.template_filter('from_json')
+def from_json_filter(value):
+    try:
+        if not value:
+            return []
+        if isinstance(value, (list, dict)):
+            return value
+        return json.loads(value)
+    except Exception:
+        return []

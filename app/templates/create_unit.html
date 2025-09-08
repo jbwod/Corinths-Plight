@@ -13,15 +13,15 @@
                 <div class="hero-stats">
                     <div class="stat-item">
                         <span class="stat-number">{{ unit_templates|length }}</span>
-                        <span class="stat-label">Unit Types</span>
+                        <span class="stat-label">Available Units</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-number">6</span>
-                        <span class="stat-label">Categories</span>
+                        <span class="stat-number">{{ current_user.get_units_remaining() }}</span>
+                        <span class="stat-label">Units Left</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-number">∞</span>
-                        <span class="stat-label">Possibilities</span>
+                        <span class="stat-number">{{ current_user.level }}</span>
+                        <span class="stat-label">Your Level</span>
                     </div>
                 </div>
             </div>
@@ -40,6 +40,51 @@
                             Select Unit Type
                         </h2>
                         <p class="panel-subtitle">Choose your unit category and type</p>
+                        
+                        <!-- Level Badge with Popup -->
+                        <div class="level-badge-container">
+                            <div class="level-badge-popup-trigger" id="levelBadgeTrigger">
+                                <span class="level-badge">{{ current_user.level }}</span>
+                                <span class="level-text">{{ current_user.get_level_title() }}</span>
+                            </div>
+                            
+                            <!-- Level Progress Info Popup -->
+                            <div class="level-progress-popup" id="levelProgressPopup">
+                                <div class="popup-backdrop" id="popupBackdrop"></div>
+                                <div class="popup-content-wrapper">
+                                    <div class="popup-header">
+                                        <span class="popup-title">Level {{ current_user.level }} - {{ current_user.get_level_title() }}</span>
+                                        <button class="popup-close" id="popupClose">&times;</button>
+                                    </div>
+                                <div class="popup-content">
+                                    <div class="current-level-info">
+                                        <div class="level-badge-large">{{ current_user.level }}</div>
+                                        <div class="level-details">
+                                            <div class="level-title">{{ current_user.get_level_title() }}</div>
+                                            <div class="xp-info">{{ current_user.experience }} XP</div>
+                                        </div>
+                                    </div>
+                                    <div class="xp-progress-bar">
+                                        <div class="xp-bar-fill" data-xp="{{ current_user.get_xp_progress_percentage() }}"></div>
+                                        <span class="xp-text">{{ current_user.get_xp_for_next_level() }} XP to next level</span>
+                                    </div>
+                                    <div class="next-unlock">
+                                        {% set next_level_units = [] %}
+                                        {% for unit in unit_templates %}
+                                            {% if current_user.get_unit_level_requirement(unit.unit_type) == current_user.level + 1 %}
+                                                {% set _ = next_level_units.append(unit.unit_type) %}
+                                            {% endif %}
+                                        {% endfor %}
+                                        {% if next_level_units %}
+                                            <div class="unlock-text">Next level unlocks: {{ next_level_units[:3]|join(', ') }}{% if next_level_units|length > 3 %} and {{ next_level_units|length - 3 }} more{% endif %}</div>
+                                        {% else %}
+                                            <div class="unlock-text">All units available at your level!</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Unit Categories -->
@@ -80,7 +125,7 @@
                         <div class="unit-card" data-category="{{ unit.unit_type.lower().replace(' ', '-') }}" data-unit-id="{{ unit.id }}">
                             <div class="unit-icon-container">
                                 <div class="unit-icon">
-                                    {% if 'infantry' in unit.unit_type.lower() or 'unit' in unit.unit_type.lower() %}
+                                    {% if 'infantry' in unit.unit_type.lower() or 'unit' in unit.unit_type.lower() or 'special forces' in unit.unit_type.lower() or 'combat engineer' in unit.unit_type.lower() or 'sapper' in unit.unit_type.lower() %}
                                         {% if 'combat engineer' in unit.unit_type.lower() %}
                                             <img src="{{ url_for('static', filename='img/units/icons/infantry/combat_engineer.png') }}" alt="{{ unit.unit_type }}">
                                         {% elif 'combat medical' in unit.unit_type.lower() %}
@@ -93,10 +138,12 @@
                                             <img src="{{ url_for('static', filename='img/units/icons/infantry/special_forces.png') }}" alt="{{ unit.unit_type }}">
                                         {% elif 'sapper' in unit.unit_type.lower() %}
                                             <img src="{{ url_for('static', filename='img/units/icons/infantry/sapper.png') }}" alt="{{ unit.unit_type }}">
+                                        {% elif 'mechanized infantry' in unit.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/infantry/mechanized.png') }}" alt="{{ unit.unit_type }}">
                                         {% else %}
                                             <img src="{{ url_for('static', filename='img/units/icons/infantry/infantry.png') }}" alt="{{ unit.unit_type }}">
                                         {% endif %}
-                                    {% elif 'vehicle' in unit.unit_type.lower() or 'tank' in unit.unit_type.lower() or 'truck' in unit.unit_type.lower() or 'mechanized' in unit.unit_type.lower() %}
+                                    {% elif 'vehicle' in unit.unit_type.lower() or 'tank' in unit.unit_type.lower() or 'truck' in unit.unit_type.lower() %}
                                         {% if 'heavy battle tank' in unit.unit_type.lower() %}
                                             <img src="{{ url_for('static', filename='img/units/icons/vehicles/heavy_tank.png') }}" alt="{{ unit.unit_type }}">
                                         {% elif 'light battle tank' in unit.unit_type.lower() %}
@@ -115,21 +162,49 @@
                                             <div class="icon-placeholder vehicle-icon"><i class="fas fa-car"></i></div>
                                         {% endif %}
                                     {% elif 'mech' in unit.unit_type.lower() %}
-                                        <div class="icon-placeholder mech-icon"><i class="fas fa-robot"></i></div>
+                                        {% if 'light mech' in unit.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/mech/small.png') }}" alt="{{ unit.unit_type }}">
+                                        {% elif 'medium mech' in unit.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/mech/medium.png') }}" alt="{{ unit.unit_type }}">
+                                        {% elif 'heavy mech' in unit.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/mech/heavy.png') }}" alt="{{ unit.unit_type }}">
+                                        {% else %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/mech/small.png') }}" alt="{{ unit.unit_type }}">
+                                        {% endif %}
                                     {% elif 'aircraft' in unit.unit_type.lower() or 'fighter' in unit.unit_type.lower() or 'bomber' in unit.unit_type.lower() or 'vtol' in unit.unit_type.lower() or 'transport' in unit.unit_type.lower() %}
-                                        <div class="icon-placeholder aircraft-icon"><i class="fas fa-plane"></i></div>
+                                        {% if 'fighter aircraft' in unit.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/aircraft/fighter.png') }}" alt="{{ unit.unit_type }}">
+                                        {% elif 'vtol heavy troop airlift' in unit.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/aircraft/vtol.png') }}" alt="{{ unit.unit_type }}">
+                                        {% elif 'heavy aerospace transport' in unit.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/aircraft/heavy.png') }}" alt="{{ unit.unit_type }}">
+                                        {% elif 'bomber aircraft' in unit.unit_type.lower() %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/aircraft/bomber.png') }}" alt="{{ unit.unit_type }}">
+                                        {% else %}
+                                            <img src="{{ url_for('static', filename='img/units/icons/aircraft/fighter.png') }}" alt="{{ unit.unit_type }}">
+                                        {% endif %}
                                     {% elif 'artillery' in unit.unit_type.lower() %}
                                         <div class="icon-placeholder artillery-icon"><i class="fas fa-bomb"></i></div>
                                     {% elif 'corvette' in unit.unit_type.lower() or 'destroyer' in unit.unit_type.lower() or 'cruiser' in unit.unit_type.lower() or 'battleship' in unit.unit_type.lower() %}
-                                        <div class="icon-placeholder orbital-icon"><i class="fas fa-rocket"></i></div>
+                                        {% if unit.unit_type.lower() == 'corvette' %}
+                                            <img src="{{ url_for('static', filename='img/units/sprites/orbitals/corvette/corvette.png') }}" alt="{{ unit.unit_type }}">
+                                        {% elif unit.unit_type.lower() == 'destroyer' %}
+                                            <img src="{{ url_for('static', filename='img/units/sprites/orbitals/destroyer.png') }}" alt="{{ unit.unit_type }}">
+                                        {% elif unit.unit_type.lower() == 'cruiser' %}
+                                            <img src="{{ url_for('static', filename='img/units/sprites/orbitals/cruiser.png') }}" alt="{{ unit.unit_type }}">
+                                        {% elif unit.unit_type.lower() == 'battleship' %}
+                                            <img src="{{ url_for('static', filename='img/units/sprites/orbitals/battleship.png') }}" alt="{{ unit.unit_type }}">
+                                        {% else %}
+                                            <img src="{{ url_for('static', filename='img/units/sprites/orbitals/corvette/corvette.png') }}" alt="{{ unit.unit_type }}">
+                                        {% endif %}
                                     {% else %}
                                         <div class="icon-placeholder default-icon"><i class="fas fa-sword"></i></div>
                                     {% endif %}
-                                </div>
+                                    
                                 <div class="unit-category-badge">
-                                    {% if 'infantry' in unit.unit_type.lower() or 'unit' in unit.unit_type.lower() %}
+                                    {% if 'infantry' in unit.unit_type.lower() or 'unit' in unit.unit_type.lower() or 'special forces' in unit.unit_type.lower() or 'combat engineer' in unit.unit_type.lower() or 'sapper' in unit.unit_type.lower() %}
                                         <span class="category-icon"><i class="fas fa-users"></i></span>
-                                    {% elif 'vehicle' in unit.unit_type.lower() or 'tank' in unit.unit_type.lower() or 'truck' in unit.unit_type.lower() or 'mechanized' in unit.unit_type.lower() %}
+                                    {% elif 'vehicle' in unit.unit_type.lower() or 'tank' in unit.unit_type.lower() or 'truck' in unit.unit_type.lower() %}
                                         <span class="category-icon"><i class="fas fa-car"></i></span>
                                     {% elif 'mech' in unit.unit_type.lower() %}
                                         <span class="category-icon"><i class="fas fa-robot"></i></span>
@@ -142,15 +217,33 @@
                                     {% else %}
                                         <span class="category-icon"><i class="fas fa-sword"></i></span>
                                     {% endif %}
+                                    </div>
                                 </div>
                             </div>
                             
                             <div class="unit-content">
                                 <h3 class="unit-name">{{ unit.unit_type }}</h3>
                                 
+                                <!-- Level Requirement -->
+                                {% set required_level = current_user.get_unit_level_requirement(unit.unit_type) %}
+                                {% set can_create = current_user.can_create_unit_type(unit.unit_type) %}
+                                
+                                <div class="unit-level-requirement {% if can_create %}available{% else %}locked{% endif %}">
+                                    <span class="level-icon">
+                                        <i class="fas fa-{% if can_create %}check-circle{% else %}lock{% endif %}"></i>
+                                    </span>
+                                    <span class="level-text">
+                                        {% if can_create %}
+                                            Available
+                                        {% else %}
+                                            Level {{ required_level }} Required
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                
                                 <div class="unit-main-info">
                                     <div class="unit-icon-main">
-                                        {% if 'infantry' in unit.unit_type.lower() or 'unit' in unit.unit_type.lower() %}
+                                        {% if 'infantry' in unit.unit_type.lower() or 'unit' in unit.unit_type.lower() or 'special forces' in unit.unit_type.lower() or 'combat engineer' in unit.unit_type.lower() or 'sapper' in unit.unit_type.lower() %}
                                             {% if 'combat engineer' in unit.unit_type.lower() %}
                                                 <img src="{{ url_for('static', filename='img/units/icons/infantry/combat_engineer.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
                                             {% elif 'combat medical' in unit.unit_type.lower() %}
@@ -163,10 +256,12 @@
                                                 <img src="{{ url_for('static', filename='img/units/icons/infantry/special_forces.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
                                             {% elif 'sapper' in unit.unit_type.lower() %}
                                                 <img src="{{ url_for('static', filename='img/units/icons/infantry/sapper.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
+                                            {% elif 'mechanized infantry' in unit.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/infantry/mechanized.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
                                             {% else %}
                                                 <img src="{{ url_for('static', filename='img/units/icons/infantry/infantry.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
                                             {% endif %}
-                                        {% elif 'vehicle' in unit.unit_type.lower() or 'tank' in unit.unit_type.lower() or 'truck' in unit.unit_type.lower() or 'mechanized' in unit.unit_type.lower() %}
+                                        {% elif 'vehicle' in unit.unit_type.lower() or 'tank' in unit.unit_type.lower() or 'truck' in unit.unit_type.lower() %}
                                             {% if 'heavy battle tank' in unit.unit_type.lower() %}
                                                 <img src="{{ url_for('static', filename='img/units/icons/vehicles/heavy_tank.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
                                             {% elif 'light battle tank' in unit.unit_type.lower() %}
@@ -185,13 +280,41 @@
                                                 <div class="main-icon-placeholder vehicle-icon"><i class="fas fa-car"></i></div>
                                             {% endif %}
                                         {% elif 'mech' in unit.unit_type.lower() %}
-                                            <div class="main-icon-placeholder mech-icon"><i class="fas fa-robot"></i></div>
+                                            {% if 'light mech' in unit.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/mech/small.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
+                                            {% elif 'medium mech' in unit.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/mech/medium.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
+                                            {% elif 'heavy mech' in unit.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/mech/heavy.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
+                                            {% else %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/mech/small.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
+                                            {% endif %}
                                         {% elif 'aircraft' in unit.unit_type.lower() or 'fighter' in unit.unit_type.lower() or 'bomber' in unit.unit_type.lower() or 'vtol' in unit.unit_type.lower() or 'transport' in unit.unit_type.lower() %}
-                                            <div class="main-icon-placeholder aircraft-icon"><i class="fas fa-plane"></i></div>
+                                            {% if 'fighter aircraft' in unit.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/aircraft/fighter.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
+                                            {% elif 'vtol heavy troop airlift' in unit.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/aircraft/vtol.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
+                                            {% elif 'heavy aerospace transport' in unit.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/aircraft/heavy.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
+                                            {% elif 'bomber aircraft' in unit.unit_type.lower() %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/aircraft/bomber.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
+                                            {% else %}
+                                                <img src="{{ url_for('static', filename='img/units/icons/aircraft/fighter.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
+                                            {% endif %}
                                         {% elif 'artillery' in unit.unit_type.lower() %}
                                             <div class="main-icon-placeholder artillery-icon"><i class="fas fa-bomb"></i></div>
                                         {% elif 'corvette' in unit.unit_type.lower() or 'destroyer' in unit.unit_type.lower() or 'cruiser' in unit.unit_type.lower() or 'battleship' in unit.unit_type.lower() %}
-                                            <div class="main-icon-placeholder orbital-icon"><i class="fas fa-rocket"></i></div>
+                                            {% if unit.unit_type.lower() == 'corvette' %}
+                                                <img src="{{ url_for('static', filename='img/units/sprites/orbitals/corvette/corvette.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
+                                            {% elif unit.unit_type.lower() == 'destroyer' %}
+                                                <img src="{{ url_for('static', filename='img/units/sprites/orbitals/destroyer.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
+                                            {% elif unit.unit_type.lower() == 'cruiser' %}
+                                                <img src="{{ url_for('static', filename='img/units/sprites/orbitals/cruiser.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
+                                            {% elif unit.unit_type.lower() == 'battleship' %}
+                                                <img src="{{ url_for('static', filename='img/units/sprites/orbitals/battleship.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
+                                            {% else %}
+                                                <img src="{{ url_for('static', filename='img/units/sprites/orbitals/corvette/corvette.png') }}" alt="{{ unit.unit_type }}" class="main-icon">
+                                            {% endif %}
                                         {% else %}
                                             <div class="main-icon-placeholder default-icon"><i class="fas fa-sword"></i></div>
                                         {% endif %}
@@ -234,25 +357,147 @@
                         <p class="panel-subtitle">Customize your unit's name and equipment</p>
                     </div>
 
-                    <form id="unitForm" method="POST" action="{{ url_for('create_unit') }}">
+                    <form id="unitForm" method="POST" action="{{ url_for('create_unit') }}" enctype="multipart/form-data">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        
-                        <!-- Selected Unit Display -->
-                        <div class="selected-unit-display" id="selectedUnitDisplay" style="display: none;">
-                            <div class="selected-unit-info">
-                                <h3 id="selectedUnitName">No Unit Selected</h3>
-                                <p id="selectedUnitDescription">Please select a unit type to begin configuration.</p>
-                                <div class="selected-unit-stats" id="selectedUnitStats">
-                                    <!-- Stats will be populated dynamically -->
-                                </div>
-                            </div>
-                        </div>
+                        <input type="hidden" name="selected_equipment" id="selectedEquipmentInput" value="[]">
 
                         <!-- Unit Name Input -->
                         <div class="form-group">
                             <label for="custom_name" class="form-label">Unit Name</label>
                             <input type="text" id="custom_name" name="custom_name" class="form-input" placeholder="Enter custom unit name..." required>
                             <small class="form-help">Choose a memorable name for your unit</small>
+                        </div>
+
+                        <!-- Equipment Selection (Infantry Only) -->
+                        <div class="form-group" id="equipmentSection" style="display: none;">
+                            <label class="form-label">Equipment & Upgrades</label>
+                            <div class="equipment-container">
+                                <div class="equipment-tabs">
+                                    <button type="button" class="equipment-tab active" data-slot="primary">
+                                        <span class="tab-icon"><i class="fas fa-gun"></i></span>
+                                        <span class="tab-text">Primary</span>
+                                        <span class="tab-count" id="primaryCount">0/2</span>
+                                    </button>
+                                    <button type="button" class="equipment-tab" data-slot="secondary">
+                                        <span class="tab-icon"><i class="fas fa-bolt"></i></span>
+                                        <span class="tab-text">Secondary</span>
+                                        <span class="tab-count" id="secondaryCount">0/2</span>
+                                    </button>
+                                    <button type="button" class="equipment-tab" data-slot="internal" id="internalTab" style="display: none;">
+                                        <span class="tab-icon"><i class="fas fa-tools"></i></span>
+                                        <span class="tab-text">Internal</span>
+                                        <span class="tab-count" id="internalCount">0/0</span>
+                                    </button>
+                                    <button type="button" class="equipment-tab" data-slot="upgrade">
+                                        <span class="tab-icon"><i class="fas fa-plus"></i></span>
+                                        <span class="tab-text">Upgrades</span>
+                                        <span class="tab-count" id="upgradeCount">0/2</span>
+                                    </button>
+                                </div>
+                                
+                                <div class="equipment-content">
+                                    <div class="equipment-list" id="equipmentList">
+                                        <div class="loading">Loading equipment...</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="equipment-summary">
+                                    <h4>Selected Equipment:</h4>
+                                    <div class="selected-equipment" id="selectedEquipment">
+                                        <p class="no-selection">No equipment selected</p>
+                                    </div>
+                                    <div class="slot-selection-summary"></div>
+                                </div>
+                            </div>
+                            <small class="form-help">Primary/Secondary/Internal limits match unit slots. Upgrades are unlimited.</small>
+                        </div>
+
+                        <!-- Image Configuration Section -->
+                        <div class="form-group">
+                            <label class="form-label">Unit Image</label>
+                            <div class="image-config-section">
+                                <!-- Image Type Selection -->
+                                <div class="image-type-tabs">
+                                    <input type="radio" id="image_default" name="image_type" value="default" checked>
+                                    <label for="image_default" class="image-tab">
+                                        <span class="tab-icon"><i class="fas fa-image"></i></span>
+                                        <span class="tab-text">Default</span>
+                                    </label>
+                                    
+                                    <input type="radio" id="image_colored" name="image_type" value="colored">
+                                    <label for="image_colored" class="image-tab">
+                                        <span class="tab-icon"><i class="fas fa-palette"></i></span>
+                                        <span class="tab-text">Colored</span>
+                                    </label>
+                                    
+                                    <input type="radio" id="image_profile" name="image_type" value="profile">
+                                    <label for="image_profile" class="image-tab">
+                                        <span class="tab-icon"><i class="fas fa-user"></i></span>
+                                        <span class="tab-text">Profile</span>
+                                    </label>
+                                    
+                                    <input type="radio" id="image_custom" name="image_type" value="custom">
+                                    <label for="image_custom" class="image-tab">
+                                        <span class="tab-icon"><i class="fas fa-upload"></i></span>
+                                        <span class="tab-text">Custom</span>
+                                    </label>
+                                </div>
+
+                                <!-- Color Picker (for colored option) -->
+                                <div class="image-option" id="coloredOption" style="display: none;">
+                                    <label for="image_color" class="form-label">Choose Color</label>
+                                    <div class="color-picker-container">
+                                        <div class="color-picker-wrapper">
+                                            <input type="color" id="image_color" name="image_color" value="#ff0000" class="color-picker">
+                                            <span class="color-picker-label">Custom Color</span>
+                                        </div>
+                                        <div class="color-presets">
+                                            <div class="color-preset" data-color="#ff0000" style="background: #ff0000;" title="Red"></div>
+                                            <div class="color-preset" data-color="#00ff00" style="background: #00ff00;" title="Green"></div>
+                                            <div class="color-preset" data-color="#0000ff" style="background: #0000ff;" title="Blue"></div>
+                                            <div class="color-preset" data-color="#ffff00" style="background: #ffff00;" title="Yellow"></div>
+                                            <div class="color-preset" data-color="#ff00ff" style="background: #ff00ff;" title="Magenta"></div>
+                                            <div class="color-preset" data-color="#00ffff" style="background: #00ffff;" title="Cyan"></div>
+                                            <div class="color-preset" data-color="#ff8000" style="background: #ff8000;" title="Orange"></div>
+                                            <div class="color-preset" data-color="#8000ff" style="background: #8000ff;" title="Purple"></div>
+                                            <div class="color-preset" data-color="#ffffff" style="background: #ffffff; border: 1px solid #ccc;" title="White"></div>
+                                            <div class="color-preset" data-color="#000000" style="background: #000000;" title="Black"></div>
+                                            <div class="color-preset" data-color="#808080" style="background: #808080;" title="Gray"></div>
+                                            <div class="color-preset" data-color="#ffa500" style="background: #ffa500;" title="Gold"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Profile Image Selection (for profile option) -->
+                                <div class="image-option" id="profileOption" style="display: none;">
+                                    <label class="form-label">Choose Profile Image</label>
+                                    <div class="profile-image-grid" id="profileImageGrid">
+                                        <!-- Profile images will be loaded dynamically -->
+                                        <div class="loading">Loading profile images...</div>
+                                    </div>
+                                </div>
+
+                                <!-- Custom Image Upload (for custom option) -->
+                                <div class="image-option" id="customOption" style="display: none;">
+                                    <label for="custom_image" class="form-label">Upload Custom Image</label>
+                                    <input type="file" id="custom_image" name="custom_image" accept="image/*" class="file-input">
+                                    <small class="form-help">Maximum size: 2MB. Supported formats: PNG, JPG, JPEG, GIF</small>
+                                    <div class="image-preview" id="imagePreview" style="display: none;">
+                                        <img id="previewImg" src="" alt="Preview">
+                                    </div>
+                                </div>
+
+                                <!-- Image Preview -->
+                                <div class="image-preview-section">
+                                    <label class="form-label">Preview</label>
+                                    <div class="unit-image-preview" id="unitImagePreview">
+                                        <div class="preview-placeholder">
+                                            <i class="fas fa-image"></i>
+                                            <span>Select image type to see preview</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Hidden Unit Type Input -->
@@ -297,7 +542,7 @@
                 </div>
 
                 <!-- Preview Panel -->
-                <div class="preview-panel">
+                <div class="selection-panel">
                     <div class="panel-header">
                         <h2 class="panel-title">
                             <span class="panel-icon"><i class="fas fa-eye"></i></span>
@@ -326,6 +571,11 @@ class UnitBuilder {
     constructor() {
         this.selectedUnit = null;
         this.unitTemplates = [];
+        this.colorTimeout = null;
+        this.equipmentTemplates = [];
+        this.selectedEquipment = [];
+        this.currentSlot = 'primary';
+        this.infinitySymbol = '∞';
         
         this.initializeEventListeners();
         this.loadData();
@@ -337,6 +587,10 @@ class UnitBuilder {
             const data = await response.json();
             
             this.unitTemplates = data.unit_templates;
+            
+            // Load equipment templates
+            const equipmentResponse = await fetch('/api/equipment-templates');
+            this.equipmentTemplates = await equipmentResponse.json();
         } catch (error) {
             console.error('Error loading data:', error);
         }
@@ -354,23 +608,487 @@ class UnitBuilder {
         document.addEventListener('click', (e) => {
             const unitCard = e.target.closest('.unit-card');
             if (unitCard) {
+                // Check if unit is locked
+                if (unitCard.querySelector('.unit-level-requirement.locked')) {
+                    // Show a message that the unit is locked
+                    const requiredLevel = unitCard.querySelector('.level-text').textContent;
+                    alert(`This unit is locked! ${requiredLevel}`);
+                    return;
+                }
                 this.selectUnit(unitCard.dataset.unitId);
             }
         });
         
         // Form submission
-        document.getElementById('unitForm').addEventListener('submit', (e) => {
+        document.getElementById('unitForm').addEventListener('submit', async (e) => {
+            console.log('Form submission triggered');
             if (!this.selectedUnit) {
                 e.preventDefault();
                 alert('Please select a unit type first.');
                 return;
             }
+            
+            // Prevent default form submission
+            e.preventDefault();
+            
+            // Handle recolored image data
+            const imageType = document.querySelector('input[name="image_type"]:checked').value;
+            if (imageType === 'colored') {
+                try {
+                    const unitImage = this.getUnitImage(this.selectedUnit.unit_type);
+                    const color = document.getElementById('image_color').value;
+                    console.log('Preparing recolored image for form submission:', { unitImage, color });
+                    const recoloredImageData = await this.recolorImage(unitImage, color);
+                    console.log('Recolored image data generated, length:', recoloredImageData ? recoloredImageData.length : 'null');
+                    
+                    // Remove any previously appended input to avoid duplicates
+                    const existing = document.querySelector('input[name="recolored_image_data"]');
+                    if (existing) {
+                        console.log('Removing existing recolored_image_data input');
+                        existing.remove();
+                    }
+
+                    // Add hidden input with recolored image data (data URL)
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'recolored_image_data';
+                    hiddenInput.value = recoloredImageData;
+                    document.getElementById('unitForm').appendChild(hiddenInput);
+                    console.log('Added recolored_image_data input to form, value length:', hiddenInput.value.length);
+                } catch (error) {
+                    console.error('Error preparing recolored image:', error);
+                    // Continue without recolored image data
+                }
+            }
+            
+            // Final check: verify form data before submission
+            const formData = new FormData(document.getElementById('unitForm'));
+            console.log('Form data before submission:');
+            for (let [key, value] of formData.entries()) {
+                if (key === 'recolored_image_data') {
+                    console.log(`  ${key}: ${value ? 'present (length: ' + value.length + ')' : 'empty'}`);
+                } else {
+                    console.log(`  ${key}: ${value}`);
+                }
+            }
+            
+            // Now submit the form programmatically
+            console.log('Submitting form programmatically');
+            document.getElementById('unitForm').submit();
         });
         
         // Unit name input
         document.getElementById('custom_name').addEventListener('input', () => {
             this.updatePreview();
         });
+        
+        // Level badge popup functionality
+        const levelBadgeTrigger = document.getElementById('levelBadgeTrigger');
+        const levelProgressPopup = document.getElementById('levelProgressPopup');
+        const popupClose = document.getElementById('popupClose');
+        const popupBackdrop = document.getElementById('popupBackdrop');
+        
+        if (levelBadgeTrigger && levelProgressPopup) {
+            levelBadgeTrigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                levelProgressPopup.classList.toggle('show');
+            });
+            
+            if (popupClose) {
+                popupClose.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    levelProgressPopup.classList.remove('show');
+                });
+            }
+            
+            if (popupBackdrop) {
+                popupBackdrop.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    levelProgressPopup.classList.remove('show');
+                });
+            }
+            
+            // Close popup with Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && levelProgressPopup.classList.contains('show')) {
+                    levelProgressPopup.classList.remove('show');
+                }
+            });
+        }
+        
+        // Equipment tab switching
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.equipment-tab')) {
+                const tab = e.target.closest('.equipment-tab');
+                const slotType = tab.dataset.slot;
+                
+                // Update active tab
+                document.querySelectorAll('.equipment-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Load equipment for this slot
+                this.loadEquipmentForSlot(slotType);
+            }
+        });
+        
+        // Equipment modal close
+        document.getElementById('closeEquipmentModal').addEventListener('click', () => {
+            this.hideEquipmentDetails();
+        });
+        
+        // Close equipment modal when clicking outside
+        document.getElementById('equipmentModal').addEventListener('click', (e) => {
+            if (e.target.id === 'equipmentModal') {
+                this.hideEquipmentDetails();
+            }
+        });
+        
+        // Image configuration changes
+        document.querySelectorAll('input[name="image_type"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                this.updatePreview();
+                this.updateImagePreview();
+            });
+        });
+        
+        // Color picker with debouncing to avoid lag
+        document.getElementById('image_color').addEventListener('input', () => {
+            // Clear existing timeout
+            if (this.colorTimeout) {
+                clearTimeout(this.colorTimeout);
+            }
+            
+            // Show immediate preview with CSS filter for responsiveness
+            this.updatePreviewWithCSSFilter();
+            this.updateImagePreviewWithCSSFilter();
+            
+            // Debounce the actual recoloring
+            this.colorTimeout = setTimeout(() => {
+                this.updatePreview();
+                this.updateImagePreview();
+            }, 500); // Wait 500ms after user stops changing color
+        });
+        
+        // Image configuration
+        this.initializeImageConfiguration();
+    }
+    
+    initializeImageConfiguration() {
+        // Image type tabs
+        document.querySelectorAll('input[name="image_type"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                this.showImageOption(e.target.value);
+            });
+        });
+        
+        // Color picker
+        // Color presets
+        document.querySelectorAll('.color-preset').forEach(preset => {
+            preset.addEventListener('click', (e) => {
+                const color = e.target.dataset.color;
+                document.getElementById('image_color').value = color;
+                
+                // Clear existing timeout
+                if (this.colorTimeout) {
+                    clearTimeout(this.colorTimeout);
+                }
+                
+                // Show immediate preview with CSS filter
+                this.updatePreviewWithCSSFilter();
+                this.updateImagePreviewWithCSSFilter();
+                
+                // Debounce the actual recoloring
+                this.colorTimeout = setTimeout(() => {
+                    this.updatePreview();
+                    this.updateImagePreview();
+                }, 500);
+            });
+        });
+        
+        // Custom image upload
+        document.getElementById('custom_image').addEventListener('change', (e) => {
+            this.handleCustomImageUpload(e.target.files[0]);
+            // Update main preview immediately
+            this.updatePreview();
+        });
+        
+        // Profile image selection
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.profile-image-item')) {
+                const profileItem = e.target.closest('.profile-image-item');
+                const imageId = profileItem.dataset.imageId;
+                document.querySelector('input[name="profile_image_id"]')?.remove();
+                
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'profile_image_id';
+                hiddenInput.value = imageId;
+                document.getElementById('unitForm').appendChild(hiddenInput);
+                
+                // Update selection
+                document.querySelectorAll('.profile-image-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+                profileItem.classList.add('selected');
+                
+                this.updateImagePreview();
+                this.updatePreview();
+            }
+        });
+    }
+    
+    showImageOption(type) {
+        // Hide all options
+        document.querySelectorAll('.image-option').forEach(option => {
+            option.style.display = 'none';
+        });
+        
+        // Show selected option
+        const optionId = type + 'Option';
+        const option = document.getElementById(optionId);
+        if (option) {
+            option.style.display = 'block';
+        }
+        
+        // Load profile images if needed
+        if (type === 'profile') {
+            this.loadProfileImages();
+        }
+        
+        this.updateImagePreview();
+    }
+    
+    async loadProfileImages() {
+        const grid = document.getElementById('profileImageGrid');
+        if (grid.querySelector('.profile-image-item')) return; // Already loaded
+        
+        try {
+            const response = await fetch('/api/profile-images');
+            const data = await response.json();
+            
+            grid.innerHTML = '';
+            
+            data.profile_images.forEach(image => {
+                const item = document.createElement('div');
+                item.className = 'profile-image-item';
+                item.dataset.imageId = image.id;
+                item.innerHTML = `
+                    <img src="${image.url}" alt="Profile ${image.id}">
+                `;
+                grid.appendChild(item);
+            });
+        } catch (error) {
+            console.error('Error loading profile images:', error);
+            grid.innerHTML = '<div class="error">Failed to load profile images</div>';
+        }
+    }
+    
+    handleCustomImageUpload(file) {
+        if (!file) return;
+        
+        // Validate file
+        if (file.size > 2 * 1024 * 1024) {
+            alert('File too large. Maximum size is 2MB.');
+            return;
+        }
+        
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file.');
+            return;
+        }
+        
+        // Show preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const preview = document.getElementById('imagePreview');
+            const img = document.getElementById('previewImg');
+            img.src = e.target.result;
+            preview.style.display = 'block';
+            this.updateImagePreview();
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    updateImagePreview() {
+        if (!this.selectedUnit) return;
+        
+        const preview = document.getElementById('unitImagePreview');
+        const imageType = document.querySelector('input[name="image_type"]:checked').value;
+        
+        if (imageType === 'colored') {
+            this.updateColoredPreview(preview);
+        } else {
+            this.updateStandardPreview(preview, imageType);
+        }
+    }
+    
+    updateImagePreviewWithCSSFilter() {
+        if (!this.selectedUnit) return;
+        
+        const preview = document.getElementById('unitImagePreview');
+        const imageType = document.querySelector('input[name="image_type"]:checked').value;
+        
+        if (imageType === 'colored') {
+            const unitImage = this.getUnitImage(this.selectedUnit.unit_type);
+            const color = document.getElementById('image_color').value;
+            const style = this.getColorFilter(color);
+            preview.innerHTML = `<img src="${unitImage}" alt="${this.selectedUnit.unit_type}" style="${style}">`;
+        } else {
+            this.updateStandardPreview(preview, imageType);
+        }
+    }
+    
+    updateStandardPreview(preview, imageType) {
+        let imageHtml = '';
+        const unitImage = this.getUnitImage(this.selectedUnit.unit_type);
+        
+        if (imageType === 'default') {
+            imageHtml = `<img src="${unitImage}" alt="${this.selectedUnit.unit_type}">`;
+        } else if (imageType === 'profile') {
+            const selectedProfile = document.querySelector('.profile-image-item.selected');
+            if (selectedProfile) {
+                const img = selectedProfile.querySelector('img');
+                imageHtml = `<img src="${img.src}" alt="Profile Image">`;
+            } else {
+                imageHtml = '<div class="preview-placeholder"><i class="fas fa-user"></i><span>Select a profile image</span></div>';
+            }
+        } else if (imageType === 'custom') {
+            const customImg = document.getElementById('previewImg');
+            if (customImg && customImg.src) {
+                imageHtml = `<img src="${customImg.src}" alt="Custom Image">`;
+            } else {
+                imageHtml = '<div class="preview-placeholder"><i class="fas fa-upload"></i><span>Upload an image</span></div>';
+            }
+        }
+        
+        preview.innerHTML = imageHtml;
+    }
+    
+    async updateColoredPreview(preview) {
+        const unitImage = this.getUnitImage(this.selectedUnit.unit_type);
+        const color = document.getElementById('image_color').value;
+        
+        // Show loading indicator
+        preview.innerHTML = `
+            <div class="image-loading">
+                <div class="loading-spinner"></div>
+                <span>Processing color...</span>
+            </div>
+        `;
+        
+        try {
+            const coloredImageDataUrl = await this.recolorImage(unitImage, color);
+            preview.innerHTML = `<img src="${coloredImageDataUrl}" alt="${this.selectedUnit.unit_type}">`;
+        } catch (error) {
+            console.error('Error recoloring image:', error);
+            // Fallback to CSS filter
+            const style = this.getColorFilter(color);
+            preview.innerHTML = `<img src="${unitImage}" alt="${this.selectedUnit.unit_type}" style="${style}">`;
+        }
+    }
+    
+    async recolorImage(imageSrc, targetColor) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    
+                    // Draw the original image
+                    ctx.drawImage(img, 0, 0);
+                    
+                    // Get image data
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    
+                    // Convert target color to RGB
+                    const targetRgb = this.hexToRgb(targetColor);
+                    
+                    // Process each pixel
+                    for (let i = 0; i < data.length; i += 4) {
+                        const r = data[i];
+                        const g = data[i + 1];
+                        const b = data[i + 2];
+                        const a = data[i + 3];
+                        
+                        // Skip transparent pixels
+                        if (a === 0) continue;
+                        
+                        // Calculate grayscale value
+                        const gray = (r + g + b) / 3;
+                        
+                        // Apply color based on grayscale intensity
+                        const intensity = gray / 255;
+                        data[i] = Math.round(targetRgb.r * intensity);
+                        data[i + 1] = Math.round(targetRgb.g * intensity);
+                        data[i + 2] = Math.round(targetRgb.b * intensity);
+                    }
+                    
+                    // Put the modified image data back
+                    ctx.putImageData(imageData, 0, 0);
+                    
+                    // Convert to data URL
+                    resolve(canvas.toDataURL('image/png'));
+                } catch (error) {
+                    reject(error);
+                }
+            };
+            
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = imageSrc;
+        });
+    }
+    
+    hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : { r: 255, g: 0, b: 0 };
+    }
+    
+    getColorFilter(hexColor) {
+        // Convert hex to RGB
+        const hex = hexColor.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16) / 255;
+        const g = parseInt(hex.substr(2, 2), 16) / 255;
+        const b = parseInt(hex.substr(4, 2), 16) / 255;
+        
+        // Calculate hue rotation
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const diff = max - min;
+        
+        let hue = 0;
+        if (diff !== 0) {
+            if (max === r) {
+                hue = (60 * ((g - b) / diff) + 360) % 360;
+            } else if (max === g) {
+                hue = (60 * ((b - r) / diff) + 120) % 360;
+            } else {
+                hue = (60 * ((r - g) / diff) + 240) % 360;
+            }
+        }
+        
+        // Calculate saturation
+        const sat = max === 0 ? 0 : diff / max;
+        
+        // Calculate lightness
+        const light = (max + min) / 2;
+        
+        // Apply filters
+        const hueRotate = `hue-rotate(${hue}deg)`;
+        const saturate = `saturate(${Math.max(0.5, sat * 1.5)})`;
+        const brightness = `brightness(${Math.max(0.8, light * 1.2)})`;
+        
+        return `${hueRotate} ${saturate} ${brightness}`;
     }
     
     setCategory(category) {
@@ -423,12 +1141,17 @@ class UnitBuilder {
         const unit = this.unitTemplates.find(u => u.id == unitId);
         if (!unit) return;
         
+        // Check if unit is locked (this would need to be passed from the template)
+        const unitCard = document.querySelector(`[data-unit-id="${unitId}"]`);
+        if (unitCard && unitCard.querySelector('.unit-level-requirement.locked')) {
+            // Don't allow selection of locked units
+            return;
+        }
+        
         this.selectedUnit = unit;
         
         // Update form
         document.getElementById('unit_type').value = unitId;
-        document.getElementById('selectedUnitName').textContent = unit.unit_type;
-        document.getElementById('selectedUnitDescription').textContent = unit.description;
         
         // Update selected unit stats
         const statsHtml = `
@@ -477,6 +1200,7 @@ class UnitBuilder {
                         </div>
                     ` : ''}
                 </div>
+                <div class="slot-selection-summary"></div>
             </div>
             
             <!-- Special Rules -->
@@ -523,14 +1247,19 @@ class UnitBuilder {
                 </div>
             ` : ''}
         `;
-        document.getElementById('selectedUnitStats').innerHTML = statsHtml;
-        
-        document.getElementById('selectedUnitDisplay').style.display = 'block';
         document.getElementById('statsSummary').style.display = 'block';
         
         // Update stats
         this.updateStats();
         this.updatePreview();
+        this.updateImagePreview();
+        
+        // Show/hide equipment section based on unit type
+        if (unit.unit_type === 'Infantry Unit') {
+            this.showEquipmentSection();
+        } else {
+            this.hideEquipmentSection();
+        }
         
         // Enable create button
         document.getElementById('createUnitBtn').disabled = false;
@@ -548,21 +1277,50 @@ class UnitBuilder {
         document.getElementById('finalRange').textContent = this.selectedUnit.range;
     }
     
-    updatePreview() {
+    async updatePreview() {
         if (!this.selectedUnit) return;
         
         const unitName = document.getElementById('custom_name').value || 'Unnamed Unit';
+        const imageType = document.querySelector('input[name="image_type"]:checked').value;
+        const unitImage = this.getUnitImage(this.selectedUnit.unit_type);
+        
+        let imageSrc = unitImage;
+        let imageStyle = '';
+        
+        if (imageType === 'colored') {
+            const color = document.getElementById('image_color').value;
+            try {
+                imageSrc = await this.recolorImage(unitImage, color);
+            } catch (error) {
+                console.error('Error recoloring image for preview:', error);
+                // Fallback to CSS filter
+                imageStyle = this.getColorFilter(color);
+                imageSrc = unitImage;
+            }
+        } else if (imageType === 'profile') {
+            const selectedProfile = document.querySelector('.profile-image-item.selected');
+            if (selectedProfile) {
+                const img = selectedProfile.querySelector('img');
+                imageSrc = img.src;
+            }
+        } else if (imageType === 'custom') {
+            const customImg = document.getElementById('previewImg');
+            if (customImg && customImg.src) {
+                imageSrc = customImg.src;
+            }
+        }
         
         const previewCard = document.getElementById('unitPreviewCard');
         previewCard.innerHTML = `
             <div class="unit-preview-content">
                 <div class="preview-image">
-                    <img src="${this.getUnitImage(this.selectedUnit.unit_type)}" alt="${this.selectedUnit.unit_type}">
+                    <img src="${imageSrc}" alt="${this.selectedUnit.unit_type}" style="${imageStyle}">
         </div>
-                <div class="preview-info">
+                <div class="selected-unit-info">
                     <h3>${unitName}</h3>
-                    <p class="preview-type">${this.selectedUnit.unit_type}</p>
-                    <div class="preview-stats">
+                    <p>${this.selectedUnit.description}</p>
+                    <div class="selected-unit-stats">
+                        <div class="selected-stats">
                         <div class="stat">
                             <span class="stat-label">FS</span>
                             <span class="stat-value">${this.selectedUnit.fs}</span>
@@ -580,17 +1338,605 @@ class UnitBuilder {
                             <span class="stat-value">${this.selectedUnit.range}</span>
                         </div>
                         </div>
+                        
+                        <!-- Equipment Slots -->
+                        <div class="equipment-info">
+                            <h4 class="info-title">Equipment Slots</h4>
+                            <div class="equipment-grid">
+                                ${this.selectedUnit.primary_equipment_slots > 0 ? `
+                                    <div class="equipment-slot">
+                                        <span class="slot-icon"><i class="fas fa-gun"></i></span>
+                                        <span class="slot-label">Primary</span>
+                                        <span class="slot-count">${this.selectedUnit.primary_equipment_slots}</span>
+                                    </div>
+                                ` : ''}
+                                ${this.selectedUnit.secondary_equipment_slots > 0 ? `
+                                    <div class="equipment-slot">
+                                        <span class="slot-icon"><i class="fas fa-bolt"></i></span>
+                                        <span class="slot-label">Secondary</span>
+                                        <span class="slot-count">${this.selectedUnit.secondary_equipment_slots}</span>
+                                    </div>
+                                ` : ''}
+                                ${this.selectedUnit.internal_slots > 0 ? `
+                                    <div class="equipment-slot">
+                                        <span class="slot-icon"><i class="fas fa-tools"></i></span>
+                                        <span class="slot-label">Internal</span>
+                                        <span class="slot-count">${this.selectedUnit.internal_slots}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <div class="equipment-summary">
+                                <h4>Selected Equipment:</h4>
+                                <div class="slot-selection-summary"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Special Rules -->
+                        ${this.selectedUnit.special_rules ? `
+                            <div class="special-rules-info">
+                                <h4 class="info-title">Special Rules</h4>
+                                <div class="special-rules-content">
+                                    <span class="rules-icon"><i class="fas fa-star"></i></span>
+                                    <p class="rules-text">${this.selectedUnit.special_rules}</p>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Deployment Capabilities -->
+                        ${this.selectedUnit.deployment_capabilities ? `
+                            <div class="deployment-info">
+                                <h4 class="info-title">Deployment</h4>
+                                <div class="deployment-content">
+                                    <span class="deployment-icon"><i class="fas fa-rocket"></i></span>
+                                    <p class="deployment-text">${this.selectedUnit.deployment_capabilities}</p>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Logistic Needs -->
+                        ${this.selectedUnit.logistic_needs ? `
+                            <div class="logistic-info">
+                                <h4 class="info-title">Logistic Needs</h4>
+                                <div class="logistic-content">
+                                    <span class="logistic-icon"><i class="fas fa-box"></i></span>
+                                    <p class="logistic-text">${this.selectedUnit.logistic_needs}</p>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Structure Build List -->
+                        ${this.selectedUnit.structure_build_list ? `
+                            <div class="structure-info">
+                                <h4 class="info-title">Buildable Structures</h4>
+                                <div class="structure-content">
+                                    <span class="structure-icon"><i class="fas fa-hammer"></i></span>
+                                    <p class="structure-text">${this.selectedUnit.structure_build_list}</p>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+        this.updateSlotSelectionSummary();
+    }
+    
+    updatePreviewWithCSSFilter() {
+        if (!this.selectedUnit) return;
+        
+        const unitName = document.getElementById('custom_name').value || 'Unnamed Unit';
+        const imageType = document.querySelector('input[name="image_type"]:checked').value;
+        
+        let imageSrc = this.getUnitImage(this.selectedUnit.unit_type);
+        let imageStyle = '';
+        
+        if (imageType === 'colored') {
+            const color = document.getElementById('image_color').value;
+            imageStyle = this.getColorFilter(color);
+        } else if (imageType === 'profile') {
+            const selectedProfile = document.querySelector('.profile-image-item.selected');
+            if (selectedProfile) {
+                const img = selectedProfile.querySelector('img');
+                imageSrc = img.src;
+            }
+        } else if (imageType === 'custom') {
+            const customImg = document.getElementById('previewImg');
+            if (customImg && customImg.src) {
+                imageSrc = customImg.src;
+            }
+        }
+        
+        const previewCard = document.getElementById('unitPreviewCard');
+        previewCard.innerHTML = `
+            <div class="unit-preview-content">
+                <div class="preview-image">
+                    <img src="${imageSrc}" alt="${this.selectedUnit.unit_type}" style="${imageStyle}">
+                </div>
+                <div class="selected-unit-info">
+                    <h3>${unitName}</h3>
+                    <p>${this.selectedUnit.description}</p>
+                    <div class="selected-unit-stats">
+                        <div class="selected-stats">
+                            <div class="stat">
+                                <span class="stat-label">FS</span>
+                                <span class="stat-value">${this.selectedUnit.fs}</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Armor</span>
+                                <span class="stat-value">${this.selectedUnit.armor}</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Speed</span>
+                                <span class="stat-value">${this.selectedUnit.speed}</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Range</span>
+                                <span class="stat-value">${this.selectedUnit.range}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Equipment Slots -->
+                        <div class="equipment-info">
+                            <h4 class="info-title">Equipment Slots</h4>
+                            <div class="equipment-grid">
+                                ${this.selectedUnit.primary_equipment_slots > 0 ? `
+                                    <div class="equipment-slot">
+                                        <span class="slot-icon"><i class="fas fa-gun"></i></span>
+                                        <span class="slot-label">Primary</span>
+                                        <span class="slot-count">${this.selectedUnit.primary_equipment_slots}</span>
+                                    </div>
+                                ` : ''}
+                                ${this.selectedUnit.secondary_equipment_slots > 0 ? `
+                                    <div class="equipment-slot">
+                                        <span class="slot-icon"><i class="fas fa-bolt"></i></span>
+                                        <span class="slot-label">Secondary</span>
+                                        <span class="slot-count">${this.selectedUnit.secondary_equipment_slots}</span>
+                                    </div>
+                                ` : ''}
+                                ${this.selectedUnit.internal_slots > 0 ? `
+                                    <div class="equipment-slot">
+                                        <span class="slot-icon"><i class="fas fa-tools"></i></span>
+                                        <span class="slot-label">Internal</span>
+                                        <span class="slot-count">${this.selectedUnit.internal_slots}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <div class="slot-selection-summary"></div>
+                        </div>
+                        
+                        <!-- Special Rules -->
+                        ${this.selectedUnit.special_rules ? `
+                            <div class="special-rules-info">
+                                <h4 class="info-title">Special Rules</h4>
+                                <div class="special-rules-content">
+                                    <span class="rules-icon"><i class="fas fa-star"></i></span>
+                                    <p class="rules-text">${this.selectedUnit.special_rules}</p>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Deployment Capabilities -->
+                        ${this.selectedUnit.deployment_capabilities ? `
+                            <div class="deployment-info">
+                                <h4 class="info-title">Deployment</h4>
+                                <div class="deployment-content">
+                                    <span class="deployment-icon"><i class="fas fa-rocket"></i></span>
+                                    <p class="deployment-text">${this.selectedUnit.deployment_capabilities}</p>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Logistic Needs -->
+                        ${this.selectedUnit.logistic_needs ? `
+                            <div class="logistic-info">
+                                <h4 class="info-title">Logistic Needs</h4>
+                                <div class="logistic-content">
+                                    <span class="logistic-icon"><i class="fas fa-box"></i></span>
+                                    <p class="logistic-text">${this.selectedUnit.logistic_needs}</p>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Structure Build List -->
+                        ${this.selectedUnit.structure_build_list ? `
+                            <div class="structure-info">
+                                <h4 class="info-title">Buildable Structures</h4>
+                                <div class="structure-content">
+                                    <span class="structure-icon"><i class="fas fa-hammer"></i></span>
+                                    <p class="structure-text">${this.selectedUnit.structure_build_list}</p>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
                         </div>
                         </div>
                     `;
     }
     
     getUnitImage(unitType) {
-        if (unitType.toLowerCase().includes('mech')) {
-            return `/static/img/misc_sprites/Mechs/${unitType}.png`;
+        const unitTypeLower = unitType.toLowerCase();
+        
+        // Infantry units
+        if (unitTypeLower.includes('infantry') || unitTypeLower.includes('unit') || unitTypeLower.includes('special forces') || unitTypeLower.includes('combat engineer') || unitTypeLower.includes('sapper')) {
+            if (unitTypeLower.includes('combat engineer')) {
+                return '/static/img/units/icons/infantry/combat_engineer.png';
+            } else if (unitTypeLower.includes('combat medical')) {
+                return '/static/img/units/icons/infantry/combat_medic.png';
+            } else if (unitTypeLower.includes('power armored')) {
+                return '/static/img/units/icons/infantry/power_infantry.png';
+            } else if (unitTypeLower.includes('irregular')) {
+                return '/static/img/units/icons/infantry/irregular.png';
+            } else if (unitTypeLower.includes('special forces')) {
+                return '/static/img/units/icons/infantry/special_forces.png';
+            } else if (unitTypeLower.includes('sapper')) {
+                return '/static/img/units/icons/infantry/sapper.png';
+            } else if (unitTypeLower.includes('mechanized infantry')) {
+                return '/static/img/units/icons/infantry/mechanized.png';
                 } else {
-            return `/static/img/units/${unitType}.png`;
+                return '/static/img/units/icons/infantry/infantry.png';
+            }
         }
+        
+        // Vehicle units
+        else if (unitTypeLower.includes('vehicle') || unitTypeLower.includes('tank') || unitTypeLower.includes('truck')) {
+            if (unitTypeLower.includes('heavy battle tank')) {
+                return '/static/img/units/icons/vehicles/heavy_tank.png';
+            } else if (unitTypeLower.includes('light battle tank')) {
+                return '/static/img/units/icons/vehicles/light_tank.png';
+            } else if (unitTypeLower.includes('main battle tank')) {
+                return '/static/img/units/icons/vehicles/main_tank.png';
+            } else if (unitTypeLower.includes('super heavy tank')) {
+                return '/static/img/units/icons/vehicles/super_heavy.png';
+            } else if (unitTypeLower.includes('logistic truck')) {
+                return '/static/img/units/icons/vehicles/logistic.png';
+            } else if (unitTypeLower.includes('light vehicle')) {
+                return '/static/img/units/icons/vehicles/light_vehicle.png';
+            } else {
+                return '/static/img/units/icons/vehicles/category1.png';
+            }
+        }
+        
+        // Mech units
+        else if (unitTypeLower.includes('mech')) {
+            if (unitTypeLower.includes('light mech')) {
+                return '/static/img/units/icons/mech/small.png';
+            } else if (unitTypeLower.includes('medium mech')) {
+                return '/static/img/units/icons/mech/medium.png';
+            } else if (unitTypeLower.includes('heavy mech')) {
+                return '/static/img/units/icons/mech/heavy.png';
+            } else {
+                return '/static/img/units/icons/mech/small.png';
+            }
+        }
+        
+        // Aerial units
+        else if (unitTypeLower.includes('aircraft') || unitTypeLower.includes('vtol') || unitTypeLower.includes('aerospace') || unitTypeLower.includes('bomber') || unitTypeLower.includes('fighter')) {
+            if (unitTypeLower.includes('fighter aircraft')) {
+                return '/static/img/units/icons/aircraft/fighter.png';
+            } else if (unitTypeLower.includes('vtol heavy troop airlift')) {
+                return '/static/img/units/icons/aircraft/vtol.png';
+            } else if (unitTypeLower.includes('heavy aerospace transport')) {
+                return '/static/img/units/icons/aircraft/heavy.png';
+            } else if (unitTypeLower.includes('bomber aircraft')) {
+                return '/static/img/units/icons/aircraft/bomber.png';
+            } else {
+                return '/static/img/units/icons/aircraft/fighter.png';
+            }
+        }
+        
+        // Artillery units
+        else if (unitTypeLower.includes('artillery') || unitTypeLower.includes('hover')) {
+            if (unitTypeLower.includes('light artillery')) {
+                return '/static/img/units/icons/artillery/light_artillery.png';
+            } else if (unitTypeLower.includes('heavy artillery')) {
+                return '/static/img/units/icons/artillery/heavy_artillery.png';
+            } else if (unitTypeLower.includes('hover')) {
+                return '/static/img/units/icons/artillery/hover_artillery.png';
+            } else {
+                return '/static/img/units/icons/artillery/light_artillery.png';
+            }
+        }
+        
+        // Orbital units - use wider sprite images instead of icons
+        else if (unitTypeLower.includes('corvette') || unitTypeLower.includes('destroyer') || unitTypeLower.includes('cruiser') || unitTypeLower.includes('battleship') || unitTypeLower.includes('battlecruiser')) {
+            if (unitTypeLower === 'corvette') {
+                return '/static/img/units/sprites/orbitals/corvette/corvette.png';
+            } else if (unitTypeLower === 'destroyer') {
+                return '/static/img/units/sprites/orbitals/destroyer.png';
+            } else if (unitTypeLower === 'cruiser') {
+                return '/static/img/units/sprites/orbitals/cruiser.png';
+            } else if (unitTypeLower === 'battleship') {
+                return '/static/img/units/sprites/orbitals/battleship.png';
+            } else if (unitTypeLower === 'battlecruiser') {
+                return '/static/img/units/sprites/orbitals/battlecruiser/battlecruiser.png';
+            } else {
+                return '/static/img/units/sprites/orbitals/corvette/corvette.png';
+            }
+        }
+        
+        // Default fallback
+        return '/static/img/units/icons/infantry/infantry.png';
+    }
+    
+    // Equipment Management Methods
+    showEquipmentSection() {
+        const equipmentSection = document.getElementById('equipmentSection');
+        if (equipmentSection) {
+            equipmentSection.style.display = 'block';
+            // Show/hide internal tab based on selected unit
+            const internalTab = document.getElementById('internalTab');
+            if (internalTab) {
+                if (this.selectedUnit && this.selectedUnit.internal_slots > 0) {
+                    internalTab.style.display = '';
+                } else {
+                    internalTab.style.display = 'none';
+                    if (this.currentSlot === 'internal') {
+                        this.currentSlot = 'primary';
+                    }
+                }
+            }
+            this.updateEquipmentDisplay();
+            this.loadEquipmentForSlot(this.currentSlot || 'primary');
+        }
+    }
+    
+    hideEquipmentSection() {
+        const equipmentSection = document.getElementById('equipmentSection');
+        if (equipmentSection) {
+            equipmentSection.style.display = 'none';
+        }
+    }
+    
+    loadEquipmentForSlot(slotType) {
+        this.currentSlot = slotType;
+        const equipmentList = document.getElementById('equipmentList');
+        
+        // Filter equipment by slot type
+        const filteredEquipment = this.equipmentTemplates.filter(eq => eq.slot_type === slotType);
+        
+        if (filteredEquipment.length === 0) {
+            equipmentList.innerHTML = '<div class="no-equipment">No equipment available for this slot type.</div>';
+            return;
+        }
+        
+        // Generate equipment HTML
+        equipmentList.innerHTML = filteredEquipment.map(equipment => {
+            const isSelected = this.selectedEquipment.some(selected => selected.id === equipment.id);
+            const canSelect = this.canSelectEquipment(equipment);
+            const disabledClass = (!canSelect && !isSelected) ? 'disabled' : '';
+            
+            return `
+                <div class="equipment-item ${isSelected ? 'selected' : ''} ${disabledClass}" 
+                     data-equipment-id="${equipment.id}"
+                     onclick="window.unitBuilder.onEquipmentItemClick(event, ${equipment.id})">
+                    <div class="equipment-header">
+                        <span class="equipment-name">${equipment.name}</span>
+                        <span class="equipment-cost">${equipment.cost} pts</span>
+                    </div>
+                    <div class="equipment-rule">${equipment.rule}</div>
+                    <div class="equipment-actions">
+                        <button class="equipment-info-btn" onclick="event.stopPropagation(); window.unitBuilder.showEquipmentDetails(${equipment.id})">
+                            <i class="fas fa-eye"></i> Info
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    canSelectEquipment(equipment) {
+        const slotType = equipment.slot_type;
+        const slotCount = this.getSelectedEquipmentCount(slotType);
+        const maxForSlot = this.getMaxForSlot(slotType);
+        // Upgrades are unlimited
+        if (slotType === 'upgrade') return true;
+        // If no slots for this type, cannot select
+        if (!maxForSlot || maxForSlot <= 0) return false;
+        return slotCount < maxForSlot;
+    }
+    
+    getSelectedEquipmentCount(slotType) {
+        return this.selectedEquipment.filter(eq => eq.slot_type === slotType).length;
+    }
+
+    getMaxForSlot(slotType) {
+        if (!this.selectedUnit) return 0;
+        if (slotType === 'primary') return this.selectedUnit.primary_equipment_slots || 0;
+        if (slotType === 'secondary') return this.selectedUnit.secondary_equipment_slots || 0;
+        if (slotType === 'internal') return this.selectedUnit.internal_slots || 0;
+        if (slotType === 'upgrade') return Infinity;
+        return 0;
+    }
+    
+    toggleEquipment(equipmentId) {
+        const equipment = this.equipmentTemplates.find(eq => eq.id === equipmentId);
+        if (!equipment) return;
+        
+        const isSelected = this.selectedEquipment.some(selected => selected.id === equipmentId);
+        
+        if (isSelected) {
+            // Remove equipment
+            this.selectedEquipment = this.selectedEquipment.filter(selected => selected.id !== equipmentId);
+        } else {
+            // Add equipment
+            if (this.canSelectEquipment(equipment)) {
+                this.selectedEquipment.push(equipment);
+            }
+        }
+        
+        this.updateEquipmentDisplay();
+        this.updateSelectedEquipmentInput();
+    }
+
+    onEquipmentItemClick(event, equipmentId) {
+        const equipment = this.equipmentTemplates.find(eq => eq.id === equipmentId);
+        if (!equipment) return;
+        const isSelected = this.selectedEquipment.some(selected => selected.id === equipmentId);
+        const canSelect = this.canSelectEquipment(equipment);
+        // Allow deselect even if cannot select (slot full), but block selecting when cannot
+        if (!isSelected && !canSelect) return;
+        this.toggleEquipment(equipmentId);
+    }
+    
+    updateEquipmentDisplay() {
+        // Update tab counts
+        ['primary', 'secondary', 'internal', 'upgrade'].forEach(slotType => {
+            const count = this.getSelectedEquipmentCount(slotType);
+            const countElement = document.getElementById(`${slotType}Count`);
+            if (countElement) {
+                const max = this.getMaxForSlot(slotType);
+                const denom = (slotType === 'upgrade') ? this.infinitySymbol : max;
+                countElement.textContent = `${count}/${denom}`;
+            }
+        });
+        
+        // Update equipment list
+        this.loadEquipmentForSlot(this.currentSlot);
+        
+        // Refresh preview first so summary containers exist
+        this.updatePreview();
+
+        // Update selected equipment summary (config panel header)
+        this.updateSelectedEquipmentSummary();
+
+        // Update slot selection summary blocks under equipment grids (config + preview)
+        this.updateSlotSelectionSummary();
+    }
+    
+    updateSelectedEquipmentSummary() {
+        const summaryElement = document.getElementById('selectedEquipment');
+        if (!summaryElement) return;
+        // Minimal fallback text; detailed lists rendered in per-slot summary below
+        if (this.selectedEquipment.length === 0) {
+            summaryElement.innerHTML = '<p class="no-selection">No equipment selected</p>';
+        } else {
+            summaryElement.innerHTML = '';
+        }
+    }
+
+    updateSlotSelectionSummary() {
+        const summaries = document.querySelectorAll('.equipment-summary .slot-selection-summary');
+        if (!summaries.length) return;
+        const primaryCount = this.getSelectedEquipmentCount('primary');
+        const secondaryCount = this.getSelectedEquipmentCount('secondary');
+        const internalCount = this.getSelectedEquipmentCount('internal');
+        const upgradeCount = this.getSelectedEquipmentCount('upgrade');
+        const pMax = this.getMaxForSlot('primary');
+        const sMax = this.getMaxForSlot('secondary');
+        const iMax = this.getMaxForSlot('internal');
+        const uMax = this.infinitySymbol;
+        const primaryList = this.selectedEquipment.filter(eq => eq.slot_type === 'primary');
+        const secondaryList = this.selectedEquipment.filter(eq => eq.slot_type === 'secondary');
+        const internalList = this.selectedEquipment.filter(eq => eq.slot_type === 'internal');
+        const upgradeList = this.selectedEquipment.filter(eq => eq.slot_type === 'upgrade');
+        const renderItem = (eq) => `
+            <div class="slot-selected-item">
+                <span class="slot-selected-name">${eq.name}</span>
+                <button class="slot-selected-remove" onclick="window.unitBuilder.removeEquipment(${eq.id})" title="Remove">&times;</button>
+            </div>
+        `;
+        const renderList = (arr, emptyText) => arr.length ? arr.map(renderItem).join('') : `<div class="no-selection small">${emptyText}</div>`;
+        const html = `
+            <div class="slot-summary-grid">
+                <div class="slot-summary-item">
+                    <div class="slot-summary-row"><span class="slot-label"><i class="fas fa-gun"></i> Primary</span><span class="slot-val">${primaryCount}/${pMax}</span></div>
+                    <div class="slot-selected-list">${renderList(primaryList, 'No primary selected')}</div>
+                </div>
+                <div class="slot-summary-item">
+                    <div class="slot-summary-row"><span class="slot-label"><i class="fas fa-bolt"></i> Secondary</span><span class="slot-val">${secondaryCount}/${sMax}</span></div>
+                    <div class="slot-selected-list">${renderList(secondaryList, 'No secondary selected')}</div>
+                </div>
+                ${iMax > 0 ? `<div class=\"slot-summary-item\"><div class=\"slot-summary-row\"><span class=\"slot-label\"><i class=\"fas fa-tools\"></i> Internal</span><span class=\"slot-val\">${internalCount}/${iMax}</span></div><div class=\"slot-selected-list\">${renderList(internalList, 'No internal selected')}</div></div>` : ''}
+                <div class="slot-summary-item">
+                    <div class="slot-summary-row"><span class="slot-label"><i class="fas fa-plus"></i> Upgrades</span><span class="slot-val">${upgradeCount}/${uMax}</span></div>
+                    <div class="slot-selected-list">${renderList(upgradeList, 'No upgrades selected')}</div>
+                </div>
+            </div>
+        `;
+        summaries.forEach(node => node.innerHTML = html);
+
+        // Also update preview block summaries (read-only, without remove buttons)
+        const previewSummaries = document.querySelectorAll('#unitPreviewCard .slot-selection-summary');
+        if (previewSummaries.length) {
+            const renderItemReadOnly = (eq) => `
+                <div class="slot-selected-item readonly">
+                    <span class="slot-selected-name">${eq.name}</span>
+                </div>
+            `;
+            const renderListReadOnly = (arr, emptyText) => arr.length ? arr.map(renderItemReadOnly).join('') : `<div class=\"no-selection small\">${emptyText}</div>`;
+            const previewHtml = `
+                <div class="equipment-grid slot-summary-grid">
+                    <div class="equipment-slot slot-summary-item">
+                        <span class="slot-icon"><i class="fas fa-gun"></i></span>
+                        <span class="slot-label">Primary</span>
+                        <span class="slot-count">${primaryCount}/${pMax}</span>
+                        <div class="slot-selected-list">${renderListReadOnly(primaryList, 'None')}</div>
+                    </div>
+                    <div class="equipment-slot slot-summary-item">
+                        <span class="slot-icon"><i class="fas fa-bolt"></i></span>
+                        <span class="slot-label">Secondary</span>
+                        <span class="slot-count">${secondaryCount}/${sMax}</span>
+                        <div class="slot-selected-list">${renderListReadOnly(secondaryList, 'None')}</div>
+                    </div>
+                    ${iMax > 0 ? `<div class=\"equipment-slot slot-summary-item\"><span class=\"slot-icon\"><i class=\"fas fa-tools\"></i></span><span class=\"slot-label\">Internal</span><span class=\"slot-count\">${internalCount}/${iMax}</span><div class=\"slot-selected-list\">${renderListReadOnly(internalList, 'None')}</div></div>` : ''}
+                    <div class="equipment-slot slot-summary-item">
+                        <span class="slot-icon"><i class="fas fa-plus"></i></span>
+                        <span class="slot-label">Upgrades</span>
+                        <span class="slot-count">${upgradeCount}/${uMax}</span>
+                        <div class="slot-selected-list">${renderListReadOnly(upgradeList, 'None')}</div>
+                    </div>
+                </div>
+            `;
+            previewSummaries.forEach(node => node.innerHTML = previewHtml);
+        }
+    }
+    
+    removeEquipment(equipmentId) {
+        this.selectedEquipment = this.selectedEquipment.filter(selected => selected.id !== equipmentId);
+        this.updateEquipmentDisplay();
+        this.updateSelectedEquipmentInput();
+    }
+    
+    updateSelectedEquipmentInput() {
+        const input = document.getElementById('selectedEquipmentInput');
+        if (input) {
+            input.value = JSON.stringify(this.selectedEquipment);
+        }
+    }
+    
+    showEquipmentDetails(equipmentId) {
+        const equipment = this.equipmentTemplates.find(eq => eq.id === equipmentId);
+        if (!equipment) return;
+        
+        const modal = document.getElementById('equipmentModal');
+        const title = document.getElementById('equipmentModalTitle');
+        const body = document.getElementById('equipmentModalBody');
+        
+        title.textContent = equipment.name;
+        body.innerHTML = `
+            <div class="equipment-modal-rule">${equipment.rule}</div>
+            <div class="equipment-modal-stats">
+                <div class="equipment-modal-stat">
+                    <div class="equipment-modal-stat-label">Slot Type</div>
+                    <div class="equipment-modal-stat-value">${equipment.slot_type}</div>
+                </div>
+                <div class="equipment-modal-stat">
+                    <div class="equipment-modal-stat-label">Cost</div>
+                    <div class="equipment-modal-stat-value">${equipment.cost} pts</div>
+                </div>
+                <div class="equipment-modal-stat">
+                    <div class="equipment-modal-stat-label">Restriction</div>
+                    <div class="equipment-modal-stat-value">${equipment.unit_restriction || 'None'}</div>
+                </div>
+            </div>
+        `;
+        
+        modal.style.display = 'block';
+    }
+    
+    hideEquipmentDetails() {
+        const modal = document.getElementById('equipmentModal');
+        modal.style.display = 'none';
     }
     
 }
@@ -602,4 +1948,1129 @@ document.addEventListener('DOMContentLoaded', () => {
     window.unitBuilder = new UnitBuilder();
     });
 </script>
+
+<style>
+/* Level requirement styles */
+.unit-level-requirement {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    transition: all 0.3s ease;
+}
+
+.unit-level-requirement.available {
+    background: rgba(0, 255, 0, 0.1);
+    color: #00ff00;
+    border: 1px solid rgba(0, 255, 0, 0.3);
+}
+
+.unit-level-requirement.locked {
+    background: rgba(255, 0, 0, 0.1);
+    color: #ff6666;
+    border: 1px solid rgba(255, 0, 0, 0.3);
+}
+
+.level-icon {
+    font-size: 10px;
+}
+
+.level-text {
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Disable locked units */
+.unit-card:has(.unit-level-requirement.locked) {
+    opacity: 0.6;
+    cursor: not-allowed;
+    position: relative;
+    filter: grayscale(0.3);
+}
+
+.unit-card:has(.unit-level-requirement.locked)::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    pointer-events: none;
+}
+
+.unit-card:has(.unit-level-requirement.locked):hover {
+    transform: none;
+    box-shadow: none;
+    filter: grayscale(0.5);
+}
+
+.unit-card:has(.unit-level-requirement.locked):hover::after {
+    background: rgba(255, 0, 0, 0.1);
+}
+
+/* Add a subtle animation to locked units */
+.unit-card:has(.unit-level-requirement.locked) .unit-level-requirement.locked {
+    animation: pulse-locked 2s infinite;
+}
+
+@keyframes pulse-locked {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+}
+
+/* Update hero stats styling */
+.hero-stats .stat-item {
+    text-align: center;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+.hero-stats .stat-item:hover {
+    background: rgba(0, 212, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.hero-stats .stat-number {
+    display: block;
+    font-size: 24px;
+    font-weight: bold;
+    color: #00d4ff;
+    margin-bottom: 4px;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+.hero-stats .stat-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Level Badge Popup Styling */
+.level-badge-container {
+    position: relative;
+    display: inline-block;
+    margin-top: 12px;
+}
+
+.level-badge-popup-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+.level-badge-popup-trigger:hover {
+    background: rgba(0, 212, 255, 0.1);
+    border-color: rgba(0, 212, 255, 0.5);
+}
+
+.level-badge-popup-trigger .level-badge {
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: #000;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.level-badge-popup-trigger .level-text {
+    font-size: 14px;
+    color: #00d4ff;
+    font-weight: 600;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+.level-progress-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.popup-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+}
+
+.popup-content-wrapper {
+    position: relative;
+    background: rgba(0, 0, 0, 0.95);
+    border: 1px solid rgba(0, 212, 255, 0.5);
+    border-radius: 12px;
+    padding: 20px;
+    min-width: 350px;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.level-progress-popup.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.level-progress-popup.show .popup-content-wrapper {
+    transform: scale(1);
+}
+
+.popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+}
+
+.popup-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #00d4ff;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+.popup-close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.popup-close:hover {
+    background: rgba(255, 0, 0, 0.2);
+    color: #ff6666;
+}
+
+.current-level-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.level-badge-large {
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: #000;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: bold;
+    border: 2px solid #fff;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.level-details {
+    flex: 1;
+}
+
+.level-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #00d4ff;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+    margin-bottom: 4px;
+}
+
+.xp-info {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.xp-progress-bar {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+.xp-bar-fill {
+    height: 8px;
+    background: linear-gradient(90deg, #00d4ff, #0099cc);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.xp-text {
+    position: absolute;
+    top: -20px;
+    right: 0;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.next-unlock {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.4;
+}
+
+.unlock-text {
+    display: block;
+}
+
+
+/* Image Configuration Styles */
+.image-config-section {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+/* Configuration Panel Scrolling */
+.configuration-panel {
+    max-height: 80vh;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.configuration-panel::-webkit-scrollbar {
+    width: 6px;
+}
+
+.configuration-panel::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.configuration-panel::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.5);
+    border-radius: 3px;
+}
+
+.configuration-panel::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 212, 255, 0.7);
+}
+
+/* Loading indicator for image processing */
+.image-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+}
+
+.loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid rgba(0, 212, 255, 0.3);
+    border-top: 2px solid #00d4ff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 8px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.image-type-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.image-type-tabs input[type="radio"] {
+    display: none;
+}
+
+.image-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.image-tab:hover {
+    background: rgba(0, 212, 255, 0.1);
+    border-color: rgba(0, 212, 255, 0.3);
+}
+
+.image-type-tabs input[type="radio"]:checked + .image-tab {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: #00d4ff;
+    color: #00d4ff;
+}
+
+.tab-icon {
+    font-size: 16px;
+}
+
+.tab-text {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.image-option {
+    margin-bottom: 16px;
+}
+
+.color-picker-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.color-picker-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.color-picker {
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    background: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.color-picker-label {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+}
+
+.color-presets {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+}
+
+.color-preset {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.color-preset:hover {
+    transform: scale(1.1);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.profile-image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+}
+
+.profile-image-item {
+    width: 60px;
+    height: 60px;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.profile-image-item:hover {
+    transform: scale(1.05);
+    border-color: rgba(0, 212, 255, 0.5);
+}
+
+.profile-image-item.selected {
+    border-color: #00d4ff;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+.profile-image-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.file-input {
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: white;
+    font-size: 14px;
+}
+
+.file-input::-webkit-file-upload-button {
+    background: #00d4ff;
+    color: #000;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 12px;
+    font-weight: 500;
+}
+
+.image-preview {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.image-preview img {
+    max-width: 100px;
+    max-height: 100px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.image-preview-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.unit-image-preview {
+    width: 80px;
+    height: 80px;
+    border: 2px solid rgba(0, 212, 255, 0.3);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.3);
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+.unit-image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.preview-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+}
+
+.preview-placeholder i {
+    font-size: 24px;
+}
+
+.loading {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.6);
+    font-style: italic;
+    padding: 20px;
+}
+
+.error {
+    text-align: center;
+    color: #ff6666;
+    padding: 20px;
+}
+
+/* Form group margin for create unit configuration */
+.form-group {
+    margin-left: 16px;
+    margin-right: 16px;
+}
+
+/* Equipment Selection Styles */
+.equipment-container {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.equipment-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.equipment-tab {
+    flex: 1;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.equipment-tab:hover {
+    background: rgba(0, 212, 255, 0.1);
+    border-color: rgba(0, 212, 255, 0.4);
+    color: #00d4ff;
+}
+
+.equipment-tab.active {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: #00d4ff;
+    color: #00d4ff;
+}
+
+.tab-count {
+    background: rgba(0, 212, 255, 0.3);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.equipment-content {
+    margin-bottom: 16px;
+}
+
+.equipment-list {
+    max-height: 300px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 12px;
+}
+
+.equipment-item {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    border-radius: 6px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.equipment-item:hover {
+    border-color: rgba(0, 212, 255, 0.4);
+    background: rgba(0, 212, 255, 0.1);
+}
+
+.equipment-item.selected {
+    border-color: #00d4ff;
+    background: rgba(0, 212, 255, 0.2);
+}
+
+.equipment-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.equipment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.equipment-name {
+    font-weight: 600;
+    color: #00d4ff;
+    font-size: 14px;
+}
+
+.equipment-cost {
+    background: rgba(0, 212, 255, 0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.equipment-rule {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+
+.equipment-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.equipment-checkbox {
+    display: none;
+}
+
+.equipment-checkbox + .equipment-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+}
+
+.equipment-checkbox:checked + .equipment-checkbox-label {
+    color: #00d4ff;
+}
+
+.equipment-info-btn {
+    background: rgba(0, 212, 255, 0.2);
+    border: 1px solid rgba(0, 212, 255, 0.4);
+    color: #00d4ff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.equipment-info-btn:hover {
+    background: rgba(0, 212, 255, 0.3);
+}
+
+.equipment-summary {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    padding: 12px;
+    border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.equipment-summary h4 {
+    margin: 0 0 8px 0;
+    color: #00d4ff;
+    font-size: 14px;
+}
+
+.selected-equipment {
+    min-height: 40px;
+}
+
+/* Slot selection summary (shared by config and preview) */
+.slot-selection-summary {
+    margin-top: 8px;
+}
+
+.slot-summary-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.slot-summary-item {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.slot-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.slot-summary-row .slot-label {
+    font-weight: 600;
+    color: #00d4ff;
+}
+
+.slot-summary-row .slot-val {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 12px;
+}
+
+.slot-selected-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+}
+
+.slot-selected-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    background: rgba(0, 212, 255, 0.08);
+    border: 1px solid rgba(0, 212, 255, 0.15);
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.slot-selected-item.readonly {
+    justify-content: flex-start;
+    gap: 8px;
+}
+
+.slot-selected-name {
+    color: #00d4ff;
+}
+
+.slot-selected-remove {
+    background: rgba(255, 0, 0, 0.2);
+    border: 1px solid rgba(255, 0, 0, 0.4);
+    color: #ff6666;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.slot-selected-remove:hover {
+    background: rgba(255, 0, 0, 0.3);
+}
+
+/* Equipment tabs: fit within panel, horizontal scroll if needed */
+.equipment-tabs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    max-width: 100%;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.equipment-tab {
+    flex: 0 0 auto;
+}
+
+.equipment-tab .tab-text {
+    white-space: nowrap;
+}
+
+/* Ensure text fits within equipment-slot summary items */
+.equipment-slot.slot-summary-item {
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    min-width: 0;
+}
+
+.equipment-slot.slot-summary-item .slot-selected-list {
+    grid-column: 1 / -1;
+}
+
+.slot-selected-item {
+    width: 100%;
+}
+
+.slot-selected-item .slot-selected-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* Preview equipment grid - compact styling */
+#unitPreviewCard .equipment-info {
+    margin-top: 8px;
+}
+
+#unitPreviewCard .equipment-info .info-title {
+    font-size: 14px;
+    margin-bottom: 6px;
+}
+
+#unitPreviewCard .equipment-grid {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+#unitPreviewCard .equipment-slot {
+    padding: 6px 8px;
+    border-radius: 6px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 6px;
+}
+
+#unitPreviewCard .equipment-slot .slot-icon {
+    font-size: 12px;
+    color: #00d4ff;
+}
+
+#unitPreviewCard .equipment-slot .slot-label {
+    font-size: 12px;
+}
+
+#unitPreviewCard .equipment-slot .slot-count {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+#unitPreviewCard .slot-selected-list {
+    margin-top: 6px;
+    gap: 4px;
+}
+
+#unitPreviewCard .slot-selected-item.readonly {
+    padding: 4px 6px;
+    font-size: 11px;
+}
+
+#unitPreviewCard .equipment-summary {
+    margin-top: 8px;
+    padding: 8px;
+}
+
+#unitPreviewCard .equipment-summary h4 {
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+.no-selection {
+    color: rgba(255, 255, 255, 0.5);
+    font-style: italic;
+    margin: 0;
+}
+
+.selected-equipment-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    background: rgba(0, 212, 255, 0.1);
+    border-radius: 4px;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.selected-equipment-name {
+    color: #00d4ff;
+    font-weight: 500;
+}
+
+.selected-equipment-remove {
+    background: rgba(255, 0, 0, 0.2);
+    border: 1px solid rgba(255, 0, 0, 0.4);
+    color: #ff4444;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.selected-equipment-remove:hover {
+    background: rgba(255, 0, 0, 0.3);
+}
+
+/* Equipment Modal */
+.equipment-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+}
+
+.equipment-modal-content {
+    background: var(--bg-card);
+    margin: 5% auto;
+    padding: 24px;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-2xl);
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.equipment-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.equipment-modal-title {
+    color: #00d4ff;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.equipment-modal-close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.equipment-modal-close:hover {
+    background: rgba(255, 0, 0, 0.2);
+    color: #ff4444;
+}
+
+.equipment-modal-body {
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.6;
+}
+
+.equipment-modal-rule {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 12px;
+    border-radius: 6px;
+    border-left: 3px solid #00d4ff;
+    margin: 12px 0;
+    font-style: italic;
+}
+
+.equipment-modal-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.equipment-modal-stat {
+    background: rgba(0, 212, 255, 0.1);
+    padding: 8px;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.equipment-modal-stat-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 4px;
+}
+
+.equipment-modal-stat-value {
+    font-size: 16px;
+    font-weight: bold;
+    color: #00d4ff;
+}
+
+/* Make orbital units bigger */
+.unit-card[data-category*="orbital"] .unit-icon img,
+.unit-card[data-category*="corvette"] .unit-icon img,
+.unit-card[data-category*="destroyer"] .unit-icon img,
+.unit-card[data-category*="cruiser"] .unit-icon img,
+.unit-card[data-category*="battleship"] .unit-icon img {
+    width: 150px !important;
+    height: 150px !important;
+}
+
+.unit-card[data-category*="orbital"] .main-icon,
+.unit-card[data-category*="corvette"] .main-icon,
+.unit-card[data-category*="destroyer"] .main-icon,
+.unit-card[data-category*="cruiser"] .main-icon,
+.unit-card[data-category*="battleship"] .main-icon {
+    width: 120px !important;
+    height: 120px !important;
+}
+
+/* Adjust container size for orbital units */
+.unit-card[data-category*="orbital"] .unit-icon-container,
+.unit-card[data-category*="corvette"] .unit-icon-container,
+.unit-card[data-category*="destroyer"] .unit-icon-container,
+.unit-card[data-category*="cruiser"] .unit-icon-container,
+.unit-card[data-category*="battleship"] .unit-icon-container {
+    height: 100px;
+}
+</style>
+
+<!-- Equipment Details Modal -->
+<div class="equipment-modal" id="equipmentModal">
+    <div class="equipment-modal-content">
+        <div class="equipment-modal-header">
+            <h3 class="equipment-modal-title" id="equipmentModalTitle">Equipment Details</h3>
+            <button class="equipment-modal-close" id="closeEquipmentModal">&times;</button>
+        </div>
+        <div class="equipment-modal-body" id="equipmentModalBody">
+            <!-- Equipment details will be populated here -->
+        </div>
+    </div>
+</div>
+
 {% endblock %}

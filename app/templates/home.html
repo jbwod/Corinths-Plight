@@ -42,10 +42,10 @@
             
             <h1 class="hero-title">
                 <span class="title-line">Welcome to the</span>
-                <span class="title-line title-highlight">Campaign</span>
+                <span class="title-line">Campaign</span>
             </h1>
             
-            <p class="hero-subtitle">Experience the thrill of "real"-real-time strategy warfare. Command your units, conquer territories, and achieve victory in a persistent sci-fi universe where every decision matters.</p>
+            <p class="hero-subtitle">Inspired by Neptune's Pride & Meta Campaign: Corinth's Plight is a persistent, delayed real-time sci‑fi wargame. Draft and submit orders, coordinate legion logistics, and watch operations unfold—from orbital strikes to ground maneuvers—as allies and enemies react in real time.</p>
             
             <div class="hero-stats">
                 <div class="stat-item">
@@ -126,7 +126,7 @@
     <div class="container">
         <div class="text-center mb-5">
             <h2 class="text-4xl font-bold text-primary mb-4">Strategic Warfare Redefined</h2>
-            <p class="text-xl text-secondary max-w-3xl mx-auto">Command forces across multiple worlds in a persistent universe where strategy meets real-time consequences.</p>
+            <p class="text-xl text-secondary max-w-3xl mx-auto">From orbitals to unit management, issue orders that take time, manage supply lines, and work with other players in legions to wage a living war.</p>
         </div>
         
         <div class="features-grid">
@@ -135,7 +135,7 @@
                     <img src="{{ url_for('static', filename='img/planet.png') }}" alt="Multi-world Campaigns" style="width: 50px; height: 50px;">
                 </div>
                 <h3 class="feature-title">Multi-world Campaigns</h3>
-                <p class="feature-description">Engage in epic campaigns spanning multiple worlds. Conquer new territories, establish supply lines, and expand your empire across the galaxy.</p>
+                <p class="feature-description">Fight across multiple worlds in a single, connected war. Travel time, fog of war, and supply lines shape every campaign.</p>
             </div>
             
             <div class="feature-card animate-fadeIn" style="animation-delay: 0.2s;">
@@ -143,7 +143,7 @@
                     <img src="{{ url_for('static', filename='img/helmets.png') }}" alt="Control Your Units" style="width: 50px; height: 50px;">
                 </div>
                 <h3 class="feature-title">Command Your Forces</h3>
-                <p class="feature-description">Command a diverse range of units from infantry to orbital platforms. Each unit has unique abilities and strategic value in the battlefield.</p>
+                <p class="feature-description">From orbitals to infantry, build units, customize loadouts, and assign roles. Your tools and timing define the operation.</p>
             </div>
             
             <div class="feature-card animate-fadeIn" style="animation-delay: 0.4s;">
@@ -158,8 +158,8 @@
                 <div class="feature-icon">
                     <img src="{{ url_for('static', filename='img/strat.gif') }}" alt="Real-time Strategy" style="width: 50px; height: 50px;">
                 </div>
-                <h3 class="feature-title">Real-time Strategy</h3>
-                <p class="feature-description">Experience true real-time strategy where every order takes actual time to execute. Plan your moves carefully as each decision has lasting consequences.</p>
+                <h3 class="feature-title">Delayed Real-Time Orders</h3>
+                <p class="feature-description">Write and queue orders that execute over time. Adapt as intel changes and enemy moves counter your plans.</p>
             </div>
             
             <div class="feature-card animate-fadeIn" style="animation-delay: 0.8s;">
@@ -167,7 +167,7 @@
                     <img src="{{ url_for('static', filename='img/outbound.gif') }}" alt="Persistent Universe" style="width: 50px; height: 50px;">
                 </div>
                 <h3 class="feature-title">Persistent Universe</h3>
-                <p class="feature-description">The war never stops. Your empire continues to operate even when you're offline, creating a truly persistent strategic experience.</p>
+                <p class="feature-description">The front keeps moving 24/7. Your orders and logistics continue processing—even when you're offline.</p>
             </div>
             
             <div class="feature-card animate-fadeIn" style="animation-delay: 1.0s;">
@@ -175,62 +175,9 @@
                     <img src="{{ url_for('static', filename='img/mech.gif') }}" alt="Advanced Technology" style="width: 50px; height: 50px;">
                 </div>
                 <h3 class="feature-title">Advanced Technology</h3>
-                <p class="feature-description">Research and deploy cutting-edge technology. From orbital platforms to advanced weaponry, technology gives you the edge in battle.</p>
+                <p class="feature-description">Deploy orbital fire support, drops, hangars, scans, rail and laser platforms, and more across the battlespace.</p>
             </div>
         </div>
-    </div>
-</section>
-
-<!-- Game Mechanics Section -->
-<section class="py-20 bg-primary">
-    <div class="container">
-        <div class="grid grid-cols-2 gap-12 items-center">
-            <div class="animate-slideIn">
-                <h2 class="text-4xl font-bold text-primary mb-6">Real-Time Strategy</h2>
-                <p class="text-lg text-secondary mb-6">Experience true real-time strategy where every order takes actual time to execute. Plan your moves carefully, as each decision has lasting consequences in the persistent universe.</p>
-                <ul class="space-y-4">
-                    <li class="flex items-center gap-3">
-                        <div class="w-2 h-2 bg-accent-cyan rounded-full"></div>
-                        <span class="text-secondary">Orders execute over real-world time</span>
-                    </li>
-                    <li class="flex items-center gap-3">
-                        <div class="w-2 h-2 bg-accent-cyan rounded-full"></div>
-                        <span class="text-secondary">Persistent universe that never sleeps</span>
-                    </li>
-                    <li class="flex items-center gap-3">
-                        <div class="w-2 h-2 bg-accent-cyan rounded-full"></div>
-                        <span class="text-secondary">Emergent gameplay from player interactions</span>
-                    </li>
-                </ul>
-            </div>
-            <div class="animate-slideIn" style="animation-delay: 0.2s;">
-                <div class="relative">
-                    <div class="bg-card p-8 rounded-2xl border border-primary shadow-glow">
-                        <h3 class="text-2xl font-bold text-primary mb-4">Strategic Depth</h3>
-                        <div class="space-y-4">
-                            <div class="flex justify-between items-center">
-                                <span class="text-secondary">Territory Control</span>
-                                <div class="w-32 h-2 bg-secondary rounded-full overflow-hidden">
-                                    <div class="h-full bg-gradient-to-r from-accent-cyan to-accent-purple rounded-full" style="width: 85%"></div>
-                                </div>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-secondary">Resource Management</span>
-                                <div class="w-32 h-2 bg-secondary rounded-full overflow-hidden">
-                                    <div class="h-full bg-gradient-to-r from-accent-cyan to-accent-purple rounded-full" style="width: 72%"></div>
-                                </div>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-secondary">Diplomatic Relations</span>
-                                <div class="w-32 h-2 bg-secondary rounded-full overflow-hidden">
-                                    <div class="h-full bg-gradient-to-r from-accent-cyan to-accent-purple rounded-full" style="width: 68%"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-    </div>
-    </div>
     </div>
 </section>
 
@@ -249,7 +196,7 @@
                 </div>
                 <div class="showcase-content">
                     <h3 class="text-2xl font-bold text-primary mb-4">Strategic World Map</h3>
-                    <p class="text-secondary mb-4">Navigate a vast hex-based world map where every territory matters. Plan your conquests, establish supply lines, and dominate the galaxy.</p>
+                    <p class="text-secondary mb-4">A live, hex-based theater where time, distance, and logistics matter. Plot routes, secure hubs, and outmaneuver opponents.</p>
                     <a href="/worldmap" class="btn btn-primary">Explore Map</a>
                 </div>
             </div>
@@ -260,7 +207,7 @@
                 </div>
                 <div class="showcase-content">
                     <h3 class="text-2xl font-bold text-primary mb-4">Unit Management</h3>
-                    <p class="text-secondary mb-4">Command diverse units from infantry to orbital platforms. Each unit has unique abilities and strategic value in the battlefield.</p>
+                    <p class="text-secondary mb-4">Assemble and upgrade forces, assign equipment, and issue standing and timed orders. Watch them execute in the field.</p>
                     <a href="{{ url_for('create_unit') }}" class="btn btn-primary">Create Units</a>
                 </div>
             </div>
@@ -271,7 +218,7 @@
                 </div>
                 <div class="showcase-content">
                     <h3 class="text-2xl font-bold text-primary mb-4">Ship Configuration</h3>
-                    <p class="text-secondary mb-4">Design and configure your warships with advanced equipment systems. Create the perfect vessel for your fleet's needs.</p>
+                    <p class="text-secondary mb-4">Fit orbitals for doctrine—carriers, rail platforms, scanners, or fire support—to project power across worlds.</p>
                     <a href="/shipbuilder" class="btn btn-primary">Build Ships</a>
                 </div>
             </div>
