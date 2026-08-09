@@ -19,6 +19,7 @@ import {
   shortestPath,
 } from "../packages/rules-engine/src";
 import brandMark from "../app/static/img/brand-icon.gif";
+import { ForcesView } from "./components/ForcesView";
 import { Glyph } from "./components/Glyph";
 import { HexMap } from "./components/HexMap";
 
@@ -112,7 +113,7 @@ export default function App() {
   const [notice, setNotice] = useState<Notice>();
   const [busy, setBusy] = useState(false);
   const [timelineMode, setTimelineMode] = useState<"ORDERS" | "EVENTS">("EVENTS");
-  const [activeNav, setActiveNav] = useState("Operations");
+  const [activeNav, setActiveNav] = useState(() => new URLSearchParams(window.location.search).get("view") === "forces" ? "Forces" : "Operations");
 
   const loadCampaign = useCallback(async (quiet = false) => {
     try {
@@ -368,8 +369,8 @@ export default function App() {
           </div>
         </div>
         <div className="campaign-title-block">
-          <span className="eyebrow">ACTIVE OPERATION // {campaign.planetName.toUpperCase()}</span>
-          <h1>{campaign.campaignName}</h1>
+          <span className="eyebrow">{activeNav === "Forces" ? "33RD EXPEDITIONARY BATTALION // MUSTER" : `ACTIVE OPERATION // ${campaign.planetName.toUpperCase()}`}</span>
+          <h1>{activeNav === "Forces" ? "Persistent Force Registry" : campaign.campaignName}</h1>
         </div>
         <div className="round-clock" aria-label={`Round ${campaign.round}, ${countdown} remaining`}>
           <Glyph name="clock" size={17} />
@@ -388,7 +389,11 @@ export default function App() {
             key={label}
             onClick={() => {
               setActiveNav(label);
-              if (label !== "Operations") setNotice({ tone: "info", message: `${label} is mapped in the foundation architecture; Operations is the active vertical slice.` });
+              const url = new URL(window.location.href);
+              if (label === "Forces") url.searchParams.set("view", "forces");
+              else url.searchParams.delete("view");
+              window.history.replaceState({}, "", url);
+              if (label !== "Operations" && label !== "Forces") setNotice({ tone: "info", message: `${label} is mapped in the foundation architecture; Operations and Forces are the active vertical slices.` });
             }}
           >
             <Glyph name={icon} />
@@ -401,6 +406,9 @@ export default function App() {
         </button>
       </nav>
 
+      {activeNav === "Forces" ? (
+        <ForcesView onNotice={setNotice} />
+      ) : (
       <main className="operations-layout">
         <aside className="left-panel panel">
           <div className="panel-heading">
@@ -586,6 +594,7 @@ export default function App() {
           </div>
         </section>
       </main>
+      )}
 
       {notice && (
         <div className={`notice ${notice.tone}`} role="status">

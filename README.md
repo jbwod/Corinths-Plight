@@ -14,6 +14,7 @@ The current slice includes:
 - pure seeded TypeScript rules engine with replay-stable movement and simultaneous combat
 - campaign-scoped Durable Object state, alarms, accelerated clock presets, and hibernating WebSockets
 - versioned D1 schema and idempotent `v5-core-curated@1` seed catalogue
+- Phase 2 persistent Forces registry with combined-arms profiles, owner-scoped inspection, requisition/rename receipts, ship-aware readiness, and a responsive Forces screen
 - viewer-specific battlefield/event projection and local-only demo authentication
 - V1 audit, rule conflict catalogue, data model, resolution protocol, and Cloudflare ADRs
 
@@ -27,10 +28,11 @@ Requirements: a current Node.js release and npm.
 npm install
 npm run db:migrate:local
 npm run db:seed:local
+npm run db:seed:demo:local
 npm run dev
 ```
 
-The development configuration enables the explicit `demo-user` identity and uses a five-minute round with a thirty-second lock lead. Production configuration disables demo authentication and defaults to a 24-hour round.
+The development configuration enables the explicit `demo-user` identity and uses a five-minute round with a thirty-second lock lead. The separate demo seed creates the local Operation Iron Rain roster and must never be applied to production. Production configuration disables demo authentication and defaults to a 24-hour round.
 
 ## Verify
 

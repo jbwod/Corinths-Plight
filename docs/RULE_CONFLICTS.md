@@ -37,6 +37,25 @@ This overlay records current capability without adding, deleting, closing, or ch
 
 At this reconciliation baseline, `npx vitest run packages/rules-engine/test` passes **7 test files / 62 tests**. That result verifies the overlay, not the unimplemented canonical rules described by the records below.
 
+## Phase 2 catalogue overlay (non-conflict)
+
+Migration `0003_phase2_persistent_forces.sql` and companion seed `v5-phase2-combined-arms.sql` add normalized force data without changing any of the 72 source decisions. Four independent database fields prevent a source record from becoming playable merely because it exists:
+
+| Axis | Values | Meaning in the Phase 2 seed |
+|---|---|---|
+| Definition status | Existing `active`, `experimental`, `legacy`, `incomplete` | What kind of source definition was imported. |
+| Implementation status | `IMPLEMENTED`, `PARTIAL`, `CATALOGUE_ONLY` | Whether the minimum defining mechanics exist in the current server/engine. |
+| Requisition status | `PUBLISHED`, `BALANCE_REQUIRED`, `NOT_APPLICABLE` | Whether a source-backed price exists. `BALANCE_REQUIRED` always keeps the price `NULL`. |
+| Availability status | `AVAILABLE`, `BLOCKED`, `DEV_ONLY`, `HIDDEN` | Whether production requisition may expose the definition. This is not inferred from implementation status. |
+
+The catalogue contains all thirteen non-orbital V5 starting classes plus Power Armoured Infantry, Irregulars, and Special Forces. The latter three remain `CATALOGUE_ONLY`/`DEV_ONLY` because `RC-UNIT-015` has not been overturned. Combat Medic uses the V5 heal selected by `RC-UNIT-002` and `RC-V5-009`; its companion MASH record remains catalogue-only. No companion FS vehicle value replaces a V5 Hits profile.
+
+The seven Bug role records include Drone, Warrior, Spitter, Heavy, Burrower, Flyer, and Artillery. The four new roles contain tags/doctrine only and remain hidden catalogue entries because the product brief supplies no authoritative durability, weapon dice, range, or price. That is incomplete data, not a new conflicting value.
+
+All player-unit requisition prices remain `NULL`/`BALANCE_REQUIRED` under `RC-V5-016`. Store equipment and ship modules retain published row prices; Road Building Equipment retains a `NULL` price because its Store cost cell is blank. Database checks prohibit `purchasable=1` unless both `requisition_status=PUBLISHED` and `availability_status=AVAILABLE`.
+
+No new conflict ID is introduced by this overlay. Cargo, aerospace, healing, construction, repair, and companion-class decisions all map to existing records (`RC-UNIT-002`–`RC-UNIT-015`, `RC-V5-010`, `RC-V5-017`, `RC-V5-018`, `RC-V5-023`, `RC-V5-024`, `RC-V5-029`, and `RC-V5-030`). A seed row or normalized profile is not evidence that its action resolves.
+
 ## Source locator conventions
 
 - `V5 > X` means section `X` in `rules/Meta - Core Rules (V5).md`.

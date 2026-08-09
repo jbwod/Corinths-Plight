@@ -50,7 +50,7 @@ The two migrations create the following exact table families. Field lists below 
 
 The index named `idx_one_active_ruleset_version` is unique on `version` only when active. Because `rulesets.version` is already unique, it does **not** enforce a single active ruleset across all versions.
 
-The current seed is `seeds/v5-core-curated.sql`. `npm run db:seed:local` executes it with Wrangler; `npm run seed:check` runs `scripts/validate-seed.ts`. The validator checks source file hashes, duplicate/missing definition IDs, runtime-versus-SQL status, provenance entries, an explicit active ruleset row, and presence of conflict data. It does not compare every definition field or generate the runtime catalogue.
+The published catalogue is split between `seeds/v5-core-curated.sql` and `seeds/v5-phase2-combined-arms.sql`; `npm run db:seed:local` executes both with Wrangler. `seeds/development-forces.sql` is an explicit local-only roster fixture. `npm run seed:check` runs `scripts/validate-seed.ts`, which checks source hashes, duplicate/missing IDs, runtime-versus-SQL status, provenance, the active ruleset, and the Phase 2 player/enemy catalogue. It does not compare every definition field or generate the runtime catalogue.
 
 The seed uses `ON CONFLICT ... DO UPDATE`. Therefore “published rules are immutable” is currently application/release policy, not an SQL guarantee: rerunning a changed seed can update selected published fields. A content hash and immutable-publication guard are target work.
 

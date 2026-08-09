@@ -47,12 +47,15 @@ All public campaign traffic passes through the Worker. The Worker resolves authe
 | `packages/rules-engine/src/` | Pure deterministic engine/catalogue/demo fixture |
 | `migrations/0001_platform_and_rules.sql` | Identity, rules, source/conflict, and definition schema |
 | `migrations/0002_persistent_world.sql` | Persistent forces, Battalion/ship, campaign, archive/effect schema |
+| `migrations/0003_phase2_persistent_forces.sql` | Phase 2 force identity, profile, loadout, cargo, supply, status, service, and ship-capability schema |
 | `seeds/v5-core-curated.sql` | Idempotent D1 SQL rules seed |
+| `seeds/v5-phase2-combined-arms.sql` | Provenance-bearing Phase 2 combined-arms catalogue |
+| `seeds/development-forces.sql` | Local-only Operation Iron Rain force fixture |
 | `scripts/validate-seed.ts` | Source hash and runtime/SQL seed consistency checks |
 | `wrangler.jsonc` | compatibility date, variables, D1/DO bindings, DO migration, environments |
 | `vite.config.ts` | React and Cloudflare Vite plugins |
 
-There is no `worker/demo.ts` or `scripts/seed-ruleset.ts`. Demo authentication is a branch in `worker/auth.ts`. Seeds are applied with the `db:seed:*` package scripts, which execute `seeds/v5-core-curated.sql`; `seed:check` validates the artifact.
+There is no `worker/demo.ts` or `scripts/seed-ruleset.ts`. Demo authentication is a branch in `worker/auth.ts`. The `db:seed:*` scripts separate the core and Phase 2 catalogues from the local-only development roster; `seed:check` validates the published catalogue artifacts.
 
 ## 4. Binding contract
 
@@ -60,7 +63,7 @@ There is no `worker/demo.ts` or `scripts/seed-ruleset.ts`. Demo authentication i
 
 | Binding/config | Current resource | Authority/status |
 |---|---|---|
-| `DB` | D1 | Identity/session and campaign-membership reads are active; other schema families are mostly not wired |
+| `DB` | D1 | Identity/session, campaign membership, Phase 2 force/catalogue/readiness reads, and exact-once rename/developer-purchase writes are active; round-effect finalisation remains open |
 | `CAMPAIGN` | Durable Object namespace | One named object per campaign; only `outpost-k17` can self-initialise in this foundation |
 | DO migration `v1` | `new_sqlite_classes: ["CampaignDurableObject"]` | Present |
 | Observability | enabled, head sampling `1` | Present |
@@ -153,6 +156,7 @@ Current broadcasts are sparse invalidation/status messages, which is the correct
 npm install
 npm run db:migrate:local
 npm run db:seed:local
+npm run db:seed:demo:local
 npm run seed:check
 npm run typecheck
 npm run lint
@@ -172,7 +176,7 @@ Actual root scripts are:
 | `build:production` | Sets `CLOUDFLARE_ENV=production`, then typechecks and builds |
 | `check:production-config` | Exits non-zero while the production placeholder D1 ID remains |
 | `db:migrate:remote` | Runs the guard, then applies migrations to `corinths-plight-production --remote --env production` |
-| `db:seed:remote` | Runs the guard, then executes `seeds/v5-core-curated.sql` against production with `--env production` |
+| `db:seed:remote` | Runs the guard, then executes the core and Phase 2 published catalogues against production with `--env production`; it never applies the development roster |
 | `deploy:dry` | Runs guard + production build + `wrangler deploy --dry-run --env production` |
 | `deploy` | Runs guard + production build + `wrangler deploy --env production` |
 

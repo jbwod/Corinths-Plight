@@ -11,6 +11,7 @@ import {
 import { CampaignDurableObject } from "./campaign-durable-object";
 import type { Env } from "./env";
 import { errorResponse, json } from "./http";
+import { routeForcesRequest } from "./routes/forces";
 
 export { CampaignDurableObject };
 
@@ -66,6 +67,9 @@ async function route(request: Request, env: Env, requestId: string): Promise<Res
       },
     });
   }
+
+  const forcesResponse = await routeForcesRequest(request, env);
+  if (forcesResponse) return forcesResponse;
 
   const match = url.pathname.match(campaignPath);
   if (match) {

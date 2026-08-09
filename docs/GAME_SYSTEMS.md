@@ -81,6 +81,30 @@ Canonical status MUST NOT be inferred from an implementation flag, and implement
 
 The executable round grammar is therefore intentionally small: **Hold/Advance/Rush + Attack**. `ATTACK` is the only executable action definition. Every other special order or action is deferred and MUST fail validation with a structured rejection until its rule hook, authoritative data, and tests exist.
 
+### 1.4 Phase 2 persistent-force catalogue
+
+The additive Phase 2 D1 layer normalizes source material without changing the selected profile or widening the executable grammar by itself. It provides:
+
+- explicit movement, durability, cargo, Supply, and deployment profiles;
+- first-class tags, abilities, statuses, weapon mounts, and equipment slots;
+- separate source-definition, implementation, requisition, and availability states;
+- persistent unit descriptions, location state, optimistic version, loadouts, independent weapon ammo/cooldowns, cargo manifests, Supply, subsystem state, construction projects, service summaries, and history provenance;
+- reusable ship capabilities granted by modules rather than module-name conditionals; and
+- idempotency receipts plus per-aggregate revisions for force mutations.
+
+The seeded force catalogue contains the thirteen non-orbital V5 starting classes. Power Armoured Infantry, Irregular, and Special Forces are preserved from `Classes.html` but remain catalogue-only under `RC-UNIT-015`; Phase 2 product demand does not silently make legacy values canonical. Seven Bug battlefield roles are catalogued, but roles lacking source statistics are hidden and non-executable until balance data is published.
+
+Production requisition MUST query the implementation overlay. A definition is purchasable only when all of the following hold:
+
+1. its implementation status meets the minimum mechanics for that class;
+2. its requisition status is `PUBLISHED` and its numeric cost is non-null;
+3. its availability status is `AVAILABLE`; and
+4. ownership, equipment-slot, ship-capability, campaign, and readiness checks pass server-side.
+
+`DEV_ONLY` permits an explicitly authenticated developer fixture to exercise a class; it is not a zero-cost purchase rule. All base player-class prices currently remain `NULL`/`BALANCE_REQUIRED` under `RC-V5-016`. The Store's published equipment/module prices are retained exactly, while blank costs such as Road Building Equipment remain `NULL`.
+
+The new `STEALTHED`, `PACKED`, `DEPLOYED`, `DUG_IN`, `EVASIVE`, `AIRBORNE`, `LANDED`, and `REARM_REQUIRED` definitions are server-owned statuses. Their presence in D1 does not authorize a client to set them or claim their effects. Likewise, First Aid, MASH, Deploy/Pack Up, Funnel, cargo, Supply transfer, crew repair, aerospace landing/rearm, airdrop, and sabotage remain disabled until their implementation overlay, server validation, deterministic resolver hook, fog projection, and tests agree.
+
 ## 2. Canonical glossary
 
 This glossary states canonical profile meaning. Terms marked as foundation-deferred remain valid catalogue/rules concepts, but cannot yet be selected in an executable order.

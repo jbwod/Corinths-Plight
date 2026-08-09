@@ -18,8 +18,13 @@
     "cf:typegen": "wrangler types worker/worker-configuration.d.ts",
     "db:migrate:local": "wrangler d1 migrations apply corinths-plight --local",
     "db:migrate:remote": "npm run check:production-config && wrangler d1 migrations apply corinths-plight-production --remote --env production",
-    "db:seed:local": "wrangler d1 execute corinths-plight --local --file seeds/v5-core-curated.sql",
-    "db:seed:remote": "npm run check:production-config && wrangler d1 execute corinths-plight-production --remote --env production --file seeds/v5-core-curated.sql",
+    "db:seed:core:local": "wrangler d1 execute corinths-plight --local --file seeds/v5-core-curated.sql",
+    "db:seed:phase2:local": "wrangler d1 execute corinths-plight --local --file seeds/v5-phase2-combined-arms.sql",
+    "db:seed:local": "npm run db:seed:core:local && npm run db:seed:phase2:local",
+    "db:seed:demo:local": "wrangler d1 execute corinths-plight --local --file seeds/development-forces.sql",
+    "db:seed:core:remote": "npm run check:production-config && wrangler d1 execute corinths-plight-production --remote --env production --file seeds/v5-core-curated.sql",
+    "db:seed:phase2:remote": "npm run check:production-config && wrangler d1 execute corinths-plight-production --remote --env production --file seeds/v5-phase2-combined-arms.sql",
+    "db:seed:remote": "npm run db:seed:core:remote && npm run db:seed:phase2:remote",
     "seed:check": "tsx scripts/validate-seed.ts"
   },
   "dependencies": {

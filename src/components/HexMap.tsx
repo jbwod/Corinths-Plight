@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AxialCoord, CampaignDeployment, CampaignView } from "../../packages/domain/src";
-import { coordKey, FACING_LABELS } from "../../packages/rules-engine/src";
+import { coordKey, FACING_LABELS, getUnitClass } from "../../packages/rules-engine/src";
 
 interface HexMapProps {
   campaign: CampaignView;
@@ -64,14 +64,34 @@ const terrainFill: Record<string, string> = {
 };
 
 function unitCode(deployment: CampaignDeployment): string {
-  if (deployment.definitionId.includes("infantry")) return "INF";
-  if (deployment.definitionId.includes("engineer")) return "ENG";
-  if (deployment.definitionId.includes("tank")) return "MBT";
-  if (deployment.definitionId.includes("artillery")) return "ART";
-  if (deployment.definitionId.includes("vehicle")) return "LAV";
-  if (deployment.definitionId.includes("heavy")) return "HVY";
-  if (deployment.definitionId.includes("warrior")) return "WRR";
-  return "BUG";
+  let category = "";
+  let definitionTags: string[] = [];
+  try {
+    const definition = getUnitClass(deployment.definitionId);
+    category = definition.category;
+    definitionTags = definition.tags;
+  } catch {
+    // Fog-safe contacts and future rulesets may not expose a local definition.
+  }
+  const tags = new Set([
+    ...definitionTags,
+    ...deployment.weapons.flatMap((weapon) => weapon.tags),
+    ...(deployment.abilities ?? []).map((ability) => ability.abilityId.toUpperCase()),
+    ...(deployment.movementProfile ? [deployment.movementProfile.mode] : []),
+  ]);
+  if (tags.has("MEDICAL")) return "MED";
+  if (tags.has("BUILDER") || tags.has("ENGINEER")) return "ENG";
+  if (tags.has("STEALTH")) return "SF";
+  if (tags.has("LOGISTICS")) return "LOG";
+  if (tags.has("INDIRECT") || tags.has("INDIRECT_FIRE") || category === "ARTILLERY") return "ART";
+  if (tags.has("BOMBER")) return "BMB";
+  if (tags.has("AEROSPACE_INTERCEPTOR") || tags.has("FORWARD_ARC")) return "FTR";
+  if (tags.has("VTOL")) return "VTL";
+  if (tags.has("AEROSPACE") || category === "AEROSPACE") return tags.has("TRANSPORT") ? "HAT" : "AIR";
+  if (tags.has("MECH") || category === "MECH") return "MCH";
+  if (category === "ARMOUR" || tags.has("VEHICLE") || deployment.durabilityProfile?.model === "HITS") return tags.has("HEAVY") || tags.has("ANTI_ARMOUR") ? "MBT" : "AFV";
+  if (category === "INFANTRY" || tags.has("PERSONNEL")) return deployment.side === "ENEMY" ? "BIO" : "INF";
+  return deployment.side === "ENEMY" ? "UNK" : "UNIT";
 }
 
 function drawArrow(
