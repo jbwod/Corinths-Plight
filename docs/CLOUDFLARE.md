@@ -1,307 +1,308 @@
 # Corinth's Plight Cloudflare Architecture
 
-**Status:** Foundation deployment contract  
-**Configuration:** root `vite.config.ts` and `wrangler.jsonc`  
+**Status:** Reconciled foundation runtime/deployment contract (2026-08-09)
+
+**Configuration:** `vite.config.ts`, `wrangler.jsonc`, and root `package.json`
+
 **Runtime entry points:** `worker/index.ts` and `worker/campaign-durable-object.ts`
 
-## 1. Deployment outcome
+**Compatibility date:** `2026-08-08` (the current workerd-supported limit used by this repository)
 
-The first milestone deploys one Cloudflare Worker application containing:
+## 1. Current deployment status
 
-- the React/Vite client from `src/`;
-- HTTP/WebSocket routing from `worker/index.ts`;
-- one exported `CampaignDurableObject` class, with one named instance per active campaign;
-- D1 bindings for global persistent data;
-- shared Worker-safe domain and rules-engine packages.
+The repository builds a React/Vite client and one Cloudflare Worker containing the public API plus the exported `CampaignDurableObject`. D1 and a named Campaign DO namespace are configured. The V1 Flask application remains reference code and is not imported into the Worker.
 
-The V1 Flask application remains in the repository as migration/reference code. It is not bundled into the Worker and is not a second production backend.
+The local/typecheck/lint/test/build foundation is implemented. A remote preview or production deployment has **not** been completed. All Wrangler D1 IDs are placeholders, and the production package scripts intentionally fail until the production ID is replaced. Therefore the `gameplan.md` section 56 “deploy successfully to Cloudflare” gate remains open.
 
-The [Cloudflare Vite plugin](https://developers.cloudflare.com/workers/vite-plugin/) runs Worker code in the Workers runtime during development, builds frontend assets, and reads root Wrangler configuration. `vite.config.ts` should use `@cloudflare/vite-plugin`; its configuration resolves root `wrangler.jsonc` by default according to the [plugin API](https://developers.cloudflare.com/workers/vite-plugin/reference/api/).
-
-## 2. Runtime topology
+## 2. Current runtime topology
 
 ```mermaid
 flowchart TD
-    Client["Browser / React client"] -->|HTTPS| Entry["Cloudflare Worker"]
-    Client -->|WebSocket upgrade| Entry
-    Entry --> Auth["Authentication and policy"]
-    Entry --> DB[("D1: DB")]
-    Entry -->|getByName campaignId| DO["Campaign DO: CAMPAIGN"]
-    DO --> DB
+    Client["Browser / React"] -->|HTTPS or WebSocket upgrade| Entry["Worker: worker/index.ts"]
+    Entry --> Policy["Origin + auth + campaign policy"]
+    Policy -->|session and membership reads| DB[("D1: DB")]
+    Policy -->|CAMPAIGN.getByName campaignId| DO["Campaign Durable Object"]
+    DO --> Engine["Pure rules engine"]
     DO -->|hibernating WebSockets| Client
-    Entry -. authorized objects .-> Assets[("R2: ASSETS, when enabled")]
-    Entry -. post-commit jobs .-> Async["Queue: BACKGROUND, when enabled"]
+    DO -. "target only: persistent effects" .-> Applier["D1 effect applier"]
+    Applier -. "not implemented" .-> DB
 ```
 
-All browser traffic enters through the Worker. The Worker validates the URL campaign ID, constructs a trusted principal, performs global authorization, and routes campaign-local commands to `env.CAMPAIGN.getByName(campaignId)`. No endpoint routes all campaigns to one global object.
+All public campaign traffic passes through the Worker. The Worker resolves authentication and D1 campaign membership before looking up a named DO. The current DO does not call D1 to apply permanent effects.
 
-## 3. Repository/runtime mapping
+`vite.config.ts` uses React and `@cloudflare/vite-plugin`. Wrangler's `assets.not_found_handling = "single-page-application"` supplies the SPA asset behavior. There is no separately named `ASSETS` binding in the current environment type/config.
 
-| Path | Cloudflare role |
+## 3. Actual repository/runtime mapping
+
+| Path | Current Cloudflare role |
 |---|---|
-| `src/` | Vite-built browser application and static assets |
-| `worker/index.ts` | Worker fetch handler/composition root, `/api/*` routing, WebSocket proxy and asset fallback |
-| `worker/auth.ts` | Production auth adapter and policy boundary |
-| `worker/demo.ts` | Explicit local/development identity and scenario fixtures only |
-| `worker/campaign-durable-object.ts` | Exported DO class, alarms, sockets, active storage and resolution protocol |
-| `packages/domain/src/` | Worker/client-safe contracts and validation schemas |
-| `packages/rules-engine/src/` | Pure deterministic engine imported by Worker/DO |
-| `migrations/` | Ordered D1 SQL migrations |
-| `seeds/` | Versioned rule/map/demo input data |
-| `scripts/seed-ruleset.ts` | Idempotent rules seed importer |
-| `wrangler.jsonc` | Bindings, DO migration/class export, compatibility date and environment configuration |
-| `vite.config.ts` | React/Vite and Cloudflare plugin composition |
+| `src/` | Vite-built React application |
+| `worker/index.ts` | Worker fetch handler, security headers, API routing, D1 policy lookup, named-DO proxy |
+| `worker/auth.ts` | Demo/session authentication, same-origin helpers, D1 campaign authorization, trusted viewer headers |
+| `worker/env.ts` | Typed `DB`, `CAMPAIGN`, environment, auth, and clock bindings |
+| `worker/http.ts` | JSON response/body-size/parse helpers |
+| `worker/campaign-clock.ts` | Pure clock, schedule, pause, and resume transitions |
+| `worker/campaign-durable-object.ts` | Exported DO class, K-17 state/orders, alarms, hibernating sockets, reports/resolution |
+| `packages/domain/src/index.ts` | Shared compile-time contracts |
+| `packages/rules-engine/src/` | Pure deterministic engine/catalogue/demo fixture |
+| `migrations/0001_platform_and_rules.sql` | Identity, rules, source/conflict, and definition schema |
+| `migrations/0002_persistent_world.sql` | Persistent forces, Battalion/ship, campaign, archive/effect schema |
+| `seeds/v5-core-curated.sql` | Idempotent D1 SQL rules seed |
+| `scripts/validate-seed.ts` | Source hash and runtime/SQL seed consistency checks |
+| `wrangler.jsonc` | compatibility date, variables, D1/DO bindings, DO migration, environments |
+| `vite.config.ts` | React and Cloudflare Vite plugins |
 
-The Worker runtime must not import Python, Flask, filesystem-dependent V1 modules, or Node-only libraries unsupported by Workers.
+There is no `worker/demo.ts` or `scripts/seed-ruleset.ts`. Demo authentication is a branch in `worker/auth.ts`. Seeds are applied with the `db:seed:*` package scripts, which execute `seeds/v5-core-curated.sql`; `seed:check` validates the artifact.
 
 ## 4. Binding contract
 
-The canonical bindings are:
+### 4.1 Implemented bindings
 
-| Binding | Resource | Required in foundation | Authority |
-|---|---|---:|---|
-| `DB` | D1 database | Yes | global relational state, rules catalogue, ownership, ledger, memberships, campaign registry, archives/effects |
-| `CAMPAIGN` | Durable Object namespace | Yes | active mutable state for one campaign per named instance |
-| `ASSETS` | R2 bucket | No; add with first genuine object-storage feature | uploads, large immutable maps/snapshots/replay exports only |
-| `BACKGROUND` | Queue producer/consumer | No; add with first asynchronous secondary job | notifications, analytics, archival/export/integration work after authority commits |
+| Binding/config | Current resource | Authority/status |
+|---|---|---|
+| `DB` | D1 | Identity/session and campaign-membership reads are active; other schema families are mostly not wired |
+| `CAMPAIGN` | Durable Object namespace | One named object per campaign; only `outpost-k17` can self-initialise in this foundation |
+| DO migration `v1` | `new_sqlite_classes: ["CampaignDurableObject"]` | Present |
+| Observability | enabled, head sampling `1` | Present |
+| Static assets | SPA not-found handling | Present through Wrangler/Vite integration |
 
-There is deliberately no foundation KV binding. Workers KV is eventually consistent and is not appropriate for atomic read/write authority; Cloudflare documents that cached values may remain stale and recommends Durable Objects where stronger consistency is needed ([KV consistency guidance](https://developers.cloudflare.com/kv/concepts/how-kv-works/)). If KV is introduced later, it is a disposable cache whose misses and stale entries never change game truth.
+There are no R2, Queue, or KV bindings. They must remain absent until an implemented feature needs them.
 
-`wrangler.jsonc` contains resource names/IDs and non-secret configuration. Authentication secrets, seed-HMAC keys and provider credentials use managed secrets, never committed literals. This explicitly replaces V1's committed/overridden secret strings.
+### 4.2 Target optional boundaries
 
-## 5. D1 responsibilities and access
+- **R2:** authorised custom artwork, large map sources, or large immutable replay/export objects. D1 retains key, ownership, type, size, hash, and lifecycle metadata. Never active orders or sole authoritative results.
+- **Queues:** notifications, analytics, exports, or integrations only after the authoritative commit. Never gate combat, D1 consequences, or next-round correctness.
+- **KV:** disposable public/derived cache only. Never sessions requiring immediate revocation, ownership, requisition, campaign state, fog, rules publication, schedules, journals, or effects.
 
-D1 owns the tables in [DATA_MODEL.md](./DATA_MODEL.md): identity/session/profile data, immutable rules catalogue, Player Units/equipment/history, requisition transactions, Battalion/rank/membership/battlegroup data, ships/cargo, planets/campaign registry/membership/deployments, and round/order/event/effects archives.
+## 5. Environment matrix
 
-Rules:
+The values below are the actual `wrangler.jsonc` entries:
 
-- Use prepared statements and typed row adapters in Worker code.
-- Enable/verify foreign-key behavior required by migrations and enforce all unique/partial indexes in SQL.
-- Mutations that uphold one invariant execute as one bounded D1 transaction/batch. Cloudflare documents `D1Database.batch()` as transactional and rolling back the sequence on failure ([D1 Worker API](https://developers.cloudflare.com/d1/worker-api/d1-database/)).
-- Use stable request/effect idempotency keys, not read-then-write assumptions across independent requests.
-- Do not manually edit production schema. Apply ordered migration files.
-- Do not delete or replace a published ruleset. Seed a new version and content hash.
-- Do not poll D1 at high frequency for live campaign changes; the campaign DO owns those changes.
-- Read-replication/session features, if enabled later, must not weaken read-after-write checks used for purchases, deployment or effect application.
+| Wrangler selection | Worker name / environment variable | Demo auth | Round / lock lead | D1 name and current ID | Readiness |
+|---|---|---:|---:|---|---|
+| default (local development) | `corinths-plight` / `development` | `true` | 5m / 30s | `corinths-plight`, `...0001` placeholder | Local-only |
+| `--env preview` | `corinths-plight-preview` / `preview` | `false` | 30m / 30s | `corinths-plight-preview`, `...0002` placeholder | Not provisioned/deployed |
+| `--env production` | `corinths-plight` / `production` | `false` | 24h / 30s | `corinths-plight-production`, `...0003` placeholder | Guarded; not provisioned/deployed |
 
-The foundation uses one D1 database per environment. Split databases only after measured size, blast-radius, regulatory or operational requirements justify cross-database complexity.
+Clock values change configuration only; manual/accelerated/production alarms call the same DO lock/resolve functions.
 
-## 6. Campaign Durable Object
+The default Wrangler configuration deliberately enables the local demo. It must never be used for a remote deployment. Root production scripts always set/select the production environment. Operators must use those scripts and must not bypass them with a bare `wrangler deploy`.
 
-### 6.1 Identity and ownership
+`ALLOW_DEMO_AUTH` is accepted only when its value is exactly `true` and `ENVIRONMENT` is exactly `development`. Production also returns 503 if configured with demo auth enabled. The explicit demo identity can access only `outpost-k17`.
 
-```ts
-const campaign = env.CAMPAIGN.getByName(campaignId);
-```
+## 6. Authentication and campaign-routing boundary
 
-The D1 `campaigns` row records metadata and the canonical campaign ID. The named DO instance owns active state for exactly that campaign. It does not own users, requisition, Player Unit ownership, Battalion membership, ships outside the active deployment, or other campaigns.
+### 6.1 Implemented controls
 
-The DO persists the named records in [DATA_MODEL.md](./DATA_MODEL.md):
+- Unsafe methods and WebSocket upgrades require a present, exactly matching same-origin `Origin`.
+- Explicitly cross-origin API requests are rejected, including safe requests carrying a foreign Origin or `Sec-Fetch-Site: cross-site`.
+- Demo headers/query identity work only under the explicit development flag and only for K-17.
+- Cookie authentication accepts a 32–512 character `corinth_session`, URI-decodes it, hashes it with SHA-256, and queries an unexpired/unrevoked session joined to an `ACTIVE` user.
+- Session campaign access is loaded from D1 before `CAMPAIGN.getByName`. Only existing `ACTIVE`, `PAUSED`, `COMPLETE`, or `FAILED` campaigns route.
+- `PLAYER` and `BATTALION_COMMAND` retain their campaign side; campaign `GM` maps to internal `ADMIN`; `OBSERVER`, unknown roles, and unsafe neutral projections fail closed.
+- Cookies, authorization/demo inputs, query demo identity, and client-supplied internal viewer headers are stripped before the Worker adds trusted viewer headers for the DO.
+- An arbitrary campaign name cannot create demo state: the DO self-initialises only when its name is exactly `outpost-k17`.
+- WebSocket commands are read-only; mutations use authenticated HTTP handlers.
+
+### 6.2 Open controls
+
+- No production identity provider/login, passwordless flow, session issuance/rotation/logout/recovery, or account-linking workflow exists. The code can validate a pre-existing D1 session row only.
+- There is no CSRF token mechanism; the current cookie-auth mitigation is strict same-origin Origin enforcement. Deployment/proxy policy must preserve the Origin signal, and a formal session/CSRF decision is required with the production provider.
+- `readJson` enforces size and parses JSON but does not require JSON content type or apply general runtime schemas.
+- A valid non-K-17 D1 campaign has no bootstrap/deployment-snapshot protocol; the DO fails `CAMPAIGN_NOT_INITIALISED` rather than inventing state.
+- The compiled rules endpoint is separate from D1 seed rows; a campaign is not yet loaded from a D1 content hash.
+- Operator commands treat any viewer as an operator outside production for development convenience; production requires `ADMIN`.
+
+## 7. Campaign DO storage, alarms, and sockets
+
+### 7.1 Implemented storage
 
 ```text
 state/current
-resolution/{round}
 snapshot/{round}
-schedule/{id}
+resolution/{round}
 event/{round}/{sequence}
-pending-effect/{id}
+pending-effect/{idempotencyKey}
 ```
 
-In-memory fields are caches only. Durable Objects can be evicted/rehydrated, and hibernation discards in-memory state, so correctness always reloads persisted records.
+Correctness reloads these records after eviction; in-memory values are not authority. Resolution writes current/next state, snapshot, record, events, and pending effects in a DO storage transaction.
 
-### 6.2 Alarms
+There are no `schedule/{id}` records. Lock/resolve items are embedded in `state/current.clock.schedule` and removed/replaced as phases advance. This is sufficient for the foundation clock but not the accepted status-bearing schedule/recovery design in [ROUND_RESOLUTION.md](./ROUND_RESOLUTION.md).
 
-A Durable Object can schedule one alarm at a time, and Cloudflare alarms execute at least once with automatic retries; the official guidance recommends persisting multiple logical events and arming only the next one ([Durable Object alarms](https://developers.cloudflare.com/durable-objects/api/alarms/)). Corinth therefore persists `ORDER_LOCK`, `ROUND_RESOLVE`, and `CAMPAIGN_END`, then sets the alarm to the earliest pending due event. Recovery schedules another idempotent event of the applicable type rather than inventing an untracked callback.
+### 7.2 Alarms
 
-The alarm handler:
+- One alarm is set to the earliest embedded schedule time.
+- `ORDER_LOCK` and `ROUND_RESOLVE` are processed in due-time/type order with expected-round/phase checks.
+- A prior `resolution/{round}` makes duplicate resolution a no-op/result replay.
+- Manual mode has no alarm; manual resolve enters the same lock/resolve functions.
+- Pause clears the alarm; resume shifts deadlines/schedule and restores the pre-pause planning/locked phase.
 
-1. loads persisted state/schedule;
-2. processes due events in deterministic due-time/ID order;
-3. uses the round resolution journal and idempotency keys;
-4. marks each schedule item consumed;
-5. sets the next pending alarm before returning;
-6. catches downstream/transient exhaustion cases and persists a later recovery event so the finite platform retry window is not the only recovery mechanism.
+Still missing are separate consumed schedule history, explicit recovery records, PREPARED/attempt/hash states, injected crash integration tests, and the D1-effect acknowledgement gate.
 
-No `setInterval`, long-running timer, continuously resident object, or 60 Hz tick is used.
+### 7.3 Hibernating WebSockets
 
-### 6.3 WebSockets and hibernation
+The DO uses `acceptWebSocket` and serialised viewer attachment metadata. The Worker authenticates, validates origin, and authorises campaign membership before forwarding the upgrade. Raw credentials are not forwarded or attached. Sockets accept only `ping`; campaign mutations remain HTTP-only.
 
-Use the Durable Object Hibernation WebSocket API. Cloudflare recommends it for DO WebSocket servers because connections can remain established while the object is not resident ([WebSocket guidance](https://developers.cloudflare.com/durable-objects/best-practices/websockets/)).
+Current broadcasts are sparse invalidation/status messages, which is the correct experience-layer role, but they are sent generically to all current sockets and some messages include order/unit IDs. Production target behavior must derive per-audience messages and prove those fields cannot leak hidden intentions. There is also no persisted `events-after-sequence` catch-up route; reconnect currently fetches the filtered current state/report only.
 
-- Authenticate and authorize before accepting the upgrade.
-- Attach only compact principal/campaign/viewer metadata needed after hibernation; never attach secrets or canonical hidden battlefield state.
-- On wake, reload campaign state and revalidate authorization before a mutation.
-- Tag/group sockets only by non-secret projection audience identifiers useful for broadcasting.
-- Broadcast allied order changes, pings, countdown/deadline changes, pause/resume, round completion and state-version notifications.
-- Prefer invalidation/version messages followed by a filtered fetch for large state, not repeated full canonical snapshots.
-- A missed message is recovered through `GET snapshot/events-after-sequence`; sockets are an experience layer, not a commit log.
-- Do not use high-frequency positional updates or timers that prevent hibernation.
+## 8. D1 operations and seed policy
 
-## 7. R2 boundary
+### 8.1 Local foundation commands
 
-R2 is added only when the product writes an object that should not be a relational row:
+```bash
+npm install
+npm run db:migrate:local
+npm run db:seed:local
+npm run seed:check
+npm run typecheck
+npm run lint
+npm test
+npm run build
+npm run dev
+```
 
-- Battalion insignia or authorized custom unit artwork;
-- large structured map source files;
-- immutable large round snapshots;
-- generated replay/export bundles;
-- campaign artwork.
+The SQL seed uses conflict-aware upserts and is intended to be rerunnable. However, SQL does not prevent selected fields of an already published ruleset from being updated. Release policy must treat published data as immutable, and a future content-hash/publication guard should enforce that policy.
 
-D1 stores the object key, owner, media type, byte size, content hash, lifecycle/status and authorization metadata. The Worker authorizes access before using the R2 binding or issuing a short-lived download mechanism. R2 never stores unit ownership, balance, active order state, the authoritative current battlefield, or the sole copy of a combat result.
+### 8.2 Production scripts and fail-safe behavior
 
-The foundation can serve retained licensed/static V1 assets through Vite/Workers static assets. It does not need R2 merely because R2 is available. V1 local filesystem uploads/base64 relational images are replaced only when the production upload slice is implemented.
+Actual root scripts are:
 
-## 8. Queue boundary
+| Script | Behavior |
+|---|---|
+| `build:production` | Sets `CLOUDFLARE_ENV=production`, then typechecks and builds |
+| `check:production-config` | Exits non-zero while the production placeholder D1 ID remains |
+| `db:migrate:remote` | Runs the guard, then applies migrations to `corinths-plight-production --remote --env production` |
+| `db:seed:remote` | Runs the guard, then executes `seeds/v5-core-curated.sql` against production with `--env production` |
+| `deploy:dry` | Runs guard + production build + `wrangler deploy --dry-run --env production` |
+| `deploy` | Runs guard + production build + `wrangler deploy --env production` |
 
-Queues are for work that begins **after** an authoritative result commits:
+With the current repository, the guard is expected to fail. That is a safety control, not a failed release test.
 
-- notifications and email;
-- analytics events;
-- replay generation and archival copies;
-- Discord/other integrations later.
+Before any production command can succeed:
 
-Combat, order lock, D1 persistent consequences and round advancement do not depend on a queue consumer. Cloudflare Queues provides at-least-once delivery by default, so every message includes a stable idempotency key and every consumer deduplicates effects ([delivery guarantees](https://developers.cloudflare.com/queues/reference/delivery-guarantees/)). Queue delivery order is not treated as campaign event order.
+1. provision the real production D1 database and replace only the production placeholder with its real ID;
+2. authenticate Wrangler to the intended Cloudflare account and verify account/resource ownership;
+3. run production migrations and the seed against an isolated non-user dataset first;
+4. run `seed:check`, typecheck, lint, tests, and `build:production`;
+5. run `deploy:dry`, inspect the selected `production` environment/bindings, then deploy;
+6. run read-only health/version checks and an isolated accelerated smoke campaign.
 
-No queue binding/consumer is needed to pass the first deployable foundation unless one of these secondary features is actually implemented.
+Preview provisioning/deployment is also not scripted at the package level. It requires a real preview D1 ID and explicit `--env preview` on every Wrangler operation. Preview must complete before production.
 
-## 9. KV boundary
+Do not run `db.create_all()`, `drop_all()`, manual dashboard schema edits, or legacy Alembic against D1.
 
-Never put these in KV:
+## 9. Current versus target D1 consequence flow
 
-- sessions whose immediate revocation is security-critical;
-- unit ownership/status;
-- requisition balances or transactions;
-- active or archived authoritative orders;
-- campaign state, fog/intelligence or combat results;
-- idempotency/effects journals;
-- mutable ruleset publication state.
-
-Later acceptable uses include a rebuildable public catalogue cache, derived public landing-page content, or other disposable reads. Cache invalidation failure must cause staleness at worst, never an illegal action or leaked secret.
-
-## 10. Environment and clock policy
-
-| Environment | Resources | Authentication | Default clocks | Data policy |
-|---|---|---|---|---|
-| local | local Vite/workerd, local D1 and DO persistence | explicit `worker/demo.ts` principal allowed only behind local flag | root default: 5 minutes with a 30-second lock lead; `MANUAL` and 1-minute fixtures for tests | disposable fixtures; deterministic clock/seed controls available to tests |
-| development/preview | isolated Cloudflare D1/DO namespace and optional preview R2/Queue | real auth integration or tightly controlled preview access; demo off by default | 5 or 30 minutes | no production data or bindings |
-| production | dedicated production D1/DO and only required R2/Queue bindings | secure configured provider/session design, managed secrets, fail closed | 24 hours by default, campaign-configurable | migrations only; immutable published rulesets; backups/export/repair procedure |
-
-Manual resolution and accelerated clocks invoke the same command/protocol as production alarms. Environment selection changes configuration and resources, not resolver logic.
-
-Use distinct resource IDs/names for each Wrangler environment. The Cloudflare Vite plugin supports selecting Wrangler environments through its environment configuration ([Cloudflare environments](https://developers.cloudflare.com/workers/vite-plugin/reference/cloudflare-environments/)). Never point preview code at production D1/DO accidentally.
-
-## 11. Migration, seed and deployment order
-
-### 11.1 New environment
-
-1. Create/bind the environment's D1 database and DO namespace.
-2. Apply every ordered D1 migration from `migrations/`.
-3. Run `scripts/seed-ruleset.ts` for the explicit ruleset version and verify its content hash.
-4. Generate/check Worker binding types.
-5. Run formatting, type checking, rules-engine tests, protocol/idempotency tests and production build.
-6. Run local/preview smoke tests for D1, named campaign routing, alarm scheduling, filtered snapshot and WebSocket reconnect.
-7. Deploy the Worker/DO class and static client from the root Wrangler/Vite configuration.
-8. Run read-only health/version checks and one isolated accelerated test campaign.
-
-### 11.2 Existing environment
-
-1. Back up/export according to environment policy and inspect migration impact.
-2. Apply backward-compatible D1 migrations before code that requires them.
-3. Deploy Worker/DO migrations/class changes according to Wrangler's Durable Object migration rules.
-4. Seed only a new or identical hash-verified ruleset; never replace a published version.
-5. Deploy code, then exercise health and idempotent replay checks.
-6. Perform destructive cleanup only in a later release after all readers/writers have moved and rollback is understood.
-
-There is no normal production `db.create_all()`, `drop_all()`, manual dashboard schema edit, or destructive reseed workflow.
-
-## 12. Security controls
-
-- `worker/index.ts` applies request size, content type, schema and method checks before domain handlers.
-- `worker/auth.ts` validates session/provider data and constructs a minimal principal. Raw tokens are never forwarded to the campaign DO or logged.
-- Every object lookup includes ownership/membership/permission scope; opaque IDs do not prevent IDOR by themselves.
-- Campaign commands are accepted only through the Worker-to-DO path and revalidate campaign-local state in the DO.
-- Equipment/stats/costs/routes/targets are resolved from the pinned server ruleset.
-- CSRF protection is required for cookie-authenticated state-changing HTTP requests; WebSocket upgrades and messages need origin/session checks and command authorization.
-- Same-origin deployment is preferred for the SPA/API to minimize CORS and credential complexity. Any allowed origins are explicit per environment.
-- Fog is enforced through server-side projections for HTTP, WebSocket, report and replay endpoints.
-- Admin commands use explicit permissions, audit principal/request IDs, and the same idempotent campaign protocol.
-- Secrets are environment-managed. Production startup/requests fail closed if required auth or seed secrets are absent.
-- Uploaded objects, when enabled, are validated for type/size and served through authorized keys; user filenames do not become storage paths.
-
-## 13. Observability and recovery
-
-Use structured logs with:
+Current behavior:
 
 ```text
-environment, deploymentVersion, requestId, commandId,
-campaignId, roundNumber, scheduleId, resolutionAttempt,
-userId, unitId, orderId, effectId, inputHash, outputHash,
-stateVersion, status, durationMs, errorCode
+DO resolver -> pending-effect/{id} in DO
+            -> next round opens immediately
+            X no D1 applier/archive write
 ```
 
-Never log session tokens, passwords, HMAC/seed secrets, full hidden state, or unprojected event payloads.
+Target behavior:
 
-Required operator views/procedures:
+```text
+DO result commit -> pending stable effect + payload hash
+                 -> idempotent D1 transactional applier
+                 -> matching APPLIED acknowledgement
+                 -> DO finalises report/next round once
+```
 
-- campaign state/round/journal/schedule and last successful alarm;
-- pending D1 effects and matching `persistent_effects` rows;
-- input/output/ruleset/engine hashes for deterministic replay;
-- ability to pause a campaign and retry a safe protocol step;
-- D1 migration/ruleset version health;
-- WebSocket connection counts/errors without treating connections as membership authority.
+The landed `persistent_effects` table alone does not implement this flow. There is no Worker/DO applier, no payload hash collision check, no archive application, and no acknowledgement back to the DO. See [DATA_MODEL.md](./DATA_MODEL.md) and [ROUND_RESOLUTION.md](./ROUND_RESOLUTION.md).
 
-A repair tool never edits combat output ad hoc. It either retries an idempotent step, applies an explicit compensating/admin event, or records an exceptional migration with an audit trail.
+## 10. Security and projection status
 
-## 14. Deployment-readiness checklist
+Implemented:
 
-- [ ] `vite.config.ts` uses the Cloudflare Vite plugin and root `wrangler.jsonc`.
-- [ ] `wrangler.jsonc` exports/binds `CampaignDurableObject` and includes the required DO migration.
-- [ ] `DB` and `CAMPAIGN` resolve to isolated resources in each environment.
-- [ ] No production route can use `worker/demo.ts`.
-- [ ] D1 migrations succeed from empty and current previous schema.
-- [ ] Rules seed is idempotent and hash-stable.
-- [ ] Pure engine golden replay tests pass.
-- [ ] Duplicate alarm/effect integration tests produce one result.
-- [ ] Manual and accelerated clocks use the production state machine.
-- [ ] Filtered snapshots/events prove secret data is absent.
-- [ ] WebSocket reconnect recovers from persisted state/sequence.
-- [ ] Build output contains no Flask/local filesystem runtime dependency or committed secret.
-- [ ] R2, Queue and KV bindings are absent unless an implemented feature needs them.
-- [ ] A Cloudflare preview deployment completes before production.
+- strict origin policy for mutations/upgrades and no open CORS path;
+- active session and campaign-scoped D1 authorization before DO lookup;
+- explicit fail-closed role mapping and local-only demo campaign;
+- credential/internal-header stripping at the Worker/DO boundary;
+- server-derived owner/rules/action/target validation;
+- HTTP security headers and no-store JSON responses;
+- server-side battlefield projection, report projection, hidden drafts, and removal of stored seed/effects/journal fields.
 
-## 15. Cloudflare decision records
+Still required:
 
-### ADR-C01: One Worker application plus one DO per campaign
+- production identity/session lifecycle and managed provider secrets;
+- runtime request/response schemas and content-type policy;
+- server-secret seed/HMAC or equivalent commitment protocol;
+- cryptographic input/output/effect hashes;
+- event-time field-level report/replay projection and per-audience socket projection;
+- admin audit/idempotency and rate limits;
+- authorised R2 upload controls if/when uploads are introduced.
 
-**Status:** Accepted  
-**Decision:** Deploy the React/API modular monolith together and address a named DO by campaign ID.  
-**Trade-off:** Worker and client share a release train; active campaign scale is bounded by one DO per battlefield.  
-**Revisit trigger:** A measured campaign exceeds a DO's practical limits or an independently deployable module has a demonstrated operational need.
+## 11. Observability and recovery
+
+Wrangler observability is enabled. Current Worker logs contain request ID, method, path, status, and duration; DO logs include campaign ID plus operation-specific fields. They do not yet provide the target resolution attempt, input/output hash, effect acknowledgement, schedule history, or reconciliation views because those records do not exist.
+
+Never log session cookies/tokens, V1 passwords, seed secrets, canonical hidden state, or unprojected event payloads. Target operator tooling must inspect campaign phase/round/journal/schedule, pending D1 effects, migrations/ruleset pin, and safe retry/compensation state without editing combat results ad hoc.
+
+## 12. Deployment-readiness checklist
+
+Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
+
+- [x] `vite.config.ts` uses React and the Cloudflare Vite plugin.
+- [x] `wrangler.jsonc` uses compatibility date `2026-08-08`.
+- [x] `CampaignDurableObject` is exported, bound as `CAMPAIGN`, and included in DO migration `v1`.
+- [x] No R2, Queue, or KV authority binding is present.
+- [x] Demo auth requires exact development opt-in and is limited to `outpost-k17`; production cannot enable it safely.
+- [x] Unsafe mutations/WebSocket upgrades require same origin; D1 membership is checked before DO lookup.
+- [x] Two D1 migrations, SQL seed, source-hash validator, TypeScript build, lint, and unit tests exist.
+- [~] Manual/accelerated/24h clocks and pause/resume are unit-tested; alarm crash/eviction integration is not.
+- [~] Snapshot/report projection exists; event-time payload and socket-audience leakage coverage is incomplete.
+- [ ] Implement production login/provider and session issuance/recovery/rotation/revocation flow.
+- [ ] Implement non-K-17 campaign bootstrap from D1-authorised deployment data.
+- [ ] Implement PREPARED journal, cryptographic input/output hashes, and protected deterministic seed.
+- [ ] Implement separate persisted schedule records and consumed/recovery semantics.
+- [ ] Implement the D1 persistent-effect/archive applier and acknowledgement-gated next round.
+- [ ] Implement events-after-sequence reconnect and hibernation integration tests.
+- [ ] Replace preview/production placeholder D1 IDs with provisioned resources.
+- [ ] Complete and record a remote preview deployment/smoke test.
+- [ ] Complete and record the production remote migration/seed/deployment.
+
+## 13. Cloudflare decisions
+
+### ADR-C01: One Worker plus one named DO per campaign
+
+**Status:** Implemented for K-17; general campaign bootstrap open.
+
+**Trade-off:** Active campaign scale is bounded by one DO, while Worker/client share a release.
+
+**Revisit:** Only after measured per-campaign or independent-release pressure.
 
 ### ADR-C02: D1 for global relational truth
 
-**Status:** Accepted  
-**Decision:** Use one D1 database per environment with migrations, relational constraints and idempotent ledger/effects records.  
-**Trade-off:** Cross-resource transactions with a DO require the effects journal and D1 query patterns must respect platform limits.  
-**Revisit trigger:** Measured scale, data residency, blast radius or platform limits require partitioning; partition by stable domain/tenant boundary, not prematurely.
+**Status:** Schema and auth reads implemented; domain services/effect application incomplete.
 
-### ADR-C03: Hibernating WebSockets, no real-time tick
+**Trade-off:** D1/DO cannot share a transaction, requiring the explicit effect journal.
 
-**Status:** Accepted  
-**Decision:** Use DO Hibernation WebSockets for sparse collaboration/invalidation messages; persist all truth and recover via snapshot/events.  
-**Trade-off:** Clients implement reconnect/catch-up and cannot assume every live message arrives.  
-**Revisit trigger:** Measured collaboration traffic or connection count exceeds one campaign DO's practical capacity.
+**Revisit:** Partition only for measured scale, residency, or blast-radius constraints.
 
-### ADR-C04: Persisted schedule over Cron/global scheduler
+### ADR-C03: Hibernating WebSockets as an experience layer
 
-**Status:** Accepted  
-**Decision:** Each campaign DO persists its event schedule and arms its one next alarm.  
-**Trade-off:** Alarm retry/recovery logic is application code.  
-**Revisit trigger:** Strategic/global events need coordination outside campaigns; add a separately bounded per-ship/per-route mechanism rather than a global game DO.
+**Status:** Foundation socket implemented; projection/catch-up incomplete.
 
-### ADR-C05: Keep R2/Queues/KV optional
+**Trade-off:** Clients must tolerate missed messages and refetch authoritative projections.
 
-**Status:** Accepted  
-**Decision:** Bind R2 and Queues only with their first valid object/secondary-job use; do not bind KV for authority.  
-**Trade-off:** Some upload/export/notification features remain deferred, and caches are not available on day one.  
-**Revisit trigger:** A measured implemented feature fits the resource boundary and includes lifecycle, authorization, idempotency and cost tests.
+**Revisit:** If measured campaign connection/message load exceeds a DO's practical capacity.
+
+### ADR-C04: Persisted logical schedule with one DO alarm
+
+**Status:** Accepted target; current schedule is embedded in `state/current`.
+
+**Trade-off:** Separate status records add recovery code but make retry/consumption auditable.
+
+**Revisit:** Keep the one-alarm model unless a non-campaign strategic scheduler becomes a separately justified aggregate.
+
+### ADR-C05: R2, Queues, and KV remain optional
+
+**Status:** Implemented by absence.
+
+**Trade-off:** Upload/export/notification/cache features remain deferred.
+
+**Revisit:** Add a binding only with an implemented feature, authorization/lifecycle plan, and idempotency/cost tests.
+
+Related boundaries: [ARCHITECTURE.md](./ARCHITECTURE.md), [DATA_MODEL.md](./DATA_MODEL.md), and [ROUND_RESOLUTION.md](./ROUND_RESOLUTION.md).

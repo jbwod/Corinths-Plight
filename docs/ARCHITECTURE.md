@@ -1,7 +1,9 @@
 # Corinth's Plight Architecture
 
-**Status:** Reconciled foundation decision record (2026-08-09)  
-**Scope:** The first implementation deliverable in `gameplan.md` section 56, not the complete-game success scenario in section 57  
+**Status:** Reconciled foundation decision record (2026-08-09)
+
+**Scope:** The first implementation deliverable in `gameplan.md` section 56, not the complete-game success scenario in section 57
+
 **V1 baseline:** commit `609ea9f50b4d595cfa07c2677d3eeb681d45d0ce`; see [V1_AUDIT.md](./V1_AUDIT.md)
 
 ## 1. Reading this document
@@ -175,44 +177,62 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 
 ### ADR-A01: Modular monolith
 
-**Status:** Accepted and implemented for the foundation.  
-**Decision:** One repository/release with client, Worker, campaign DO, domain, and engine boundaries.  
-**Trade-off:** Boundaries rely on code review/tests rather than network isolation.  
+**Status:** Accepted and implemented for the foundation.
+
+**Decision:** One repository/release with client, Worker, campaign DO, domain, and engine boundaries.
+
+**Trade-off:** Boundaries rely on code review/tests rather than network isolation.
+
 **Revisit:** Extract only when a stable module demonstrably needs independent scale or release cadence.
 
 ### ADR-A02: Product-level strangler migration
 
-**Status:** Accepted; migration work remains.  
-**Decision:** Retain V1 as reference and replace tested workflows without dual-writing.  
-**Trade-off:** Two stacks remain in the repository temporarily.  
+**Status:** Accepted; migration work remains.
+
+**Decision:** Retain V1 as reference and replace tested workflows without dual-writing.
+
+**Trade-off:** Two stacks remain in the repository temporarily.
+
 **Revisit:** Archive V1 outside the deployed tree once every retained workflow is replaced.
 
 ### ADR-A03: D1 global truth plus one DO per campaign
 
-**Status:** Boundary implemented; cross-store effect protocol is target.  
-**Decision:** D1 owns global relationships/economy; one DO serialises active campaign state.  
-**Trade-off:** Correct permanent consequences require an explicit idempotent journal across stores.  
+**Status:** Boundary implemented; cross-store effect protocol is target.
+
+**Decision:** D1 owns global relationships/economy; one DO serialises active campaign state.
+
+**Trade-off:** Correct permanent consequences require an explicit idempotent journal across stores.
+
 **Revisit:** Only for measured platform limits or a future transactional primitive spanning both resources.
 
 ### ADR-A04: Current snapshots plus append-only events
 
-**Status:** Partially implemented.  
-**Decision:** Current state is authoritative; snapshots/events explain rounds without full event sourcing.  
-**Trade-off:** Historical reconstruction depends on retained snapshots and mature event schemas.  
+**Status:** Partially implemented.
+
+**Decision:** Current state is authoritative; snapshots/events explain rounds without full event sourcing.
+
+**Trade-off:** Historical reconstruction depends on retained snapshots and mature event schemas.
+
 **Revisit:** If arbitrary temporal queries/reprojection become core product requirements.
 
 ### ADR-A05: Rules values in data, mechanics in pure handlers
 
-**Status:** Partially implemented.  
-**Decision:** D1 seed stores versioned values/provenance; pure code implements named mechanics.  
-**Trade-off:** New mechanics still require code. The current D1 seed and compiled catalogue are two representations, and `seed:check` does not prove full field equivalence.  
+**Status:** Partially implemented.
+
+**Decision:** D1 seed stores versioned values/provenance; pure code implements named mechanics.
+
+**Trade-off:** New mechanics still require code. The current D1 seed and compiled catalogue are two representations, and `seed:check` does not prove full field equivalence.
+
 **Revisit:** Add a generated single source or stronger hash/schema pipeline before more catalogue breadth creates drift.
 
 ### ADR-A06: Replace V1 authentication before real-account migration
 
-**Status:** Fail-closed boundary implemented; production provider deferred.  
-**Decision:** V1 credentials never cross into the new authority. Demo auth is explicit local-only; production requires a secure provider/session lifecycle.  
-**Trade-off:** There is no production login yet.  
+**Status:** Fail-closed boundary implemented; production provider deferred.
+
+**Decision:** V1 credentials never cross into the new authority. Demo auth is explicit local-only; production requires a secure provider/session lifecycle.
+
+**Trade-off:** There is no production login yet.
+
 **Revisit:** This must be resolved before preview users, public deployment, or account migration.
 
 ## 10. Foundation readiness

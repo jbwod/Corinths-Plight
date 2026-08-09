@@ -1,418 +1,319 @@
 # Corinth's Plight Round Resolution
 
-**Status:** Foundation protocol  
-**Implementation:** `packages/rules-engine/src/` and `worker/campaign-durable-object.ts`  
-**Tests:** `packages/rules-engine/test/`
+**Status:** Reconciled implemented foundation and target retry protocol (2026-08-09)
 
-## 1. Guarantees
+**Implemented subset:** deterministic Hold, Advance, Rush, Attack, K-17 enemy intentions, clock/alarm coordination, DO-local result deduplication
 
-For one campaign and round, the system guarantees:
+**Not yet implemented:** PREPARED/hash journal, server-secret seed commitment, D1 persistent-effect applier/acknowledgement, next-round effect gate, separate persisted schedule records
 
-- submitted orders remain editable only until the round lock;
-- a fixed, immutable input produces one deterministic output and ordered event sequence;
-- combat correctness does not depend on a browser or WebSocket connection;
-- an alarm, HTTP command, or internal retry may run more than once but the round result and every permanent D1 effect apply once;
-- a failed attempt resumes from a persisted protocol state rather than guessing how far it reached;
-- clients receive only their authorized battlefield/event projection;
-- the next round starts only after required persistent effects are acknowledged.
+## 1. Guarantees: current versus target
 
-Exactly-once here is an application invariant built from deterministic recomputation, immutable hashes, unique IDs, Durable Object serialization, storage transactions, and a D1 effects journal. It is not an assumption that Cloudflare invokes a handler once.
+| Property | Current foundation | Production target |
+|---|---|---|
+| Pure deterministic computation | Fixed `RoundInput` uses seeded RNG and ordered processing; regression tests cover the implemented subset | Version/hash-pinned engine and byte/canonical replay evidence |
+| One DO result per round | `resolution/{round}` prevents a second committed result | PREPARED input hash, cryptographic output hash, attempts/statuses, mismatch incident handling |
+| Permanent consequences exactly once | Resolver emits effects and DO stores them only | Idempotent D1 applier, payload-hash collision check, acknowledgements, reconciliation |
+| Next round waits for effects | No; the DO increments/open the next round in the result transaction | Remain `EFFECTS_PENDING` until every required D1 effect is applied |
+| Scheduling survives eviction | Clock and pending items are inside `state/current`; next DO alarm is derived from them | Separate status-bearing `schedule/{id}` records and consumed/recovery history |
+| Reports/fog | Current state and report events use the projector; seed is removed | Event-time field-level projections and per-audience socket/report/replay DTOs |
 
-## 2. Pure resolver contract
+The current code establishes a deterministic engine skeleton and DO-local duplicate guard. It does not yet prove exact-once resolution across Durable Object storage and D1.
 
-The rules engine has no React, network, D1, Durable Object, current-time, or environment dependency.
+## 2. Current pure contract
+
+The landed types in `packages/domain/src/index.ts` are:
 
 ```ts
-type ResolveRoundInput = {
-  campaignId: CampaignId;
-  roundNumber: number;
-  logicalResolutionTime: number; // UTC epoch milliseconds, fixed before resolution
-  ruleset: ResolvedRuleset;
-  rulesetHash: string;
-  engineVersion: string;
-  previousState: BattlefieldState;
-  playerOrders: LockedOrder[];
-  enemyOrders: LockedOrder[];
-  seed: SeedMaterial;
-};
+interface RoundInput {
+  previousState: CampaignRuntimeState;
+  rulesetVersion: string;
+  playerOrders: UnitOrder[];
+  enemyOrders: UnitOrder[];
+  seed: string;
+  resolutionTime: number;
+}
 
-type ResolveRoundOutput = {
-  nextState: BattlefieldState;
-  events: CanonicalCampaignEvent[];
-  persistentEffects: PersistentEffect[];
-  report: CanonicalRoundReport;
-  outputHash: string;
-};
-
-resolveRound(input: ResolveRoundInput): ResolveRoundOutput;
+interface RoundOutput {
+  state: CampaignRuntimeState;
+  events: CampaignEvent[];
+  persistentEffects: PendingPersistentEffect[];
+  digest: string;
+}
 ```
 
-The same canonical input bytes must produce the same canonical output bytes. The engine may return validation failures and partial-execution events defined by the pinned ruleset; it never silently repairs an order.
+`resolveRound` has no storage/network calls, wall-clock read, or `Math.random()`. The caller supplies logical time and seed. It clones prior state and returns new state/events/effects. `digest` is currently an eight-character hexadecimal 32-bit FNV-style digest over selected result fields; it is useful for foundation regression comparison, not a collision-resistant audit hash.
 
-## 3. Determinism rules
+The runtime catalogue and D1 seed both identify `v5-core-curated@1`; `ENGINE_VERSION` is `foundation-0.1.0`. The resolver verifies the ruleset version string, but the current round input does not carry a ruleset content hash or engine artifact hash.
 
-### 3.1 Canonical input
+## 3. Current order protocol
 
-Before resolution, the campaign DO creates `snapshot/{round}` and computes an input hash over:
+### 3.1 Submission
 
-```text
-campaign ID
-round number
-logical resolution instant
-ruleset ID and content hash
-engine version/hash
-canonical battlefield snapshot
-accepted player order IDs + revisions + payloads
-accepted enemy order IDs + revisions + payloads
-seed material/commitment policy
-```
+The public request supplies intent. The DO constructs the authoritative `UnitOrder`:
 
-Objects use stable key ordering. Collections are sorted by explicit keys, never database iteration order: orders by phase priority then unit ID then order ID; deployments by deployment ID; weapons/actions by declared index; hexes by `(q, r)`; events by generated sequence.
+- stable ID `order:{campaignId}:{round}:{deploymentId}`;
+- server-incremented revision;
+- owner, current start position, end position, submitted time, fitted equipment/weapons, and rules-derived action cost;
+- `DRAFT` or `SUBMITTED` lifecycle;
+- current or up to eight future rounds.
 
-Changing locked input after `PREPARED` is a fatal protocol conflict. It must pause the campaign for operator inspection rather than create a second result.
+Before accepting a current submitted order, the Worker/DO path checks owner, deployed/not-destroyed state, class `allowedOrders`/`allowedActions`, executable catalogue flags, fitted weapon/equipment IDs, current projected target visibility, action economy/speed, and the one-attack limit. The pure resolver rechecks ruleset, executable order/action definitions, start/route/end, speed/action budget, Rush restrictions, attack count, target/weapon, range/LOS, friendly fire, ammo, and cooldown.
 
-### 3.2 Randomness
+Only `HOLD`, `ADVANCE`, `RUSH`, and `ATTACK` are executable. Other order/action names remain catalogued but fail closed.
 
-- `Math.random()` is forbidden in the resolver.
-- Production seed material is derived or selected server-side, stored before computation, and hidden until policy permits disclosure. A predictable public `campaignId + round` seed is not sufficient.
-- A suitable production derivation is a secret HMAC over campaign ID, round, ruleset hash, and committed snapshot hash. The pure engine receives only the resulting bytes/string.
-- A seed commitment may be published before resolution and the seed revealed in the completed report for audit, without exposing the server secret.
-- Each meaningful die result records stream/key, sides, raw result, modifiers and final value in an event.
-- Prefer phase/entity-labelled random streams so adding an unrelated roll does not perturb every later result. Any stream scheme is part of `engineVersion`.
+Current limitations:
 
-### 3.3 Time, IDs and arithmetic
+- the client does not send a stable command idempotency key or expected revision;
+- replacing an order overwrites the current in-state revision instead of retaining every immutable revision in the DO;
+- D1 `order_archive` is not populated;
+- current command authority is owner-only; delegated command is not wired;
+- compile-time interfaces plus manual sanitisation are used instead of general runtime request schemas.
 
-- The engine receives `logicalResolutionTime` as fixed UTC epoch milliseconds; it does not call `Date.now()`.
-- Event IDs are deterministic from campaign, round and sequence (or a hash of those values and type), not random UUIDs.
-- Events use logical time supplied in the input. Storage ingestion time may be logged separately outside the output hash.
-- Hex coordinates and combat values are integers. Fractional movement/action costs use quarter-points, not binary floating point.
-- Ties use documented stable keys or a logged seeded choice.
-
-## 4. Campaign and order state machines
-
-### 4.1 Round protocol state
-
-```text
-OPEN
-  -> LOCKED
-  -> PREPARED
-  -> RESOLVING
-  -> RESULT_COMMITTED
-  -> EFFECTS_PENDING
-  -> EFFECTS_APPLIED
-  -> RESOLVED
-  -> next round OPEN
-```
-
-`FAILED` is diagnostic, not a rollback to `OPEN`. A transient failure remains at the last committed state and retries. An input/hash conflict or invalid rules/engine pin pauses the campaign and requires an administrator.
-
-### 4.2 Order lifecycle
+### 3.2 Lifecycle
 
 ```text
 DRAFT -> SUBMITTED -> LOCKED -> RESOLVING -> RESOLVED | FAILED
-   |          |
-   +------> CANCELLED      (only before lock)
+   \-----------> CANCELLED       (before lock only)
 ```
 
-- Replacing an order creates a higher immutable revision under the same stable order ID or supersedes it with an explicit link.
-- A command includes a client idempotency key and expected revision. A duplicate returns the first result; a stale revision returns a conflict.
-- Submission validation checks identity, authority, current ownership/deployment, structure and obvious legality.
-- Lock-time/resolution validation checks the authoritative snapshot. Future orders can become impossible and then fail or partially execute according to the pinned rule definition, with a clear event.
-- A submitted `startHex`, statistic, ammo count, or equipment rule is never accepted as truth.
+The DO locks current submitted orders at the lock alarm/manual resolve. The resolver marks only the exact accepted `(order.id, order.revision)` resolved. Future orders are preserved when the completed round is removed; a replacement/future revision is not accidentally marked resolved.
 
-## 5. Persisted schedule and clocks
+The target command protocol adds a client idempotency key and expected revision, retains immutable revisions, and returns the original semantic result for duplicate delivery.
 
-The campaign DO owns time. It stores schedule records before setting an alarm and sets its single alarm to the earliest pending due event.
+## 4. Implemented resolver pipeline
 
-Foundation clock presets are:
+`packages/rules-engine/src/resolver.ts` currently performs this deterministic subset:
 
-| Preset | Use | Alarm behavior |
-|---|---|---|
-| `MANUAL` | deterministic tests and administrator-controlled local games | no automatic round alarm; manual command enters the same lock/resolve path |
-| `ONE_MINUTE` | fast local smoke tests | automatic deadline after 60 seconds |
-| `FIVE_MINUTES` | collaborative development | automatic deadline after 5 minutes |
-| `THIRTY_MINUTES` | preview/staging playtests | automatic deadline after 30 minutes |
-| `DAILY` | production default | automatic deadline after 24 hours |
-| custom duration | campaign configuration | validated minimum/maximum and explicit policy |
+1. **Bind input:** reject a ruleset-version mismatch; short-circuit an already-resolved exact supplied order set.
+2. **Order and validate:** combine player/enemy orders, select submitted/locked orders, sort by unit ID then revision, and emit deterministic rejections.
+3. **Tick prior cooldowns:** decrement cooldowns before combat so a cooldown assigned by this round's attack persists into the next round.
+4. **Resolve movement/facing:** apply requested facing even for Hold; group simultaneous final destinations; if arrivals plus occupants exceed capacity, consistently block every arrival in that contest; ignore destroyed/withdrawn occupants.
+5. **Build attacks:** use the post-movement state, seeded dice, current ammo/cooldown, LOS/range, rear-facing armour, defence, and friendly-fire checks. Indirect fire requires a non-destroyed/non-withdrawn friendly spotter with LOS.
+6. **Apply simultaneous casualties:** accumulate legal attack damage by target before changing health, then apply targets in stable ID order. An attacker is not removed merely because another attack in the same group destroys it.
+7. **Emit permanent intents:** create stable per-round damage/death `PendingPersistentEffect` values for linked persistent units.
+8. **Finalise output:** mark exact accepted revisions resolved, append `ROUND_FINISHED`, retain the most recent 1,000 events in current state, increment state version, and calculate the foundation digest.
 
-The displayed countdown is derived from the persisted deadline and current server time; countdown messages are advisory. The persisted schedule/alarm decides when a round locks.
+Event sequence begins after the highest event sequence already present for that round, preventing resolver output from overwriting prior lock/order events.
 
-The foundation clock stores both `lockAt` and `resolvesAt`. `lockAt = resolvesAt - lockLeadMs`; root development configuration currently uses a five-minute round and a 30-second lock lead. A campaign may set `lockLeadMs` to zero, in which case lock and resolution share one deadline. Locking persists all accepted revisions, and `ROUND_RESOLVE` runs at the separately persisted resolution time. Pause cancels/invalidates the current active alarm record while retaining its schedule history; resume computes and persists new lock/resolve times according to policy.
+This is not the full 17-phase game pipeline. Interception/contact, advanced actions, structures, logistics beyond attack ammo, status systems, objectives/victory, advanced PvE, Meta rules, and strategic consequences remain explicit future phases. `docs/GAME_SYSTEMS.md` and `docs/RULE_CONFLICTS.md` define the active profile and unresolved interpretations.
 
-Alarm handlers may wake late and may be retried. They process all due schedule items in deterministic due-time/ID order, mark each consumed idempotently, and finally set an alarm only for the next pending item.
+## 5. Implemented clock and alarm flow
 
-## 6. Phase pipeline
+Clock presets in `worker/campaign-clock.ts` are:
 
-Every phase is a pure handler with an explicit input/output type. Foundation-only unsupported systems remain named no-op phases rather than disappearing into a later reordering.
+| Preset | Duration |
+|---|---:|
+| `manual` | `0` (no deadline or alarm) |
+| `1m` | 60 seconds |
+| `5m` | 5 minutes |
+| `30m` | 30 minutes |
+| `24h` | 24 hours |
 
-### Phase 1: Lock round
+A timed clock embeds `ORDER_LOCK` and `ROUND_RESOLVE` items in `state/current.clock.schedule`. The DO sets its one alarm to the earliest `runAt`. `ORDER_LOCK` is removed when consumed; after resolution the entire clock is replaced with the next round's schedule. There are no `schedule/{id}` storage records or consumed schedule history yet.
 
-- Atomically change `OPEN` to `LOCKED` if the expected round/deadline matches.
-- Reject further edits/cancellations for that round.
-- Select the latest valid submitted revision for each unit/order slot.
-- Record lock event and logical lock time.
+Manual duration `0` has `lockAt=0`, `resolvesAt=0`, an empty schedule, and accepts current-round orders while phase is `PLANNING`. Manual resolve uses the same lock/resolve functions as an alarm.
 
-### Phase 2: Snapshot battlefield
+Pause/resume is implemented as a real state transition:
 
-- Persist immutable `snapshot/{round}`.
-- Include map, units, current status/resources, structures/objectives, visibility memory and accepted revisions.
-- Bind ruleset ID/hash and engine version/hash.
+- `phaseBeforePause` records the prior phase;
+- canonical public `CAMPAIGN_PAUSED`/`CAMPAIGN_RESUMED` events and state version changes are committed with state;
+- the alarm is cleared while paused;
+- resume shifts deadlines and scheduled `runAt` values by the paused duration and restores `PLANNING` or `LOCKED`, rather than reopening a locked order window;
+- repeated pause/resume calls are semantic no-ops.
 
-### Phase 3: Validate locked orders
+Alarms may be delivered late or more than once. The current guard is round/phase plus `resolution/{round}` existence. Alarm crash/retry behavior has unit-level clock tests but no workerd integration suite with injected failures.
 
-- Revalidate actor authority as recorded at lock, unit operational/deployed state, route continuity/cost, equipment/ammo/cooldown, action/target legality and order-type eligibility.
-- Produce deterministic rejection or permitted partial-execution events.
-- Never delete the submitted order that failed.
+## 6. Current DO result transaction
 
-### Phase 4: Generate/accept enemy intentions
+For the small K-17 scenario, `resolveCurrentRound` currently:
 
-- In the foundation, consume supplied deterministic enemy orders or an explicit no-enemy fixture.
-- Later PvE doctrine receives only its permitted pre-resolution knowledge projection and seeded inputs.
-- Enemy intent cannot inspect resolved player outcomes.
-
-### Phase 5: Resolve movement
-
-- Process explicit routes with terrain, elevation, river/road, action-cost and facing rules.
-- Emit each meaningful movement segment or final movement event according to report granularity.
-- Stop/adjust only through named rules such as blocking, capacity, interception or a ruleset-defined partial move.
-
-### Phase 6: Resolve interception, blocking and contact
-
-- Determine route contacts, hostile blocks and hex capacity from the post-movement-intent geometry.
-- Use standard axial neighbours and deterministic tie-breaking.
-- Emit why a unit stopped or made contact.
-
-### Phase 7: Resolve non-combat actions
-
-- Execute eligible standard/primary/incidental actions in declared deterministic order.
-- Foundation implements only actions required by Hold/Advance/Attack; unsupported advanced hooks produce an explicit unsupported/invalid event.
-
-### Phase 8: Resolve combat simultaneously
-
-- Build all legal attack intents from the same pre-casualty combat snapshot.
-- Resolve LOS, visibility permission for target acquisition, range, facing/flanking, weapon/ammo and rolls.
-- Record raw dice and the complete calculation.
-- Do not remove an attacker merely because another attack in the same simultaneous group would destroy it.
-
-### Phase 9: Apply casualties and damage
-
-- Aggregate combat consequences in stable target/effect order.
-- Apply infantry FS caps, vehicle Hits, armour/AP/defence interpretation and destruction from the pinned ruleset.
-- Emit damage and destruction events and stable D1 persistent effects.
-
-### Phase 10: Structures, building and repair
-
-- Explicit no-op in the first Hold/Advance/Attack slice except any minimal fixture behavior.
-- Later handlers consume versioned structure/action definitions.
-
-### Phase 11: Logistics, ammunition and supply
-
-- Consume ammo already required by the minimal Attack implementation.
-- Full transfers, reload, supply and repair logistics remain a later vertical slice.
-
-### Phase 12: Cooldowns and status effects
-
-- Advance any foundation statuses deterministically; later definitions register named hooks.
-
-### Phase 13: Objectives and control
-
-- Explicit no-op or minimal fixture scoring in the foundation. Full campaign victory/failure is Phase 7 product work.
-
-### Phase 14: Persist authoritative campaign result
-
-- Atomically commit the new active DO state, canonical events, report/result hash, resolution journal and pending D1 effects.
-- Never perform a network/D1 call inside the DO storage transaction.
-
-### Phase 15: Apply persistent D1 consequences
-
-- Use the idempotent effects protocol in section 8.
-- Examples: Player Unit damage/status/death, equipment loss, unit history, ammunition if globally persistent, requisition reward/debit and immutable archive metadata.
-
-### Phase 16: Generate/publish round report
-
-- The canonical report is already deterministic engine output.
-- After required effects acknowledge, mark it publishable and derive viewer-specific event/report projections.
-
-### Phase 17: Advance campaign clock
-
-- Mark the old round `RESOLVED`, increment exactly once, create the next `OPEN` state/deadline, persist its schedule, then set the next alarm.
-- Do not advance while required D1 effects remain unresolved.
-
-## 7. Durable Object resolution journal
-
-`resolution/{round}` is the protocol authority for retries:
+1. returns an existing `resolution/{round}` when present;
+2. enters `RESOLVING`, records `snapshot/{round}`, selects current locked orders, and generates deterministic enemy orders;
+3. derives the predictable seed `${campaignId}:${round}:${rulesetVersion}:foundation-seed-commit`;
+4. calls the pure resolver inside the DO storage transaction;
+5. creates this landed record:
 
 ```ts
-type ResolutionJournal = {
+interface ResolutionRecord {
+  key: string;
   campaignId: string;
-  roundNumber: number;
-  status:
-    | "PREPARED"
-    | "RESOLVING"
-    | "RESULT_COMMITTED"
-    | "EFFECTS_PENDING"
-    | "EFFECTS_APPLIED"
-    | "RESOLVED"
-    | "FAILED";
-  attemptCount: number;
-  inputHash: string;
-  outputHash?: string;
-  rulesetHash: string;
-  engineVersion: string;
-  seedCommitment: string;
-  seedCiphertextOrReference: string;
-  eventCount?: number;
-  pendingEffectCount?: number;
-  acknowledgedEffectCount?: number;
-  errorCode?: string;
-};
+  round: number;
+  seed: string;
+  startedAt: number;
+  committedAt: number;
+  eventIds: string[];
+  stateDigest: string;
+}
 ```
 
-Protocol:
+6. atomically stores next state, `resolution/{round}`, result events, `pending-effect/{idempotencyKey}`, and the next round's `ROUND_STARTED` event;
+7. increments the round, sets phase back to `PLANNING`, installs the next clock, and arms the next alarm.
 
-1. **Prepare transaction:** verify `OPEN/LOCKED`, persist lock/snapshot, canonical input hash, seed commitment and `PREPARED` journal.
-2. **Compute:** mark/increment attempt, load the immutable input, and call the pure engine. A crash here safely recomputes.
-3. **Commit result transaction:** if no result exists, verify the input hash and atomically store next battlefield state, events, output hash, report and pending effects. If a matching output already exists, return it. A different output for the same input is a determinism incident.
-4. **Apply D1 effects:** retry until the D1 journal confirms every stable effect.
-5. **Finalize transaction:** acknowledge effects, publish report, advance round once, and schedule the next deadline.
+This transaction avoids a partial DO result. A repeated call for a completed round returns the stored record and does not rerun effects. However:
 
-The DO is the per-campaign serialization boundary, but code still checks expected round/status/version. Durable Object single-threaded execution does not remove reentrancy around `await`, duplicate deliveries, or crash recovery concerns.
+- there is no pre-compute `PREPARED` record or canonical input hash;
+- there is no attempt count/status machine or cryptographic output hash;
+- the seed is predictable and stored in plaintext (although report responses remove it);
+- a determinism mismatch cannot be detected against a committed output hash;
+- pending effects are never sent to/applied in D1;
+- the next round opens before permanent consequences acknowledge.
 
-## 8. D1 persistent-effects protocol
+Consequently a successful DO commit can show a destroyed battlefield unit while the D1 `player_units` row remains unchanged indefinitely.
 
-Each effect has a stable ID, ordinal, type, target, canonical payload and payload hash:
+## 7. Target resolution journal
+
+The accepted production protocol adds a status-bearing `resolution/{round}` record with at least:
 
 ```text
-campaignId:roundNumber:effectIndex:effectType:targetId
+status: PREPARED | RESOLVING | RESULT_COMMITTED |
+        EFFECTS_PENDING | EFFECTS_APPLIED | RESOLVED | FAILED
+attemptCount
+canonicalInputHash (cryptographic)
+canonicalOutputHash (cryptographic)
+rulesetContentHash
+engineArtifactVersionOrHash
+seedCommitment + protected seed reference/reveal policy
+event range/count
+pending/acknowledged effect counts
+diagnostic code
 ```
 
-The D1 effect applier is shared Worker runtime code callable from an HTTP/admin path or directly by the alarm-driven campaign DO. D1 exposes transactional prepared-statement batches rather than an interactive transaction callback, so the protocol does not rely on a race-prone application read followed by an unconditional write:
+Target steps:
 
-1. Claim an absent effect with `INSERT ... ON CONFLICT DO NOTHING` as `PENDING`, then read the canonical journal row.
-2. If it is `APPLIED` with the same payload hash, return its recorded result without mutating again.
-3. If its payload hash differs, fail closed and pause the campaign.
-4. A matching `PENDING` row is new or recovery work. Build prepared statements whose target mutation and stable history/ledger inserts are conditional on that exact row/hash remaining `PENDING`; finish by changing it to `APPLIED`.
-5. Execute the bounded round statements as one D1 transactional batch and return acknowledgements.
+1. **Prepare transaction:** lock the exact round, persist immutable input/snapshot, hashes/pins, protected seed commitment, and `PREPARED`.
+2. **Compute:** call the pure engine from the immutable input. A crash safely recomputes the same output.
+3. **Commit result transaction:** verify input hash; atomically store result state/events/output hash and pending effects. A different output hash for the same input pauses/fails closed.
+4. **Apply D1 effects:** retry stable effect commands until the D1 journal returns matching acknowledgements.
+5. **Finalise:** record all acknowledgements, publish the report, increment/open one next round, persist its schedule, and arm its alarm.
 
-A crash after the claim leaves visible `PENDING` recovery work. If the application batch rolls back, target mutations and `APPLIED` transitions roll back together. If it commits and the DO crashes before acknowledging, a retry sees `APPLIED` and is a no-op. Stable IDs on history/ledger rows are a second guard. The DO retains `pending-effect/{id}` until acknowledgement.
+This target must be implemented and crash-tested; describing the design in this document does not supply the guarantee.
 
-Large future rounds may chunk effects only after effect-level ordering, inter-chunk dependencies and finalization semantics have tests. The foundation favors one bounded batch.
+## 8. Target D1 persistent-effect protocol
 
-## 9. Events and reports
+Current resolver effect IDs use stable strings such as:
 
-A canonical event contains:
+```text
+campaignId:round:destroy:persistentUnitId
+campaignId:round:damage:persistentUnitId
+```
+
+Current DO records contain an ID, type, optional unit ID, payload, and status. Current D1 `persistent_effects` has an idempotency-key PK and status/attempt/error fields, but no runtime applier and no payload hash/ordinal/result fields.
+
+The target applier must:
+
+1. emit an ordered effect ID/ordinal and canonical payload hash;
+2. claim or read the D1 journal row without an unsafe read-then-unconditional-write race;
+3. reject the same ID with a different payload hash;
+4. apply the unit/equipment/history/ledger/archive mutation and mark the effect `APPLIED` in one D1 transactional batch;
+5. return an existing matching `APPLIED` result as success after lost acknowledgement;
+6. retain visible `PENDING`/`FAILED` recovery work and operator diagnostics;
+7. let the DO remove/acknowledge its pending record only after D1 confirmation.
+
+This requires implementation plus likely a follow-up D1 migration; it is not present in `worker/` today.
+
+## 9. Events, reports, and fog
+
+The actual event contract is:
 
 ```ts
-type CanonicalCampaignEvent = {
+interface CampaignEvent {
   eventId: string;
   campaignId: string;
-  roundNumber: number;
+  round: number;
   sequence: number;
-  phase: ResolutionPhase;
-  type: string;
-  actorId?: string;
-  subjectIds: string[];
-  payload: unknown;
-  logicalTime: number;
-  visibility: VisibilityClassification;
-};
+  type: CampaignEventType;
+  actor?: string;
+  payload: Record<string, unknown>;
+  timestamp: number;
+  visibility: "PUBLIC" | "ALLIED" | "ENEMY" | "ADMIN";
+}
 ```
 
-Events explain decisions, not just final values. A rejected move includes the failed segment and rule; an attack includes weapon, target, LOS/range/facing, roll, modifiers, effective armour/defence and outcome; a scheduled order failure includes the changed precondition.
+There is no `phase` or `subjectIds` field in the landed contract. Calculation payloads include raw/modified/capped dice and armour/defence/penetration outcomes for the implemented attacks.
 
-The engine produces the canonical stream. The campaign DO then updates intelligence state and projects each event for a viewer. Projection may omit the event, redact fields, replace an exact enemy with an unknown contact, or disclose a last-known observation. Raw events never travel to a normal client before projection.
+Current projection:
 
-The active DO log supports reconnect/replay. D1 `campaign_event_archive`, `order_archive` and `round_metadata` receive idempotent archival effects. R2 may later hold immutable large snapshots/replay exports, but R2 is not required to determine the result.
+- filters event visibility classification and present-time actor visibility;
+- hides non-visible deployments and other users' drafts;
+- removes resolution records and pending effects from state;
+- redacts dynamic fields on wholly unknown hexes;
+- runs stored report events through the same projector;
+- removes the seed from public resolution responses.
 
-## 10. Failure and retry matrix
+Remaining security work:
 
-| Failure point | Persisted state | Retry behavior | Required outcome |
-|---|---|---|---|
-| Before prepare commit | old round remains `OPEN/LOCKED` | repeat lock/prepare command | one snapshot/input |
-| After prepare, before/during compute | `PREPARED` with immutable input hash | recompute with same seed/input | identical output |
-| During result storage transaction | transaction rolls back | recompute or reuse journal input | no partial state/events |
-| After result commit, before D1 | `RESULT_COMMITTED`/pending effects | skip compute; apply effects | no duplicate event/result |
-| During D1 transaction | D1 rolls back batch | retry same effects | no partial permanent consequences |
-| D1 commits, acknowledgement lost | D1 effect rows exist; DO still pending | matching IDs/hashes return success | no double death/spend/history |
-| After effects ack, before round advance commit | effects acknowledged | finalize transaction again | one next round |
-| Duplicate/late alarm | consumed schedule/journal state exists | semantic no-op; arm next event | no round skip or duplicate |
-| WebSocket disconnect | authoritative state unchanged | reconnect and request filtered snapshot/events | no gameplay impact |
+- event payload fields such as `targetId` are not independently projected, so a public event with a visible actor can identify a hidden target;
+- report projection uses current state/visibility, not the viewer's event-time intelligence;
+- `CampaignView` is not a narrow versioned safe DTO;
+- live broadcasts are generic rather than derived for each viewer audience and can include unit/order identifiers;
+- there is no `events-after-sequence` catch-up endpoint.
 
-An input-hash mismatch, output-hash mismatch, effect-hash collision, missing pinned ruleset/engine, or impossible persistent transition is not blindly retried. Pause the campaign, retain evidence, emit structured diagnostics, and expose an admin repair decision.
+Sockets are read-only for commands; gameplay correctness does not depend on receiving a broadcast.
 
-## 11. Security and authorization during resolution
+## 10. Failure status
 
-- Order commands require authenticated campaign membership and ownership or explicit delegated command permission.
-- The actor/permission decision is recorded with the accepted revision for audit, but lock-time validation still confirms the unit/deployment relationship.
-- Admin manual lock/resolve invokes the same state machine and records the admin principal; it is not an alternate resolver.
-- Enemy AI receives a rules-defined knowledge projection, not canonical omniscient state unless a campaign explicitly defines omniscience.
-- Viewer report projection is evaluated at read/broadcast time using event disclosure and intelligence history.
-- A client cannot choose seed, ruleset, engine version, final statistics, resolved target legality, or event result.
+| Failure point | Current outcome | Target closure |
+|---|---|---|
+| Before DO result transaction commits | No result should persist; retry re-enters current round | PREPARED input makes recovery explicit |
+| During pure compute | DO transaction fails/retries; no attempt journal exists | Recompute immutable prepared input and count attempts |
+| After DO result commit | Existing `resolution/{round}` returns duplicate; result/events are not duplicated | Also verify input/output hashes |
+| Before/during D1 effects | No applier exists; pending record remains forever while next round is open | Transactional applier plus `EFFECTS_PENDING` gate |
+| Duplicate/late alarm | Round/phase/journal generally makes it a no-op | Persist consumed schedule record and integration-test all crash points |
+| WebSocket disconnect | Authoritative DO state remains | Filtered snapshot plus events-after-sequence catch-up |
 
-## 12. Observability
+## 11. Verification status
 
-Every protocol log record includes as applicable:
+Implemented tests cover pure RNG, hex geometry/routes/LOS/capacity, mechanics, fog projection, deterministic resolver fixtures, event sequence continuation, exact revision handling, cooldown timing, Hold facing, simultaneous capacity contests, attack/action legality, and clock/auth policy including pause/resume and manual mode.
 
-```text
-requestId, commandId, campaignId, roundNumber, scheduleId,
-resolutionAttempt, inputHash, outputHash, effectId,
-userId, unitId, orderId, orderRevision, phase, durationMs, errorCode
-```
+Still required before production:
 
-Do not log credentials, full session tokens, hidden battlefield payloads, or secret seed material. Admin diagnostics expose hashes, phase/rejection reasons and authorized state inspection sufficient to answer why movement, targeting, visibility or clock advancement behaved as it did.
+- workerd integration tests for duplicate/late alarms and DO eviction/restart;
+- crash injection before/after PREPARED, result commit, every D1 effect batch, acknowledgement, and next-round finalisation;
+- D1 applier tests proving one death/damage/history/ledger/archive mutation;
+- mismatched input/output/effect hash fail-closed tests;
+- WebSocket hibernation/reconnect and events-after-sequence tests;
+- event-time snapshot/report/socket leakage tests for opposing viewers.
 
-## 13. Required tests
+## 12. Resolution decisions
 
-### Pure engine
+### ADR-R01: Pure deterministic resolver stages
 
-- axial neighbours/distance and route continuity/cost;
-- elevation, rivers/roads, capacity and facing/flanking;
-- LOS and fog/intelligence primitives;
-- speed/action cost and authoritative order validation;
-- range, FS cap, Hits, armour, AP, defence, ammo and death;
-- simultaneous attack eligibility and casualty application;
-- fixed seed/input produces byte-equivalent state and event sequence;
-- meaningful dice calculations are present in events;
-- input collection permutations do not change output.
+**Status:** Implemented for the foundation subset; full phase catalogue deferred.
 
-### Campaign protocol
+**Decision:** Rules computation is pure and receives time/seed explicitly.
 
-- submit/edit/replace/cancel before lock and rejection after lock;
-- manual plus 1/5/30-minute clock behavior using controllable time;
-- pause/resume and duplicate/late alarm;
-- crash injection at every row in the failure matrix;
-- repeated resolve returns one result/event range;
-- repeated D1 effects yield one mutation/history/ledger row;
-- a mismatched input/output/effect hash pauses rather than corrupts;
-- reconnect catches up from a filtered snapshot/event sequence;
-- different viewers cannot infer hidden enemy state from snapshots, events or report payload size/fields.
+**Trade-off:** More explicit state/contracts; advanced mechanics require named handlers and fixtures.
 
-## 14. Resolution decision records
-
-### ADR-R01: Explicit pure phase pipeline
-
-**Status:** Accepted  
-**Decision:** Use typed phases with immutable input/output rather than a giant stateful `resolveRound`.  
-**Trade-off:** More intermediate types and fixtures; sequencing is visible and independently testable.  
-**Revisit trigger:** Phase overhead is measured as a material bottleneck after correctness, at which point internal representations may optimize without erasing phase contracts.
+**Revisit:** Optimise representations only after profiling, without reintroducing hidden state or randomness.
 
 ### ADR-R02: Snapshot plus events, not full event sourcing
 
-**Status:** Accepted  
-**Decision:** Current state is authoritative; immutable snapshots/events provide replay and audit.  
-**Trade-off:** Arbitrary state reconstruction depends on retained snapshots.  
-**Revisit trigger:** Temporal queries/reprojection become core requirements and event evolution tooling exists.
+**Status:** Partially implemented.
 
-### ADR-R03: Gate next round on required D1 effects
+**Decision:** Current DO state is authoritative; snapshots/events provide explanation and bounded replay.
 
-**Status:** Accepted for correctness-first foundation  
-**Decision:** Commit the DO result first, retry D1 effects idempotently, and open the next round only after acknowledgement.  
-**Trade-off:** A D1 outage can leave a campaign in `EFFECTS_PENDING`, though no result is lost or duplicated.  
-**Revisit trigger:** Availability requirements demand planning the next round while persistence catches up; only adopt after commands can safely respect pending consequences.
+**Trade-off:** Historical reconstruction depends on retained snapshots and schema governance.
 
-### ADR-R04: Server-secret deterministic seed
+**Revisit:** If arbitrary temporal reprojection becomes a core requirement.
 
-**Status:** Accepted  
-**Decision:** Derive/store seed material server-side and expose commitment/reveal evidence rather than use an easily predicted public seed.  
-**Trade-off:** Secret management and audit tooling are required.  
-**Revisit trigger:** The game adopts a verifiable public randomness or commit/reveal protocol with equivalent replay and anti-prediction properties.
+### ADR-R03: Gate the next round on required D1 effects
+
+**Status:** Accepted target, **not implemented**.
+
+**Decision:** DO result first, idempotent D1 effects second, next round only after acknowledgement.
+
+**Trade-off:** D1 outage pauses progress in `EFFECTS_PENDING`, but cannot silently diverge permanent state.
+
+**Revisit:** Only after a rigorously tested model lets planning safely coexist with unapplied consequences.
+
+### ADR-R04: Server-secret deterministic seed and cryptographic evidence
+
+**Status:** Accepted target, **not implemented**.
+
+**Decision:** Protect deterministic seed material and expose commitment/reveal or equivalent audit evidence with cryptographic input/output hashes.
+
+**Trade-off:** Requires secret management and repair/audit tooling.
+
+**Revisit:** If a verifiable public randomness protocol provides equivalent replay and anti-prediction properties.
+
+See [DATA_MODEL.md](./DATA_MODEL.md) for current record/table shapes and [CLOUDFLARE.md](./CLOUDFLARE.md) for alarm/environment/deployment boundaries.

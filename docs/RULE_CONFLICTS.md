@@ -32,7 +32,7 @@ This overlay records current capability without adding, deleting, closing, or ch
 | Movement simultaneity | Partial | Endpoint capacity and same-destination contests execute. The selected distance-increment hostile contention in `RC-V5-031` is not yet implemented. |
 | Server trust boundary | Executable | The worker resolves the unit definition, checks class `allowedOrders`/`allowedActions`, rejects non-executable definitions, and derives action economy/Speed cost from the pinned catalogue. Client values are not authority; the resolver revalidates normalized orders. |
 | Determinism/replay | Executable | Stable order sorting, exact order ID/revision lifecycle, same-round event sequence continuation, simultaneous damage, idempotent replay, and stable persistent-effect keys are tested. |
-| Seed secrecy and hidden information | Executable | Seeds remain in private resolution storage and are omitted from events, campaign views, public reports, and broadcasts. Side projections redact unseen deployments/orders and sensitive event/map payloads. |
+| Seed secrecy and hidden information | Executable | Seeds remain in private resolution storage and are omitted from events, campaign views, public reports, and broadcasts. Side projections redact unseen deployments/orders and dynamic unknown-hex fields, and withhold deployment-actor events when that actor is unseen. |
 | Canonical roster and support/aerospace systems | Partial/catalogued | Five allied foundation unit definitions are present; the full thirteen-class canonical roster and its special systems are not yet executable. No legacy class may fill a missing canonical definition. |
 
 At this reconciliation baseline, `npx vitest run packages/rules-engine/test` passes **7 test files / 62 tests**. That result verifies the overlay, not the unimplemented canonical rules described by the records below.
@@ -158,7 +158,7 @@ At this reconciliation baseline, `npx vitest run packages/rules-engine/test` pas
 ### RC-UNIT-014 — Orbital Crew, Light Freighter, and hulls
 
 - **V5 value:** `V5 > Orbital Crew`: `FS 3, Speed 1, No Weapon`, two Req of orbital equipment; may refit to a 1 FS captain “that comes with a Light Freighter.” No Light Freighter or hull stat block is provided.
-- **Companion values:** `Classes > Corvette/Destroyer/Cruiser/Battleship`: each Health 10; Armor `2/3/4/5`; Speed `4/3/2/1`; Range 6; External/Internal slots `2/4`, `3/4`, `4/4`, `5/4`; cargo `2/4/6/8`; costs displayed as `0`, `..1`, `....2`, `......3`.
+- **Companion values:** `Classes > Corvette`, `Classes > Destroyer`, `Classes > Cruiser`, and `Classes > Battleship`: each Health 10; Armor `2/3/4/5`; Speed `4/3/2/1`; Range 6; External/Internal slots `2/4`, `3/4`, `4/4`, `5/4`; cargo `2/4/6/8`; costs displayed as `0`, `..1`, `....2`, `......3`.
 - **Disposition:** Orbital Crew and all hulls are catalogue-only/blocked. No automatic `Health → Hits`, dotted-cost parse, Light Freighter substitution, or cargo-size assumption is allowed.
 - **Status:** `BLOCKED`.
 
@@ -207,7 +207,7 @@ At this reconciliation baseline, `npx vitest run packages/rules-engine/test` pas
 
 ### RC-MAP-003 — Hex occupancy and facing model
 
-- **Legacy value:** `Actions > Hex Position`: a hex has three unit sections, normally holds three units, and terrain reduces capacity; first infantry occupies a directed forward position. Infantry battlelines and rear weak-spot hex walls follow.
+- **Legacy value:** `Actions > Hex Postion` (source spelling): a hex has three unit sections, normally holds three units, and terrain reduces capacity; first infantry occupies a directed forward position. Infantry battlelines and rear weak-spot hex walls follow.
 - **V5 value:** mini/measurement agnostic; only direct rear attacks and submitted facing are mechanically specified.
 - **Disposition:** facing is active for flanking, but three-section occupancy, stacking limit, and battleline walls are rejected. Scenario occupancy remains explicit data.
 - **Status:** `RESOLVED-MVP`.
@@ -268,7 +268,7 @@ At this reconciliation baseline, `npx vitest run packages/rules-engine/test` pas
 ### RC-BUILD-007 — Repair in FS versus Hits
 
 - **V5 value:** `V5 > Engineers > Action Repair`: remove one vehicle Hit or fix one subsystem for one Supply.
-- **Legacy values:** `Classes > Combat Engineers/Sappers`: repair vehicles at `2 FS` per action; `Build > Vehicle Repair Center` and `VTOL Maintenance Landing Platform`: repair `2 FS` per turn/round; `Store > Mech Bay/Heavy Ground Vehicle Bay` also repair in FS.
+- **Legacy values:** `Classes > Combat Engineers` and `Classes > Sappers`: repair vehicles at `2 FS` per action; `Build > Vehicle Repair Center` and `VTOL Maintenance Landing Platform`: repair `2 FS` per turn/round; `Store > Mech Bay` and `Store > Heavy Ground Vehicle Bay` also repair in FS.
 - **Disposition:** the V5 engineer repair is active. Every FS-based vehicle repair effect is catalogue-only pending conversion to Hits and an action/Supply cost.
 - **Status:** `RESOLVED-MVP`/`BLOCKED` by item.
 

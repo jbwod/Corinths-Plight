@@ -31,6 +31,7 @@ import { viewerFromInternalRequest } from "./auth";
 import { generateEnemyOrders } from "./enemy-ai";
 import type { Env } from "./env";
 import { errorResponse, json, readJson } from "./http";
+import { validateIncidentalActions } from "./order-validation";
 
 const STATE_KEY = "state/current";
 const FOUNDATION_CAMPAIGN_ID = "outpost-k17";
@@ -291,6 +292,10 @@ export class CampaignDurableObject extends DurableObject<Env> {
     const weaponIds = new Set(deployment.weapons.map((weapon) => weapon.id));
     const equipmentIds = new Set(deployment.equipmentIds);
     const allowedActions = new Set(definition.allowedActions);
+    const incidentalValidation = validateIncidentalActions(intent.incidentalActions);
+    if (!incidentalValidation.legal) {
+      return errorResponse(422, "ACTION_INELIGIBLE", incidentalValidation.reason);
+    }
     let actions: StructuredAction[];
     let incidentalActions: StructuredAction[];
     try {

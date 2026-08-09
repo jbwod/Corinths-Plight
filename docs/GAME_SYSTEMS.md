@@ -123,10 +123,10 @@ This glossary states canonical profile meaning. Terms marked as foundation-defer
 - **Cover**: a visible solid object, building, or woods between attacker and target that either grants Armor or blocks LOS. Multiple cover Armor bonuses do not stack.
 - **Facing**: the direction recorded for a ground unit and used to determine direct rear attacks. Changing facing has no separate Speed cost in this profile.
 - **Small Supply**: tactical ammunition, repair, medical, or construction supply.
-- **Medium Supply**: FOB construction/operation resource; deferred in the MVP.
-- **Large Supply**: strategic orbital/HQ resource; deferred in the MVP.
+- **Medium Supply**: FOB construction/operation resource; deferred in the selected profile and not foundation-executable.
+- **Large Supply**: strategic orbital/HQ resource; deferred in the selected profile and not foundation-executable.
 - **Requisition Value (Req)**: purchase/customization cost. The concept is canonical, but the economy is blocked pending complete prices and budgets.
-- **Cooldown**: whole rounds remaining before an ability can be used again. Optional equipment cooldowns are catalogue data only in the MVP.
+- **Cooldown**: whole rounds remaining before an ability can be used again. Foundation weapon cooldowns execute; optional equipment cooldowns are catalogue data only.
 
 ### 2.4 Canonical tags
 
@@ -137,7 +137,7 @@ This glossary states canonical profile meaning. Terms marked as foundation-defer
 - **Atmo Flight**: fixed-wing atmospheric flight requiring a runway to land.
 - **Aerospace**: may transition between the tactical map and high orbit using half total Speed.
 - **Aerospace Interceptor**: attacking an Aerospace target constrains that target's attack as described under Aerospace (`RC-V5-028`).
-- **Ponderous**: direct movement with firing only from the ending position. V5 currently applies it to orbitals, so it is catalogue-only in the MVP.
+- **Ponderous**: direct movement with firing only from the ending position. V5 currently applies it to orbitals, so it is catalogue-only in this profile.
 - **Primary**: identifies a Primary Action; it is not an equipment slot.
 
 ## 3. Round lifecycle
@@ -237,7 +237,7 @@ This is a canonical rule and is foundation-deferred.
 
 A melee-capable infantry or power-armored unit may declare a charge from at most `1.5` distance units. It forgoes ranged attacks. If caught by the charge, a ranged defender that has not attacked may fire first; this damage is committed before the charging unit attacks. Survivors attack without the target's Defense, although Armor still applies.
 
-The participants then gain `brawl`. Other units may only join with a melee charge or support with an explicitly highly accurate weapon. The optional Store equipment that normally grants melee/highly accurate capability remains catalogue-only, so this subsystem is generally unreachable with MVP base loadouts.
+The participants then gain `brawl`. Other units may only join with a melee charge or support with an explicitly highly accurate weapon. The optional Store equipment that normally grants melee/highly accurate capability remains catalogue-only. The entire subsystem is foundation-deferred.
 
 ### 3.10 Stealth
 
@@ -287,10 +287,10 @@ MASH deployment and legacy fixed `2 FS/turn` healing are not active.
 
 All listed construction uses a Standard Action unless identified as Primary:
 
-| Effect | Cost | MVP behavior |
+| Effect | Cost | Canonical profile behavior |
 |---|---:|---|
 | Repair vehicle | 1 Small Supply | Remove one Hit or one subsystem malfunction. |
-| Sandbag line | 1 Small Supply | Cover long enough for two infantry squads; `+1 Armor` across the protected side. Other than Bridges, MVP structures cannot be attacked until durability data exists (`RC-BUILD-006`). |
+| Sandbag line | 1 Small Supply | Cover long enough for two infantry squads; `+1 Armor` across the protected side. Other than Bridges, profile structures cannot be attacked until durability data exists (`RC-BUILD-006`). |
 | Trench upgrade | No additional Supply stated | An Infantry Squad at a sandbag line uses a Primary Action to convert it (`RC-V5-022`). Units may move along the trench while preserving Dig In; leaving it or a hostile entering ends that benefit. |
 | Razor wire | 1 Small Supply | `0.5` additional Speed for infantry crossing; length `0.5` Range. |
 | Tank traps | 1 Small Supply | `1` additional Speed for vehicles crossing; length `0.5` Range. |
@@ -303,7 +303,7 @@ Build Points, walls, gates, roads, bunkers, emplacements, depots, radar, repair 
 ### 5.3 Artillery
 
 - Deploy or pack up, including hitch/unhitch, costs `0.5 Speed`.
-- `Primary Bombardment`: hostile Defense in a radius of 1 around the target is reduced by 1. Repeated rounds and multiple artillery stack; the MVP clamps total Defense at zero (`RC-V5-012`). One point recovers after each round without bombardment.
+- `Primary Bombardment`: hostile Defense in a radius of 1 around the target is reduced by 1. Repeated rounds and multiple artillery stack; the profile clamps total Defense at zero (`RC-V5-012`). One point recovers after each round without bombardment.
 - `Primary Funnel`: after a moving hostile completes movement but before conflicts resolve, move it `0.5` distance in the player's chosen legal direction.
 - Direct anti-orbital attack: D6 against a low-orbit orbital in Range; unavailable while orbital combat is blocked.
 - Each Bombardment, Funnel, or direct shot spends one Small Supply (`RC-V5-011`).
@@ -320,15 +320,15 @@ Cargo is capacity, not a second movement system.
 - HAT: five slots; 6 FS infantry=one, one vehicle=two, 5 Small Supply=one, one Medium Supply=two, one Large Supply=five.
 - Light Vehicle: either 4 FS infantry or one Small Supply.
 - IFV: 6 FS infantry.
-- VTOL: either 6 FS infantry or two Small Supply for MVP purposes.
+- VTOL: either 6 FS infantry or two Small Supply for this profile.
 
 Loading/unloading normally costs both units a Standard Action. A HAT pays `0.5 Speed` per occupied cargo slot involved; the transported unit pays one Standard Action. A HAT paradrop into clear open space is a class-specific exception: infantry/light vehicles may exit in flight without paying that unloading cost. Logi may reload another unit with its own Standard Action; the recipient pays no action.
 
-HAT paradrops are active only into clear open spaces. Hazardous forest/urban drops are rejected by MVP validation until the incomplete vehicle result table is resolved (`RC-V5-018`).
+The canonical profile permits HAT paradrops only into clear open spaces and blocks hazardous forest/urban drops until the incomplete vehicle result table is resolved (`RC-V5-018`). No paradrop is foundation-executable yet.
 
 When cargo resolution is implemented, destruction of a transport containing units or non-Supply mission cargo must emit `cargo_destruction_requires_adjudication` and freeze carried records at the transport position. The current foundation has no cargo state transition and emits no such event. The sources supply no universal passenger/cargo survival rule, so future code must not destroy, deploy, or damage cargo automatically (`RC-V5-030`).
 
-Engineer carried Supply and Medic Medical Supply have capacity tied to current FS. Damage that lowers FS below the current carried amount does not silently delete resources: the unit may retain the excess but cannot load/reload more until its load is within capacity (`RC-V5-029`). Tactical scenarios must seed Supply sources and starting loads; with Medium/Large Supply deferred, the MVP does not generate an unlimited stockpile implicitly.
+Engineer carried Supply and Medic Medical Supply have capacity tied to current FS. Damage that lowers FS below the current carried amount does not silently delete resources: the unit may retain the excess but cannot load/reload more until its load is within capacity (`RC-V5-029`). Tactical scenarios must seed Supply sources and starting loads; with Medium/Large Supply deferred, the profile does not generate an unlimited stockpile implicitly.
 
 ### 5.5 Aerospace
 
@@ -336,7 +336,7 @@ All behavior in this subsection is canonical but foundation-deferred.
 
 - Atmo Flight units need a runway to land in atmosphere and can perform at most one of landing or takeoff per round.
 - Aerospace units spend half total Speed to move between the tactical map and high orbit and cannot reverse that transition in the same round.
-- Fighters and bombers cannot spot ground targets and must land at a friendly airfield/flight deck to repair or rearm. A reload is a Primary Action; MVP airfields do not consume a tracked crate for it (`RC-V5-023`).
+- Fighters and bombers cannot spot ground targets and must land at a friendly airfield/flight deck to repair or rearm. A reload is a Primary Action; profile airfields do not consume a tracked crate for it (`RC-V5-023`).
 - Fighter attacks use the forward 180° arc along the travel path.
 - When an Aerospace Interceptor declares a legal attack against an Aerospace target, that target may attack only a legal Interceptor that attacked it. If several qualify, the target controller chooses; NPC ties use the standard deterministic target policy. If none is a legal target for the intercepted unit, it loses its attack activation (`RC-V5-028`).
 - Bomber attacks require the movement path to pass over the target.
@@ -358,7 +358,7 @@ The V5 order format is authoritative. The deprecated sheet contributes useful st
 | `order_type` | Foundation: Hold, Advance, or Rush, subject to the unit class allowed list. Eligible special orders remain canonical but are rejected while `executable=false`. |
 | `start_position`, `end_position`, `route` | Scenario coordinate type plus ordered path. |
 | `end_facing` | Required for ground units because rear attacks are active. |
-| `actions` | Client sends action type and intent fields. The server supplies canonical economy and Speed cost. Foundation permits at most one Attack. |
+| `actions` | Client sends action type and intent fields. The server supplies canonical economy and Speed cost. Foundation permits at most one Attack in this executable action ledger; Attack is not an incidental action. |
 | `attack_targets` | Foundation: target and fitted weapon for the single Attack action. Multiweapon target policy is deferred. |
 | `current_state_version` | Optimistic-concurrency token for the server snapshot. |
 | `rp` | Optional, non-mechanical text. |
@@ -392,7 +392,7 @@ The present deterministic seed construction is an implementation replay key, not
 
 ### 6.3 Hidden-information boundary
 
-Campaign views include a player's own deployments/orders and only currently observable enemies. Unknown hexes retain public terrain/memory state but redact dynamic control, objectives, structures, and hazards. Events are projected by visibility; a nominally public event must still have sensitive payload fields removed when they would reveal an unseen route or target. Resolution journals, seeds, and pending persistent effects are server-only. Administrators may receive the full authorized projection, but projection MUST NOT mutate authoritative state.
+Campaign views include a player's own deployments/orders and only currently observable enemies. Unknown hexes retain public terrain/memory state but redact dynamic control, objectives, structures, and hazards. Events are projected by visibility and actor observability; a nominally public event whose deployment actor is unseen is withheld with its entire payload so it cannot reveal an unseen route or target. Resolution journals, seeds, and pending persistent effects are server-only. Administrators may receive the full authorized projection, but projection MUST NOT mutate authoritative state.
 
 ## 7. Catalogue and provenance model
 
