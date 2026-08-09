@@ -12,7 +12,7 @@
 
 The repository builds a React/Vite client and one Cloudflare Worker containing the public API plus the exported `CampaignDurableObject`. D1 and a named Campaign DO namespace are configured. The V1 Flask application remains reference code and is not imported into the Worker.
 
-The local/typecheck/lint/test/build foundation is implemented. A remote preview or production deployment has **not** been completed. All Wrangler D1 IDs are placeholders, and the production package scripts intentionally fail until the production ID is replaced. Therefore the `gameplan.md` section 56 “deploy successfully to Cloudflare” gate remains open.
+The local/typecheck/lint/test/build foundation is implemented and production was deployed on 2026-08-09. The primary custom domain is `https://corinthplight.qnetica.com.au`; `https://corinths-plight.cybercow-now.workers.dev` remains enabled as a fallback. Production version `dcf7463d-6176-4377-8f01-451d7e40e3e4` binds D1 database `corinths-plight-production` (`c75ca7bc-f10b-4987-853d-f387d377bdb9`). Both migrations and the curated seed were applied remotely, and the custom-domain `/api/health` endpoint returned HTTP 200 over TLS. Preview remains unprovisioned.
 
 ## 2. Current runtime topology
 
@@ -82,7 +82,7 @@ The values below are the actual `wrangler.jsonc` entries:
 |---|---|---:|---:|---|---|
 | default (local development) | `corinths-plight` / `development` | `true` | 5m / 30s | `corinths-plight`, `...0001` placeholder | Local-only |
 | `--env preview` | `corinths-plight-preview` / `preview` | `false` | 30m / 30s | `corinths-plight-preview`, `...0002` placeholder | Not provisioned/deployed |
-| `--env production` | `corinths-plight` / `production` | `false` | 24h / 30s | `corinths-plight-production`, `...0003` placeholder | Guarded; not provisioned/deployed |
+| `--env production` | `corinths-plight` / `production` | `false` | 24h / 30s | `corinths-plight-production`, `c75ca7bc-f10b-4987-853d-f387d377bdb9` | Deployed; custom domain + `workers_dev` fallback |
 
 Clock values change configuration only; manual/accelerated/production alarms call the same DO lock/resolve functions.
 
@@ -176,16 +176,7 @@ Actual root scripts are:
 | `deploy:dry` | Runs guard + production build + `wrangler deploy --dry-run --env production` |
 | `deploy` | Runs guard + production build + `wrangler deploy --env production` |
 
-With the current repository, the guard is expected to fail. That is a safety control, not a failed release test.
-
-Before any production command can succeed:
-
-1. provision the real production D1 database and replace only the production placeholder with its real ID;
-2. authenticate Wrangler to the intended Cloudflare account and verify account/resource ownership;
-3. run production migrations and the seed against an isolated non-user dataset first;
-4. run `seed:check`, typecheck, lint, tests, and `build:production`;
-5. run `deploy:dry`, inspect the selected `production` environment/bindings, then deploy;
-6. run read-only health/version checks and an isolated accelerated smoke campaign.
+The guard now passes because production has a provisioned D1 ID. The completed release sequence was: verify the authenticated account, create the isolated production database, apply both migrations and the curated seed, run the validator/typecheck/lint/tests/production build, inspect `deploy:dry`, deploy, and perform read-only health and D1-count checks. Keep this sequence for later releases.
 
 Preview provisioning/deployment is also not scripted at the package level. It requires a real preview D1 ID and explicit `--env preview` on every Wrangler operation. Preview must complete before production.
 

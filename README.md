@@ -43,7 +43,7 @@ npm run build
 npm run build:production
 ```
 
-Remote migration/deployment requires a provisioned Cloudflare D1 database, an authenticated Wrangler session, and replacement of the documented placeholder database ID. After that, run `npm run deploy:dry` and `npm run deploy`. The production scripts always select the production Wrangler environment.
+Production is deployed at [corinthplight.qnetica.com.au](https://corinthplight.qnetica.com.au), with the `workers.dev` route retained as a fallback. Later releases should run `npm run deploy:dry` before `npm run deploy`; both scripts select the production Wrangler environment and its provisioned D1 binding.
 
 ## Repository map
 
