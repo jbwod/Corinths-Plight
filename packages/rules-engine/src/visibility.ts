@@ -1,0 +1,76 @@
+import type {
+  CampaignEvent,
+  CampaignRuntimeState,
+  CampaignView,
+  ViewerContext,
+} from "../../domain/src";
+import { coordKey, visibleHexes } from "./hex";
+
+export function projectEvents(events: CampaignEvent[], viewer: ViewerContext): CampaignEvent[] {
+  return events.filter((event) => {
+    if (viewer.role === "ADMIN") return true;
+    if (event.visibility === "PUBLIC") return true;
+    if (viewer.side === "ALLIED" && event.visibility === "ALLIED") return true;
+    if (viewer.side === "ENEMY" && event.visibility === "ENEMY") return true;
+    return false;
+  });
+}
+
+export function projectCampaignState(
+  state: CampaignRuntimeState,
+  viewer: ViewerContext,
+  serverTime: number,
+): CampaignView {
+  const observers = state.deployments.filter(
+    (deployment) => deployment.side === viewer.side && deployment.status !== "DESTROYED",
+  );
+  const visible = viewer.role === "ADMIN" ? new Set(state.map.map((hex) => coordKey(hex.coord))) : visibleHexes(observers, state.map);
+  const deployments = state.deployments.filter(
+    (deployment) => deployment.side === viewer.side || visible.has(coordKey(deployment.position)),
+  );
+  const map = state.map.map((hex) => ({
+    ...hex,
+    visibility: visible.has(coordKey(hex.coord))
+      ? ("VISIBLE" as const)
+      : hex.visibility === "OBSERVED"
+        ? ("OBSERVED" as const)
+        : ("UNKNOWN" as const),
+    ...(viewer.role !== "ADMIN" && !visible.has(coordKey(hex.coord)) && hex.visibility !== "OBSERVED"
+      ? {
+          control: "NEUTRAL" as const,
+          objectiveId: undefined,
+          structureIds: [],
+          environment: [],
+        }
+      : {}),
+  }));
+  const orders = state.orders.filter(
+    (order) => {
+      if (viewer.role === "ADMIN") return true;
+      const deployment = deployments.find((candidate) => candidate.id === order.unitId);
+      if (!deployment || deployment.side !== viewer.side) return false;
+      return order.lifecycle !== "DRAFT" || order.submittedBy === viewer.userId;
+    },
+  );
+  const allDeploymentIds = new Set(state.deployments.map((deployment) => deployment.id));
+  const visibleDeploymentIds = new Set(deployments.map((deployment) => deployment.id));
+  const events = projectEvents(state.events, viewer).filter(
+    (event) =>
+      viewer.role === "ADMIN" ||
+      !event.actor ||
+      !allDeploymentIds.has(event.actor) ||
+      visibleDeploymentIds.has(event.actor),
+  );
+  const { resolutions: _resolutions, pendingPersistentEffects: _effects, ...publicState } = state;
+  void _resolutions;
+  void _effects;
+  return {
+    ...publicState,
+    map,
+    deployments,
+    orders,
+    events,
+    viewer,
+    serverTime,
+  };
+}

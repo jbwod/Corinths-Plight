@@ -6,3 +6,11 @@ development/
 *.pyc
 *.db
 .DS_Store
+
+# TypeScript / Cloudflare foundation
+node_modules/
+dist/
+coverage/
+.wrangler/
+.dev.vars
+*.tsbuildinfo

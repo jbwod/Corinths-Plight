@@ -1,0 +1,454 @@
+# Corinth's Plight Game Systems
+
+## Document status
+
+- Selected rules profile: `v5_core_curated`
+- Canonical status: selected rules and data contract for `v5_core_curated`
+- Executable status: foundation resolver `foundation-0.1.0`; deliberately narrower than the canonical profile
+- Companion conflict register: `docs/RULE_CONFLICTS.md`
+- Audited sources: all six files currently under `rules/`
+
+This document has two independent jobs. It selects the canonical rules for the profile, and it records the smaller subset the current foundation can execute. A rule may therefore be canonical without being executable. A rule being present in a source does not make it canonical, and a record being present in the catalogue does not make it executable.
+
+Every source disagreement or interpretive ruling is recorded in `RULE_CONFLICTS.md`; implementations MUST NOT silently substitute a different value. Likewise, an unsupported canonical order or action MUST be rejected as deferred, not ignored, converted to Hold, or accepted as a mechanical no-op.
+
+The key words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** are normative.
+
+## 1. Selected profile
+
+`v5_core_curated` uses the V5 core engine, explicit V5 errata, and only companion content that can be represented without reviving the older engine.
+
+### 1.1 Source priority
+
+For this profile, source authority is:
+
+1. `rules/Meta - Core Rules (V5).md`, main rules text.
+2. The Change Log in that same file when it states an intended V5 change that was plainly omitted from the main text. Such use must have a conflict-register decision ID.
+3. Non-conflicting descriptive or catalogue data from `rules/Classes.html` and `rules/The Store - Equipment List.html`.
+4. `rules/Build and Supply System.html` and `rules/Actions and Rules Work ( For Shack Reference).html` as historical/reference material only.
+5. `rules/Order Formatting - Needs Rework.html` as a deprecated template only.
+
+The unversioned class and equipment exports may be companions to the spreadsheet linked by V5, but their embedded mechanics demonstrably mix rules generations. They therefore do not override V5 merely because V5 links to a spreadsheet.
+
+If two sources at the same priority disagree, the feature remains inactive until `RULE_CONFLICTS.md` records a disposition. If a field is absent, it remains `null`; the implementation MUST NOT invent a value.
+
+### 1.2 Canonical activation and implementation states
+
+Every rule, unit, item, structure, and scenario option has a **canonical activation** state:
+
+| State | Meaning |
+|---|---|
+| `canonical_active` | Selected as profile truth directly from the controlling source. This does not claim the current resolver implements it. |
+| `active_provisional` | Selected profile behavior depends on a documented interpretation identified by a conflict ID. This does not claim the current resolver implements it. |
+| `catalogued` | Searchable/displayable source content with no executable effect. |
+| `deferred` | Intentionally outside the selected playable scope, even if well described. |
+| `blocked` | Intended for later activation but missing data or a ruling. |
+| `rejected_by_profile` | Belongs to a different/legacy rules profile and must not affect V5 play. |
+
+Implementation is a separate axis:
+
+| State | Meaning |
+|---|---|
+| `foundation_executable` | Accepted by the server boundary and resolved deterministically by `foundation-0.1.0`. |
+| `foundation_partial` | A bounded subset is executable; the omitted canonical behavior is named explicitly. |
+| `foundation_helper` | A deterministic validator/catalogue helper exists, but no round action invokes the system. |
+| `foundation_deferred` | Canonical data may exist, but the server rejects the order/action until a resolver hook exists. |
+| `not_executable` | Catalogued, blocked, rejected, or otherwise incapable of affecting resolution. |
+
+Canonical status MUST NOT be inferred from an implementation flag, and implementation completion MUST NOT be inferred from `RESOLVED-MVP` in the conflict register.
+
+### 1.3 Canonical profile and foundation execution matrix
+
+| System | Canonical profile | Foundation implementation |
+|---|---|---|
+| Hold, Advance, Rush | `canonical_active` | `foundation_executable`: explicit axial route, scenario terrain cost, Speed budget, end position, end facing, and Rush attack/damage restrictions. Hold still applies final facing. |
+| Evasive, Melee Charge, Stealth | `canonical_active`/`active_provisional` | `foundation_deferred`: structured definitions exist with `executable=false`; submission and resolver validation reject them. |
+| Attack action | `canonical_active` plus V5 rulings | `foundation_executable`: one Attack action per unit; seeded weapon roll; FS cap; Armor/AP/Defense; axial rear arc; range, direct LOS, indirect spotting, ammo, cooldown, Rush damage; simultaneous damage commit. |
+| Multiweapon attack activation | `active_provisional` (`RC-V5-003`) | `foundation_deferred`: the current order contract permits only one Attack action/weapon selection per unit. |
+| High ground, dynamic cover/Dig In, Evasive modifiers, Rapid Fire, Subsystems | Canonical or `active_provisional` | `foundation_deferred`: the basic mitigation pipeline is executable, but these modifiers/effects are not yet applied by the resolver. |
+| Simultaneous resolution | `canonical_active` plus `RC-V5-031` | `foundation_partial`: attacks aggregate before damage is committed and same-destination capacity contests are symmetric. Full distance-increment hostile route contention and melee defensive-fire timing are deferred. |
+| Hex geometry, pathing, LOS, capacity | Scenario-owned implementation of canonical measurement/LOS | `foundation_executable`: axial distance, adjacency, battlefield bounds, pathfinding, map movement cost, opt-in elevation/river/road features, LOS blockers, sensors, and per-hex capacity. Scenario terrain data does not revive legacy global defaults. |
+| Direct and indirect targeting | `canonical_active` | `foundation_executable`: direct fire needs LOS; indirect fire still needs an active friendly spotter with LOS to the target. The firing unit is not an automatic spotter unless it independently satisfies that friendly-spotter set. |
+| Medic, engineer, artillery, cargo, logistics and Small Supply actions | `canonical_active`/`active_provisional` | `foundation_deferred`; isolated Supply-transfer, build-progress, and equipment-eligibility helpers are `foundation_helper` only. No Heal, Repair, Construct, Bombardment/Funnel, Load/Unload, Resupply, Reload, Deploy/Pack Up, Garrison, or Scan action is resolved. |
+| Thirteen non-orbital V5 starting classes | `canonical_active` | `foundation_partial`: the runtime catalogue currently has Infantry Squad, Engineers, Light Vehicle, Main Battle Tank, and Artillery. Other canonical classes remain data work, not silently substituted units. |
+| Aerospace tactical rules | `canonical_active` | `foundation_deferred`: no landing, takeoff, altitude transition, bombing path, Interceptor, cargo, or reload action is resolved. |
+| Optional Store equipment/refits | `catalogued` unless separately migrated | `foundation_helper`/`not_executable`: slot/class/prerequisite checks exist, but optional effects do not enter round resolution. |
+| Orbital Crew and hull combat | `catalogued`/`blocked` | `not_executable`: no canonical Light Freighter/hull, Atmo-Fuel, Req, or conversion data. |
+| Medium/Large Supply, FOBs, HQs, Tac-Com, strategic movement, boarding | `deferred` | `not_executable`. |
+| Req economy/store purchasing | `blocked` | `not_executable`: budgets and most canonical costs are absent. |
+| Legacy Build Points, expanded classes, occupancy thirds, battleline, Combat Ineffective | `rejected_by_profile`/`catalogued` | `not_executable`; they require a separate legacy profile or explicit V5 migration. |
+| Deterministic replay, event sequencing, and hidden-information projection | Application contract | `foundation_executable`: stable order sorting, same-round event sequence continuation, exact order revision lifecycle, idempotent replay, private seeds, side-aware event/state projection. |
+
+The executable round grammar is therefore intentionally small: **Hold/Advance/Rush + Attack**. `ATTACK` is the only executable action definition. Every other special order or action is deferred and MUST fail validation with a structured rejection until its rule hook, authoritative data, and tests exist.
+
+## 2. Canonical glossary
+
+This glossary states canonical profile meaning. Terms marked as foundation-deferred remain valid catalogue/rules concepts, but cannot yet be selected in an executable order.
+
+### 2.1 Unit and combat terms
+
+- **Personnel unit**: a unit whose health is **Force Strength**.
+- **Force Strength (FS)**: personnel health and maximum basic-attack damage. At zero FS, the unit is destroyed.
+- **Vehicle unit**: a unit whose health is **Hits**. Aerospace, mechs, and orbitals are vehicles unless a rule explicitly says otherwise.
+- **Hits**: number of penetrating weapon attacks a vehicle can sustain. At zero Hits, the vehicle is destroyed.
+- **Crew**: descriptive staffing/carrying data on a vehicle, not a second generic health pool. Crew separation exists only where a class-specific rule says it does.
+- **Speed**: distance allowance and the resource spent on Standard Actions during the current round.
+- **Range**: maximum attack distance, measured in the same distance unit as Speed.
+- **Damage result**: a weapon die result, or a personnel D6 result capped by current FS, after applicable attack modifiers.
+- **Armor**: mitigation reduced by AP.
+- **Armor Piercing (AP)**: reduces Armor, never Defense.
+- **Defense**: mitigation unaffected by AP, usually granted by Dig In or Evasive.
+- **Attack activation**: the once-per-round opportunity to attack. A multiweapon unit may roll once for each eligible weapon during the activation.
+- **Weapon attack**: one weapon's individual roll, penetration check, damage event, and possible subsystem event.
+- **Direct fire**: requires both Range and Line of Sight.
+- **Indirect fire**: ignores intervening LOS blockers but requires a friendly spotter with LOS to the target.
+- **Destroyed**: current FS or Hits is zero. Destroyed units do not act later in the round unless their already-declared attack is preserved by simultaneous resolution.
+
+### 2.2 Action and order terms
+
+- **Standard Action**: costs `0.5 Speed`. A unit may take as many as its remaining Speed permits.
+- **Primary Action**: costs no Speed, may occur once per round, and consumes the unit's attack activation.
+- **Order Type**: the declared behavior governing movement and engagement for the round.
+- **Hold**: do not spend Speed on movement; actions remain available; attack eligible hostiles in range.
+- **Advance**: move along the declared route and engage. A hostile ground formation stops an advancing ground unit; mechs and aerospace are exempt.
+- **Rush**: ground-only movement at twice normal distance per Speed spent; the unit cannot attack and suffers doubled losses this round.
+- **Evasive**: foundation-deferred special order; outgoing attack result `-2`, Defense `+3`, and the unit must end at least half its base Speed away from its starting point (`RC-V5-004`).
+- **Melee Charge**: foundation-deferred special order; forgo ranged attacks and attempt to reach base contact with a melee-capable unit.
+- **Brawl**: foundation-deferred melee engagement in which normal ranged attacks cannot target participants.
+- **Stealth order**: foundation-deferred movement under the applicable infantry- or vehicle-stealth rules.
+
+### 2.3 Map and support terms
+
+- **Line of Sight (LOS)**: an unobstructed center-to-center line. The core has no universal maximum LOS; a scenario may define one.
+- **Cover**: a visible solid object, building, or woods between attacker and target that either grants Armor or blocks LOS. Multiple cover Armor bonuses do not stack.
+- **Facing**: the direction recorded for a ground unit and used to determine direct rear attacks. Changing facing has no separate Speed cost in this profile.
+- **Small Supply**: tactical ammunition, repair, medical, or construction supply.
+- **Medium Supply**: FOB construction/operation resource; deferred in the MVP.
+- **Large Supply**: strategic orbital/HQ resource; deferred in the MVP.
+- **Requisition Value (Req)**: purchase/customization cost. The concept is canonical, but the economy is blocked pending complete prices and budgets.
+- **Cooldown**: whole rounds remaining before an ability can be used again. Optional equipment cooldowns are catalogue data only in the MVP.
+
+### 2.4 Canonical tags
+
+- **Sub-System**: the vehicle can suffer weapon-disabled or immobilized malfunctions; see the subsystem sequence.
+- **Infantry Stealth** and **Vehicle Stealth**: grant their respective detection rules; neither tag is inferred from descriptive prose.
+- **Rapid Fire**: double the modified Damage result against a `Horde` target before mitigation; it does not change the natural die value (`RC-V5-027`).
+- **Horde**: clustered enemy type vulnerable to Rapid Fire. It has no other automatic stat changes.
+- **Atmo Flight**: fixed-wing atmospheric flight requiring a runway to land.
+- **Aerospace**: may transition between the tactical map and high orbit using half total Speed.
+- **Aerospace Interceptor**: attacking an Aerospace target constrains that target's attack as described under Aerospace (`RC-V5-028`).
+- **Ponderous**: direct movement with firing only from the ending position. V5 currently applies it to orbitals, so it is catalogue-only in the MVP.
+- **Primary**: identifies a Primary Action; it is not an equipment slot.
+
+## 3. Round lifecycle
+
+This section is the canonical lifecycle target. Each subsection states the present foundation boundary; canonical prose beyond that boundary is not a claim of current execution.
+
+### 3.1 Round start
+
+The canonical server snapshot includes each participating unit's current FS/Hits, base Speed, ammunition, Supply, statuses, cargo, position, and facing. The foundation passes an immutable previous-state snapshot into the resolver, validates each order against that authoritative state, and calculates the round's Speed spend rather than trusting a client-owned `speed_remaining` field. Existing cooldowns tick once before attacks; a cooldown created by an attack remains at its full value until the next round.
+
+### 3.2 Player Intentions Phase
+
+All players submit intentions simultaneously. The worker resolves `unit_id` to the server-owned deployment and unit definition, checks class eligibility, rejects definitions not executable in the pinned engine version, and reconstructs action economy and Speed cost from the server catalogue. Client-supplied economy, cost, stats, equipment, ammo, cooldown, eligibility, or visibility claims are not authoritative.
+
+An accepted foundation order identifies Hold/Advance/Rush, route/end position, final facing, and at most one Attack action with its weapon and target. Validation checks the authoritative starting position, route continuity/bounds/cost, Speed, fitted weapon/equipment references, target visibility at submission, and the Attack/Rush/Primary restrictions. Supply reservation and non-Attack action execution are deferred.
+
+### 3.3 Enemy Intentions Phase
+
+Enemy intentions use the same foundation order grammar and resolver validation. The current deterministic doctrine selects visible targets, prefers vehicles when an enemy has AP, breaks ties by distance then stable ID, and produces Hold/Advance plus an optional Attack. The fuller canonical V5 policy is:
+
+1. AP-capable enemy attacks prefer vehicle targets.
+2. Infantry attacks prefer infantry targets, then progressively heavier targets.
+3. Enemy attacks are spread across eligible targets rather than stacked where possible.
+
+Ties in the canonical policy must be resolved deterministically by scenario AI policy, then stable unit ID (`RC-V5-020`). Round-robin fire spreading and large-game automatic player targeting are not yet implemented.
+
+### 3.4 Movement and interactions
+
+Movement follows each declared route. Standard movement costs one Speed per scenario distance unit. A scenario may use hexes, squares, or measured distance, but the unit is the same for Speed and Range.
+
+For simultaneous route contention, blocking ground units move in scenario distance increments. If two hostile blocking ground units attempt to enter the same unoccupied position in the same increment, neither enters; both stop at their prior legal positions and become eligible to engage. A unit entering a position already occupied by a hostile blocking ground unit stops at the prior legal position. Mechs and aerospace retain their explicit ability to pass formations (`RC-V5-031`).
+
+The foundation currently resolves an explicit axial route to its final hex, blocks ordinary occupied destinations, and symmetrically blocks all arrivals when simultaneous arrivals exceed destination capacity. It does not yet perform the canonical distance-increment hostile-ground contention above; that portion of `RC-V5-031` remains a selected rule awaiting implementation.
+
+The legacy `+1` elevation/river costs, one-Speed rotation, three-units-per-hex limit, and hex thirds are not active. A scenario that needs those rules must select a future map profile rather than applying them implicitly.
+
+Standard Actions are resolved at their declared position on the route. Loading or unloading normally consumes `0.5 Speed` from both the transport and transported unit. A HAT instead spends `0.5 Speed` for each cargo slot involved, while a transported unit still spends `0.5 Speed` (`RC-V5-010`).
+
+No interaction action in the preceding paragraph is foundation-executable. Submitting it is rejected rather than silently moving the unit without the interaction.
+
+### 3.5 Combat resolution
+
+Combat is declared and rolled against the round snapshot, then pending results are committed simultaneously. Melee defensive fire is the canonical explicit exception and is foundation-deferred.
+
+For each weapon attack:
+
+1. Confirm target type, Range, LOS/spotting, firing arc, ammunition, and that the attack activation remains available.
+2. Roll the weapon die. Personnel basic attacks roll D6. Preserve the natural die value separately for subsystem checks.
+3. Apply attack-result modifiers. Active modifiers are high ground `+1` (`RC-V5-021`) and Evasive outgoing `-2` (`RC-V5-004`). Clamp the modified result to a minimum of zero. Personnel results are then capped at current FS.
+4. If the weapon has Rapid Fire and the target has Horde, double the modified Damage result. Preserve the undoubled natural die for subsystem checks (`RC-V5-027`).
+5. Calculate `effective_armor = max(0, target_armor - attack_AP)`.
+6. Add applicable Defense: `mitigation = effective_armor + target_defense` (`RC-V5-001`).
+7. Calculate `penetrating_damage = max(0, damage_result - mitigation)`.
+8. If the target uses FS, queue loss of `penetrating_damage` FS. If it uses Hits, queue one lost Hit when `penetrating_damage > 0`, regardless of the residual amount.
+9. If the target is Rushing, double the queued FS loss or queue two Hits for a penetrating vehicle weapon (`RC-V5-002`).
+10. Check a tagged vehicle for a subsystem malfunction as described below.
+
+Each eligible weapon rolls once during the attack activation. Spending a Primary Action or using Rush removes the entire activation, not merely one weapon roll (`RC-V5-003`).
+
+The foundation implements the target checks (including the friendly-spotter requirement for indirect fire), seeded roll, FS cap, Armor/AP/Defense threshold, rear-arc Armor bypass, one-Hit vehicle penetration, Rush loss multiplier, ammo/cooldown updates, and simultaneous damage aggregation. It currently executes one declared weapon through one Attack action. High-ground and Evasive modifiers, Rapid Fire, multiweapon activations, subsystem outcomes, firing-arc/category exceptions, melee, and other special attacks remain deferred even though their canonical decisions are retained below.
+
+### 3.6 Facing and flanking
+
+A direct rear attack against a ground vehicle ignores that vehicle's Armor. A direct rear attack against infantry ignores Defense specifically granted by Dig In when the infantry is not inside a structure. It does not remove structure/cover Armor or unrelated Defense. Air assets neither gain nor suffer flanking benefits.
+
+Facing must therefore be present in tactical orders even though the deprecated order template is not authoritative.
+
+The foundation applies the submitted final facing for Hold as well as movement orders and uses that facing for its axial rear-arc check. The canonical ground/air and cover-category qualifications above remain requirements for the fuller typed combat policy.
+
+### 3.7 Terrain and cover
+
+- A ground attack from above its target adds `+1` to the attack result (`RC-V5-021`).
+- Infantry inside a building or woods, or visibly protected by designated solid cover, gains `+1 Armor` against attacks from outside/across that cover.
+- Multiple cover Armor bonuses do not stack.
+- Cover between targets may completely block LOS. A unit in the near edge of cover may be targetable; a unit fully behind it is not.
+- Dig In grants infantry `+2 Defense`, consumes all of that unit's available movement for the round, and ends when the unit moves from the dug-in position (`RC-V5-019`).
+- Cover Armor and Dig In Defense stack because they are different mitigation channels; multiple cover sources do not (`RC-V5-005`, `RC-V5-019`).
+
+Scenario geometry decides whether LOS is blocked. There is no implicit three- or four-hex visibility cap and no implicit “two forest hexes” rule (`RC-V5-014`, `RC-MAP-002`).
+
+The foundation executes geometric LOS blockers and sensor/range limits. Dynamic cover Armor, Dig In, high-ground attack modifiers, and terrain-derived combat status are deferred; precomputed Armor/Defense already present on the authoritative deployment still participates in basic mitigation.
+
+### 3.8 Subsystems
+
+This is a canonical provisional rule and is foundation-deferred.
+
+A vehicle with the `Sub-System` tag checks for a malfunction only when a weapon attack penetrates and its natural die result is 5 or 6. An infantry attack can trigger it only if current FS is at least that natural result.
+
+- Natural 5: weapon systems disabled until repaired.
+- Natural 6: vehicle immobile until repaired.
+
+D2 and D4 weapons cannot trigger this check without an explicit item override. Reapplying the same malfunction does not create additional copies. This is an `active_provisional` interpretation (`RC-V5-006`).
+
+### 3.9 Melee
+
+This is a canonical rule and is foundation-deferred.
+
+A melee-capable infantry or power-armored unit may declare a charge from at most `1.5` distance units. It forgoes ranged attacks. If caught by the charge, a ranged defender that has not attacked may fire first; this damage is committed before the charging unit attacks. Survivors attack without the target's Defense, although Armor still applies.
+
+The participants then gain `brawl`. Other units may only join with a melee charge or support with an explicitly highly accurate weapon. The optional Store equipment that normally grants melee/highly accurate capability remains catalogue-only, so this subsystem is generally unreachable with MVP base loadouts.
+
+### 3.10 Stealth
+
+This is a canonical rule and is foundation-deferred.
+
+- Infantry Stealth: when moving through enemy LOS, count relevant enemy units, roll D6, and remain hidden by meeting or beating that count. Attacking or another revealing interaction ends stealth.
+- Vehicle Stealth: the vehicle is spotted at half normal scenario LOS, rounded up.
+
+The scenario must define the set of enemy observers and its LOS limit. More than six observers makes the infantry check impossible. Units without the corresponding tag cannot select Stealth.
+
+## 4. Canonical active unit roster
+
+These V5 values override same-named rows in `Classes.html`.
+
+This is the selected profile roster, not the current runtime catalogue. The foundation catalogue currently supplies five allied definitions: Infantry Squad, Engineers, Light Vehicle, Main Battle Tank, and Artillery. Its Bug Drone/Warrior/Heavy definitions are scenario-specific experimental enemies, not additional V5 source classes. A missing foundation definition MUST NOT be filled by a same-named legacy class.
+
+| Unit | Canonical base profile | Active notes |
+|---|---|---|
+| Infantry Squad | FS 6; Speed 1; Range 1; D6 | Dig In; paradrop into clear open space; cannot standard-attack low-orbit orbitals (`RC-V5-013`). |
+| Medics | FS 4; non-combat; Medical Supply 4/4 | Base-contact Primary Heal (`RC-V5-009`): D6 FS capped by current medic FS; costs one Medical Supply. Reload all Medical Supply for one Small Supply. Can Dig In. |
+| Engineers | FS 4; non-combat; Small Supply capacity=current FS | Standard Repair/Construct actions below. Can Dig In. |
+| Artillery | FS 3; Speed 1; Range 1–4; starts/carries 2 Small Supply | Deploy/pack including hitch costs 0.5 Speed. Bombardment, Funnel, and direct anti-orbital fire each consume one Small Supply. Dismounted crew is FS 3, Speed 1, Range 1. |
+| Logi Truck | Crew 3; Hits 1; Speed 3; 2 cargo slots; no weapon | Six FS infantry or five Small Supply per slot; one vehicle uses both; may tow artillery. Reloading another unit is a Standard Action paid by Logi only. |
+| Light Vehicle | Crew 3; Hits 2; Speed 4; D4 HMG; Range 2 | Rapid Fire; Sub-System; Evasive; carries 4 FS infantry or one Small Supply. |
+| Infantry Fighting Vehicle | Crew 3; Hits 3; Armor 2; Speed 2; D4; Range 1; AP 1 | Sub-System; carries 6 FS infantry. Class-specific crew repair remains a full stationary round (`RC-V5-024`). |
+| Main Battle Tank | Crew 3; Hits 3; Armor 3; Speed 2; D6; Range 2; AP 3 | Sub-System; armor-target priority; class-specific crew repair remains a full stationary round (`RC-V5-024`). |
+| Light Mech | Crew 1; Hits 2; Armor 1; Speed 4; D4; Range 1 | Sub-System; Evasive; may pass through enemy ground formations. |
+| Aerospace Fighter | Crew 1; Hits 2; Speed 7; D4; Range 1; main ammo 1 | Atmo Flight; Aerospace; Rapid Fire; Interceptor; Evasive; forward 180° firing arc; cannot spot ground units. |
+| Aerospace Bomber | Crew 1; Hits 2; Speed 6; D6; Range 0 | Atmo Flight; Aerospace; must fly over target; cannot spot ground units. |
+| VTOL | Crew 3; Hits 2; Armor 1; Speed 5; D2; Range 1 | Aerospace; capacity is either 6 FS infantry or 2 Small Supply (`RC-V5-017`); cannot spot ground units. |
+| Heavy Air Transport | Crew 3; Hits 1; Speed 7; 5 cargo slots; no weapon | Atmo Flight; Aerospace; cargo conversions below; cannot spot ground units. |
+| Orbital Crew | FS 3; Speed 1; no weapon; 2 Req orbital equipment | Catalogue-only until a canonical Light Freighter/orbital hull exists. |
+
+The Infantry Squad through Heavy Air Transport are the thirteen canonical selectable classes targeted by this profile. Only the five foundation definitions named above can currently be instantiated through the foundation catalogue. Power armor, irregulars, special forces, sappers, tank variants, artillery variants, medium/heavy mechs, and orbital hulls are not canonical selectable classes.
+
+## 5. Canonical support systems (foundation-deferred)
+
+The following rules remain selected profile truth. None is invoked by the current round resolver. `transferSupply`, `advanceBuildProgress`, and `canEquip` are deterministic helper functions used for validation/tests; they do not make Resupply, Construct, Repair, Heal, Reload, cargo, or equipment effects executable. In particular, the build-progress helper does not reactivate the rejected legacy Build Point economy.
+
+### 5.1 Medical
+
+`Primary Heal` requires base contact, spends one Medical Supply, and restores D6 FS capped by current medic FS and the target's maximum FS. Medical Supply is distinct from carried Small Supply; one Small Supply restores the medic to `4/4`.
+
+MASH deployment and legacy fixed `2 FS/turn` healing are not active.
+
+### 5.2 Engineering and construction
+
+All listed construction uses a Standard Action unless identified as Primary:
+
+| Effect | Cost | MVP behavior |
+|---|---:|---|
+| Repair vehicle | 1 Small Supply | Remove one Hit or one subsystem malfunction. |
+| Sandbag line | 1 Small Supply | Cover long enough for two infantry squads; `+1 Armor` across the protected side. Other than Bridges, MVP structures cannot be attacked until durability data exists (`RC-BUILD-006`). |
+| Trench upgrade | No additional Supply stated | An Infantry Squad at a sandbag line uses a Primary Action to convert it (`RC-V5-022`). Units may move along the trench while preserving Dig In; leaving it or a hostile entering ends that benefit. |
+| Razor wire | 1 Small Supply | `0.5` additional Speed for infantry crossing; length `0.5` Range. |
+| Tank traps | 1 Small Supply | `1` additional Speed for vehicles crossing; length `0.5` Range. |
+| Bridge | 2 Small Supply | Opens a river crossing. Uses the V5 special bridge-damage table. |
+
+Bridge attack table: D6 result 1 misses; 2–4 adds one damage step; 5–6 destroys it. At one step tanks cannot cross, at two steps only infantry may cross, and at three it is destroyed.
+
+Build Points, walls, gates, roads, bunkers, emplacements, depots, radar, repair centers, VTOL platforms, airfields, and sensor towers from the build sheet remain catalogued/deferred.
+
+### 5.3 Artillery
+
+- Deploy or pack up, including hitch/unhitch, costs `0.5 Speed`.
+- `Primary Bombardment`: hostile Defense in a radius of 1 around the target is reduced by 1. Repeated rounds and multiple artillery stack; the MVP clamps total Defense at zero (`RC-V5-012`). One point recovers after each round without bombardment.
+- `Primary Funnel`: after a moving hostile completes movement but before conflicts resolve, move it `0.5` distance in the player's chosen legal direction.
+- Direct anti-orbital attack: D6 against a low-orbit orbital in Range; unavailable while orbital combat is blocked.
+- Each Bombardment, Funnel, or direct shot spends one Small Supply (`RC-V5-011`).
+- A deployed artillery unit may stockpile and share Small Supply, initially/capacity two.
+- An adjacent Engineer may spend one Standard Action, with no Supply cost, to Dig In deployed stationary artillery for `+2 Defense` (`RC-V5-025`).
+
+Legacy fixed-damage, multiple-shot light/heavy/SPG profiles are not active.
+
+### 5.4 Cargo and logistics
+
+Cargo is capacity, not a second movement system.
+
+- Logi: two slots; 6 FS infantry or 5 Small Supply occupies one; one vehicle occupies two.
+- HAT: five slots; 6 FS infantry=one, one vehicle=two, 5 Small Supply=one, one Medium Supply=two, one Large Supply=five.
+- Light Vehicle: either 4 FS infantry or one Small Supply.
+- IFV: 6 FS infantry.
+- VTOL: either 6 FS infantry or two Small Supply for MVP purposes.
+
+Loading/unloading normally costs both units a Standard Action. A HAT pays `0.5 Speed` per occupied cargo slot involved; the transported unit pays one Standard Action. A HAT paradrop into clear open space is a class-specific exception: infantry/light vehicles may exit in flight without paying that unloading cost. Logi may reload another unit with its own Standard Action; the recipient pays no action.
+
+HAT paradrops are active only into clear open spaces. Hazardous forest/urban drops are rejected by MVP validation until the incomplete vehicle result table is resolved (`RC-V5-018`).
+
+When cargo resolution is implemented, destruction of a transport containing units or non-Supply mission cargo must emit `cargo_destruction_requires_adjudication` and freeze carried records at the transport position. The current foundation has no cargo state transition and emits no such event. The sources supply no universal passenger/cargo survival rule, so future code must not destroy, deploy, or damage cargo automatically (`RC-V5-030`).
+
+Engineer carried Supply and Medic Medical Supply have capacity tied to current FS. Damage that lowers FS below the current carried amount does not silently delete resources: the unit may retain the excess but cannot load/reload more until its load is within capacity (`RC-V5-029`). Tactical scenarios must seed Supply sources and starting loads; with Medium/Large Supply deferred, the MVP does not generate an unlimited stockpile implicitly.
+
+### 5.5 Aerospace
+
+All behavior in this subsection is canonical but foundation-deferred.
+
+- Atmo Flight units need a runway to land in atmosphere and can perform at most one of landing or takeoff per round.
+- Aerospace units spend half total Speed to move between the tactical map and high orbit and cannot reverse that transition in the same round.
+- Fighters and bombers cannot spot ground targets and must land at a friendly airfield/flight deck to repair or rearm. A reload is a Primary Action; MVP airfields do not consume a tracked crate for it (`RC-V5-023`).
+- Fighter attacks use the forward 180° arc along the travel path.
+- When an Aerospace Interceptor declares a legal attack against an Aerospace target, that target may attack only a legal Interceptor that attacked it. If several qualify, the target controller chooses; NPC ties use the standard deterministic target policy. If none is a legal target for the intercepted unit, it loses its attack activation (`RC-V5-028`).
+- Bomber attacks require the movement path to pass over the target.
+- VTOL does not carry the Atmo Flight tag and does not require a runway.
+- In scenarios with an available friendly off-map airfield, that airfield may be used for landing/rearming. Optional ammunition-crate economics are deferred.
+
+The Atmo-Fuel stat applies to orbitals, not these starting aerospace units, and is blocked with orbital play.
+
+## 6. Order contract
+
+The V5 order format is authoritative. The deprecated sheet contributes useful state fields, not rules. The public payload expresses intent; the server constructs the normalized `UnitOrder`. A payload MUST contain or resolve to:
+
+| Field | Requirement |
+|---|---|
+| `unit_id`, `callsign` | Client sends `unit_id`; the callsign is read from the deployment and is seven characters or fewer. |
+| `unit_type_id` | Server-owned canonical class ID from the deployment. |
+| `carrying` | Required when transport actions become executable; stable IDs and quantities. |
+| `equipment`, `ammo` | Server-authoritative snapshot; clients may reference fitted IDs but cannot set inventory. Optional Store gear remains non-executable. |
+| `order_type` | Foundation: Hold, Advance, or Rush, subject to the unit class allowed list. Eligible special orders remain canonical but are rejected while `executable=false`. |
+| `start_position`, `end_position`, `route` | Scenario coordinate type plus ordered path. |
+| `end_facing` | Required for ground units because rear attacks are active. |
+| `actions` | Client sends action type and intent fields. The server supplies canonical economy and Speed cost. Foundation permits at most one Attack. |
+| `attack_targets` | Foundation: target and fitted weapon for the single Attack action. Multiweapon target policy is deferred. |
+| `current_state_version` | Optimistic-concurrency token for the server snapshot. |
+| `rp` | Optional, non-mechanical text. |
+
+Cooldowns, statuses, stealth state, current FS/Hits, remaining Supply, unit stats, class eligibility, action economy, and action Speed cost are server state. They SHOULD be shown beside the order, but clients MUST NOT be able to overwrite them through prose or forged structured fields.
+
+### 6.1 Server-derived eligibility and action economy
+
+The server boundary MUST:
+
+1. Resolve the deployment's `definition_id` to the ruleset-pinned unit definition.
+2. Check `allowedOrders` and `allowedActions` for that class.
+3. Reject an otherwise canonical definition when its foundation `executable` flag is false.
+4. Rebuild each accepted action's `economy`, `speedCost`, action ID, fitted equipment list, and target reference from trusted definitions and deployment state.
+5. Reject weapons not fitted to the unit and targets absent from the player's current battlefield intelligence.
+6. Revalidate the normalized order in the resolver against authoritative campaign, round, start hex, route, Speed, action limits, ammo, cooldown, LOS/spotter, and target state.
+
+The worker currently performs steps 1–5 at submission; the resolver repeats the ruleset/executable/economy/cost and tactical legality checks. This defense in depth is why client-supplied action costs are assertions, never authority.
+
+### 6.2 Determinism, replay, and private seeds
+
+- A campaign is pinned to a ruleset version. Resolution rejects a mismatched version.
+- Submitted player and enemy orders are sorted by stable unit ID then revision before any random draw.
+- Event numbering continues after the highest existing event sequence in the same round. Events from prior rounds do not advance the current round's counter.
+- Only the accepted order's exact ID and revision becomes `RESOLVED`; a future order for the same unit is untouched.
+- The same immutable snapshot, normalized order set, private seed, and logical resolution time produces the same events, persistent-effect keys, state, and digest. Resolving the exact already-resolved order set again is a semantic no-op.
+- The seed is trusted server input and is stored only with the private resolution record. It MUST NOT appear in campaign views, public reports, WebSocket payloads, resolution events, or `ROUND_FINISHED`. Public records expose the digest and event IDs, not the seed.
+- A newly applied cooldown survives the attack round at full duration and first ticks at the start of the next resolution.
+
+The present deterministic seed construction is an implementation replay key, not a published randomness proof or player-verifiable commit/reveal scheme. A future fairness protocol must preserve replay while keeping unrevealed seed material out of live client projections.
+
+### 6.3 Hidden-information boundary
+
+Campaign views include a player's own deployments/orders and only currently observable enemies. Unknown hexes retain public terrain/memory state but redact dynamic control, objectives, structures, and hazards. Events are projected by visibility; a nominally public event must still have sensitive payload fields removed when they would reveal an unseen route or target. Resolution journals, seeds, and pending persistent effects are server-only. Administrators may receive the full authorized projection, but projection MUST NOT mutate authoritative state.
+
+## 7. Catalogue and provenance model
+
+Every normalized record must preserve its origin and activation decision. At minimum:
+
+```yaml
+id: stable_machine_id
+kind: unit | equipment | structure | action | tag | rule | scenario_option
+name: source-facing name
+profile: v5_core_curated
+activation: canonical_active | active_provisional | catalogued | deferred | blocked | rejected_by_profile
+execution: foundation_executable | foundation_partial | foundation_helper | foundation_deferred | not_executable
+source_refs:
+  - file: rules/Meta - Core Rules (V5).md
+    locator: Starting Unit Classes > Infantry Squad
+    version: V5 War in the Skies
+conflict_ids: [RC-UNIT-001]
+implementation_refs: []
+test_refs: []
+normalized: {}
+raw_values: {}
+notes: []
+```
+
+Implementation requirements:
+
+1. Preserve raw source values alongside normalized values; never overwrite source data during conversion.
+2. Every normalized value that differs from a source must cite a `RULE_CONFLICTS.md` ID.
+3. Unknown numeric values remain `null`, not zero.
+4. Text such as `..1` may not be parsed as numeric Req without a recorded migration decision.
+5. Canonical activation and current execution are separate fields. Rules are queried by selected profile, activation state, and engine capability; catalogue-only or foundation-deferred content never enters calculations.
+6. Item prerequisites, unit access, slots, duplicate limits, ammunition, duration, cooldown, target class, and Supply costs must be structured fields, not parsed at runtime from prose.
+7. Scenario-owned facts include coordinate/measurement mode, LOS cap, terrain costs, occupancy, deployment zones, off-map support, and optional system flags.
+8. Resolution events should retain `rule_id`, die result, modifiers, mitigation, and source/decision IDs so a GM can audit every outcome. The current foundation emits detailed dice and mitigation evidence but has not completed rule/source IDs on every event.
+9. Order/action records need an explicit executable capability flag. A UI may display canonical deferred material, but must disable submission with the same reason the server will return.
+10. Runtime definitions and tests should link back to stable catalogue IDs and conflict IDs; source text must never be copied into an undocumented magic constant.
+
+## 8. Deferred catalogue work
+
+Before a deferred system can become active, it needs the following:
+
+- Special orders/actions: resolver hooks and tests for Evasive, Melee Charge/Brawl, Stealth, Dig In, Heal, Repair, Construct, Bombardment/Funnel, Deploy/Pack Up, Load/Unload, Resupply, Reload, Garrison, Scan, Assault, and Break Out/profile rejection behavior.
+- Tactical completeness: multiweapon attack activations, dynamic cover/Dig In, high ground, Rapid Fire, Subsystems, typed firing/flanking exclusions, melee timing, and distance-increment hostile route contention.
+- Canonical roster: normalized foundation definitions for Medic, Logi Truck, IFV, Light Mech, Fighter, Bomber, VTOL, and Heavy Air Transport without importing legacy same-name statistics.
+- Optional equipment: V5-compatible unit access and slot budgets, action costs, dice semantics, ammo/reload data, durations, stack limits, and Req economy.
+- Expanded classes: conversion from FS vehicle health to Crew/Hits and V5 weapon dice.
+- Structures: build costs in Small/Medium Supply, health/Armor, footprints, facing, destruction, repair, and prerequisites.
+- Orbitals: hull Hits, Armor, Speed, Range, customization slots, Atmo-Fuel, cargo Supply size, Req, Light Freighter, fire-critical resolution, and equipment conversion.
+- Strategic layer: battlegroup/task-force state, Large/Medium Supply generation and consumption, FOB/HQ construction, route movement, and campaign timing.
+- Boarding: entry points, defender assignment, subsystem shutdown effects, capture state, and interaction with simultaneous combat.
+- Req economy: starting allowance, income, purchase/refit timing, replacement policy, and validated costs for every selectable unit/item.
+
+Activation requires updating this document and the conflict register in the same change.
+
+## 9. Verification baseline
+
+As of this reconciliation, `npx vitest run packages/rules-engine/test` passes **7 test files / 62 tests**. The suite covers seeded reproducibility and private-seed non-disclosure; event projection and campaign-state redaction; axial distance, routes, terrain, LOS, spotters, and capacity; Armor/AP/Defense/rear arcs, FS caps and Hits; ammo, cooldown, Supply, build, and equipment helpers; simultaneous damage/capacity and replay; plus regressions for same-round event sequence continuation, exact order revision lifecycle, newly applied cooldown timing, and Hold final facing.
+
+This passing baseline proves only the foundation capabilities named in section 1.3. It does not make catalogue-only or foundation-deferred canonical systems executable.

@@ -1,0 +1,48 @@
+{
+  "name": "corinths-plight",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:production": "CLOUDFLARE_ENV=production npm run build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check:production-config": "node -e \"const fs=require('node:fs');const config=fs.readFileSync('wrangler.jsonc','utf8');if(config.includes('00000000-0000-0000-0000-000000000003')){console.error('Production deploy blocked: replace the placeholder D1 database ID in wrangler.jsonc.');process.exit(1)}\"",
+    "deploy": "npm run check:production-config && npm run build:production && wrangler deploy --env production",
+    "deploy:dry": "npm run check:production-config && npm run build:production && wrangler deploy --dry-run --env production",
+    "cf:typegen": "wrangler types worker/worker-configuration.d.ts",
+    "db:migrate:local": "wrangler d1 migrations apply corinths-plight --local",
+    "db:migrate:remote": "npm run check:production-config && wrangler d1 migrations apply corinths-plight-production --remote --env production",
+    "db:seed:local": "wrangler d1 execute corinths-plight --local --file seeds/v5-core-curated.sql",
+    "db:seed:remote": "npm run check:production-config && wrangler d1 execute corinths-plight-production --remote --env production --file seeds/v5-core-curated.sql",
+    "seed:check": "tsx scripts/validate-seed.ts"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.51.1",
+    "@cloudflare/workers-types": "^5.20260809.1",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "eslint": "^10.8.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.9.0",
+    "tsx": "^4.23.11",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.66.0",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.120.0"
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "corinths-plight",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-08-08",
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "assets": {
+    "not_found_handling": "single-page-application"
+  },
+  "vars": {
+    "ENVIRONMENT": "development",
+    "ALLOW_DEMO_AUTH": "true",
+    "DEFAULT_ROUND_DURATION_MS": "300000",
+    "ORDER_LOCK_LEAD_MS": "30000"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "corinths-plight",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CAMPAIGN",
+        "class_name": "CampaignDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["CampaignDurableObject"]
+    }
+  ],
+  "env": {
+    "preview": {
+      "name": "corinths-plight-preview",
+      "vars": {
+        "ENVIRONMENT": "preview",
+        "ALLOW_DEMO_AUTH": "false",
+        "DEFAULT_ROUND_DURATION_MS": "1800000",
+        "ORDER_LOCK_LEAD_MS": "30000"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "corinths-plight-preview",
+          "database_id": "00000000-0000-0000-0000-000000000002",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "CAMPAIGN",
+            "class_name": "CampaignDurableObject"
+          }
+        ]
+      }
+    },
+    "production": {
+      "name": "corinths-plight",
+      "vars": {
+        "ENVIRONMENT": "production",
+        "ALLOW_DEMO_AUTH": "false",
+        "DEFAULT_ROUND_DURATION_MS": "86400000",
+        "ORDER_LOCK_LEAD_MS": "30000"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "corinths-plight-production",
+          "database_id": "00000000-0000-0000-0000-000000000003",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "CAMPAIGN",
+            "class_name": "CampaignDurableObject"
+          }
+        ]
+      }
+    }
+  }
+}
