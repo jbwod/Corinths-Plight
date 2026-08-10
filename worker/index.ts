@@ -1,4 +1,3 @@
-import { allDefinitions } from "../packages/rules-engine/src";
 import {
   authConfigurationIsSafe,
   authenticate,
@@ -17,6 +16,7 @@ import { routeAuthRequest } from "./routes/auth";
 import { routeDeploymentRequest } from "./routes/deployment";
 import { routeOnboardingRequest } from "./routes/onboarding";
 import { routeStrategicRequest } from "./routes/strategic";
+import { rulesCatalogueResponse } from "./rules-catalogue";
 import { scheduleSecurityMaintenance } from "./security-maintenance";
 import { StrategicMapDurableObject } from "./strategic-map-durable-object";
 
@@ -62,17 +62,7 @@ async function route(request: Request, env: Env, requestId: string, context: Exe
     });
   }
   if (url.pathname === "/api/rulesets/v5-core-curated" && request.method === "GET") {
-    return json({
-      id: "v5-core-curated",
-      version: "v5-core-curated@1",
-      status: "active",
-      definitions: allDefinitions,
-      summary: {
-        active: allDefinitions.filter((definition) => definition.status === "active").length,
-        experimental: allDefinitions.filter((definition) => definition.status === "experimental").length,
-        legacy: allDefinitions.filter((definition) => definition.status === "legacy").length,
-      },
-    });
+    return rulesCatalogueResponse();
   }
 
   const authResponse = await routeAuthRequest(request, env);

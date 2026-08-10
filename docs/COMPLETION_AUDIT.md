@@ -30,7 +30,7 @@ The audit began with only two unrelated untracked user paths, which were preserv
 | Seed/content validator | Pass | `npm run seed:check`: 34 definitions, 28 active, 95 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 3 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
 | TypeScript | Pass | `npm run typecheck`. |
 | ESLint | Pass | `npm run lint`. |
-| Unit/contract tests | Pass | `npm test`: 39 files, 270 tests, Vitest 4.1.10. |
+| Unit/contract tests | Pass | `npm test`: 43 files, 280 tests, Vitest 4.1.10. |
 | Worker/client build | Pass | `npm run build`; Worker 543.37 kB, client JS 430.68 kB, CSS 129.97 kB. Wrangler's sandboxed debug-log write warns but the build exits successfully. |
 | Production-mode build | Pass | `WRANGLER_WRITE_LOGS=false npm run build:production`. |
 | Empty D1 migration replay | Pass | All eight migrations applied in isolated Wrangler state. |
@@ -66,7 +66,7 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 
 | Finding | Priority | Status | Confidence | Evidence and acceptance boundary | Roadmap |
 |---|---|---:|---:|---|---|
-| AUD-CAT-001 — split gameplay truth | P0 | open | High | D1 seeds 13 V5 classes plus three companion classes (`seeds/v5-phase2-combined-arms.sql:20-50`), while compiled `unitClasses` contains only Infantry, Engineer, Light Vehicle, MBT and Artillery (`packages/rules-engine/src/catalogue.ts:68-159`). Several D1 overlays mark Logi/IFV/VTOL/HAT executable, but order submission calls compiled `getUnitClass` (`worker/campaign-durable-object.ts:454-471`) and can throw. One generated/pinned catalogue and a conformance test must make every executable definition resolvable. | CP-200/CP-201 |
+| AUD-CAT-001 — split gameplay truth | P0 | open | High | A generated, hash-verified `v5-core-curated@2` catalogue and public projection now cover the normalized rule records, but tactical replay still uses the five-class `@1` compatibility catalogue and D1 hydration remains separate. Several D1 overlays mark Logi/IFV/VTOL/HAT executable while order submission can still reach compiled `getUnitClass`. CP-201 must fail closed on unsupported records and make every genuinely executable definition resolvable without invented values. | CP-200/CP-201 |
 | AUD-RULE-002 — conflict provenance is internally broken | P0 | open | High | Fresh D1 contains only 12 obsolete short `rule_conflicts` IDs from `seeds/v5-core-curated.sql:28-40`, while the canonical doc has 72 namespaced IDs. Phase-2 definitions reference namespaced IDs with no D1 row; compiled definitions reference old IDs. Published definitions/events cannot form a referential conflict audit. | CP-200 |
 | AUD-CAT-003 — adapter invents/loses authority | P0 | open | High | `worker/services/equipment.ts:207-240` assigns every D1 class Hold/Advance/Rush and Attack/Load/Unload, and reports requisition status as published rather than preserving source links/status. Cargo shape handling defaults valid IFV/VTOL alternatives to zero capacity (`:59-88`). Small Supply vocabulary becomes incompatible with resolver reload. | CP-201 |
 | AUD-CAT-004 — blocked companion slots execute | P0 | open | High | RC-EQP-001 marks optional slot budgets blocked, and Phase-2 metadata says companion-only/catalogued; `listUnitSlots` ignores that metadata and the loadout engine enforces every row. Existing purchasable equipment therefore relies on an unapproved slot policy. | DEC-017/CP-200/CP-204 |
@@ -99,7 +99,7 @@ All routes are Worker same-origin routes. `Implemented` here means the route has
 | Method and path | Route behavior | Status |
 |---|---|---:|
 | `GET /api/health` | Shallow liveness response | partial |
-| `GET /api/rulesets/v5-core-curated` | Returns compiled `allDefinitions`, not authoritative D1 catalogue | partial |
+| `GET /api/rulesets/v5-core-curated` | Returns the strict redacted projection of generated `v5-core-curated@2`, including its content hash; D1/tactical consumers are not yet cut over | partial |
 | `GET /api/auth/session` | Current session | implemented |
 | `POST /api/auth/register` | Request registration email link | implemented |
 | `POST /api/auth/login` | Request login email link | implemented |

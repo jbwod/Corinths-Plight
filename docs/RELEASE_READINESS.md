@@ -14,7 +14,7 @@ This is the live release checklist. A checked local build item is not permission
 
 | Blocker | Status | Evidence / exit condition |
 |---|---:|---|
-| Split D1/compiled/adaptor rules truth | open P0 | CP-200/CP-201; executable D1-only classes currently fail compiled lookup. |
+| Split D1/compiled/adaptor rules truth | open P0 | CP-200 now supplies a generated `@2` catalogue and public projection; CP-201 still must cut D1/tactical hydration over and prevent unsupported classes from reaching the `@1` compiled lookup. |
 | Conflict provenance mismatch | open P0 | D1 has 12 obsolete conflict IDs instead of the 72-record canonical register. |
 | No production world/campaign content | open P0 | Production seeds create zero campaigns, insertion zones, strategic maps/nodes and ships. |
 | Demo/showcase/hard-coded production client paths | open P0 | App, Forces, Deployment and Strategic surfaces use fixed IDs or local fallback data. |
