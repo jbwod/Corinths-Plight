@@ -8,9 +8,9 @@ const hat: CargoProfile = {
   rules: [
     { id: "hat-infantry", cargoKind: "PERSONNEL", quantityPerSlot: 6 },
     { id: "hat-vehicle", cargoKind: "VEHICLE", slotsPerItemQuarters: 8 },
-    { id: "hat-small", cargoKind: "SUPPLY", supplyType: "SMALL", quantityPerSlot: 5 },
-    { id: "hat-medium", cargoKind: "SUPPLY", supplyType: "MEDIUM", slotsPerItemQuarters: 8 },
-    { id: "hat-large", cargoKind: "SUPPLY", supplyType: "LARGE", slotsPerItemQuarters: 20 },
+    { id: "hat-small", cargoKind: "SUPPLY", supplyType: "SMALL_SUPPLY", quantityPerSlot: 5 },
+    { id: "hat-medium", cargoKind: "SUPPLY", supplyType: "MEDIUM_SUPPLY", slotsPerItemQuarters: 8 },
+    { id: "hat-large", cargoKind: "SUPPLY", supplyType: "LARGE_SUPPLY", slotsPerItemQuarters: 20 },
   ],
   allowMixedLoadGroups: true,
   embarkSpeedCostQuartersPerCargoSlot: 2,
@@ -81,7 +81,7 @@ describe("contextual deployment planning", () => {
     const invalid = plan();
     invalid.insertionHex = { q: 9, r: 9 };
     invalid.unitSelections[0].effectiveUnit = unit("raven-2", ["STANDARD_GROUND"]);
-    invalid.transportAssignments[0].cargo.push({ id: "large", kind: "SUPPLY", supplyType: "LARGE", quantity: 1, tags: [] });
+    invalid.transportAssignments[0].cargo.push({ id: "large", kind: "SUPPLY", supplyType: "LARGE_SUPPLY", quantity: 1, tags: [] });
     const result = validateDeploymentPlan(invalid, { ...context, availableMethods: [...context.availableMethods] });
     expect(result.valid).toBe(false);
     expect(result.errors.map((error) => error.code)).toEqual(expect.arrayContaining([
@@ -96,7 +96,7 @@ describe("contextual deployment planning", () => {
     assignment.cargo = [];
     const result = autoAssignCargo([
       { id: "raven", kind: "PERSONNEL", quantity: 6, tags: ["INFANTRY"] },
-      { id: "supply", kind: "SUPPLY", supplyType: "SMALL", quantity: 5, tags: [] },
+      { id: "supply", kind: "SUPPLY", supplyType: "SMALL_SUPPLY", quantity: 5, tags: [] },
       { id: "super-heavy", kind: "VEHICLE", quantity: 3, tags: ["SUPER_HEAVY"] },
     ], [assignment]);
     expect(result.assignments[0].cargo.map((item) => item.id)).toEqual(["raven", "supply"]);

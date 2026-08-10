@@ -1,5 +1,6 @@
 export * from "./catalogue";
 export * from "./catalogue-runtime";
+export * from "./cargo-hydration";
 export * from "./demo";
 export * from "./deployment";
 export * from "./equipment";
@@ -12,4 +13,6 @@ export * from "./rng";
 export * from "./scenario";
 export * from "./specialists";
 export * from "./strategic";
+export * from "./supply-profile-hydration";
+export * from "./tactical-supply";
 export * from "./visibility";

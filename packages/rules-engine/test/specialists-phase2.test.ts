@@ -30,7 +30,7 @@ describe("artillery deployment and spotting", () => {
     packSpeedCostQuarters: 2,
     mustBeDeployedForIndirectFire: true,
     indirectRequiresSpotter: true,
-    fireSupplyType: "SMALL",
+    fireSupplyType: "SMALL_SUPPLY",
     fireSupplyCost: 1,
   };
   const spotterProfile: SpotterProfile = {

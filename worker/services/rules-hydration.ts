@@ -3,12 +3,18 @@ import type {
   RuleNullableNumberV1,
   RulesCatalogueEnvelopeV1,
 } from "../../packages/domain/src/rules-catalogue-contract";
-import type { UnitClassDefinition } from "../../packages/domain/src";
+import type {
+  GovernedCargoProfileV1,
+  GovernedSupplyProfileV1,
+  UnitClassDefinition,
+} from "../../packages/domain/src";
 import {
   createRulesCatalogueRuntime,
   getActionDefinition,
   getOrderTypeDefinition,
   getUnitClass,
+  hydrateGovernedCargoProfile,
+  hydrateGovernedSupplyProfile,
   type CatalogueRuntimeModeV1,
   type RulesCatalogueRuntimeV1,
 } from "../../packages/rules-engine/src";
@@ -57,6 +63,11 @@ export interface D1UnitRulesInput {
   actionDefinitionIds: readonly string[];
   allowedActionTypes: readonly string[];
   allowedOrderTypes: readonly string[];
+  movementProfileId: string;
+  durabilityProfileId: string;
+  cargoProfileId: string | null;
+  supplyProfileId: string | null;
+  deploymentProfileId: string | null;
 }
 
 export interface D1EquipmentRulesInput {
@@ -105,6 +116,13 @@ export interface UnitRulesAuthoritySnapshotV1 {
     orderDefinitionIds: string[];
     allowedActionTypes: string[];
     allowedOrderTypes: string[];
+  };
+  profiles: {
+    movementProfileId: string;
+    durabilityProfileId: string;
+    cargoProfile: GovernedCargoProfileV1 | null;
+    supplyProfile: GovernedSupplyProfileV1 | null;
+    deploymentProfileId: string | null;
   };
   legacyD1: D1UnitRulesInput;
 }
@@ -190,6 +208,81 @@ function generatedUnitActionLinks(definitionId: string): string[] {
   return sortedUnique(actionIds);
 }
 
+interface GeneratedUnitProfileBindings {
+  movementProfileId: string | null;
+  durabilityProfileId: string | null;
+  cargoProfileId: string | null;
+  supplyProfileId: string | null;
+  deploymentProfileId: string | null;
+}
+
+function generatedUnitProfileBindings(definitionId: string): GeneratedUnitProfileBindings {
+  const bindings: GeneratedUnitProfileBindings = {
+    movementProfileId: null,
+    durabilityProfileId: null,
+    cargoProfileId: null,
+    supplyProfileId: null,
+    deploymentProfileId: null,
+  };
+  const keys = {
+    MOVEMENT_PROFILE: "movementProfileId",
+    DURABILITY_PROFILE: "durabilityProfileId",
+    CARGO_PROFILE: "cargoProfileId",
+    SUPPLY_PROFILE: "supplyProfileId",
+    DEPLOYMENT_PROFILE: "deploymentProfileId",
+  } as const;
+  for (const relation of serverRulesCatalogueRuntime.relationsFrom({ definitionKind: "UNIT", definitionId })) {
+    if (relation.kind !== "UNIT_PROFILE" || !relation.to) continue;
+    const key = keys[relation.to.definitionKind as keyof typeof keys];
+    if (!key) continue;
+    if (bindings[key] !== null) {
+      throw new Error(`RULES_CATALOGUE_PROFILE_BINDING_DUPLICATE:${definitionId}:${key}`);
+    }
+    bindings[key] = relation.to.definitionId;
+  }
+  return bindings;
+}
+
+function governedCargoProfile(profileId: string | null): GovernedCargoProfileV1 | null {
+  if (!profileId) return null;
+  const definition = serverRulesCatalogueRuntime.lookupDefinition("CARGO_PROFILE", profileId);
+  if (!definition.found) throw new Error(`RULES_CATALOGUE_CARGO_PROFILE_MISSING:${profileId}`);
+  const hydrated = hydrateGovernedCargoProfile({ id: definition.value.id, parameters: definition.value.parameters });
+  if (!hydrated.ok) {
+    const issue = hydrated.issues[0];
+    throw new Error(`RULES_CATALOGUE_CARGO_PROFILE_INVALID:${profileId}:${issue?.code ?? "UNKNOWN"}:${issue?.path ?? "$"}`);
+  }
+  return hydrated.profile;
+}
+
+function governedSupplyProfile(profileId: string | null): GovernedSupplyProfileV1 | null {
+  if (!profileId) return null;
+  const definition = serverRulesCatalogueRuntime.lookupDefinition("SUPPLY_PROFILE", profileId);
+  if (!definition.found) throw new Error(`RULES_CATALOGUE_SUPPLY_PROFILE_MISSING:${profileId}`);
+  const hydrated = hydrateGovernedSupplyProfile({ id: definition.value.id, parameters: definition.value.parameters });
+  if (!hydrated.ok) {
+    const issue = hydrated.issues[0];
+    throw new Error(`RULES_CATALOGUE_SUPPLY_PROFILE_INVALID:${profileId}:${issue?.code ?? "UNKNOWN"}:${issue?.path ?? "$"}`);
+  }
+  return hydrated.profile;
+}
+
+function profileBindingMismatch(
+  input: D1UnitRulesInput,
+  generated: GeneratedUnitProfileBindings,
+): string | null {
+  for (const key of [
+    "movementProfileId",
+    "durabilityProfileId",
+    "cargoProfileId",
+    "supplyProfileId",
+    "deploymentProfileId",
+  ] as const) {
+    if (input[key] !== generated[key]) return key;
+  }
+  return null;
+}
+
 function executableLegacyActions(
   definition: UnitClassDefinition,
   mode: CatalogueRuntimeModeV1,
@@ -248,11 +341,15 @@ export function resolveUnitExecutionAdapter(
   }
   try {
     const legacyDefinition = unitHandlerAdapters.get(handlerId)!(definitionId);
+    const profileBindings = generatedUnitProfileBindings(definitionId);
+    const governedCargo = governedCargoProfile(profileBindings.cargoProfileId);
+    const executableActions = executableLegacyActions(legacyDefinition, mode)
+      .filter(({ type }) => governedCargo === null || (type !== "LOAD" && type !== "UNLOAD"));
     return {
       ok: true,
       code,
       legacyDefinition,
-      allowedActionTypes: sortedUnique(executableLegacyActions(legacyDefinition, mode).map(({ type }) => type)),
+      allowedActionTypes: sortedUnique(executableActions.map(({ type }) => type)),
       allowedOrderTypes: sortedUnique(executableLegacyOrders(legacyDefinition, mode).map(({ type }) => type)),
     };
   } catch {
@@ -304,6 +401,19 @@ export function resolveUnitRulesAuthority(
     };
   }
 
+  const generatedProfiles = generatedUnitProfileBindings(input.definitionId);
+  const mismatchedProfile = profileBindingMismatch(input, generatedProfiles);
+  if (mismatchedProfile) {
+    return {
+      ok: false,
+      code: "PROFILE_BINDING_MISMATCH",
+      message: `Unit ${input.definitionId} has a D1/generated ${mismatchedProfile} mismatch.`,
+      authority: null,
+    };
+  }
+  const cargoProfile = governedCargoProfile(generatedProfiles.cargoProfileId);
+  const supplyProfile = governedSupplyProfile(generatedProfiles.supplyProfileId);
+
   const execution = resolveUnitExecutionAdapter(input.rulesetId, input.definitionId, environment);
   const executionCode = execution.code;
   const executionAllowed = execution.ok;
@@ -343,6 +453,13 @@ export function resolveUnitRulesAuthority(
       orderDefinitionIds: linkedOrderIds,
       allowedActionTypes: execution.ok ? execution.allowedActionTypes : [],
       allowedOrderTypes: execution.ok ? execution.allowedOrderTypes : [],
+    },
+    profiles: {
+      movementProfileId: input.movementProfileId,
+      durabilityProfileId: input.durabilityProfileId,
+      cargoProfile,
+      supplyProfile,
+      deploymentProfileId: input.deploymentProfileId,
     },
     legacyD1: {
       ...input,

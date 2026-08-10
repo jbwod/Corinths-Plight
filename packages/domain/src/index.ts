@@ -2,6 +2,9 @@ export const RULESET_VERSION = "v5-core-curated@1" as const;
 
 export * from "./json-contract";
 export * from "./rules-catalogue-contract";
+export * from "./governed-cargo";
+export * from "./governed-supply";
+export * from "./tactical-supply";
 
 export type DefinitionStatus = "active" | "experimental" | "legacy" | "incomplete";
 export type ImplementationStatus = "IMPLEMENTED" | "PARTIAL" | "CATALOGUE_ONLY";
@@ -174,6 +177,10 @@ export interface UnitStats {
 
 export type CargoKind = "PERSONNEL" | "VEHICLE" | "SUPPLY" | "STRUCTURE" | "OTHER";
 export type CargoTransportMode = "STOWED" | "EMBARKED" | "TOWED" | "AIRLIFTED";
+/**
+ * Compatibility type for persisted pre-CP-201 data. New tactical boundaries
+ * must use TacticalSupplyResourceId or parse values before assigning them.
+ */
 export type SupplyType = string;
 
 export interface CargoCapacityRule {

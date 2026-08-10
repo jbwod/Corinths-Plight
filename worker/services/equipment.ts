@@ -1,7 +1,5 @@
 import type {
   AbilityRef,
-  CargoProfile,
-  CargoCapacityRule,
   EffectiveUnitBuildResult,
   EquipmentDefinition,
   EquipmentEffect,
@@ -11,7 +9,7 @@ import type {
   WeaponProfile,
 } from "../../packages/domain/src";
 import { RULESET_VERSION } from "../../packages/domain/src";
-import { buildEffectiveUnit } from "../../packages/rules-engine/src";
+import { buildEffectiveUnit, normalizeTacticalSupplyInventory } from "../../packages/rules-engine/src";
 import type { Env } from "../env";
 import type { LoadoutChangeCommand, PurchaseEquipmentCommand } from "../equipment-validation";
 import { commandHash } from "../forces-validation";
@@ -61,38 +59,6 @@ function weapon(row: UnitWeaponRow): WeaponProfile {
     cooldownRounds: row.cooldown_rounds ?? undefined,
     indirect: row.indirect === 1,
     tags: Array.isArray(definition.tags) ? definition.tags.filter((item): item is string => typeof item === "string") : [],
-  };
-}
-
-function cargoProfile(row: LoadoutContextRow): CargoProfile | undefined {
-  if (!row.cargo_profile_id) return undefined;
-  const capacity = parseJson<{
-    slotCapacityQuarters?: number;
-    conversions?: Array<{
-      itemTagsAny?: string[];
-      resourceType?: string;
-      quantity?: number;
-      slotCostQuarters?: number;
-    }>;
-  }>(row.cargo_capacity_json, {});
-  const loading = parseJson<{ standardAction?: boolean; standardActionCostPerSlotQuarters?: number }>(row.cargo_loading_rules_json, {});
-  const rules: CargoCapacityRule[] = (capacity.conversions ?? []).map((conversion, index) => ({
-    id: `${row.cargo_profile_id}:${index}`,
-    cargoKind: conversion.resourceType ? "SUPPLY" : conversion.itemTagsAny?.includes("INFANTRY") ? "PERSONNEL" : "VEHICLE",
-    supplyType: conversion.resourceType?.replace(/_SUPPLY$/, ""),
-    requiredTags: conversion.itemTagsAny,
-    quantityPerSlot: conversion.quantity,
-    slotsPerItemQuarters: conversion.quantity ? undefined : conversion.slotCostQuarters,
-  }));
-  return {
-    id: row.cargo_profile_id,
-    capacitySlotsQuarters: capacity.slotCapacityQuarters ?? 0,
-    rules,
-    allowMixedLoadGroups: true,
-    embarkFlatSpeedCostQuarters: loading.standardAction ? 2 : undefined,
-    disembarkFlatSpeedCostQuarters: loading.standardAction ? 2 : undefined,
-    embarkSpeedCostQuartersPerCargoSlot: loading.standardActionCostPerSlotQuarters,
-    disembarkSpeedCostQuartersPerCargoSlot: loading.standardActionCostPerSlotQuarters,
   };
 }
 
@@ -174,7 +140,7 @@ export async function buildStoredEffectiveUnit(
 }> {
   const context = await getLoadoutContext(env.DB, ownerId, unitId);
   if (!context) throw new ForceServiceError(404, "UNIT_NOT_FOUND", "Persistent unit or active default loadout was not found.");
-  const [inventoryRows, currentItems, slots, tags, abilities, baseWeaponRows, allWeaponRows, supplies] = await Promise.all([
+  const [inventoryRows, currentItems, slots, tags, abilities, baseWeaponRows, allWeaponRows, storedSupplies] = await Promise.all([
     listInventoryEffects(env.DB, ownerId),
     listLoadoutItems(env.DB, context.loadout_id, unitId),
     listUnitSlots(env.DB, context.definition_id, context.ruleset_id),
@@ -184,6 +150,7 @@ export async function buildStoredEffectiveUnit(
     listRulesetWeapons(env.DB, context.ruleset_id),
     getUnitSupplies(env.DB, unitId),
   ]);
+  const supplies = normalizeTacticalSupplyInventory(storedSupplies, `player_units.${unitId}.supplies`);
   const definitionJson = parseJson<Record<string, unknown>>(context.definition_json, {});
   const rulesResolution = resolveUnitRulesAuthority({
     rulesetId: context.ruleset_id,
@@ -204,6 +171,11 @@ export async function buildStoredEffectiveUnit(
     allowedOrderTypes: Array.isArray(definitionJson.allowedOrders)
       ? definitionJson.allowedOrders.filter((item): item is string => typeof item === "string")
       : [],
+    movementProfileId: context.movement_profile_id,
+    durabilityProfileId: context.durability_profile_id,
+    cargoProfileId: context.cargo_profile_id,
+    supplyProfileId: context.supply_profile_id,
+    deploymentProfileId: context.deployment_profile_id,
   }, env.ENVIRONMENT);
   if (!rulesResolution.ok) {
     throw new ForceServiceError(422, "UNIT_DEFINITION_NOT_EXECUTABLE", rulesResolution.message, {
@@ -329,7 +301,6 @@ export async function buildStoredEffectiveUnit(
     },
     durabilityProfile,
     abilities: abilityRefs,
-    cargoProfile: cargoProfile(context),
     deploymentProfile: context.deployment_profile_id ? { id: context.deployment_profile_id, allowedLocationStates: ["RESERVE", "ON_SHIP"], requiredTags: [], prohibitedStatuses: ["DESTROYED"] } : undefined,
   };
   const ammunition = parseJson<Record<string, number>>(context.ammunition_json, {});

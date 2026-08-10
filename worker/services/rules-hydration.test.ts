@@ -4,9 +4,32 @@ import {
   rehydratePinnedUnitRulesAuthority,
   resolveEquipmentRulesAuthority,
   resolveUnitRulesAuthority,
+  serverRulesCatalogueRuntime,
   type D1EquipmentRulesInput,
   type D1UnitRulesInput,
 } from "./rules-hydration";
+
+function profileBindings(definitionId: string): Pick<
+  D1UnitRulesInput,
+  "movementProfileId" | "durabilityProfileId" | "cargoProfileId" | "supplyProfileId" | "deploymentProfileId"
+> {
+  const result = {
+    movementProfileId: "",
+    durabilityProfileId: "",
+    cargoProfileId: null as string | null,
+    supplyProfileId: null as string | null,
+    deploymentProfileId: null as string | null,
+  };
+  for (const relation of serverRulesCatalogueRuntime.relationsFrom({ definitionKind: "UNIT", definitionId })) {
+    if (relation.kind !== "UNIT_PROFILE" || !relation.to) continue;
+    if (relation.to.definitionKind === "MOVEMENT_PROFILE") result.movementProfileId = relation.to.definitionId;
+    if (relation.to.definitionKind === "DURABILITY_PROFILE") result.durabilityProfileId = relation.to.definitionId;
+    if (relation.to.definitionKind === "CARGO_PROFILE") result.cargoProfileId = relation.to.definitionId;
+    if (relation.to.definitionKind === "SUPPLY_PROFILE") result.supplyProfileId = relation.to.definitionId;
+    if (relation.to.definitionKind === "DEPLOYMENT_PROFILE") result.deploymentProfileId = relation.to.definitionId;
+  }
+  return result;
+}
 
 function unitInput(definitionId = "unit-infantry-squad"): D1UnitRulesInput {
   return {
@@ -24,6 +47,7 @@ function unitInput(definitionId = "unit-infantry-squad"): D1UnitRulesInput {
     actionDefinitionIds: ["action-dig-in"],
     allowedActionTypes: ["DIG_IN"],
     allowedOrderTypes: ["HOLD"],
+    ...profileBindings(definitionId),
   };
 }
 
@@ -88,6 +112,54 @@ describe("server rules hydration", () => {
     expect(result.authority).toMatchObject({
       definitionId,
       decision: { executable: false },
+    });
+  });
+
+  test("preserves Light Vehicle alternative cargo modes while withholding the lossy legacy cargo actions", () => {
+    const result = resolveUnitRulesAuthority(unitInput("unit-light-vehicle"), "development");
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.message);
+
+    expect(result.authority.profiles.cargoProfile).toMatchObject({
+      id: "cargo-light-vehicle",
+      capacity: {
+        kind: "ALTERNATIVE_MODES",
+        mixedLoadingPolicy: "MUTUALLY_EXCLUSIVE",
+        modes: [
+          { kind: "MAXIMUM_FORCE_STRENGTH", maximumForceStrength: 4 },
+          { kind: "RESOURCE_QUANTITY", resourceType: "SMALL_SUPPLY", quantity: 1 },
+        ],
+      },
+    });
+    expect(result.authority.links.allowedActionTypes).not.toContain("LOAD");
+    expect(result.authority.links.allowedActionTypes).not.toContain("UNLOAD");
+  });
+
+  test("hydrates Artillery's exact Small Supply profile without a legacy size alias", () => {
+    const result = resolveUnitRulesAuthority(unitInput("unit-artillery"), "development");
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.message);
+
+    expect(result.authority.profiles.supplyProfile).toMatchObject({
+      id: "supply-artillery-small-two",
+      capacities: {
+        SMALL_SUPPLY: { kind: "FIXED_MAXIMUM", maximum: 2 },
+      },
+      reloadRules: {
+        costPerRoundOfFire: 1,
+        conflictIds: ["RC-V5-011"],
+      },
+    });
+  });
+
+  test("fails closed when D1 profile bindings drift from generated authority", () => {
+    expect(resolveUnitRulesAuthority({
+      ...unitInput(),
+      movementProfileId: "movement-wrong",
+    }, "development")).toMatchObject({
+      ok: false,
+      code: "PROFILE_BINDING_MISMATCH",
+      authority: null,
     });
   });
 

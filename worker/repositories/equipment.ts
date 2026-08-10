@@ -37,6 +37,7 @@ export interface LoadoutContextRow {
   movement_profile_id: string;
   durability_profile_id: string;
   cargo_profile_id: string | null;
+  supply_profile_id: string | null;
   deployment_profile_id: string | null;
   profile_json: string;
   movement_domain: "GROUND" | "VTOL" | "AEROSPACE" | "ORBITAL";
@@ -48,8 +49,6 @@ export interface LoadoutContextRow {
   durability_output_scales_with_current: number;
   durability_supports_subsystems: number;
   durability_definition_json: string;
-  cargo_capacity_json: string | null;
-  cargo_loading_rules_json: string | null;
 }
 
 export interface InventoryEffectRow {
@@ -119,6 +118,7 @@ export async function getLoadoutContext(db: D1Database, ownerId: string, unitId:
       definitions.definition_json, overlays.implementation_status, overlays.requisition_status,
       overlays.availability_status, overlays.executable, overlays.purchasable, overlays.reason_code,
       profiles.movement_profile_id, profiles.durability_profile_id, profiles.cargo_profile_id,
+      profiles.supply_profile_id,
       profiles.deployment_profile_id, profiles.profile_json,
       movement.domain AS movement_domain, movement.uses_facing AS movement_uses_facing,
       movement.allows_hostile_passage AS movement_allows_hostile_passage,
@@ -127,8 +127,7 @@ export async function getLoadoutContext(db: D1Database, ownerId: string, unitId:
       durability.model AS durability_model,
       durability.output_scales_with_current AS durability_output_scales_with_current,
       durability.supports_subsystems AS durability_supports_subsystems,
-      durability.definition_json AS durability_definition_json,
-      cargo.capacity_json AS cargo_capacity_json, cargo.loading_rules_json AS cargo_loading_rules_json
+      durability.definition_json AS durability_definition_json
     FROM player_units AS units
     JOIN unit_class_definitions AS definitions
       ON definitions.id = units.definition_id AND definitions.ruleset_id = units.ruleset_id
@@ -143,8 +142,6 @@ export async function getLoadoutContext(db: D1Database, ownerId: string, unitId:
       ON durability.id = profiles.durability_profile_id AND durability.ruleset_id = profiles.ruleset_id
     JOIN player_unit_loadouts AS loadouts
       ON loadouts.player_unit_id = units.id AND loadouts.loadout_kind = 'OWNED_DEFAULT' AND loadouts.status = 'ACTIVE'
-    LEFT JOIN cargo_profile_definitions AS cargo
-      ON cargo.id = profiles.cargo_profile_id AND cargo.ruleset_id = profiles.ruleset_id
     WHERE units.id = ?1 AND units.owner_id = ?2
     LIMIT 1`).bind(unitId, ownerId).first<LoadoutContextRow>();
 }

@@ -1,12 +1,13 @@
-import type {
-  CargoCapacityRule,
-  CargoManifestItem,
-  CargoProfile,
-  ReloadProfile,
-  SupplyInventory,
-  SupplyProfile,
-  SupplyType,
-  WeaponProfile,
+import {
+  isTacticalSupplyResourceId,
+  type CargoCapacityRule,
+  type CargoManifestItem,
+  type CargoProfile,
+  type ReloadProfile,
+  type SupplyInventory,
+  type SupplyProfile,
+  type TacticalSupplyResourceId,
+  type WeaponProfile,
 } from "../../domain/src";
 import { hasAllTags, hasAnyTag } from "./forces";
 
@@ -323,6 +324,10 @@ export function validateSupplyInventory(
   }
   if (!Number.isFinite(currentHealth) || currentHealth < 0) reasons.push("Current health is invalid for supply capacity.");
   for (const [type, typeCapacity] of Object.entries(profile.capacities)) {
+    if (!isTacticalSupplyResourceId(type)) {
+      reasons.push(`${type} is not a canonical tactical supply resource identifier.`);
+      continue;
+    }
     if (!Number.isInteger(typeCapacity) || typeCapacity < 0) reasons.push(`${type} supply capacity is invalid.`);
   }
   let total = 0;
@@ -330,6 +335,10 @@ export function validateSupplyInventory(
     const validQuantity = Number.isInteger(quantity) && quantity >= 0;
     if (!validQuantity) reasons.push(`${type} supply must be a non-negative integer.`);
     else total += quantity;
+    if (!isTacticalSupplyResourceId(type)) {
+      reasons.push(`${type} is not a canonical tactical supply resource identifier.`);
+      continue;
+    }
     const typeCapacity = profile.capacities[type];
     if (typeCapacity === undefined) reasons.push(`${type} supply is unsupported by this profile.`);
     else if (validQuantity && quantity > typeCapacity) reasons.push(`${type} supply capacity exceeded.`);
@@ -347,7 +356,7 @@ export interface SupplyTransferInput {
   destination: SupplyInventory;
   sourceCurrentHealth: number;
   destinationCurrentHealth: number;
-  type: SupplyType;
+  type: TacticalSupplyResourceId;
   quantity: number;
 }
 

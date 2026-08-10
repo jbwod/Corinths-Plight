@@ -1,4 +1,4 @@
-import type { CargoProfile, ReloadProfile, SupplyProfile, WeaponProfile } from "../../domain/src";
+import type { CargoManifestItem, CargoProfile, ReloadProfile, SupplyProfile, WeaponProfile } from "../../domain/src";
 import { describe, expect, it } from "vitest";
 import {
   attachTow,
@@ -17,9 +17,9 @@ const transport: CargoProfile = {
   rules: [
     { id: "personnel", cargoKind: "PERSONNEL", quantityPerSlot: 6, loadGroup: "units" },
     { id: "vehicle", cargoKind: "VEHICLE", slotsPerItemQuarters: 8, loadGroup: "units" },
-    { id: "small", cargoKind: "SUPPLY", supplyType: "SMALL", quantityPerSlot: 5, loadGroup: "supply" },
-    { id: "medium", cargoKind: "SUPPLY", supplyType: "MEDIUM", slotsPerItemQuarters: 8, loadGroup: "supply" },
-    { id: "large", cargoKind: "SUPPLY", supplyType: "LARGE", slotsPerItemQuarters: 20, loadGroup: "supply" },
+    { id: "small", cargoKind: "SUPPLY", supplyType: "SMALL_SUPPLY", quantityPerSlot: 5, loadGroup: "supply" },
+    { id: "medium", cargoKind: "SUPPLY", supplyType: "MEDIUM_SUPPLY", slotsPerItemQuarters: 8, loadGroup: "supply" },
+    { id: "large", cargoKind: "SUPPLY", supplyType: "LARGE_SUPPLY", slotsPerItemQuarters: 20, loadGroup: "supply" },
   ],
   allowMixedLoadGroups: true,
   embarkSpeedCostQuartersPerCargoSlot: 2,
@@ -30,10 +30,10 @@ const transport: CargoProfile = {
 
 describe("cargo capacity and transport actions", () => {
   it("accounts in quarter-slots and enforces the five-slot HAT capacity", () => {
-    const manifest = [
+    const manifest: CargoManifestItem[] = [
       { id: "squad", kind: "PERSONNEL" as const, quantity: 6, tags: [] },
       { id: "vehicle", kind: "VEHICLE" as const, quantity: 1, tags: ["LIGHT"] },
-      { id: "shells", kind: "SUPPLY" as const, supplyType: "SMALL", quantity: 10, tags: [] },
+      { id: "shells", kind: "SUPPLY" as const, supplyType: "SMALL_SUPPLY", quantity: 10, tags: [] },
     ];
     expect(validateCargoManifest(transport, manifest)).toMatchObject({ legal: true, slotsUsedQuarters: 20 });
     expect(
@@ -85,23 +85,23 @@ describe("cargo capacity and transport actions", () => {
 
 const sourceSupply: SupplyProfile = {
   id: "logi-supply",
-  capacities: { SMALL: 10 },
+  capacities: { SMALL_SUPPLY: 10 },
   totalCapacity: 10,
   retainExistingOverCapacity: true,
-  transferableTypes: ["SMALL"],
+  transferableTypes: ["SMALL_SUPPLY"],
 };
 const healthLinkedSupply: SupplyProfile = {
   id: "engineer-supply",
-  capacities: { SMALL: 4 },
+  capacities: { SMALL_SUPPLY: 4 },
   totalCapacity: 4,
   capacityPerCurrentHealth: 1,
   retainExistingOverCapacity: true,
-  transferableTypes: ["SMALL"],
+  transferableTypes: ["SMALL_SUPPLY"],
 };
 
 describe("profiled Supply and reload", () => {
   it("retains casualty-created excess but prohibits loading more", () => {
-    expect(validateSupplyInventory(healthLinkedSupply, { SMALL: 4 }, 2)).toMatchObject({
+    expect(validateSupplyInventory(healthLinkedSupply, { SMALL_SUPPLY: 4 }, 2)).toMatchObject({
       legal: true,
       overCapacity: true,
       capacity: 2,
@@ -110,11 +110,11 @@ describe("profiled Supply and reload", () => {
       transferProfiledSupply({
         sourceProfile: sourceSupply,
         destinationProfile: healthLinkedSupply,
-        source: { SMALL: 5 },
-        destination: { SMALL: 4 },
+        source: { SMALL_SUPPLY: 5 },
+        destination: { SMALL_SUPPLY: 4 },
         sourceCurrentHealth: 1,
         destinationCurrentHealth: 2,
-        type: "SMALL",
+        type: "SMALL_SUPPLY",
         quantity: 1,
       }),
     ).toMatchObject({ legal: false, reason: "Destination is already over capacity." });
@@ -125,14 +125,14 @@ describe("profiled Supply and reload", () => {
       transferProfiledSupply({
         sourceProfile: sourceSupply,
         destinationProfile: healthLinkedSupply,
-        source: { SMALL: 5 },
-        destination: { SMALL: 1 },
+        source: { SMALL_SUPPLY: 5 },
+        destination: { SMALL_SUPPLY: 1 },
         sourceCurrentHealth: 1,
         destinationCurrentHealth: 4,
-        type: "SMALL",
+        type: "SMALL_SUPPLY",
         quantity: 2,
       }),
-    ).toMatchObject({ legal: true, source: { SMALL: 3 }, destination: { SMALL: 3 } });
+    ).toMatchObject({ legal: true, source: { SMALL_SUPPLY: 3 }, destination: { SMALL_SUPPLY: 3 } });
 
     const weapon: WeaponProfile = {
       id: "limited-weapon",
@@ -145,7 +145,7 @@ describe("profiled Supply and reload", () => {
     };
     const reload: ReloadProfile = {
       id: "field-reload",
-      supplyType: "SMALL",
+      supplyType: "SMALL_SUPPLY",
       supplyCost: 1,
       ammunitionPerAction: "FULL",
       requiresLanding: false,
@@ -158,7 +158,7 @@ describe("profiled Supply and reload", () => {
         profile: reload,
         weapon,
         currentAmmo: 0,
-        supplies: { SMALL: 2 },
+        supplies: { SMALL_SUPPLY: 2 },
         landed: false,
         facilityTags: ["SUPPLY_POINT"],
       }),
@@ -166,7 +166,7 @@ describe("profiled Supply and reload", () => {
       legal: true,
       ammunitionAfter: 3,
       supplySpent: 1,
-      supplies: { SMALL: 1 },
+      supplies: { SMALL_SUPPLY: 1 },
       actionEconomy: "STANDARD",
     });
   });

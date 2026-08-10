@@ -320,7 +320,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         }
         const currentAmmo = actor.ammunition[weapon.id] ?? 0;
         const reloaded = reloadAmmunition({
-          profile: { id: "v5-field-reload", supplyType: "SMALL", supplyCost: 1, ammunitionPerAction: "FULL", requiresLanding: false, requiredFacilityTags: [], facilityTagMatch: "ANY", actionEconomy: "STANDARD" },
+          profile: { id: "v5-field-reload", supplyType: "SMALL_SUPPLY", supplyCost: 1, ammunitionPerAction: "FULL", requiresLanding: false, requiredFacilityTags: [], facilityTagMatch: "ANY", actionEconomy: "STANDARD" },
           weapon,
           currentAmmo,
           supplies: actor.supplies ?? {},

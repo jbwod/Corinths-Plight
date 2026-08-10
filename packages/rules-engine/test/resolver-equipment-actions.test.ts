@@ -63,13 +63,32 @@ describe("equipment and transport actions", () => {
     const unit = base.deployments[0];
     unit.weapons = [{ id: "test-ammo", name: "Test", damage: { count: 1, sides: 6 }, range: 1, armorPiercing: 0, ammoCapacity: 3, tags: [] }];
     unit.ammunition = { "test-ammo": 1 };
-    unit.supplies = { SMALL: 2 };
+    unit.supplies = { SMALL_SUPPLY: 2 };
     const orders = [order(base, unit, [action("reload", "RELOAD", { weaponId: "test-ammo" })])];
     base.orders = orders;
     const output = resolveRound({ ...input(orders), previousState: base });
     expect(output.events).toContainEqual(expect.objectContaining({ type: "WEAPON_RELOADED", actor: unit.id }));
     expect(output.state.deployments[0].ammunition["test-ammo"]).toBe(3);
-    expect(output.state.deployments[0].supplies?.SMALL).toBe(1);
+    expect(output.state.deployments[0].supplies?.SMALL_SUPPLY).toBe(1);
+  });
+
+  it("does not translate a legacy strategic SMALL key into tactical Small Supply", () => {
+    const base = createDemoCampaignState(1_000);
+    const unit = base.deployments[0];
+    unit.weapons = [{ id: "test-ammo", name: "Test", damage: { count: 1, sides: 6 }, range: 1, armorPiercing: 0, ammoCapacity: 3, tags: [] }];
+    unit.ammunition = { "test-ammo": 1 };
+    unit.supplies = { SMALL: 2 };
+    const orders = [order(base, unit, [action("reload", "RELOAD", { weaponId: "test-ammo" })])];
+    base.orders = orders;
+
+    const output = resolveRound({ ...input(orders), previousState: base });
+
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "ORDER_REJECTED",
+      actor: unit.id,
+      payload: expect.objectContaining({ reasons: ["Insufficient reload supply."] }),
+    }));
+    expect(output.state.deployments[0].ammunition["test-ammo"]).toBe(1);
   });
 
   it("deploys a drone at range and starts the six-round cooldown", () => {

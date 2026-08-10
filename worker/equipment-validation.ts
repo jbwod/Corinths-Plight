@@ -1,4 +1,8 @@
-import type { DeploymentMethodId } from "../packages/domain/src";
+import {
+  isTacticalSupplyResourceId,
+  type DeploymentMethodId,
+  type TacticalSupplyResourceId,
+} from "../packages/domain/src";
 import type { ValidationResult } from "./forces-validation";
 
 const idPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
@@ -102,7 +106,7 @@ export interface SaveDeploymentPlanCommand {
   insertionZoneId?: string;
   route: Array<{ q: number; r: number }>;
   units: Array<{ unitId: string; loadoutId: string; expectedUnitVersion: number; expectedLoadoutRevision: number }>;
-  transports: Array<{ carrierUnitId: string; cargoProfileId: string; cargo: Array<{ id: string; kind: string; quantity: number; unitId?: string; supplyType?: string; tags: string[] }> }>;
+  transports: Array<{ carrierUnitId: string; cargoProfileId: string; cargo: Array<{ id: string; kind: string; quantity: number; unitId?: string; supplyType?: TacticalSupplyResourceId; tags: string[] }> }>;
 }
 
 const deploymentMethods = new Set<DeploymentMethodId>([
@@ -165,7 +169,7 @@ export function validateSaveDeploymentPlanCommand(value: unknown): ValidationRes
           typeof raw.kind !== "string" || !["PERSONNEL", "VEHICLE", "SUPPLY"].includes(raw.kind) ||
           !Number.isInteger(raw.quantity) || (raw.quantity as number) < 1 || (raw.quantity as number) > 100 ||
           (raw.unitId !== undefined && (typeof raw.unitId !== "string" || !idPattern.test(raw.unitId))) ||
-          (raw.supplyType !== undefined && (typeof raw.supplyType !== "string" || !/^[A-Z][A-Z0-9_]{0,31}$/.test(raw.supplyType))) ||
+          (raw.supplyType !== undefined && !isTacticalSupplyResourceId(raw.supplyType)) ||
           !Array.isArray(raw.tags) || raw.tags.length > 32 || !raw.tags.every((tag) => typeof tag === "string" && /^[A-Z][A-Z0-9_]{0,63}$/.test(tag))) {
         return { valid: false, code: "CARGO_INVALID", message: "Cargo items contain invalid or unsupported fields." };
       }
@@ -173,7 +177,14 @@ export function validateSaveDeploymentPlanCommand(value: unknown): ValidationRes
         return { valid: false, code: "CARGO_INVALID", message: "Unit cargo requires unitId; Supply cargo requires supplyType." };
       }
       cargoIds.add(raw.id);
-      cargo.push({ id: raw.id, kind: raw.kind, quantity: raw.quantity as number, unitId: raw.unitId as string | undefined, supplyType: raw.supplyType as string | undefined, tags: raw.tags as string[] });
+      cargo.push({
+        id: raw.id,
+        kind: raw.kind,
+        quantity: raw.quantity as number,
+        unitId: raw.unitId as string | undefined,
+        supplyType: isTacticalSupplyResourceId(raw.supplyType) ? raw.supplyType : undefined,
+        tags: raw.tags as string[],
+      });
     }
     carrierIds.add(candidate.carrierUnitId);
     transports.push({ carrierUnitId: candidate.carrierUnitId, cargoProfileId: candidate.cargoProfileId, cargo });

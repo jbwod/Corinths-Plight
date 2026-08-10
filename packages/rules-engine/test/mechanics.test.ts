@@ -241,18 +241,18 @@ describe("ammo, cooldown, Supply, build, and equipment restrictions", () => {
   });
 
   it("transfers positive integral Supply without mutating either inventory", () => {
-    const source = { SMALL: 5, MEDIUM: 1 };
-    const destination = { SMALL: 2 };
+    const source = { SMALL_SUPPLY: 5, MEDIUM_SUPPLY: 1 };
+    const destination = { SMALL_SUPPLY: 2 };
 
-    expect(transferSupply(source, destination, "SMALL", 3)).toEqual({
+    expect(transferSupply(source, destination, "SMALL_SUPPLY", 3)).toEqual({
       legal: true,
-      source: { SMALL: 2, MEDIUM: 1 },
-      destination: { SMALL: 5 },
+      source: { SMALL_SUPPLY: 2, MEDIUM_SUPPLY: 1 },
+      destination: { SMALL_SUPPLY: 5 },
     });
-    expect(source).toEqual({ SMALL: 5, MEDIUM: 1 });
-    expect(destination).toEqual({ SMALL: 2 });
+    expect(source).toEqual({ SMALL_SUPPLY: 5, MEDIUM_SUPPLY: 1 });
+    expect(destination).toEqual({ SMALL_SUPPLY: 2 });
     for (const invalid of [0, -1, 1.5, 6]) {
-      expect(transferSupply(source, destination, "SMALL", invalid).legal).toBe(false);
+      expect(transferSupply(source, destination, "SMALL_SUPPLY", invalid).legal).toBe(false);
     }
   });
 

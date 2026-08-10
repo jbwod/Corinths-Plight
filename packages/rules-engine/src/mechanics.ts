@@ -4,6 +4,8 @@ import type {
   CampaignDeployment,
   EquipmentDefinition,
   StructuredAction,
+  SupplyInventory,
+  TacticalSupplyResourceId,
   UnitClassDefinition,
   UnitStats,
   WeaponProfile,
@@ -169,11 +171,11 @@ export function consumeAmmo(
 }
 
 export function transferSupply(
-  source: Record<string, number>,
-  destination: Record<string, number>,
-  type: string,
+  source: SupplyInventory,
+  destination: SupplyInventory,
+  type: TacticalSupplyResourceId,
   quantity: number,
-): { legal: boolean; source: Record<string, number>; destination: Record<string, number> } {
+): { legal: boolean; source: SupplyInventory; destination: SupplyInventory } {
   if (!Number.isInteger(quantity) || quantity <= 0 || (source[type] ?? 0) < quantity) {
     return { legal: false, source, destination };
   }

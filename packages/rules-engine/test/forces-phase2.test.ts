@@ -121,7 +121,7 @@ describe("abilities, healing, and construction", () => {
       requiresFriendlyTarget: true,
       allowsSelfTarget: false,
       allowsDestroyedTarget: false,
-      supplyType: "MEDICAL",
+      supplyType: "MEDICAL_SUPPLY",
       supplyCost: 1,
       amountCap: "HEALER_CURRENT_HEALTH",
     };
@@ -162,7 +162,7 @@ describe("abilities, healing, and construction", () => {
       id: "build-sandbags",
       progressRequired: 4,
       progressPerAction: 2,
-      supplyType: "SMALL",
+      supplyType: "SMALL_SUPPLY",
       supplyPerAction: 1,
       maximumActionsPerRound: 2,
       requiredBuilderTags: ["BUILDER"],
@@ -223,7 +223,7 @@ describe("subsystem damage and repair", () => {
 
     const repairProfile: SubsystemRepairProfile = {
       id: "engineer-repair",
-      supplyType: "SMALL",
+      supplyType: "SMALL_SUPPLY",
       supplyCost: 1,
       requiredActions: 1,
       requiresStationary: true,
