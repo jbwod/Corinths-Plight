@@ -419,6 +419,51 @@ export function resolveRound(input: RoundInput): RoundOutput {
           speedCost: action.speedCost,
         }, actorVisibility);
       }
+      if (action.type === "CONSTRUCT") {
+        const targetHex = action.targetHex;
+        const targetMapHex = targetHex && state.map.find((hex) => sameCoord(hex.coord, targetHex));
+        const supplyBefore = actor.supplies?.SMALL_SUPPLY ?? 0;
+        const alreadyPresent = targetMapHex?.structureIds.some((id) =>
+          id === "structure-sandbag-line" || id.startsWith("structure-sandbag-line:")
+        ) ?? false;
+        if (
+          !(actor.tags ?? []).includes("ENGINEER") ||
+          action.structureDefinitionId !== "structure-sandbag-line" ||
+          !targetHex ||
+          !targetMapHex ||
+          hexDistance(actor.position, targetHex) > 1 ||
+          alreadyPresent ||
+          supplyBefore < 1
+        ) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [
+              !(actor.tags ?? []).includes("ENGINEER")
+                ? "Construction requires an Engineer unit."
+                : action.structureDefinitionId !== "structure-sandbag-line"
+                  ? "Only the V5 Sandbag Line is executable."
+                  : alreadyPresent
+                    ? "That hex already contains a Sandbag Line."
+                    : supplyBefore < 1
+                      ? "A Sandbag Line requires one Small Supply."
+                      : "A Sandbag Line must be placed in the Engineer's current or an adjacent hex.",
+            ],
+          }, actorVisibility);
+          continue;
+        }
+        const instanceId = `structure-sandbag-line:${state.campaignId}:${state.round}:${actor.id}:${targetHex.q},${targetHex.r}`;
+        targetMapHex.structureIds.push(instanceId);
+        actor.supplies = { ...(actor.supplies ?? {}), SMALL_SUPPLY: supplyBefore - 1 };
+        event("STRUCTURE_COMPLETED", actor.id, {
+          actionId: action.id,
+          structureDefinitionId: action.structureDefinitionId,
+          structureInstanceId: instanceId,
+          targetHex,
+          smallSupplySpent: 1,
+          infantryArmor: 1,
+        }, actorVisibility);
+      }
       if (action.type === "DEPLOY" || action.type === "PACK_UP") {
         if (!isArtilleryDeployment(actor)) {
           event("ORDER_REJECTED", actor.id, {

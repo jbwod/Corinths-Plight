@@ -199,6 +199,8 @@ export function describeCampaignReportEvent(
       return payload.repairKind === "SUBSYSTEM"
         ? `${actor} restored ${String(payload.subsystemId ?? "a subsystem")} on ${target}.`
         : `${actor} restored one Hit to ${target} (${numberValue(payload.before)} → ${numberValue(payload.after)}).`;
+    case "STRUCTURE_COMPLETED":
+      return `${actor} completed a Sandbag Line at hex ${coordLabel(payload.targetHex) ?? "unknown"}, spending one Small Supply.`;
     case "ARTILLERY_DEPLOYED":
       return `${actor} deployed and unhitched the artillery platform.`;
     case "ARTILLERY_PACKED":

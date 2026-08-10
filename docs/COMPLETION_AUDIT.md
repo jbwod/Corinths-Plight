@@ -30,7 +30,7 @@ The audit began with only two unrelated untracked user paths, which were preserv
 | Seed/content validator | Pass | `npm run seed:check`: 34 definitions, 28 active, 95 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 3 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
 | TypeScript | Pass | `npm run typecheck`. |
 | ESLint | Pass | `npm run lint`. |
-| Unit/contract tests | Pass | `npm test`: 55 files, 412 tests, Vitest 4.1.10. |
+| Unit/contract tests | Pass | `npm test`: 59 files, 434 tests, Vitest 4.1.10. |
 | Worker/client build | Pass | `npm run build`; Worker 969.77 kB, client JS 431.21 kB, CSS 129.97 kB. Wrangler's sandboxed debug-log write warns but the build exits successfully. |
 | Production-mode build | Pass | `WRANGLER_WRITE_LOGS=false npm run build:production`. |
 | Empty D1 migration replay | Pass | All eight migrations applied in isolated Wrangler state. |

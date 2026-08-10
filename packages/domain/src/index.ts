@@ -765,6 +765,7 @@ export interface StructuredAction {
   speedCost: number;
   targetDeploymentId?: string;
   targetHex?: AxialCoord;
+  structureDefinitionId?: string;
   weaponId?: string;
   /** Server-derived fitted weapons participating in one Attack activation. */
   weaponIds?: string[];

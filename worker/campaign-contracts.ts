@@ -99,6 +99,7 @@ export interface CampaignActionIntent {
   type: ActionType;
   targetDeploymentId?: string;
   targetHex?: { q: number; r: number };
+  structureDefinitionId?: string;
   weaponId?: string;
   equipmentIds?: string[];
   payload?: {
@@ -197,7 +198,7 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     DEPLOY: [],
     PACK_UP: [],
     REPAIR: ["targetDeploymentId", "payload"],
-    CONSTRUCT: ["targetHex"],
+    CONSTRUCT: ["targetHex", "structureDefinitionId"],
     GARRISON: ["targetHex"],
     LOAD: ["targetDeploymentId"],
     UNLOAD: ["targetDeploymentId", "targetHex", "payload"],
@@ -222,6 +223,9 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     requestFail(`${path}.targetDeploymentId`, "Engineer Repair requires a target deployment.");
   }
   if (value.targetHex !== undefined) parsed.targetHex = coordinate(value.targetHex, `${path}.targetHex`);
+  if (value.structureDefinitionId !== undefined) {
+    parsed.structureDefinitionId = identifier(value.structureDefinitionId, `${path}.structureDefinitionId`);
+  }
   if (value.weaponId !== undefined) parsed.weaponId = identifier(value.weaponId, `${path}.weaponId`);
   if (value.equipmentIds !== undefined) {
     if (!Array.isArray(value.equipmentIds) || value.equipmentIds.length > 8) {
@@ -277,6 +281,9 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
   }
   if ((type === "SCAN" || type === "DEPLOY_DRONE" || type === "BOMBARDMENT") && !parsed.targetHex) {
     requestFail(path, `${type} requires targetHex.`);
+  }
+  if (type === "CONSTRUCT" && (!parsed.targetHex || !parsed.structureDefinitionId)) {
+    requestFail(path, "CONSTRUCT requires targetHex and structureDefinitionId.");
   }
   return parsed;
 }
@@ -499,6 +506,7 @@ function validateStoredAction(value: unknown, path: string): string {
   stateStringArray(action.equipmentIds, `${path}.equipmentIds`);
   if (action.targetDeploymentId !== undefined) stateString(action.targetDeploymentId, `${path}.targetDeploymentId`);
   if (action.targetHex !== undefined) stateCoordinate(action.targetHex, `${path}.targetHex`);
+  if (action.structureDefinitionId !== undefined) stateString(action.structureDefinitionId, `${path}.structureDefinitionId`);
   if (action.weaponId !== undefined) stateString(action.weaponId, `${path}.weaponId`);
   if (action.weaponIds !== undefined) {
     const weaponIds = stateStringArray(action.weaponIds, `${path}.weaponIds`);

@@ -99,6 +99,31 @@ describe("campaign order request contracts", () => {
     }]);
   });
 
+  it("requires an exact structure and hex for Engineer construction", () => {
+    expect(parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-allied-engineers",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{
+        type: "CONSTRUCT",
+        structureDefinitionId: "structure-sandbag-line",
+        targetHex: { q: -4, r: 1 },
+      }],
+    }).actions).toEqual([{
+      type: "CONSTRUCT",
+      structureDefinitionId: "structure-sandbag-line",
+      targetHex: { q: -4, r: 1 },
+    }]);
+    expect(() => parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-allied-engineers",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{ type: "CONSTRUCT", targetHex: { q: -4, r: 1 } }],
+    })).toThrow(CampaignRequestContractError);
+  });
+
   it.each([
     ["unknown order field", { unitId: "unit-1", orderType: "HOLD", facing: 0, economy: "STANDARD" }],
     ["invalid campaign version", { unitId: "unit-1", orderType: "HOLD", facing: 0, expectedCampaignVersion: 0 }],

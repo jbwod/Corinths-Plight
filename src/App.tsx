@@ -80,9 +80,9 @@ interface CampaignDirectoryEntry {
   };
 }
 type Notice = { tone: "info" | "success" | "danger"; message: string };
-type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
+type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "CONSTRUCT" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
 type RepairKind = "HIT" | "SUBSYSTEM";
-const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "RELOAD", "LOAD", "UNLOAD", "HEAL", "REPAIR", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
+const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "RELOAD", "LOAD", "UNLOAD", "HEAL", "REPAIR", "CONSTRUCT", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
 
 function initialCampaign(): CampaignView {
   const now = Date.now();
@@ -129,6 +129,7 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "DAMAGE_APPLIED") return `${event.actor ?? "Unit"} lost ${String(payload.loss ?? "?")} strength.`;
   if (event.type === "UNIT_HEALED") return `${event.actor ?? "Medic"} restored ${String(payload.amount ?? "?")} strength to ${String(payload.targetId ?? "an allied unit")}.`;
   if (event.type === "UNIT_REPAIRED") return `${event.actor ?? "Engineer"} repaired ${String(payload.targetId ?? "an allied vehicle")}.`;
+  if (event.type === "STRUCTURE_COMPLETED") return `${event.actor ?? "Engineer"} completed a Sandbag Line at ${String((payload.targetHex as AxialCoord | undefined)?.q ?? "?")}.${String((payload.targetHex as AxialCoord | undefined)?.r ?? "?")}.`;
   if (event.type === "ARTILLERY_DEPLOYED") return `${event.actor ?? "Artillery"} deployed and is ready to fire.`;
   if (event.type === "ARTILLERY_PACKED") return `${event.actor ?? "Artillery"} packed up for movement.`;
   if (event.type === "ARTILLERY_BOMBARDED") return `${event.actor ?? "Artillery"} fired a suppression mission.`;
@@ -191,6 +192,7 @@ function GameApp() {
   const [repairKind, setRepairKind] = useState<RepairKind>("HIT");
   const [repairSubsystemId, setRepairSubsystemId] = useState<string>();
   const [bombardmentTargetHex, setBombardmentTargetHex] = useState<AxialCoord>();
+  const [constructionTargetHex, setConstructionTargetHex] = useState<AxialCoord>();
   const [selectedWeaponId, setSelectedWeaponId] = useState<string>();
   const [scheduledRound, setScheduledRound] = useState(18);
   const [hovered, setHovered] = useState<{ coord?: AxialCoord; unit?: CampaignDeployment }>({});
@@ -469,6 +471,20 @@ function GameApp() {
   const selectedBombardmentHex = bombardmentHexes.find((hex) =>
     bombardmentTargetHex && coordinatesEqual(hex.coord, bombardmentTargetHex)
   )?.coord ?? bombardmentHexes[0]?.coord;
+  const constructionHexes = selectedUnit ? campaign.map
+    .filter((hex) =>
+      hex.visibility !== "UNKNOWN" &&
+      hexDistance(draftedRoute.at(-1) ?? selectedUnit.position, hex.coord) <= 1 &&
+      !hex.structureIds.some((id) => id === "structure-sandbag-line" || id.startsWith("structure-sandbag-line:"))
+    )
+    .sort((left, right) =>
+      hexDistance(draftedRoute.at(-1) ?? selectedUnit.position, left.coord) -
+        hexDistance(draftedRoute.at(-1) ?? selectedUnit.position, right.coord) ||
+      left.coord.q - right.coord.q || left.coord.r - right.coord.r
+    ) : [];
+  const selectedConstructionHex = constructionHexes.find((hex) =>
+    constructionTargetHex && coordinatesEqual(hex.coord, constructionTargetHex)
+  )?.coord ?? constructionHexes[0]?.coord;
   const currentOrder = campaign.orders.find(
     (order) => order.unitId === selectedUnit?.id && order.round === scheduledRound && order.lifecycle !== "CANCELLED",
   );
@@ -520,6 +536,9 @@ function GameApp() {
       (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0 &&
       (repairKind === "HIT" ? supportTarget.currentHealth < supportTarget.stats.maxHealth : selectedRepairSubsystem),
     )) ||
+    (actionMode === "CONSTRUCT" && Boolean(
+      isEngineerUnit && selectedConstructionHex && (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0
+    )) ||
     (actionMode === "DIG_IN" && !dugIn && orderType === "HOLD" && draftedRoute.length === 1) ||
     (actionMode === "DEPLOY" && isArtilleryUnit && !artilleryDeployed) ||
     (actionMode === "PACK_UP" && isArtilleryUnit && artilleryDeployed) ||
@@ -554,6 +573,8 @@ function GameApp() {
             ? repairKind === "HIT"
               ? `restore one Hit to ${supportTarget.callsign}`
               : `repair ${selectedRepairSubsystem?.subsystemId ?? "a subsystem"} on ${supportTarget.callsign}`
+          : actionMode === "CONSTRUCT" && selectedConstructionHex
+            ? `build a Sandbag Line at ${selectedConstructionHex.q}.${selectedConstructionHex.r}`
           : actionMode === "DIG_IN"
             ? "prepare this position for +2 Defense"
           : actionMode === "DEPLOY"
@@ -595,6 +616,7 @@ function GameApp() {
         : undefined,
     );
     setBombardmentTargetHex(storedAction?.type === "BOMBARDMENT" ? storedAction.targetHex : undefined);
+    setConstructionTargetHex(storedAction?.type === "CONSTRUCT" ? storedAction.targetHex : undefined);
     setSelectedWeaponId(storedAction?.weaponId ?? selectedUnit.weapons[0]?.id);
   }, [campaign.orders, scheduledRound, selectedUnit]);
 
@@ -613,6 +635,16 @@ function GameApp() {
   }
 
   function planDestination(coord: AxialCoord, unit?: CampaignDeployment) {
+    if (actionMode === "CONSTRUCT" && executableComposerActions.includes("CONSTRUCT")) {
+      const eligible = constructionHexes.some((hex) => coordinatesEqual(hex.coord, coord));
+      if (!eligible) {
+        setNotice({ tone: "danger", message: "Sandbags must be placed in the Engineer's current or an adjacent known hex." });
+        return;
+      }
+      setConstructionTargetHex(coord);
+      setNotice({ tone: "info", message: `Hex ${coord.q}.${coord.r} designated for a Sandbag Line.` });
+      return;
+    }
     if (actionMode === "BOMBARDMENT" && executableComposerActions.includes("BOMBARDMENT")) {
       setBombardmentTargetHex(coord);
       setNotice({ tone: "info", message: `Hex ${coord.q}.${coord.r} designated for suppression fire.` });
@@ -681,6 +713,13 @@ function GameApp() {
         payload: repairKind === "HIT"
           ? { repairKind: "HIT" }
           : { repairKind: "SUBSYSTEM", subsystemId: selectedRepairSubsystem?.subsystemId },
+      });
+    } else if (actionMode === "CONSTRUCT" && selectedConstructionHex) {
+      actions.push({
+        type: "CONSTRUCT",
+        targetHex: selectedConstructionHex,
+        structureDefinitionId: "structure-sandbag-line",
+        equipmentIds: [],
       });
     } else if (actionMode === "DIG_IN") {
       actions.push({ type: "DIG_IN", equipmentIds: [] });
@@ -993,7 +1032,7 @@ function GameApp() {
             draftedRoute={draftedRoute}
             draftedFacing={draftedFacing}
             targetUnitId={targetUnitId}
-            targetHex={actionMode === "BOMBARDMENT" ? selectedBombardmentHex : undefined}
+            targetHex={actionMode === "BOMBARDMENT" ? selectedBombardmentHex : actionMode === "CONSTRUCT" ? selectedConstructionHex : undefined}
             onMapClick={planDestination}
             onHover={(coord, unit) => setHovered({ coord, unit })}
           />
@@ -1130,6 +1169,7 @@ function GameApp() {
                           setRepairKind(target && target.currentHealth < target.stats.maxHealth ? "HIT" : "SUBSYSTEM");
                           setRepairSubsystemId(damagedSubsystem?.subsystemId);
                         }
+                        if (type === "CONSTRUCT") setConstructionTargetHex(constructionHexes[0]?.coord);
                         if (type === "BOMBARDMENT") setBombardmentTargetHex(bombardmentHexes[0]?.coord);
                       }}
                     >{type}</button>
@@ -1270,6 +1310,30 @@ function GameApp() {
                     </p>
                     <p className="validation">Restore one vehicle Hit or one damaged subsystem to a friendly vehicle in base contact.</p>
                     {repairTargets.length === 0 && <p className="validation danger">No damaged friendly vehicle is in base contact at the planned destination.</p>}
+                  </>
+                ) : actionMode === "CONSTRUCT" ? (
+                  <>
+                    <label className="field-label" htmlFor="construction-target">SANDBAG LINE HEX</label>
+                    <select
+                      id="construction-target"
+                      value={selectedConstructionHex ? `${selectedConstructionHex.q},${selectedConstructionHex.r}` : ""}
+                      onChange={(event) => {
+                        const [q, r] = event.target.value.split(",").map(Number);
+                        setConstructionTargetHex({ q, r });
+                      }}
+                      disabled={constructionHexes.length === 0}
+                    >
+                      {constructionHexes.map((hex) => (
+                        <option value={`${hex.coord.q},${hex.coord.r}`} key={`${hex.coord.q},${hex.coord.r}`}>
+                          HEX {hex.coord.q}.{hex.coord.r} · {coordinatesEqual(hex.coord, draftedRoute.at(-1) ?? selectedUnit.position) ? "CURRENT" : "ADJACENT"}
+                        </option>
+                      ))}
+                    </select>
+                    <p className={`validation ${(selectedUnit.supplies?.SMALL_SUPPLY ?? 0) < 1 ? "danger" : ""}`}>
+                      SMALL SUPPLY: {selectedUnit.supplies?.SMALL_SUPPLY ?? 0} · Sandbag Line consumes 1
+                    </p>
+                    <p className="validation">STANDARD ACTION · 0.5 SPEED · Infantry in the hex gain +1 Armor against fire from outside it.</p>
+                    {constructionHexes.length === 0 && <p className="validation danger">No current or adjacent known hex can accept another Sandbag Line.</p>}
                   </>
                 ) : actionMode === "DIG_IN" ? (
                   <>

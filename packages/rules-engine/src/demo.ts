@@ -100,6 +100,7 @@ function deployment(
       : undefined,
     artilleryDeployment: definitionId === "unit-artillery" ? "PACKED" : undefined,
     equipmentIds: [],
+    supplies: definition.tags.includes("ENGINEER") ? { SMALL_SUPPLY: definition.stats.maxHealth } : undefined,
     battlegroupId: side === "ALLIED" ? "hammer" : undefined,
   };
 }

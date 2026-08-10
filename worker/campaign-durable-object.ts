@@ -818,6 +818,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
         speedCost: definition.speedCost,
         targetDeploymentId: candidate.targetDeploymentId,
         targetHex: candidate.targetHex,
+        structureDefinitionId: candidate.structureDefinitionId,
         // ATTACK participation is always derived from the fitted weapons. A
         // legacy client may still send weaponId, but it cannot narrow or forge
         // the authoritative activation.
@@ -1033,6 +1034,35 @@ export class CampaignDurableObject extends DurableObject<Env> {
       });
       if (!validation.legal) {
         return errorResponse(422, "BOMBARDMENT_ILLEGAL", validation.reason ?? "Bombardment is not legal.");
+      }
+    }
+    const constructionActions = [...actions, ...incidentalActions].filter((action) => action.type === "CONSTRUCT");
+    if ((deployment.supplies?.SMALL_SUPPLY ?? 0) < constructionActions.length) {
+      return errorResponse(422, "CONSTRUCTION_SUPPLY_REQUIRED", "Each Sandbag Line requires one Small Supply.");
+    }
+    const constructionTargets = constructionActions.map((action) =>
+      action.targetHex ? `${action.targetHex.q},${action.targetHex.r}` : "missing"
+    );
+    if (new Set(constructionTargets).size !== constructionTargets.length) {
+      return errorResponse(422, "CONSTRUCTION_TARGET_DUPLICATED", "One order cannot build multiple Sandbag Lines in the same hex.");
+    }
+    for (const action of [...actions, ...incidentalActions]) {
+      if (action.type !== "CONSTRUCT") continue;
+      const targetHex = action.targetHex;
+      const targetMapHex = targetHex && state.map.find((hex) =>
+        hex.coord.q === targetHex.q && hex.coord.r === targetHex.r
+      );
+      if (!execution.legacyDefinition.tags.includes("ENGINEER")) {
+        return errorResponse(422, "CONSTRUCTION_INELIGIBLE", "Construction requires an Engineer unit.");
+      }
+      if (action.structureDefinitionId !== "structure-sandbag-line") {
+        return errorResponse(422, "STRUCTURE_NOT_EXECUTABLE", "Only the V5 Sandbag Line is executable in this rules version.");
+      }
+      if (!targetHex || !targetMapHex || hexDistance(route.at(-1)!, targetHex) > 1) {
+        return errorResponse(422, "CONSTRUCTION_HEX_INVALID", "A Sandbag Line must be placed in the Engineer's current or an adjacent hex.");
+      }
+      if (targetMapHex.structureIds.some((id) => id === "structure-sandbag-line" || id.startsWith("structure-sandbag-line:"))) {
+        return errorResponse(409, "STRUCTURE_ALREADY_PRESENT", "That hex already contains a Sandbag Line.");
       }
     }
     for (const action of [...actions, ...incidentalActions]) {

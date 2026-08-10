@@ -5,6 +5,7 @@ import {
   getActionDefinition,
   getTacticalActionRule,
   getTacticalUnitClass,
+  resolveTacticalCover,
   resolveRound,
   validateOrder,
 } from "../src";
@@ -362,6 +363,54 @@ describe("equipment and transport actions", () => {
         payload: expect.objectContaining({ supplies: { SMALL_SUPPLY: 3 } }),
       }),
     ]));
+  });
+
+  it("builds a persistent Sandbag Line, spends Small Supply, and grants infantry cover", () => {
+    const base = createDemoCampaignState(1_000);
+    const engineer = base.deployments.find((unit) => unit.definitionId === "unit-engineers")!;
+    const infantry = base.deployments.find((unit) => unit.definitionId === "unit-infantry-squad")!;
+    const hostile = base.deployments.find((unit) => unit.side === "ENEMY")!;
+    const constructRule = getTacticalActionRule("CONSTRUCT");
+    const constructAction: StructuredAction = {
+      id: "construct-sandbag-line",
+      type: "CONSTRUCT",
+      economy: constructRule.economy,
+      speedCost: constructRule.speedCost,
+      targetHex: { ...engineer.position },
+      structureDefinitionId: "structure-sandbag-line",
+      equipmentIds: [],
+    };
+    const constructOrder = order(base, engineer, [constructAction]);
+    base.orders = [constructOrder];
+
+    const output = resolveRound({ ...input([constructOrder]), previousState: base });
+    const resolvedEngineer = output.state.deployments.find((unit) => unit.id === engineer.id)!;
+    const builtHex = output.state.map.find((hex) =>
+      hex.coord.q === engineer.position.q && hex.coord.r === engineer.position.r
+    )!;
+
+    expect(resolvedEngineer.supplies?.SMALL_SUPPLY).toBe(3);
+    expect(builtHex.structureIds).toContainEqual(expect.stringMatching(/^structure-sandbag-line:/));
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "STRUCTURE_COMPLETED",
+      actor: engineer.id,
+      payload: expect.objectContaining({
+        structureDefinitionId: "structure-sandbag-line",
+        targetHex: engineer.position,
+        smallSupplySpent: 1,
+      }),
+    }));
+    expect(output.persistentEffects).toContainEqual(expect.objectContaining({
+      type: "UNIT_STATE_UPDATED",
+      unitId: engineer.persistentUnitId,
+      payload: expect.objectContaining({ supplies: { SMALL_SUPPLY: 3 } }),
+    }));
+
+    infantry.position = { ...engineer.position };
+    expect(resolveTacticalCover(hostile, infantry, output.state.map)).toEqual({
+      armor: 1,
+      sources: ["structure-sandbag-line"],
+    });
   });
 
   it("queues weapon malfunctions without cancelling the target's simultaneous attack", () => {

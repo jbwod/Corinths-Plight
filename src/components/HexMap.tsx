@@ -240,6 +240,23 @@ export function HexMap({
         ctx.bezierCurveTo(point.x - 9, point.y - 10, point.x + 9, point.y + 10, point.x, point.y + 30);
         ctx.stroke();
       }
+      if (
+        hex.visibility !== "UNKNOWN" &&
+        hex.structureIds.some((id) => id === "structure-sandbag-line" || id.startsWith("structure-sandbag-line:"))
+      ) {
+        ctx.save();
+        ctx.translate(point.x, point.y + 10);
+        ctx.strokeStyle = "rgba(229, 194, 119, .92)";
+        ctx.fillStyle = "rgba(106, 78, 42, .88)";
+        ctx.lineWidth = 2;
+        for (const offset of [-16, -8, 0, 8, 16]) {
+          ctx.beginPath();
+          ctx.roundRect(offset - 4, -4 - Math.abs(offset % 16) / 4, 9, 7, 3);
+          ctx.fill();
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
       if (hex.visibility === "UNKNOWN") {
         polygon(ctx, point, 2);
         ctx.fillStyle = "rgba(2,7,9,.73)";

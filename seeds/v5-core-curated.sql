@@ -114,10 +114,11 @@ INSERT INTO structure_definitions (
   id, ruleset_id, name, build_cost_json, build_points, health,
   definition_status, source, notes, definition_json
 ) VALUES
+  ('structure-sandbag-line', 'ruleset-v5-core-curated-1', 'Sandbag Line', '{"smallSupply":1}', NULL, NULL, 'active', 'V5 / Engineers / Action Construct: Sandbag Line', 'Immediate V5 field construction; other structures remain separately gated.', '{"infantryArmor":1,"capacityInfantrySquads":2,"constructRange":"ADJACENT_OR_CURRENT"}'),
   ('structure-trench', 'ruleset-v5-core-curated-1', 'Trench Line', '{"smallSupply":1}', NULL, NULL, 'experimental', 'V5 Engineers plus Build sheet row 12', 'RC-009/RC-041: build conversion and health unresolved.', '{"infantryArmor":1,"preservesDigIn":true}'),
   ('structure-supply-depot', 'ruleset-v5-core-curated-1', 'Supply Depot', '{}', 12, NULL, 'experimental', 'Build sheet row 15', 'Health and V5 supply conversion unresolved.', '{"stores":["SMALL_SUPPLY"]}'),
   ('structure-sensor-tower', 'ruleset-v5-core-curated-1', 'Sensor Tower', '{}', 7, NULL, 'experimental', 'Build sheet row 22', 'Reveal radius and health unresolved.', '{"ability":"REVEAL_AREA"}')
-ON CONFLICT(id, ruleset_id) DO UPDATE SET definition_status = excluded.definition_status, build_cost_json = excluded.build_cost_json, build_points = excluded.build_points, health = excluded.health, notes = excluded.notes;
+ON CONFLICT(id, ruleset_id) DO UPDATE SET definition_status = excluded.definition_status, build_cost_json = excluded.build_cost_json, build_points = excluded.build_points, health = excluded.health, notes = excluded.notes, definition_json = excluded.definition_json;
 
 INSERT INTO ship_class_definitions (
   id, ruleset_id, name, health, armor, speed, external_slots, internal_slots,

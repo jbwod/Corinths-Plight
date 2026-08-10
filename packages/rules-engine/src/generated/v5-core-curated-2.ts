@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "632838eca9c131e302b63d082ac60a6665c9973c86521cd9648c94ba1187107f",
+  "contentHash": "ca0a5fae48cd4b66d250ee6661893e80a07a632c3e93364f7a51d60816cca1d1",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1437,6 +1437,7 @@ const snapshot = {
             "allowedActions": [
               "DIG_IN",
               "REPAIR",
+              "CONSTRUCT",
               "LOAD",
               "UNLOAD"
             ],
@@ -4313,6 +4314,37 @@ const snapshot = {
       }
     ],
     "structures": [
+      {
+        "id": "structure-sandbag-line",
+        "kind": "STRUCTURE",
+        "name": "Sandbag Line",
+        "definitionStatus": "active",
+        "sourceId": "source-v5-core",
+        "sourcePath": null,
+        "sourceLocator": "V5 / Engineers / Action Construct: Sandbag Line",
+        "notes": "Immediate V5 field construction; other structures remain separately gated.",
+        "sourcedNumbers": {
+          "buildPoints": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "health": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          }
+        },
+        "references": [],
+        "parameters": {
+          "buildCost": {
+            "smallSupply": 1
+          },
+          "definition": {
+            "capacityInfantrySquads": 2,
+            "constructRange": "ADJACENT_OR_CURRENT",
+            "infantryArmor": 1
+          }
+        }
+      },
       {
         "id": "structure-sensor-tower",
         "kind": "STRUCTURE",
@@ -7505,6 +7537,7 @@ const snapshot = {
           "definitionIds": [
             "action-attack",
             "action-bombardment",
+            "action-construct",
             "action-deploy-platform",
             "action-dig-in",
             "action-first-aid",
@@ -7562,6 +7595,22 @@ const snapshot = {
       {
         "definitionKind": "ACTION",
         "definitionId": "action-bombardment",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-construct",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
         "availabilityStatus": "AVAILABLE",
@@ -8285,13 +8334,17 @@ const snapshot = {
           "implementedSubset": [
             "FS",
             "MOVEMENT",
-            "REPAIR_ACTION"
+            "REPAIR_ACTION",
+            "SANDBAG_LINE_CONSTRUCTION"
           ],
           "missing": [
-            "CONSTRUCTION_PROJECTS"
+            "TRENCH_UPGRADE",
+            "RAZOR_WIRE",
+            "TANK_TRAPS",
+            "BRIDGES"
           ],
           "publicationCorrection": {
-            "reason": "The V5 Engineer Repair vertical now restores one vehicle Hit or one subsystem for one Small Supply.",
+            "reason": "Engineer Repair and immediate V5 Sandbag Line construction execute end to end; edge and upgrade structures remain gated.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": true,
@@ -13933,5 +13986,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "632838eca9c131e302b63d082ac60a6665c9973c86521cd9648c94ba1187107f" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "ca0a5fae48cd4b66d250ee6661893e80a07a632c3e93364f7a51d60816cca1d1" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;
