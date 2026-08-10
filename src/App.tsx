@@ -71,8 +71,8 @@ interface CampaignDirectoryEntry {
   canJoin?: boolean;
 }
 type Notice = { tone: "info" | "success" | "danger"; message: string };
-type ComposerActionMode = "NONE" | "ATTACK" | "RELOAD" | "LOAD" | "UNLOAD";
-const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "RELOAD", "LOAD", "UNLOAD"];
+type ComposerActionMode = "NONE" | "ATTACK" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL";
+const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "RELOAD", "LOAD", "UNLOAD", "HEAL"];
 
 function initialCampaign(): CampaignView {
   const now = Date.now();
@@ -100,6 +100,7 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "UNIT_MOVED") return `${event.actor ?? "Unit"} completed its plotted movement.`;
   if (event.type === "UNIT_ATTACKED") return `${event.actor ?? "Unit"} engaged ${String(payload.targetId ?? "a hostile")}.`;
   if (event.type === "DAMAGE_APPLIED") return `${event.actor ?? "Unit"} lost ${String(payload.loss ?? "?")} strength.`;
+  if (event.type === "UNIT_HEALED") return `${event.actor ?? "Medic"} restored ${String(payload.amount ?? "?")} strength to ${String(payload.targetId ?? "an allied unit")}.`;
   if (event.type === "UNIT_DESTROYED") return `${event.actor ?? "Unit"} was destroyed.`;
   if (event.type === "ROUND_FINISHED") return `Round ${event.round} resolved and archived.`;
   return event.type.replaceAll("_", " ").toLowerCase();
@@ -296,7 +297,22 @@ function GameApp() {
           deployment.cargo?.some((item) => item.unitId === selectedUnit.id)
         )
     : [];
-  const supportTargets = actionMode === "LOAD" ? loadTargets : actionMode === "UNLOAD" ? unloadTargets : [];
+  const healTargets = selectedUnit ? campaign.deployments.filter((deployment) =>
+    deployment.id !== selectedUnit.id &&
+    deployment.side === selectedUnit.side &&
+    deployment.status !== "DESTROYED" &&
+    deployment.definitionId === "unit-infantry-squad" &&
+    deployment.currentHealth > 0 &&
+    deployment.currentHealth < deployment.stats.maxHealth &&
+    coordinatesEqual(deployment.position, draftedRoute.at(-1) ?? selectedUnit.position)
+  ) : [];
+  const supportTargets = actionMode === "LOAD"
+    ? loadTargets
+    : actionMode === "UNLOAD"
+      ? unloadTargets
+      : actionMode === "HEAL"
+        ? healTargets
+        : [];
   const supportTarget = supportTargets.find((deployment) => deployment.id === supportTargetUnitId) ?? supportTargets[0];
   const currentOrder = campaign.orders.find(
     (order) => order.unitId === selectedUnit?.id && order.round === scheduledRound && order.lifecycle !== "CANCELLED",
@@ -333,6 +349,7 @@ function GameApp() {
     actionMode === "NONE" ||
     (actionMode === "ATTACK" && Boolean(targetUnit && selectedWeapon && orderType !== "RUSH" && !targetOutOfRange)) ||
     (actionMode === "RELOAD" && Boolean(selectedWeapon && (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0)) ||
+    (actionMode === "HEAL" && Boolean(supportTarget && (selectedUnit?.supplies?.MEDICAL_SUPPLY ?? 0) > 0)) ||
     ((actionMode === "LOAD" || actionMode === "UNLOAD") && Boolean(supportTarget));
   const canSubmit = Boolean(
     selectedUnit &&
@@ -350,6 +367,8 @@ function GameApp() {
         ? `coordinate loading with ${supportTarget.callsign}`
         : actionMode === "UNLOAD" && supportTarget
           ? `coordinate unloading with ${supportTarget.callsign}`
+          : actionMode === "HEAL" && supportTarget
+            ? `give First Aid to ${supportTarget.callsign}`
           : undefined;
 
   useEffect(() => {
@@ -372,7 +391,7 @@ function GameApp() {
     setActionMode(storedMode);
     setTargetUnitId(storedAction?.type === "ATTACK" ? storedAction.targetDeploymentId : undefined);
     setSupportTargetUnitId(
-      storedAction?.type === "LOAD" || storedAction?.type === "UNLOAD"
+      storedAction?.type === "LOAD" || storedAction?.type === "UNLOAD" || storedAction?.type === "HEAL"
         ? storedAction.targetDeploymentId ?? (typeof storedAction.payload?.cargoDeploymentId === "string" ? storedAction.payload.cargoDeploymentId : undefined)
         : undefined,
     );
@@ -446,6 +465,8 @@ function GameApp() {
         targetHex: selectedUnit.cargoProfile ? draftedRoute.at(-1) ?? selectedUnit.position : undefined,
         equipmentIds: [],
       });
+    } else if (actionMode === "HEAL" && supportTarget) {
+      actions.push({ type: "HEAL", targetDeploymentId: supportTarget.id, equipmentIds: [] });
     }
     setBusy(true);
     try {
@@ -809,7 +830,13 @@ function GameApp() {
                         if (type !== "ATTACK") setTargetUnitId(undefined);
                         if (type === "RELOAD") setSelectedWeaponId(reloadableWeapons[0]?.id);
                         setSupportTargetUnitId(
-                          type === "LOAD" ? loadTargets[0]?.id : type === "UNLOAD" ? unloadTargets[0]?.id : undefined,
+                          type === "LOAD"
+                            ? loadTargets[0]?.id
+                            : type === "UNLOAD"
+                              ? unloadTargets[0]?.id
+                              : type === "HEAL"
+                                ? healTargets[0]?.id
+                                : undefined,
                         );
                       }}
                     >{type}</button>
@@ -850,6 +877,29 @@ function GameApp() {
                       SMALL SUPPLY: {selectedUnit.supplies?.SMALL_SUPPLY ?? 0} · reload consumes 1
                     </p>
                     {reloadableWeapons.length === 0 && <p className="validation">Every finite-ammo weapon is already full.</p>}
+                  </>
+                ) : actionMode === "HEAL" ? (
+                  <>
+                    <label className="field-label" htmlFor="heal-target">WOUNDED INFANTRY</label>
+                    <select
+                      id="heal-target"
+                      value={supportTarget?.id ?? ""}
+                      onChange={(event) => setSupportTargetUnitId(event.target.value)}
+                      disabled={healTargets.length === 0}
+                    >
+                      {healTargets.map((deployment) => (
+                        <option value={deployment.id} key={deployment.id}>
+                          {deployment.callsign} · {deployment.currentHealth}/{deployment.stats.maxHealth} FORCE STRENGTH
+                        </option>
+                      ))}
+                    </select>
+                    <p className={`validation ${(selectedUnit.supplies?.MEDICAL_SUPPLY ?? 0) < 1 ? "danger" : ""}`}>
+                      MEDICAL SUPPLY: {selectedUnit.supplies?.MEDICAL_SUPPLY ?? 0} · First Aid consumes 1
+                    </p>
+                    <p className="validation">
+                      Restore D6 Force Strength to a wounded friendly Infantry unit in base contact, capped by this medic's current Force Strength.
+                    </p>
+                    {healTargets.length === 0 && <p className="validation danger">No wounded friendly Infantry unit is in base contact at the planned destination.</p>}
                   </>
                 ) : actionMode === "LOAD" || actionMode === "UNLOAD" ? (
                   <>

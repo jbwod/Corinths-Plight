@@ -42,7 +42,7 @@ async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<
   for (let index = 0; index < await deployableUnits.count(); index += 1) {
     const checkbox = deployableUnits.nth(index);
     const label = await checkbox.locator("..").innerText();
-    const foundationSupportUnit = ["ANVIL", "LONGBOW"].some((callsign) => label.includes(callsign));
+    const foundationSupportUnit = ["ANVIL", "LONGBOW", "DOC-7", "RAVEN-2"].some((callsign) => label.includes(callsign));
     if (foundationSupportUnit && ![...deployedCallsigns].some((callsign) => label.includes(callsign))) {
       await checkbox.check();
       selectedForDeployment += 1;
@@ -146,7 +146,6 @@ test("tactical composer exposes every currently executable action and no catalog
 
   await expect(composer.getByRole("button", { name: "LOAD", exact: true })).toBeVisible();
   await expect(composer.getByRole("button", { name: "UNLOAD", exact: true })).toBeVisible();
-  await expect(composer.getByRole("button", { name: "HEAL", exact: true })).toHaveCount(0);
   await expect(composer.getByRole("button", { name: "SCAN", exact: true })).toHaveCount(0);
 
   await page.locator(".unit-roster").getByRole("button", { name: /LONGBOW/ }).click();
@@ -154,6 +153,38 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(composer.getByRole("button", { name: "RELOAD", exact: true })).toBeVisible();
   await composer.getByRole("button", { name: "RELOAD", exact: true }).click();
   await expect(composer.getByText(/SMALL SUPPLY:/)).toBeVisible();
+
+  await page.locator(".unit-roster").getByRole("button", { name: /DOC-7/ }).click();
+  await expect(composer.getByRole("button", { name: "HEAL", exact: true })).toBeVisible();
+  await composer.getByRole("button", { name: "HEAL", exact: true }).click();
+  await expect(composer.getByLabel("WOUNDED INFANTRY")).toContainText("RAVEN-2");
+  await expect(composer.getByText(/MEDICAL SUPPLY:/)).toBeVisible();
+  await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
+  await expect(page.getByText(/DOC-7 order submitted to campaign command/)).toBeVisible();
+  const resolution = await page.evaluate(async () => {
+    const headers = { "x-demo-user": "demo-user" };
+    const current = await fetch("/api/campaigns/campaign-k17-relay/state", { headers });
+    const state = await current.json() as { round: number };
+    const resolved = await fetch("/api/campaigns/campaign-k17-relay/resolve", {
+      method: "POST",
+      headers: { ...headers, "x-expected-round": String(state.round) },
+    });
+    return { status: resolved.status, body: await resolved.text() };
+  });
+  expect(resolution, resolution.body).toMatchObject({ status: 200 });
+
+  await expect.poll(async () => {
+    const response = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
+      headers: { "x-demo-user": "demo-user" },
+    });
+    if (!response.ok()) return false;
+    const state = await response.json() as {
+      deployments?: Array<{ callsign: string; supplies?: Record<string, number> }>;
+      events?: Array<{ type: string; actor?: string; payload?: Record<string, unknown> }>;
+    };
+    const medic = state.deployments?.find((deployment) => deployment.callsign === "DOC-7");
+    return medic?.supplies?.MEDICAL_SUPPLY === 3 && state.events?.some((event) => event.type === "UNIT_HEALED") === true;
+  }).toBe(true);
 });
 
 test("public and authenticated shells do not overflow a 390px viewport", async ({ page }) => {

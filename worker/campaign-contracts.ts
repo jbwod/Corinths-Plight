@@ -61,6 +61,7 @@ const eventTypes = new Set([
   "DRONE_DEPLOYED",
   "DICE_ROLLED",
   "DAMAGE_APPLIED",
+  "UNIT_HEALED",
   "UNIT_DESTROYED",
   "STRUCTURE_COMPLETED",
   "SUPPLY_TRANSFERRED",
@@ -190,6 +191,9 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
   const parsed: CampaignActionIntent = { type };
   if (value.targetDeploymentId !== undefined) {
     parsed.targetDeploymentId = identifier(value.targetDeploymentId, `${path}.targetDeploymentId`);
+  }
+  if (type === "HEAL" && parsed.targetDeploymentId === undefined) {
+    requestFail(`${path}.targetDeploymentId`, "First Aid requires a target deployment.");
   }
   if (value.targetHex !== undefined) parsed.targetHex = coordinate(value.targetHex, `${path}.targetHex`);
   if (value.weaponId !== undefined) parsed.weaponId = identifier(value.weaponId, `${path}.weaponId`);

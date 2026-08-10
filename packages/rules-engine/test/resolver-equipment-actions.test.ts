@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { CampaignDeployment, RoundInput, StructuredAction, UnitOrder } from "../../domain/src";
-import { createDemoCampaignState, getActionDefinition, resolveRound } from "../src";
+import {
+  createDemoCampaignState,
+  getActionDefinition,
+  getTacticalActionRule,
+  getTacticalUnitClass,
+  resolveRound,
+} from "../src";
 
 function action(id: string, type: StructuredAction["type"], fields: Partial<StructuredAction> = {}): StructuredAction {
   const rule = getActionDefinition(type);
@@ -89,6 +95,68 @@ describe("equipment and transport actions", () => {
       payload: expect.objectContaining({ reasons: ["Insufficient reload supply."] }),
     }));
     expect(output.state.deployments[0].ammunition["test-ammo"]).toBe(1);
+  });
+
+  it("resolves Combat Medic First Aid and persists health and Medical Supply", () => {
+    const base = createDemoCampaignState(1_000);
+    const target = base.deployments[0];
+    target.persistentUnitId = "force-rook-test";
+    target.currentHealth = 2;
+    const medicDefinition = getTacticalUnitClass("unit-combat-medic");
+    const medic: CampaignDeployment = {
+      ...structuredClone(target),
+      id: "dep-doc-7",
+      persistentUnitId: "force-doc-test",
+      definitionId: medicDefinition.id,
+      callsign: "DOC-7",
+      stats: medicDefinition.stats,
+      currentHealth: medicDefinition.stats.maxHealth,
+      weapons: medicDefinition.weapons,
+      ammunition: {},
+      equipmentIds: [],
+      supplies: { MEDICAL_SUPPLY: medicDefinition.stats.maxHealth },
+    };
+    base.deployments.push(medic);
+    const healRule = getTacticalActionRule("HEAL");
+    const healAction: StructuredAction = {
+      id: "heal-rook",
+      type: "HEAL",
+      economy: healRule.economy,
+      speedCost: healRule.speedCost,
+      targetDeploymentId: target.id,
+      equipmentIds: [],
+    };
+    const orders = [order(base, medic, [healAction])];
+    base.orders = orders;
+
+    const output = resolveRound({
+      ...input(orders),
+      previousState: base,
+      seed: "medic-first-aid",
+    });
+
+    const healedTarget = output.state.deployments.find((unit) => unit.id === target.id)!;
+    const resolvedMedic = output.state.deployments.find((unit) => unit.id === medic.id)!;
+    expect(healedTarget.currentHealth).toBeGreaterThan(2);
+    expect(healedTarget.currentHealth).toBeLessThanOrEqual(target.stats.maxHealth);
+    expect(resolvedMedic.supplies?.MEDICAL_SUPPLY).toBe(3);
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "UNIT_HEALED",
+      actor: medic.id,
+      payload: expect.objectContaining({ targetId: target.id, before: 2, after: healedTarget.currentHealth }),
+    }));
+    expect(output.persistentEffects).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: "UNIT_STATE_UPDATED",
+        unitId: target.persistentUnitId,
+        payload: expect.objectContaining({ currentHealth: healedTarget.currentHealth }),
+      }),
+      expect.objectContaining({
+        type: "UNIT_STATE_UPDATED",
+        unitId: medic.persistentUnitId,
+        payload: expect.objectContaining({ supplies: { MEDICAL_SUPPLY: 3 } }),
+      }),
+    ]));
   });
 
   it("rejects Drone until its visibility state effect is implemented", () => {

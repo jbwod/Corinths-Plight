@@ -124,6 +124,7 @@ describe("rules catalogue bootstrap", () => {
     }
     expect(content.overlays.filter((overlay) => overlay.executable).map((overlay) => `${overlay.definitionKind}:${overlay.definitionId}`)).toEqual([
       "ACTION:action-attack",
+      "ACTION:action-first-aid",
       "ACTION:action-load-cargo",
       "ACTION:action-reload",
       "ACTION:action-unload-cargo",
@@ -133,6 +134,7 @@ describe("rules catalogue bootstrap", () => {
       "ORDER:order-hold",
       "ORDER:order-rush",
       "UNIT:unit-artillery",
+      "UNIT:unit-combat-medic",
       "UNIT:unit-engineers",
       "UNIT:unit-infantry-squad",
       "UNIT:unit-light-vehicle",

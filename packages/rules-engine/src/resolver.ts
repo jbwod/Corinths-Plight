@@ -1,6 +1,7 @@
 import type {
   CampaignDeployment,
   CampaignEvent,
+  HealingProfile,
   PendingPersistentEffect,
   RoundInput,
   RoundOutput,
@@ -16,8 +17,10 @@ import {
 } from "./hex";
 import { cargoSlotsForItem, disembarkCargo, embarkCargo, reloadAmmunition } from "./logistics";
 import { resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
+import { resolveHealing } from "./forces";
 import { createSeededRandom, hashSeed } from "./rng";
 import { getTacticalActionRule, getTacticalOrderRule } from "./tactical-grammar";
+import { getTacticalUnitClass } from "./tactical-unit-catalogue";
 import { applyScenarioReinforcements, evaluateScenarioRoundEnd } from "./scenario";
 
 export const ENGINE_VERSION = "foundation-0.1.0";
@@ -349,6 +352,80 @@ export function resolveRound(input: RoundInput): RoundOutput {
         actor.supplies = reloaded.supplies;
         event("WEAPON_RELOADED", actor.id, { actionId: action.id, weaponId: weapon.id, ammunitionAfter: reloaded.ammunitionAfter, supplySpent: reloaded.supplySpent }, actorVisibility);
       }
+      if (action.type === "HEAL") {
+        const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+        let targetIsInfantry = false;
+        if (target) {
+          try {
+            targetIsInfantry = getTacticalUnitClass(target.definitionId).tags.includes("INFANTRY");
+          } catch {
+            targetIsInfantry = false;
+          }
+        }
+        const profile: HealingProfile = {
+          id: "v5-first-aid",
+          targetHealthModels: ["FORCE_STRENGTH"],
+          maximumRange: 0,
+          requiresFriendlyTarget: true,
+          allowsSelfTarget: false,
+          allowsDestroyedTarget: false,
+          supplyType: "MEDICAL_SUPPLY" as const,
+          supplyCost: 1,
+          amountCap: "HEALER_CURRENT_HEALTH" as const,
+          handlerId: "foundation-action-handler",
+        };
+        const healingInput = target && targetIsInfantry ? {
+          profile,
+          healer: {
+            id: actor.id,
+            side: actor.side,
+            healthModel: actor.stats.healthModel,
+            currentHealth: actor.currentHealth,
+            maximumHealth: actor.stats.maxHealth,
+          },
+          target: {
+            id: target.id,
+            side: target.side,
+            healthModel: target.stats.healthModel,
+            currentHealth: target.currentHealth,
+            maximumHealth: target.stats.maxHealth,
+          },
+          distance: hexDistance(actor.position, target.position),
+          supplyAvailable: actor.supplies?.MEDICAL_SUPPLY ?? 0,
+        } : undefined;
+        const preflight = healingInput ? resolveHealing({ ...healingInput, rolledAmount: 1 }) : undefined;
+        if (!target || !targetIsInfantry || !preflight?.legal || !healingInput) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [!targetIsInfantry ? "First Aid requires a friendly Infantry target." : preflight?.reason ?? "First Aid is illegal."],
+          }, actorVisibility);
+          continue;
+        }
+        const rolledAmount = random.die(6);
+        const healed = resolveHealing({ ...healingInput, rolledAmount });
+        if (!healed.legal) throw new Error(`First Aid preflight diverged: ${healed.reason ?? "unknown reason"}`);
+        const before = target.currentHealth;
+        target.currentHealth = healed.targetHealthAfter;
+        actor.supplies = { ...(actor.supplies ?? {}), MEDICAL_SUPPLY: healed.supplyAfter };
+        event("DICE_ROLLED", actor.id, {
+          actionId: action.id,
+          targetId: target.id,
+          dice: { count: 1, sides: 6, modifier: 0 },
+          raw: rolledAmount,
+          modified: rolledAmount,
+          capped: healed.amount,
+          purpose: "FIRST_AID",
+        }, actorVisibility);
+        event("UNIT_HEALED", actor.id, {
+          actionId: action.id,
+          targetId: target.id,
+          before,
+          amount: healed.amount,
+          after: target.currentHealth,
+          medicalSupplySpent: healed.supplySpent,
+        }, actorVisibility);
+      }
       if (action.type === "SCAN" || action.type === "DEPLOY_DRONE") {
         const targetHex = action.targetHex;
         const ability = action.type === "DEPLOY_DRONE"
@@ -477,6 +554,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         ammunition: deployment.ammunition,
         cooldowns: deployment.cooldowns,
         supplies: deployment.supplies ?? {},
+        currentHealth: deployment.currentHealth,
         cargo: (deployment.cargo ?? []).map((item) => ({
           ...item,
           slotsQuarters: deployment.cargoProfile ? cargoSlotsForItem(deployment.cargoProfile, item).slotsQuarters : 0,

@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "02ba324ccc4445c7577845fa198563a1db9d26c09f6286742f02b57c9a76e66b",
+  "contentHash": "ee79d110fa8c7a2bf55f58ddbe9953ac344f0bfc09ddf210c8b8f62a4ef412b4",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1358,7 +1358,25 @@ const snapshot = {
             "role": "MEDICAL_SUPPORT",
             "sensorRange": "SCENARIO_DEFINED"
           },
-          "execution": null,
+          "execution": {
+            "allowedActions": [
+              "HEAL",
+              "LOAD",
+              "UNLOAD"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "RUSH"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "PERSONNEL",
+              "INFANTRY",
+              "MEDICAL"
+            ]
+          },
           "healthModel": "FORCE_STRENGTH",
           "legacyProjectionSensorRange": 0
         }
@@ -7447,6 +7465,7 @@ const snapshot = {
         "evidence": {
           "definitionIds": [
             "unit-artillery",
+            "unit-combat-medic",
             "unit-engineers",
             "unit-infantry-squad",
             "unit-light-vehicle",
@@ -7475,6 +7494,7 @@ const snapshot = {
         "evidence": {
           "definitionIds": [
             "action-attack",
+            "action-first-aid",
             "action-load-cargo",
             "action-reload",
             "action-unload-cargo"
@@ -7511,6 +7531,22 @@ const snapshot = {
       {
         "definitionKind": "ACTION",
         "definitionId": "action-attack",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-first-aid",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
         "availabilityStatus": "AVAILABLE",
@@ -8091,16 +8127,19 @@ const snapshot = {
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "BALANCE_REQUIRED",
         "availabilityStatus": "DEV_ONLY",
-        "executable": false,
+        "executable": true,
         "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "MISSING_RESOLVER_HOOK",
+        "handlerId": "foundation-generated-unit-class",
+        "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
-          "minimumMechanics": [
+          "implementedSubset": [
             "FIRST_AID",
             "MEDICAL_SUPPLY"
+          ],
+          "missing": [
+            "MASH"
           ]
         }
       },
@@ -13723,5 +13762,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "02ba324ccc4445c7577845fa198563a1db9d26c09f6286742f02b57c9a76e66b" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "ee79d110fa8c7a2bf55f58ddbe9953ac344f0bfc09ddf210c8b8f62a4ef412b4" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

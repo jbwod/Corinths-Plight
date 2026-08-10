@@ -219,6 +219,10 @@ SET status = 'DAMAGED', current_health = 2,
     damage_json = '[{"subsystem":"MOBILITY","state":"DAMAGED"}]'
 WHERE id = 'force-bellator';
 
+UPDATE player_units
+SET status = 'DAMAGED', current_health = 3
+WHERE id = 'force-raven-2';
+
 INSERT INTO player_units (
   id, owner_id, ruleset_id, definition_id, callsign, name, description,
   status, current_health, base_stats_json, requisition_value,
@@ -416,5 +420,5 @@ INSERT INTO battlegroup_units (battlegroup_id, player_unit_id, delegated_command
 SELECT 'battlegroup-hammer', id, 0
   FROM player_units
  WHERE owner_id = 'demo-user'
-   AND id IN ('force-raven-2', 'force-anvil', 'force-longbow', 'force-nomad', 'force-carrier-6', 'force-bellator')
+   AND id IN ('force-raven-2', 'force-doc-7', 'force-anvil', 'force-longbow', 'force-nomad', 'force-carrier-6', 'force-bellator')
 ON CONFLICT(battlegroup_id, player_unit_id) DO UPDATE SET delegated_command = 0;

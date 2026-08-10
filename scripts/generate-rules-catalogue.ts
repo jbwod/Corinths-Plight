@@ -462,6 +462,12 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     allowedOrders: ["HOLD", "ADVANCE"],
     allowedActions: ["ATTACK", "RELOAD"],
   },
+  "unit-combat-medic": {
+    capacity: 1,
+    tags: ["GROUND", "PERSONNEL", "INFANTRY", "MEDICAL"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+    allowedActions: ["HEAL", "LOAD", "UNLOAD"],
+  },
   "unit-engineers": {
     capacity: 1,
     tags: ["GROUND", "PERSONNEL", "ENGINEER", "BUILDER", "REPAIR"],
@@ -749,6 +755,7 @@ function buildConflicts(
 
 const foundationUnitIds = [
   "unit-artillery",
+  "unit-combat-medic",
   "unit-engineers",
   "unit-infantry-squad",
   "unit-light-vehicle",
@@ -763,6 +770,7 @@ const foundationOrderIds = [
 
 const foundationActionIds = [
   "action-attack",
+  "action-first-aid",
   "action-load-cargo",
   "action-reload",
   "action-unload-cargo",

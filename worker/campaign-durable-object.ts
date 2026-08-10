@@ -351,6 +351,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
           version = version + 1, updated_at = unixepoch() WHERE id = ?2`)
           .bind(health, effect.unitId));
       } else if (effect.type === "UNIT_STATE_UPDATED") {
+        const currentHealth = Number(effect.payload.currentHealth);
         const ammunition = effect.payload.ammunition && typeof effect.payload.ammunition === "object"
           ? effect.payload.ammunition as Record<string, number> : {};
         const cooldowns = effect.payload.cooldowns && typeof effect.payload.cooldowns === "object"
@@ -359,8 +360,11 @@ export class CampaignDurableObject extends DurableObject<Env> {
           ? effect.payload.supplies as Record<string, number> : {};
         const locationState = typeof effect.payload.locationState === "string" ? effect.payload.locationState : "ON_MAP";
         statements.push(this.env.DB.prepare(`UPDATE player_units SET ammunition_json = ?1,
-          location_state = ?2, version = version + 1, updated_at = unixepoch() WHERE id = ?3`)
-          .bind(JSON.stringify(ammunition), locationState, effect.unitId));
+          location_state = ?2,
+          current_health = CASE WHEN status = 'DESTROYED' OR ?3 < 0 THEN current_health ELSE ?3 END,
+          version = version + 1, updated_at = unixepoch() WHERE id = ?4`)
+          .bind(JSON.stringify(ammunition), locationState,
+            Number.isFinite(currentHealth) ? currentHealth : -1, effect.unitId));
         for (const [weaponId, amount] of Object.entries(ammunition)) {
           statements.push(this.env.DB.prepare(`UPDATE player_unit_weapon_mounts SET current_ammo = ?1,
             cooldown_remaining = ?2, updated_at = unixepoch()

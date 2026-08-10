@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "02ba324ccc4445c7577845fa198563a1db9d26c09f6286742f02b57c9a76e66b",
+  "contentHash": "ee79d110fa8c7a2bf55f58ddbe9953ac344f0bfc09ddf210c8b8f62a4ef412b4",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1341,7 +1341,25 @@
             "role": "MEDICAL_SUPPORT",
             "sensorRange": "SCENARIO_DEFINED"
           },
-          "execution": null,
+          "execution": {
+            "allowedActions": [
+              "HEAL",
+              "LOAD",
+              "UNLOAD"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "RUSH"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "PERSONNEL",
+              "INFANTRY",
+              "MEDICAL"
+            ]
+          },
           "healthModel": "FORCE_STRENGTH",
           "legacyProjectionSensorRange": 0
         }
@@ -7430,6 +7448,7 @@
         "evidence": {
           "definitionIds": [
             "unit-artillery",
+            "unit-combat-medic",
             "unit-engineers",
             "unit-infantry-squad",
             "unit-light-vehicle",
@@ -7458,6 +7477,7 @@
         "evidence": {
           "definitionIds": [
             "action-attack",
+            "action-first-aid",
             "action-load-cargo",
             "action-reload",
             "action-unload-cargo"
@@ -7494,6 +7514,22 @@
       {
         "definitionKind": "ACTION",
         "definitionId": "action-attack",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-first-aid",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
         "availabilityStatus": "AVAILABLE",
@@ -8074,16 +8110,19 @@
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "BALANCE_REQUIRED",
         "availabilityStatus": "DEV_ONLY",
-        "executable": false,
+        "executable": true,
         "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "MISSING_RESOLVER_HOOK",
+        "handlerId": "foundation-generated-unit-class",
+        "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
-          "minimumMechanics": [
+          "implementedSubset": [
             "FIRST_AID",
             "MEDICAL_SUPPLY"
+          ],
+          "missing": [
+            "MASH"
           ]
         }
       },

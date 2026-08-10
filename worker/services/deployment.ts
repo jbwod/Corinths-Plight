@@ -384,6 +384,7 @@ export async function commitPlan(
     });
     const governedEffectiveUnit = {
       ...snapshot.effectiveUnit,
+      currentHealth: built.context.current_health,
       rulesAuthority: built.rulesAuthority,
       equipmentRulesAuthorities: built.equipmentRulesAuthorities,
     };

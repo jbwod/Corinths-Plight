@@ -76,6 +76,13 @@ describe("campaign order request contracts", () => {
       actions: [{ type: "SCAN", targetHex: { q: 0, r: 0 }, weaponId: "rifle" }],
     }],
     ["arbitrary action payload", { unitId: "unit-1", orderType: "HOLD", facing: 0, actions: [{ type: "ATTACK", payload: { revealAll: true } }] }],
+    ["First Aid without a target", { unitId: "unit-1", orderType: "HOLD", facing: 0, actions: [{ type: "HEAL" }] }],
+    ["client-authored First Aid amount", {
+      unitId: "unit-1",
+      orderType: "HOLD",
+      facing: 0,
+      actions: [{ type: "HEAL", targetDeploymentId: "unit-2", amount: 99 }],
+    }],
     ["invalid facing", { unitId: "unit-1", orderType: "HOLD", facing: 6 }],
     ["invalid round", { unitId: "unit-1", round: 0, orderType: "HOLD", facing: 0 }],
     ["fractional coordinate", { unitId: "unit-1", orderType: "ADVANCE", facing: 0, route: [{ q: 0.5, r: 1 }] }],

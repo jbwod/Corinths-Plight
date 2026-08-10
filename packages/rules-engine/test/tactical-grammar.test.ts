@@ -25,12 +25,12 @@ describe("generated tactical grammar", () => {
     expect(getTacticalActionRule("RELOAD")).toMatchObject({ speedCost: 0.5, executable: true });
     expect(getTacticalActionRule("LOAD")).toMatchObject({ speedCost: 0.5, executable: true });
     expect(getTacticalActionRule("UNLOAD")).toMatchObject({ speedCost: 0.5, executable: true });
+    expect(getTacticalActionRule("HEAL")).toMatchObject({ economy: "PRIMARY", executable: true });
   });
 
   it("keeps catalogue-only mechanics out of live orders", () => {
     expect(getTacticalActionRule("SCAN").executable).toBe(false);
     expect(getTacticalActionRule("DEPLOY_DRONE").executable).toBe(false);
-    expect(getTacticalActionRule("HEAL").executable).toBe(false);
     expect(getTacticalActionRule("BOMBARDMENT").executable).toBe(false);
     expect(() => getTacticalActionRule("AIR_SUPPORT")).toThrow("Unknown action type: AIR_SUPPORT");
   });
@@ -50,6 +50,11 @@ describe("generated tactical grammar", () => {
     expect(getTacticalUnitClass("unit-main-battle-tank")).toMatchObject({
       stats: { maxHealth: 3, armor: 3, speed: 2 },
       allowedActions: ["ATTACK"],
+    });
+    expect(getTacticalUnitClass("unit-combat-medic")).toMatchObject({
+      category: "SUPPORT",
+      stats: { maxHealth: 4, speed: 1, capacity: 1 },
+      allowedActions: ["HEAL", "LOAD", "UNLOAD"],
     });
     expect(() => getTacticalUnitClass("unit-logi-truck")).toThrow("Unit class is not executable");
   });

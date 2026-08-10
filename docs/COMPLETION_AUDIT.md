@@ -66,7 +66,7 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 
 | Finding | Priority | Status | Confidence | Evidence and acceptance boundary | Roadmap |
 |---|---|---:|---:|---|---|
-| AUD-CAT-001 — split gameplay truth | P0 | partial | High | A generated, hash-verified `v5-core-curated@2` catalogue now materializes the five playable unit/weapon definitions and executable action/order grammar for onboarding, Force catalogue projection, deployment hydration, tactical UI lookup, submission and resolution. D1-only Logi/IFV/VTOL/HAT records fail before execution. D1 still stores the legacy `@1` relational identity for instance FKs and validation, and immutable `@2` D1 publication remains open. | CP-200/CP-201 |
+| AUD-CAT-001 — split gameplay truth | P0 | partial | High | A generated, hash-verified `v5-core-curated@2` catalogue now materializes six playable unit/weapon definitions and executable action/order grammar for onboarding, Force catalogue projection, deployment hydration, tactical UI lookup, submission and resolution. D1-only Logi/IFV/VTOL/HAT records fail before execution. D1 still stores the legacy `@1` relational identity for instance FKs and validation, and immutable `@2` D1 publication remains open. | CP-200/CP-201 |
 | AUD-RULE-002 — conflict provenance is internally broken | P0 | open | High | Fresh D1 contains only 12 obsolete short `rule_conflicts` IDs from `seeds/v5-core-curated.sql:28-40`, while the canonical doc has 72 namespaced IDs. Phase-2 definitions reference namespaced IDs with no D1 row; compiled definitions reference old IDs. Published definitions/events cannot form a referential conflict audit. | CP-200 |
 | AUD-CAT-003 — adapter invents/loses authority | P0 | resolved | High | CP-201 preserves generated availability/requisition/execution status, action links, profile bindings and nullable sourced values in a separately hashed rules-authority snapshot. Strict governed cargo hydration retains slot conversions, maximum FS, mutually exclusive modes, towing and source action semantics without guessed slots/costs; unsupported legacy cargo execution is withheld. Tactical supplies now use exact `SMALL_SUPPLY`, `MEDIUM_SUPPLY`, `LARGE_SUPPLY`, `MEDICAL_SUPPLY` and `MAIN_AMMUNITION` IDs, including resolver reload and request-boundary rejection of ambiguous strategic sizes. | CP-201 |
 | AUD-CAT-004 — blocked companion slots execute | P0 | open | High | RC-EQP-001 marks optional slot budgets blocked, and Phase-2 metadata says companion-only/catalogued; `listUnitSlots` ignores that metadata and the loadout engine enforces every row. Existing purchasable equipment therefore relies on an unapproved slot policy. | DEC-017/CP-200/CP-204 |
@@ -204,10 +204,10 @@ No public campaign directory/create/join/leave, profile/settings/session-managem
 
 All 13 non-orbital classes have null Req prices and remain non-purchasable unless a separate product grant is explicitly allowed. Companion Power Armour, Irregulars and Special Forces remain catalogued/dev-only under RC-UNIT-015.
 
-| Class | D1 | Compiled tactical class | End-to-end status | Principal gap |
+| Class | D1 | Generated tactical class | End-to-end status | Principal gap |
 |---|---:|---:|---:|---|
 | Infantry | yes | yes | partial | Dig In, cover, melee/stealth and price missing |
-| Medic | yes | no | catalogue-only | Healing helper not resolver/service/UI connected |
+| Medic | yes | yes | partial/playable | First Aid is connected through generated catalogue, order contract, resolver, D1 effects, report event and tactical UI. Medical reload and MASH remain deferred. |
 | Engineer | yes | yes | misleading partial | Construct/repair absent; adapter loses action truth |
 | Artillery | yes | yes | experimental partial | Deploy/pack/bombard/control/reload path incomplete; damage provisional |
 | Logi Truck | yes, legacy seed marks executable | no | safely blocked | Generated authority rejects the unsupported handler; tow/supply absent |
@@ -222,9 +222,9 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 
 ### Orders, actions, equipment and deployment
 
-- Compiled executable orders: Hold, Advance and Rush only.
-- Generated executable action grammar and tactical UI: Attack, Reload, Load and Unload; Scan and Drone are rejected and unadvertised until their visibility state effects exist.
-- D1 has 22 action definitions. CP-201 preserves their audit links but exposes only action/order types backed by a registered generated foundation handler; First Aid, MASH, artillery deployment/funnel, supply transfer, crew repair, flight operations, airdrop and sabotage remain non-executable end to end.
+- Generated executable orders: Hold, Advance and Rush only.
+- Generated executable action grammar and tactical UI: Attack, Reload, Load, Unload and First Aid; Scan and Drone are rejected and unadvertised until their visibility state effects exist.
+- D1 has 22 action definitions. CP-201 preserves their audit links but exposes only action/order types backed by a registered generated foundation handler. MASH, artillery deployment/funnel, supply transfer, crew repair, flight operations, airdrop and sabotage remain non-executable end to end.
 - The executable equipment subset is narrow: Flak Vests and Light AT currently have proven handlers. Generated corrections fail closed on Optics and Drone Operator because their visibility effects are not implemented; Orbital Drop Training and the remaining items stay partial, blocked or hidden.
 - Standard, Vehicle, VTOL, HAT and Paradrop deployment rows are marked implemented, but planner/scenario/aerospace integration is incomplete; Orbital remains partial and unresolved.
 
