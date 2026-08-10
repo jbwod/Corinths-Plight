@@ -233,6 +233,40 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(await pause.json()).toMatchObject({ error: { code: "CAMPAIGN_REQUEST_INVALID" } });
   });
 
+  it("fails closed before reading or mutating allied state with no executable @2 adapter", async () => {
+    const { campaign, storage } = campaignObject();
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    const originalOrderCount = seeded.orders.length;
+    seeded.deployments.find((deployment) => deployment.id === UNIT_ID)!.definitionId = "unit-logi-truck";
+    storage.values.set("state/current", encodeCampaignStoredState(seeded));
+
+    const before = storage.values.get("state/current");
+    const stateResponse = await campaign.fetch(request("/state"));
+    expect(stateResponse.status).toBe(500);
+    expect(await stateResponse.json()).toMatchObject({
+      error: {
+        code: "CAMPAIGN_ERROR",
+        details: { message: "CAMPAIGN_UNIT_DEFINITION_NOT_EXECUTABLE:unit-logi-truck:NOT_EXECUTABLE" },
+      },
+    });
+    expect(storage.values.get("state/current")).toBe(before);
+
+    const response = await campaign.fetch(request("/orders", {
+      method: "POST",
+      body: orderBody({ commandId: "command-unsupported-unit" }),
+    }));
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      error: { code: "CAMPAIGN_ERROR" },
+    });
+    const unchanged = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    expect(unchanged.orders).toHaveLength(originalOrderCount);
+    expect(unchanged.orders.some((order) => order.unitId === UNIT_ID)).toBe(false);
+    expect(unchanged.version).toBe(1);
+  });
+
   it("requires an explicit expected round for manual resolution", async () => {
     const { campaign } = campaignObject();
     const response = await campaign.fetch(request("/resolve", { method: "POST" }));

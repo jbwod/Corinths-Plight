@@ -721,6 +721,19 @@ const foundationUnitIds = [
   "unit-main-battle-tank",
 ] as const;
 
+const foundationOrderIds = [
+  "order-advance",
+  "order-hold",
+  "order-rush",
+] as const;
+
+const foundationActionIds = [
+  "action-attack",
+  "action-load-cargo",
+  "action-reload",
+  "action-unload-cargo",
+] as const;
+
 const implementationCorrections: Record<string, Partial<RuleImplementationOverlayV1> & { explanation: string }> = {
   "UNIT:unit-heavy-air-transport": {
     implementationStatus: "PARTIAL", executable: false, handlerId: null,
@@ -766,6 +779,24 @@ function buildHandlers(): RuleEngineHandlerV1[] {
       },
     },
     {
+      id: "foundation-order-handler",
+      kind: "ORDER",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/catalogue.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: [...foundationOrderIds],
+      },
+    },
+    {
+      id: "foundation-action-handler",
+      kind: "ACTION",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/catalogue.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: [...foundationActionIds],
+      },
+    },
+    {
       id: "equipment-effect-flak-vests",
       kind: "EQUIPMENT",
       evidence: {
@@ -794,7 +825,7 @@ function handlerForOverlay(kind: string, id: string): string | null {
 }
 
 function buildOverlays(snapshot: LegacyCatalogueSnapshot): RuleImplementationOverlayV1[] {
-  return snapshot.tables.ruleset_implementation_overlays.map((row) => {
+  const seeded = snapshot.tables.ruleset_implementation_overlays.map((row) => {
     const definitionKind = requiredString(row, "definition_kind") as RuleImplementationOverlayV1["definitionKind"];
     const definitionId = requiredString(row, "definition_id");
     const key = `${definitionKind}:${definitionId}`;
@@ -835,6 +866,44 @@ function buildOverlays(snapshot: LegacyCatalogueSnapshot): RuleImplementationOve
       },
     };
   });
+  const foundationGrammar: RuleImplementationOverlayV1[] = [
+    ...foundationOrderIds.map((definitionId): RuleImplementationOverlayV1 => ({
+      definitionKind: "ORDER",
+      definitionId,
+      implementationStatus: "PARTIAL",
+      requisitionStatus: "NOT_APPLICABLE",
+      availabilityStatus: "AVAILABLE",
+      executable: true,
+      purchasable: false,
+      handlerId: "foundation-order-handler",
+      reasonCode: "FOUNDATION_PARTIAL_HANDLER",
+      sourcePath: "packages/rules-engine/src/catalogue.ts",
+      sourceLocator: "orderTypes",
+      parameters: {
+        runtimeEvidence: "Existing deterministic resolver grammar; later mechanics remain separately gated.",
+      },
+    })),
+    ...foundationActionIds.map((definitionId): RuleImplementationOverlayV1 => ({
+      definitionKind: "ACTION",
+      definitionId,
+      implementationStatus: "PARTIAL",
+      requisitionStatus: "NOT_APPLICABLE",
+      availabilityStatus: "AVAILABLE",
+      executable: true,
+      purchasable: false,
+      handlerId: "foundation-action-handler",
+      reasonCode: "FOUNDATION_PARTIAL_HANDLER",
+      sourcePath: "packages/rules-engine/src/catalogue.ts",
+      sourceLocator: "actionProfiles",
+      parameters: {
+        runtimeEvidence: "Existing deterministic resolver grammar; visibility-only no-op actions are excluded.",
+      },
+    })),
+  ];
+  return [...seeded, ...foundationGrammar].sort((left, right) =>
+    compareUnicodeCodePoints(left.definitionKind, right.definitionKind)
+      || compareUnicodeCodePoints(left.definitionId, right.definitionId),
+  );
 }
 
 function relationSource(row: JsonObject): Pick<RuleRelationRecordV1, "sourceId" | "sourcePath" | "sourceLocator"> {

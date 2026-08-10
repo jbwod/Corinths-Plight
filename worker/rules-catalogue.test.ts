@@ -58,6 +58,8 @@ describe("public rules catalogue route", () => {
 
     expect(serialized).not.toContain("v5-core-curated@1");
     expect(serialized).not.toContain("foundation-compiled-unit-class");
+    expect(serialized).not.toContain("foundation-order-handler");
+    expect(serialized).not.toContain("foundation-action-handler");
     expect(serialized).not.toContain("equipment-effect-flak-vests");
     expect(serialized).not.toContain("equipment-effect-light-at");
     expect(serialized).not.toContain("DEV_ONLY");

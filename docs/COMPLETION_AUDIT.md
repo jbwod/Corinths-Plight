@@ -30,7 +30,7 @@ The audit began with only two unrelated untracked user paths, which were preserv
 | Seed/content validator | Pass | `npm run seed:check`: 34 definitions, 28 active, 95 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 3 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
 | TypeScript | Pass | `npm run typecheck`. |
 | ESLint | Pass | `npm run lint`. |
-| Unit/contract tests | Pass | `npm test`: 43 files, 280 tests, Vitest 4.1.10. |
+| Unit/contract tests | Pass | `npm test`: 44 files, 290 tests, Vitest 4.1.10. |
 | Worker/client build | Pass | `npm run build`; Worker 543.37 kB, client JS 430.68 kB, CSS 129.97 kB. Wrangler's sandboxed debug-log write warns but the build exits successfully. |
 | Production-mode build | Pass | `WRANGLER_WRITE_LOGS=false npm run build:production`. |
 | Empty D1 migration replay | Pass | All eight migrations applied in isolated Wrangler state. |
@@ -66,9 +66,9 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 
 | Finding | Priority | Status | Confidence | Evidence and acceptance boundary | Roadmap |
 |---|---|---:|---:|---|---|
-| AUD-CAT-001 — split gameplay truth | P0 | open | High | A generated, hash-verified `v5-core-curated@2` catalogue and public projection now cover the normalized rule records, but tactical replay still uses the five-class `@1` compatibility catalogue and D1 hydration remains separate. Several D1 overlays mark Logi/IFV/VTOL/HAT executable while order submission can still reach compiled `getUnitClass`. CP-201 must fail closed on unsupported records and make every genuinely executable definition resolvable without invented values. | CP-200/CP-201 |
+| AUD-CAT-001 — split gameplay truth | P0 | partial | High | A generated, hash-verified `v5-core-curated@2` catalogue/public projection and CP-201 execution adapter now prevent D1-only Logi/IFV/VTOL/HAT records from reaching the five-class `@1` handler. Acquisition availability is separate from execution of already-owned foundation units, and stored allied campaign state is checked before use. Tactical replay still depends on the `@1` compatibility catalogue; D1 publication and remaining consumers have not cut over to one hash. | CP-200/CP-201 |
 | AUD-RULE-002 — conflict provenance is internally broken | P0 | open | High | Fresh D1 contains only 12 obsolete short `rule_conflicts` IDs from `seeds/v5-core-curated.sql:28-40`, while the canonical doc has 72 namespaced IDs. Phase-2 definitions reference namespaced IDs with no D1 row; compiled definitions reference old IDs. Published definitions/events cannot form a referential conflict audit. | CP-200 |
-| AUD-CAT-003 — adapter invents/loses authority | P0 | open | High | `worker/services/equipment.ts:207-240` assigns every D1 class Hold/Advance/Rush and Attack/Load/Unload, and reports requisition status as published rather than preserving source links/status. Cargo shape handling defaults valid IFV/VTOL alternatives to zero capacity (`:59-88`). Small Supply vocabulary becomes incompatible with resolver reload. | CP-201 |
+| AUD-CAT-003 — adapter invents/loses authority | P0 | partial | High | CP-201 now preserves generated availability/requisition/execution status, action links, movement/durability fields and nullable sourced values in a separately hashed rules-authority snapshot; allowed actions/orders are intersected with registered generated handlers. Cargo hydration still loses IFV/VTOL alternative modes, towing and maximum-FS rules, while tactical Small Supply vocabulary remains incompatible with resolver reload. | CP-201 |
 | AUD-CAT-004 — blocked companion slots execute | P0 | open | High | RC-EQP-001 marks optional slot budgets blocked, and Phase-2 metadata says companion-only/catalogued; `listUnitSlots` ignores that metadata and the loadout engine enforces every row. Existing purchasable equipment therefore relies on an unapproved slot policy. | DEC-017/CP-200/CP-204 |
 | AUD-EQP-001 — Scan/Drone are event-only no-ops | P0 content-integrity | open | High | Resolver emits `HEX_SCANNED`/`DRONE_DEPLOYED` and cooldown, but visibility consumes only live sensors/LOS. Optics additionally invents passive `+1 Sensors`, and Drone Operator is seeded Secondary although its Store row says Primary. These overlays must be unavailable until DEC-018 is resolved and state/projection is wired. | DEC-018/CP-204/CP-500 |
 | AUD-RULE-004 — unknown sensors become a real zero | P0 | open | High | D1's non-null legacy column and Phase-2 0 sentinel turn an unknown sensor value into runtime truth, contrary to `GAME_SYSTEMS.md` unknown-value policy. Migrate a nullable/profile representation and block dependent mechanics until known. | CP-200/CP-201 |
@@ -209,22 +209,22 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 | Medic | yes | no | catalogue-only | Healing helper not resolver/service/UI connected |
 | Engineer | yes | yes | misleading partial | Construct/repair absent; adapter loses action truth |
 | Artillery | yes | yes | experimental partial | Deploy/pack/bombard/control/reload path incomplete; damage provisional |
-| Logi Truck | yes, marked executable | no | defect/blocked | Compiled lookup crash; tow/supply absent |
+| Logi Truck | yes, legacy seed marks executable | no | safely blocked | Generated authority rejects the unsupported handler; tow/supply absent |
 | Light Vehicle | yes | yes | partial | Evasive/Rapid Fire/subsystems/cargo absent |
-| IFV | yes, marked executable | no | defect/blocked | Compiled lookup crash; cargo shape becomes zero |
+| IFV | yes, legacy seed marks executable | no | safely blocked | Generated authority rejects the unsupported handler; cargo alternatives remain unhydrated |
 | Main Battle Tank | yes | yes | partial | Rear-domain defect; repair/subsystems absent |
 | Light Mech | yes | no | catalogue-only | Helper-only mechanics |
 | Fighter | yes | no | catalogue-only | Aerospace resolver absent |
 | Bomber | yes | no | catalogue-only | Aerospace resolver absent |
-| VTOL | yes, marked executable | no | defect/blocked | Compiled lookup crash; cargo shape becomes zero |
-| HAT | yes, marked executable | no | defect/blocked | Compiled lookup crash; incomplete airlift/airdrop |
+| VTOL | yes, legacy seed marks executable | no | safely blocked | Generated authority rejects the unsupported handler; cargo alternatives remain unhydrated |
+| HAT | yes, legacy seed marks executable | no | safely blocked | Generated authority rejects the unsupported handler; incomplete airlift/airdrop |
 
 ### Orders, actions, equipment and deployment
 
 - Compiled executable orders: Hold, Advance and Rush only.
 - Compiled executable action handlers: Attack, Reload, Load, Unload, Scan and Drone; the tactical UI exposes only Attack.
-- D1 has 22 action definitions, but adapters do not preserve class-action links. First Aid, MASH, artillery deployment/funnel, supply transfer, crew repair, flight operations, airdrop and sabotage are not end-to-end.
-- Implemented/purchasable equipment overlay subset is narrow: Flak Vests, Light AT, Optics and Drone Operator. Orbital Drop Training remains partial/non-executable; other items are blocked/hidden. The compiled catalogue contains only Flak, Light AT and Optics.
+- D1 has 22 action definitions. CP-201 preserves their audit links but exposes only action/order types backed by a registered generated foundation handler; First Aid, MASH, artillery deployment/funnel, supply transfer, crew repair, flight operations, airdrop and sabotage remain non-executable end to end.
+- The executable equipment subset is narrow: Flak Vests and Light AT currently have proven handlers. Generated corrections fail closed on Optics and Drone Operator because their visibility effects are not implemented; Orbital Drop Training and the remaining items stay partial, blocked or hidden.
 - Standard, Vehicle, VTOL, HAT and Paradrop deployment rows are marked implemented, but planner/scenario/aerospace integration is incomplete; Orbital remains partial and unresolved.
 
 ## D1 inventory and workflow coverage

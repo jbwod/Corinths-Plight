@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "3da73a7767e411d8662fae1e47c1bb1c0444fa0073b97cdaca72ac6cf827d7c5",
+  "contentHash": "b963499d13b40aee0d1c04bf2d10ac0e6ae1636757734d779f9fec675f6e1c8e",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -7354,6 +7354,33 @@ const snapshot = {
         }
       },
       {
+        "id": "foundation-order-handler",
+        "kind": "ORDER",
+        "evidence": {
+          "definitionIds": [
+            "order-advance",
+            "order-hold",
+            "order-rush"
+          ],
+          "resolverPath": "packages/rules-engine/src/resolver.ts",
+          "sourcePath": "packages/rules-engine/src/catalogue.ts"
+        }
+      },
+      {
+        "id": "foundation-action-handler",
+        "kind": "ACTION",
+        "evidence": {
+          "definitionIds": [
+            "action-attack",
+            "action-load-cargo",
+            "action-reload",
+            "action-unload-cargo"
+          ],
+          "resolverPath": "packages/rules-engine/src/resolver.ts",
+          "sourcePath": "packages/rules-engine/src/catalogue.ts"
+        }
+      },
+      {
         "id": "equipment-effect-flak-vests",
         "kind": "EQUIPMENT",
         "evidence": {
@@ -7378,6 +7405,70 @@ const snapshot = {
       }
     ],
     "overlays": [
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-attack",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-load-cargo",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-reload",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-unload-cargo",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
       {
         "definitionKind": "ENEMY",
         "definitionId": "enemy-bug-artillery",
@@ -7679,6 +7770,54 @@ const snapshot = {
             }
           },
           "verticalSlice": "equipment-deployment"
+        }
+      },
+      {
+        "definitionKind": "ORDER",
+        "definitionId": "order-advance",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-order-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "orderTypes",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; later mechanics remain separately gated."
+        }
+      },
+      {
+        "definitionKind": "ORDER",
+        "definitionId": "order-hold",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-order-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "orderTypes",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; later mechanics remain separately gated."
+        }
+      },
+      {
+        "definitionKind": "ORDER",
+        "definitionId": "order-rush",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-order-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "orderTypes",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; later mechanics remain separately gated."
         }
       },
       {
@@ -13481,5 +13620,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "3da73a7767e411d8662fae1e47c1bb1c0444fa0073b97cdaca72ac6cf827d7c5" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "b963499d13b40aee0d1c04bf2d10ac0e6ae1636757734d779f9fec675f6e1c8e" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

@@ -10,6 +10,7 @@ import type {
   UnitDefinition,
   WeaponProfile,
 } from "../../packages/domain/src";
+import { RULESET_VERSION } from "../../packages/domain/src";
 import { buildEffectiveUnit } from "../../packages/rules-engine/src";
 import type { Env } from "../env";
 import type { LoadoutChangeCommand, PurchaseEquipmentCommand } from "../equipment-validation";
@@ -31,6 +32,13 @@ import {
 } from "../repositories/equipment";
 import { getMutationReceipt, getRequisitionBalance } from "../repositories/forces";
 import { ForceServiceError } from "./forces";
+import {
+  resolveEquipmentRulesAuthority,
+  resolveUnitRulesAuthority,
+  type D1EquipmentRulesInput,
+  type EquipmentRulesAuthoritySnapshotV1,
+  type UnitRulesAuthoritySnapshotV1,
+} from "./rules-hydration";
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
   if (!value) return fallback;
@@ -103,7 +111,25 @@ function effectsFor(rowGroup: InventoryEffectRow[], weapons: Map<string, WeaponP
   });
 }
 
-function equipmentDefinition(rows: InventoryEffectRow[]): EquipmentDefinition {
+function equipmentRulesInput(row: InventoryEffectRow, rulesetId: string): D1EquipmentRulesInput {
+  return {
+    rulesetId,
+    definitionId: row.equipment_definition_id,
+    definitionStatus: row.definition_status,
+    requisitionCost: row.requisition_cost,
+    implementationStatus: row.implementation_status,
+    requisitionStatus: row.requisition_status,
+    availabilityStatus: row.availability_status,
+    executable: row.executable === 1,
+    purchasable: row.purchasable === 1,
+    reasonCode: row.reason_code,
+  };
+}
+
+function equipmentDefinition(
+  rows: InventoryEffectRow[],
+  authority: EquipmentRulesAuthoritySnapshotV1,
+): EquipmentDefinition {
   const row = rows[0];
   const definition = parseJson<Record<string, unknown>>(row.definition_json, {});
   const allowedFromDefinition = Array.isArray(definition.allowedClasses) ? definition.allowedClasses.filter((item): item is string => typeof item === "string") : [];
@@ -114,18 +140,19 @@ function equipmentDefinition(rows: InventoryEffectRow[]): EquipmentDefinition {
     description: row.name,
     category: row.category,
     slotType: row.canonical_slot_type,
-    cost: null,
+    cost: authority.sourcedNumbers.requisitionCost.value,
     allowedClasses: parseJson<string[]>(row.allowed_unit_definitions_json, allowedFromDefinition),
     requiredEquipment: [],
     incompatibleEquipment: [],
     statModifiers: {},
     abilityGrants: [],
-    consumable: false,
+    consumable: row.consumable === 1,
     rulesText: "",
     tags: [],
-    rulesetVersion: "v5-core-curated@1",
-    source: "rules equipment catalogue",
+    rulesetVersion: RULESET_VERSION,
+    source: row.definition_source,
     status: row.definition_status as EquipmentDefinition["status"],
+    notes: row.definition_notes,
   };
 }
 
@@ -142,6 +169,8 @@ export async function buildStoredEffectiveUnit(
   baseWeaponIds: string[];
   supplies: Record<string, number>;
   slots: Record<string, number>;
+  rulesAuthority: UnitRulesAuthoritySnapshotV1;
+  equipmentRulesAuthorities: EquipmentRulesAuthoritySnapshotV1[];
 }> {
   const context = await getLoadoutContext(env.DB, ownerId, unitId);
   if (!context) throw new ForceServiceError(404, "UNIT_NOT_FOUND", "Persistent unit or active default loadout was not found.");
@@ -155,17 +184,56 @@ export async function buildStoredEffectiveUnit(
     listRulesetWeapons(env.DB, context.ruleset_id),
     getUnitSupplies(env.DB, unitId),
   ]);
+  const definitionJson = parseJson<Record<string, unknown>>(context.definition_json, {});
+  const rulesResolution = resolveUnitRulesAuthority({
+    rulesetId: context.ruleset_id,
+    definitionId: context.definition_id,
+    definitionStatus: context.definition_status,
+    sensorRange: context.sensor_range,
+    requisitionCost: context.requisition_cost,
+    implementationStatus: context.implementation_status,
+    requisitionStatus: context.requisition_status,
+    availabilityStatus: context.availability_status,
+    executable: context.executable === 1,
+    purchasable: context.purchasable === 1,
+    reasonCode: context.reason_code,
+    actionDefinitionIds: abilities.flatMap((ability) => ability.action_definition_id ? [ability.action_definition_id] : []),
+    allowedActionTypes: Array.isArray(definitionJson.allowedActions)
+      ? definitionJson.allowedActions.filter((item): item is string => typeof item === "string")
+      : [],
+    allowedOrderTypes: Array.isArray(definitionJson.allowedOrders)
+      ? definitionJson.allowedOrders.filter((item): item is string => typeof item === "string")
+      : [],
+  }, env.ENVIRONMENT);
+  if (!rulesResolution.ok) {
+    throw new ForceServiceError(422, "UNIT_DEFINITION_NOT_EXECUTABLE", rulesResolution.message, {
+      rulesDecisionCode: rulesResolution.code,
+      rulesAuthority: rulesResolution.authority,
+    });
+  }
   const weaponMap = new Map(allWeaponRows.map((row) => [row.weapon_id, weapon(row)]));
   const grouped = new Map<string, InventoryEffectRow[]>();
   for (const row of inventoryRows) grouped.set(row.inventory_id, [...(grouped.get(row.inventory_id) ?? []), row]);
   const requested = selectedItems ?? currentItems.map((item) => ({ inventoryId: item.inventory_id, slotType: item.slot_type, slotIndex: item.slot_index }));
+  const equipmentRulesAuthorities: EquipmentRulesAuthoritySnapshotV1[] = [];
   const selected = requested.flatMap((item): SelectedEquipment[] => {
     const rows = grouped.get(item.inventoryId);
     if (!rows) return [];
     const first = rows[0];
+    const equipmentResolution = resolveEquipmentRulesAuthority(
+      equipmentRulesInput(first, context.ruleset_id),
+      env.ENVIRONMENT,
+    );
+    if (!equipmentResolution.ok) {
+      throw new ForceServiceError(422, "EQUIPMENT_NOT_EXECUTABLE", equipmentResolution.message, {
+        rulesDecisionCode: equipmentResolution.code,
+        rulesAuthority: equipmentResolution.authority,
+      });
+    }
+    equipmentRulesAuthorities.push(equipmentResolution.authority);
     return [{
       instanceId: first.inventory_id,
-      definition: equipmentDefinition(rows),
+      definition: equipmentDefinition(rows, equipmentResolution.authority),
       effects: effectsFor(rows, weaponMap),
       slotType: item.slotType,
       slotIndex: item.slotIndex,
@@ -196,15 +264,28 @@ export async function buildStoredEffectiveUnit(
       throw new ForceServiceError(422, "EQUIPMENT_LIMIT_EXCEEDED", `${row.name} exceeds its duplicate limit.`);
     }
   }
-  const definitionJson = parseJson<Record<string, unknown>>(context.definition_json, {});
-  if (context.implementation_status === "CATALOGUE_ONLY" || context.executable !== 1 || context.availability_status === "HIDDEN") {
-    throw new ForceServiceError(422, "UNIT_DEFINITION_NOT_EXECUTABLE", `${context.definition_name} is not executable in the active ruleset.`);
-  }
   const abilityRefs: AbilityRef[] = abilities.map((ability) => ({
     abilityId: ability.ability_id,
     handlerId: parseJson<{ handlerId?: string }>(ability.effect_json, {}).handlerId,
   }));
-  const mode: MovementDomain = context.category === "AEROSPACE" ? "AEROSPACE" : "GROUND";
+  const mode: MovementDomain = context.movement_domain;
+  if (
+    (context.durability_model === "FORCE_STRENGTH" && context.durability_output_scales_with_current !== 1) ||
+    (context.durability_model === "HITS" && context.durability_output_scales_with_current !== 0)
+  ) {
+    throw new ForceServiceError(422, "DURABILITY_PROFILE_INVALID", `${context.definition_name} has an inconsistent durability profile.`);
+  }
+  const durabilityProfile: UnitDefinition["durabilityProfile"] = context.durability_model === "FORCE_STRENGTH"
+    ? {
+      id: context.durability_profile_id, model: "FORCE_STRENGTH", maximumHealth: context.max_health,
+      outputScaling: "CURRENT_HEALTH", penetrationLoss: "RESIDUAL",
+      supportsSubsystems: context.durability_supports_subsystems === 1, healable: true,
+    }
+    : {
+      id: context.durability_profile_id, model: "HITS", maximumHealth: context.max_health,
+      outputScaling: "NONE", penetrationLoss: "ONE_HIT",
+      supportsSubsystems: context.durability_supports_subsystems === 1, healable: false,
+    };
   const unitDefinition: UnitDefinition = {
     id: context.definition_id,
     kind: "unit-class",
@@ -213,41 +294,52 @@ export async function buildStoredEffectiveUnit(
     category: context.category as UnitDefinition["category"],
     tags: [...new Set(tags.map((tag) => semantic(tag.tag_id)))],
     stats: {
-      healthModel: parseJson<{ healthModel?: "FORCE_STRENGTH" | "HITS" }>(context.profile_json, {}).healthModel ?? (context.category === "INFANTRY" || context.category === "ENGINEER" ? "FORCE_STRENGTH" : "HITS"),
+      healthModel: context.health_model,
       maxHealth: context.max_health,
       armor: context.armor,
       defense: context.defense,
       speed: context.speed_quarters / 4,
-      sensors: context.sensor_range,
-      capacity: typeof definitionJson.capacity === "number" ? definitionJson.capacity : 1,
+      sensors: rulesResolution.authority.sourcedNumbers.sensorRange.value
+        ?? rulesResolution.legacyDefinition.stats.sensors,
+      capacity: typeof definitionJson.capacity === "number"
+        ? definitionJson.capacity
+        : rulesResolution.legacyDefinition.stats.capacity,
     },
     weapons: baseWeaponRows.map(weapon),
-    requisitionCost: null,
+    requisitionCost: rulesResolution.authority.sourcedNumbers.requisitionCost.value,
     slots: Object.fromEntries(slots.map((slot) => [slot.slot_type, slot.slot_count])),
-    allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-    allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
-    rulesetVersion: "v5-core-curated@1",
-    source: "D1 pinned ruleset",
-    status: "active",
-    implementationStatus: context.implementation_status === "IMPLEMENTED" ? "IMPLEMENTED" : "PARTIAL",
-    requisitionStatus: "PUBLISHED",
-    availabilityStatus: context.availability_status === "AVAILABLE" ? "AVAILABLE" : "DEV_ONLY",
-    movementProfile: { id: context.movement_profile_id, mode, baseSpeed: context.speed_quarters / 4, usesFacing: true, allowsHostilePassage: false, requiresFlightPath: mode !== "GROUND", terrainCostMode: mode === "GROUND" ? "BATTLEFIELD" : "FLAT", flatStepCost: mode === "GROUND" ? undefined : 1 },
-    durabilityProfile: context.category === "INFANTRY" || context.category === "ENGINEER"
-      ? { id: context.durability_profile_id, model: "FORCE_STRENGTH", maximumHealth: context.max_health, outputScaling: "CURRENT_HEALTH", penetrationLoss: "RESIDUAL", supportsSubsystems: false, healable: true }
-      : { id: context.durability_profile_id, model: "HITS", maximumHealth: context.max_health, outputScaling: "NONE", penetrationLoss: "ONE_HIT", supportsSubsystems: true, healable: false },
+    allowedOrders: rulesResolution.authority.links.allowedOrderTypes,
+    allowedActions: rulesResolution.authority.links.allowedActionTypes,
+    rulesetVersion: RULESET_VERSION,
+    source: context.definition_source,
+    status: context.definition_status as UnitDefinition["status"],
+    notes: context.definition_notes,
+    implementationStatus: rulesResolution.authority.status.implementationStatus as UnitDefinition["implementationStatus"],
+    requisitionStatus: rulesResolution.authority.status.requisitionStatus as UnitDefinition["requisitionStatus"],
+    availabilityStatus: rulesResolution.authority.status.availabilityStatus as UnitDefinition["availabilityStatus"],
+    availabilityReasonCode: rulesResolution.authority.status.reasonCode ?? undefined,
+    movementProfile: {
+      id: context.movement_profile_id,
+      mode,
+      baseSpeed: context.speed_quarters / 4,
+      usesFacing: context.movement_uses_facing === 1,
+      allowsHostilePassage: context.movement_allows_hostile_passage === 1,
+      requiresFlightPath: context.movement_requires_flight_path === 1,
+      terrainCostMode: mode === "GROUND" ? "BATTLEFIELD" : "FLAT",
+    },
+    durabilityProfile,
     abilities: abilityRefs,
     cargoProfile: cargoProfile(context),
     deploymentProfile: context.deployment_profile_id ? { id: context.deployment_profile_id, allowedLocationStates: ["RESERVE", "ON_SHIP"], requiredTags: [], prohibitedStatuses: ["DESTROYED"] } : undefined,
   };
   const ammunition = parseJson<Record<string, number>>(context.ammunition_json, {});
   const result = buildEffectiveUnit({
-    rulesetVersion: "v5-core-curated@1",
+    rulesetVersion: RULESET_VERSION,
     unitDefinition,
     playerUnit: {
       id: context.unit_id, version: context.unit_version, ownerId, definitionId: context.definition_id,
       callsign: "", name: "", status: context.unit_status as "ACTIVE", currentHealth: context.current_health,
-      equipmentIds: [], ammunition, cooldowns: {}, damage: [], requisitionValue: 0, campaignHistory: [],
+      equipmentIds: [], ammunition, cooldowns: {}, damage: [], requisitionValue: context.requisition_value, campaignHistory: [],
     },
     refits: [],
     equipment: selected,
@@ -258,6 +350,8 @@ export async function buildStoredEffectiveUnit(
     context, result, selected, inventoryRows,
     baseWeaponIds: baseWeaponRows.map((row) => row.weapon_id), supplies,
     slots: Object.fromEntries(slots.map((slot) => [slot.slot_type, slot.slot_count])),
+    rulesAuthority: rulesResolution.authority,
+    equipmentRulesAuthorities,
   };
 }
 
@@ -432,6 +526,7 @@ interface EquipmentPurchaseRow {
   availability_status: string | null;
   executable: number | null;
   purchasable: number | null;
+  reason_code: string | null;
 }
 
 export async function purchaseEquipment(
@@ -445,7 +540,7 @@ export async function purchaseEquipment(
   const definition = await env.DB.prepare(`SELECT equipment.id, equipment.ruleset_id,
       equipment.name, equipment.requisition_cost, equipment.definition_status,
       overlays.implementation_status, overlays.requisition_status,
-      overlays.availability_status, overlays.executable, overlays.purchasable
+      overlays.availability_status, overlays.executable, overlays.purchasable, overlays.reason_code
     FROM equipment_definitions AS equipment
     LEFT JOIN ruleset_implementation_overlays AS overlays
       ON overlays.definition_kind = 'EQUIPMENT' AND overlays.definition_id = equipment.id
@@ -453,15 +548,36 @@ export async function purchaseEquipment(
     WHERE equipment.id = ?1 AND equipment.definition_status = 'active' LIMIT 1`)
     .bind(command.definitionId).first<EquipmentPurchaseRow>();
   if (!definition) throw new ForceServiceError(404, "DEFINITION_NOT_FOUND", "Equipment definition was not found.");
-  const normal = definition.implementation_status === "IMPLEMENTED" && definition.executable === 1 &&
-    definition.purchasable === 1 && definition.requisition_status === "PUBLISHED" &&
-    definition.availability_status === "AVAILABLE" && definition.requisition_cost !== null;
+  const rulesResolution = resolveEquipmentRulesAuthority({
+    rulesetId: definition.ruleset_id,
+    definitionId: definition.id,
+    definitionStatus: definition.definition_status,
+    requisitionCost: definition.requisition_cost,
+    implementationStatus: definition.implementation_status,
+    requisitionStatus: definition.requisition_status,
+    availabilityStatus: definition.availability_status,
+    executable: definition.executable === 1,
+    purchasable: definition.purchasable === 1,
+    reasonCode: definition.reason_code,
+  }, env.ENVIRONMENT);
+  if (!rulesResolution.ok) {
+    throw new ForceServiceError(422, "DEFINITION_NOT_PURCHASABLE", rulesResolution.message, {
+      rulesDecisionCode: rulesResolution.code,
+      rulesAuthority: rulesResolution.authority,
+    });
+  }
+  const normal = rulesResolution.authority.status.implementationStatus === "IMPLEMENTED" &&
+    rulesResolution.authority.status.executable && rulesResolution.authority.status.purchasable &&
+    rulesResolution.authority.status.requisitionStatus === "PUBLISHED" &&
+    rulesResolution.authority.status.availabilityStatus === "AVAILABLE" &&
+    rulesResolution.authority.sourcedNumbers.requisitionCost.value !== null;
   const developmentOverride = env.ENVIRONMENT === "development" && command.developerOverride &&
-    definition.implementation_status !== "CATALOGUE_ONLY" && definition.executable === 1;
+    rulesResolution.authority.status.implementationStatus !== "CATALOGUE_ONLY" &&
+    rulesResolution.authority.status.executable;
   if (!normal && !developmentOverride) {
     throw new ForceServiceError(422, "DEFINITION_NOT_PURCHASABLE", "This equipment cannot be requisitioned in the active ruleset.");
   }
-  const price = normal ? definition.requisition_cost! : null;
+  const price = normal ? rulesResolution.authority.sourcedNumbers.requisitionCost.value : null;
   if (price !== null && await getRequisitionBalance(env.DB, ownerId) < price) {
     throw new ForceServiceError(422, "REQUISITION_INSUFFICIENT", "Insufficient requisition balance.");
   }

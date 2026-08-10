@@ -381,6 +381,24 @@ export async function commitPlan(
       carrierUnitId: carrierByUnit.get(selected.player_unit_id),
       lockedAt,
     });
+    const governedEffectiveUnit = {
+      ...snapshot.effectiveUnit,
+      rulesAuthority: built.rulesAuthority,
+      equipmentRulesAuthorities: built.equipmentRulesAuthorities,
+    };
+    const governedSnapshotHash = await commandHash({
+      schemaVersion: 1,
+      id: snapshot.id,
+      campaignId: snapshot.campaignId,
+      deploymentPlanId: snapshot.deploymentPlanId,
+      playerUnitId: snapshot.playerUnitId,
+      rulesetVersion: snapshot.rulesetVersion,
+      unitDefinitionVersion: snapshot.unitDefinitionVersion,
+      effectiveUnit: governedEffectiveUnit,
+      insertionMethod: snapshot.insertionMethod,
+      carrierUnitId: snapshot.carrierUnitId,
+      lockedAt: snapshot.lockedAt,
+    });
     snapshotIds.push(snapshotId);
     statements.push(
       env.DB.prepare(`UPDATE player_unit_loadouts SET locked_at = ?1, revision = revision + 1,
@@ -399,16 +417,16 @@ export async function commitPlan(
       ) VALUES (?1,?2,?3,?4,?5,?6,?7,'[]',?8,?9,?10,?11,?12,?13,?14,?15,?16,?17)`)
         .bind(snapshotId, row.campaign_id, planId, selected.player_unit_id, built.context.ruleset_id,
           built.context.definition_id, snapshot.unitDefinitionVersion,
-          JSON.stringify(snapshot.effectiveUnit.equipmentInstanceIds), JSON.stringify(snapshot.effectiveUnit),
+          JSON.stringify(snapshot.effectiveUnit.equipmentInstanceIds), JSON.stringify(governedEffectiveUnit),
           JSON.stringify(snapshot.effectiveUnit.equipmentInstanceIds), JSON.stringify(snapshot.effectiveUnit.ammunition),
           JSON.stringify(snapshot.effectiveUnit.cooldowns), JSON.stringify(built.supplies), row.deployment_method_id,
-          snapshot.carrierUnitId ?? null, snapshot.snapshotHash, lockedAt),
+          snapshot.carrierUnitId ?? null, governedSnapshotHash, lockedAt),
       env.DB.prepare(`INSERT INTO deployments (
         id,campaign_id,player_unit_id,owner_id,side,status,snapshot_json
       ) VALUES (?1,?2,?3,?4,'ALLIED','READY',?5)`)
         .bind(`deployment:${row.campaign_id}:${selected.player_unit_id}`, row.campaign_id,
           selected.player_unit_id, selected.owner_id,
-          JSON.stringify({ ...snapshot.effectiveUnit, supplies: built.supplies, position: { q: zone.hex_q, r: zone.hex_r }, insertionMethod: row.deployment_method_id, carrierUnitId: snapshot.carrierUnitId })),
+          JSON.stringify({ ...governedEffectiveUnit, supplies: built.supplies, position: { q: zone.hex_q, r: zone.hex_r }, insertionMethod: row.deployment_method_id, carrierUnitId: snapshot.carrierUnitId })),
     );
     for (const weapon of snapshot.effectiveUnit.weapons) {
       statements.push(env.DB.prepare(`INSERT INTO campaign_weapon_states (

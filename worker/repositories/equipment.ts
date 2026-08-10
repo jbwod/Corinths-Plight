@@ -6,6 +6,7 @@ export interface LoadoutContextRow {
   unit_version: number;
   unit_status: string;
   current_health: number;
+  requisition_value: number;
   ammunition_json: string;
   location_state: string;
   location_id: string | null;
@@ -16,20 +17,37 @@ export interface LoadoutContextRow {
   locked_at: number | null;
   definition_name: string;
   category: string;
+  health_model: "FORCE_STRENGTH" | "HITS";
   max_health: number;
   armor: number;
   defense: number;
   speed_quarters: number;
   sensor_range: number;
+  requisition_cost: number | null;
+  definition_status: string;
+  definition_source: string;
+  definition_notes: string;
   definition_json: string;
   implementation_status: string | null;
+  requisition_status: string | null;
   availability_status: string | null;
   executable: number | null;
+  purchasable: number | null;
+  reason_code: string | null;
   movement_profile_id: string;
   durability_profile_id: string;
   cargo_profile_id: string | null;
   deployment_profile_id: string | null;
   profile_json: string;
+  movement_domain: "GROUND" | "VTOL" | "AEROSPACE" | "ORBITAL";
+  movement_uses_facing: number;
+  movement_allows_hostile_passage: number;
+  movement_requires_flight_path: number;
+  movement_definition_json: string;
+  durability_model: "FORCE_STRENGTH" | "HITS";
+  durability_output_scales_with_current: number;
+  durability_supports_subsystems: number;
+  durability_definition_json: string;
   cargo_capacity_json: string | null;
   cargo_loading_rules_json: string | null;
 }
@@ -45,12 +63,20 @@ export interface InventoryEffectRow {
   category: string;
   canonical_slot_type: string;
   definition_status: string;
+  requisition_cost: number | null;
+  consumable: number;
+  definition_source: string;
+  definition_notes: string;
   definition_json: string;
   effect_index: number | null;
   effect_type: string | null;
   effect_json: string | null;
   implementation_status: string | null;
+  requisition_status: string | null;
+  availability_status: string | null;
   executable: number | null;
+  purchasable: number | null;
+  reason_code: string | null;
   required_tags_all_json: string | null;
   required_tags_any_json: string | null;
   forbidden_tags_json: string | null;
@@ -81,15 +107,27 @@ export async function getLoadoutContext(db: D1Database, ownerId: string, unitId:
   return db.prepare(`SELECT
       units.id AS unit_id, units.owner_id, units.ruleset_id, units.definition_id,
       units.version AS unit_version, units.status AS unit_status, units.current_health,
+      units.requisition_value,
       units.ammunition_json, units.location_state, units.location_id,
       loadouts.id AS loadout_id, loadouts.revision AS loadout_revision,
       loadouts.status AS loadout_status, loadouts.loadout_kind, loadouts.locked_at,
-      definitions.name AS definition_name, definitions.category, definitions.max_health,
+      definitions.name AS definition_name, definitions.category, definitions.health_model,
+      definitions.max_health,
       definitions.armor, definitions.defense, definitions.speed_quarters, definitions.sensor_range,
-      definitions.definition_json, overlays.implementation_status,
-      overlays.availability_status, overlays.executable,
+      definitions.requisition_cost, definitions.definition_status,
+      definitions.source AS definition_source, definitions.notes AS definition_notes,
+      definitions.definition_json, overlays.implementation_status, overlays.requisition_status,
+      overlays.availability_status, overlays.executable, overlays.purchasable, overlays.reason_code,
       profiles.movement_profile_id, profiles.durability_profile_id, profiles.cargo_profile_id,
       profiles.deployment_profile_id, profiles.profile_json,
+      movement.domain AS movement_domain, movement.uses_facing AS movement_uses_facing,
+      movement.allows_hostile_passage AS movement_allows_hostile_passage,
+      movement.requires_flight_path AS movement_requires_flight_path,
+      movement.definition_json AS movement_definition_json,
+      durability.model AS durability_model,
+      durability.output_scales_with_current AS durability_output_scales_with_current,
+      durability.supports_subsystems AS durability_supports_subsystems,
+      durability.definition_json AS durability_definition_json,
       cargo.capacity_json AS cargo_capacity_json, cargo.loading_rules_json AS cargo_loading_rules_json
     FROM player_units AS units
     JOIN unit_class_definitions AS definitions
@@ -99,6 +137,10 @@ export async function getLoadoutContext(db: D1Database, ownerId: string, unitId:
      AND overlays.ruleset_id = definitions.ruleset_id
     JOIN unit_definition_profiles AS profiles
       ON profiles.unit_definition_id = units.definition_id AND profiles.ruleset_id = units.ruleset_id
+    JOIN movement_profile_definitions AS movement
+      ON movement.id = profiles.movement_profile_id AND movement.ruleset_id = profiles.ruleset_id
+    JOIN durability_profile_definitions AS durability
+      ON durability.id = profiles.durability_profile_id AND durability.ruleset_id = profiles.ruleset_id
     JOIN player_unit_loadouts AS loadouts
       ON loadouts.player_unit_id = units.id AND loadouts.loadout_kind = 'OWNED_DEFAULT' AND loadouts.status = 'ACTIVE'
     LEFT JOIN cargo_profile_definitions AS cargo
@@ -113,8 +155,11 @@ export async function listInventoryEffects(db: D1Database, ownerId: string): Pro
       inventory.state AS inventory_state, inventory.revision AS inventory_revision,
       equipment.id AS equipment_definition_id, equipment.name, equipment.category,
       UPPER(equipment.slot_type) AS canonical_slot_type, equipment.definition_status,
+      equipment.requisition_cost, equipment.consumable,
+      equipment.source AS definition_source, equipment.notes AS definition_notes,
       equipment.definition_json, effects.effect_index, effects.effect_type, effects.effect_json,
-      overlays.implementation_status, overlays.executable,
+      overlays.implementation_status, overlays.requisition_status, overlays.availability_status,
+      overlays.executable, overlays.purchasable, overlays.reason_code,
       eligibility.required_tags_all_json, eligibility.required_tags_any_json,
       eligibility.forbidden_tags_json, eligibility.allowed_unit_definitions_json,
       eligibility.slot_types_json, eligibility.maximum_equipped

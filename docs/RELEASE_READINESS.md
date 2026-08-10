@@ -14,7 +14,7 @@ This is the live release checklist. A checked local build item is not permission
 
 | Blocker | Status | Evidence / exit condition |
 |---|---:|---|
-| Split D1/compiled/adaptor rules truth | open P0 | CP-200 now supplies a generated `@2` catalogue and public projection; CP-201 still must cut D1/tactical hydration over and prevent unsupported classes from reaching the `@1` compiled lookup. |
+| Split D1/compiled/adaptor rules truth | partial P0 | CP-200 supplies a generated `@2` catalogue/public projection, and CP-201 now fails closed before unsupported D1 classes reach the `@1` tactical handler. Cargo/supply hydration, D1 publication and complete removal of the compatibility bridge remain open. |
 | Conflict provenance mismatch | open P0 | D1 has 12 obsolete conflict IDs instead of the 72-record canonical register. |
 | No production world/campaign content | open P0 | Production seeds create zero campaigns, insertion zones, strategic maps/nodes and ships. |
 | Demo/showcase/hard-coded production client paths | open P0 | App, Forces, Deployment and Strategic surfaces use fixed IDs or local fallback data. |
@@ -37,7 +37,7 @@ This is the live release checklist. A checked local build item is not permission
 | `npm run seed:check` | macOS local, Node project toolchain | PASS | 34 definitions; 28 active; 95 SQL definitions; 16 allied classes; 7 enemy roles; 3 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
 | `npm run typecheck` | local | PASS | TypeScript 6.0.3. |
 | `npm run lint` | local | PASS | ESLint 10.8.1. |
-| `npm test` | local | PASS | Vitest 4.1.10; 39 files / 270 tests. |
+| `npm test` | local | PASS | Vitest 4.1.10; 44 files / 290 tests. |
 | `npm run build` | local development config | PASS | Worker 543.37 kB; client JS 430.68 kB; CSS 129.97 kB; Wrangler emitted only its known sandboxed debug-log warning. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
 | Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0008 applied. |

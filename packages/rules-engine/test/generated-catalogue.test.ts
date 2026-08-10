@@ -123,8 +123,15 @@ describe("rules catalogue bootstrap", () => {
       });
     }
     expect(content.overlays.filter((overlay) => overlay.executable).map((overlay) => `${overlay.definitionKind}:${overlay.definitionId}`)).toEqual([
+      "ACTION:action-attack",
+      "ACTION:action-load-cargo",
+      "ACTION:action-reload",
+      "ACTION:action-unload-cargo",
       "EQUIPMENT:equipment-flak-vests",
       "EQUIPMENT:equipment-light-at",
+      "ORDER:order-advance",
+      "ORDER:order-hold",
+      "ORDER:order-rush",
       "UNIT:unit-artillery",
       "UNIT:unit-engineers",
       "UNIT:unit-infantry-squad",
@@ -133,6 +140,8 @@ describe("rules catalogue bootstrap", () => {
     ]);
     expect(content.handlers.map((handler) => handler.id)).toEqual([
       "foundation-compiled-unit-class",
+      "foundation-order-handler",
+      "foundation-action-handler",
       "equipment-effect-flak-vests",
       "equipment-effect-light-at",
     ]);

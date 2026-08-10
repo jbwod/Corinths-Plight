@@ -13,7 +13,6 @@ import {
   canTarget,
   getActionDefinition,
   getOrderTypeDefinition,
-  getUnitClass,
   projectCampaignState,
   resolveRound,
   validateOrder,
@@ -42,6 +41,7 @@ import { generateEnemyOrders } from "./enemy-ai";
 import type { Env } from "./env";
 import { errorResponse, json, readJson } from "./http";
 import { validateIncidentalActions } from "./order-validation";
+import { LEGACY_RULESET_ID, resolveUnitExecutionAdapter } from "./services/rules-hydration";
 
 const STATE_KEY = "state/current";
 const FOUNDATION_CAMPAIGN_ID = "outpost-k17";
@@ -144,10 +144,27 @@ export class CampaignDurableObject extends DurableObject<Env> {
     return Number.isFinite(parsed) && parsed >= 1_000 ? parsed : 30_000;
   }
 
+  private assertAlliedExecutionSupport(state: CampaignRuntimeState): void {
+    for (const deployment of state.deployments) {
+      if (deployment.side !== "ALLIED") continue;
+      const execution = resolveUnitExecutionAdapter(
+        LEGACY_RULESET_ID,
+        deployment.definitionId,
+        this.env.ENVIRONMENT,
+      );
+      if (!execution.ok) {
+        throw new Error(
+          `CAMPAIGN_UNIT_DEFINITION_NOT_EXECUTABLE:${deployment.definitionId}:${execution.code}`,
+        );
+      }
+    }
+  }
+
   private async getState(): Promise<CampaignRuntimeState> {
     const stored = await this.ctx.storage.get<unknown>(STATE_KEY);
     if (stored !== undefined) {
       const parsed = parseCampaignStoredState(stored, this.campaignId());
+      this.assertAlliedExecutionSupport(parsed.state);
       if (parsed.legacy) await this.ctx.storage.put(STATE_KEY, encodeCampaignStoredState(parsed.state));
       return parsed.state;
     }
@@ -161,6 +178,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       this.configuredDuration(),
       this.configuredLockLead(),
     );
+    this.assertAlliedExecutionSupport(created);
     await this.ctx.storage.put(STATE_KEY, encodeCampaignStoredState(created));
     await this.scheduleNextAlarm(created);
     return created;
@@ -188,13 +206,13 @@ export class CampaignDurableObject extends DurableObject<Env> {
     if (!campaign) throw new Error("CAMPAIGN_NOT_INITIALISED");
     const rows = await this.env.DB.prepare(`SELECT deployments.id, deployments.owner_id,
         deployments.side, deployments.status, deployments.snapshot_json,
-        units.id AS persistent_unit_id, units.definition_id, units.callsign
+        units.id AS persistent_unit_id, units.ruleset_id, units.definition_id, units.callsign
       FROM deployments JOIN player_units AS units ON units.id = deployments.player_unit_id
       WHERE deployments.campaign_id = ?1 AND deployments.status IN ('READY','ACTIVE','IMMOBILISED')
       ORDER BY deployments.id`).bind(campaign.id).all<{
         id: string; owner_id: string; side: CampaignDeployment["side"];
         status: CampaignDeployment["status"]; snapshot_json: string;
-        persistent_unit_id: string; definition_id: string; callsign: string;
+        persistent_unit_id: string; ruleset_id: string; definition_id: string; callsign: string;
       }>();
     if (rows.results.length === 0) throw new Error("CAMPAIGN_NOT_INITIALISED");
     const created = createDemoCampaignState(Date.now(), this.configuredDuration(), campaign.id);
@@ -208,8 +226,16 @@ export class CampaignDurableObject extends DurableObject<Env> {
     created.pendingPersistentEffects = [];
     created.deployments = rows.results.map((row): CampaignDeployment => {
       const snapshot = JSON.parse(row.snapshot_json) as Record<string, unknown>;
+      const execution = resolveUnitExecutionAdapter(row.ruleset_id, row.definition_id, this.env.ENVIRONMENT);
+      if (!execution.ok) throw new Error(`CAMPAIGN_UNIT_DEFINITION_NOT_EXECUTABLE:${row.definition_id}:${execution.code}`);
       const position = snapshot.position as { q?: unknown; r?: unknown } | undefined;
       const stats = snapshot.stats as CampaignDeployment["stats"] | undefined;
+      const snapshotActions = Array.isArray(snapshot.allowedActions)
+        ? snapshot.allowedActions.filter((action): action is string => typeof action === "string")
+        : execution.allowedActionTypes;
+      const snapshotOrders = Array.isArray(snapshot.allowedOrders)
+        ? snapshot.allowedOrders.filter((order): order is string => typeof order === "string")
+        : execution.allowedOrderTypes;
       return {
         id: row.id,
         campaignId: campaign.id,
@@ -223,17 +249,17 @@ export class CampaignDurableObject extends DurableObject<Env> {
           ? { q: position.q as number, r: position.r as number }
           : { q: -4, r: 1 },
         facing: 2,
-        stats: stats ?? getUnitClass(row.definition_id).stats,
+        stats: stats ?? execution.legacyDefinition.stats,
         currentHealth: typeof snapshot.currentHealth === "number"
           ? snapshot.currentHealth
-          : stats?.maxHealth ?? getUnitClass(row.definition_id).stats.maxHealth,
+          : stats?.maxHealth ?? execution.legacyDefinition.stats.maxHealth,
         weapons: Array.isArray(snapshot.weapons) ? snapshot.weapons as CampaignDeployment["weapons"] : [],
         ammunition: snapshot.ammunition && typeof snapshot.ammunition === "object" ? snapshot.ammunition as Record<string, number> : {},
         cooldowns: snapshot.cooldowns && typeof snapshot.cooldowns === "object" ? snapshot.cooldowns as Record<string, number> : {},
         statuses: [],
         equipmentIds: Array.isArray(snapshot.equipmentInstanceIds) ? snapshot.equipmentInstanceIds.filter((id): id is string => typeof id === "string") : [],
-        allowedActions: Array.isArray(snapshot.allowedActions) ? snapshot.allowedActions as CampaignDeployment["allowedActions"] : undefined,
-        allowedOrders: Array.isArray(snapshot.allowedOrders) ? snapshot.allowedOrders as CampaignDeployment["allowedOrders"] : undefined,
+        allowedActions: snapshotActions.filter((action) => execution.allowedActionTypes.includes(action)) as CampaignDeployment["allowedActions"],
+        allowedOrders: snapshotOrders.filter((order) => execution.allowedOrderTypes.includes(order)) as CampaignDeployment["allowedOrders"],
         abilities: Array.isArray(snapshot.abilities) ? snapshot.abilities as CampaignDeployment["abilities"] : [],
         supplies: snapshot.supplies && typeof snapshot.supplies === "object"
           ? snapshot.supplies as CampaignDeployment["supplies"]
@@ -514,8 +540,13 @@ export class CampaignDurableObject extends DurableObject<Env> {
     if (deployment.status === "DESTROYED") {
       return errorResponse(409, "UNIT_DESTROYED", "Destroyed units cannot receive orders.");
     }
-    const definition = getUnitClass(deployment.definitionId);
-    if (!(deployment.allowedOrders ?? definition.allowedOrders).includes(intent.orderType as UnitOrder["orderType"])) {
+    const execution = resolveUnitExecutionAdapter(LEGACY_RULESET_ID, deployment.definitionId, this.env.ENVIRONMENT);
+    if (!execution.ok) {
+      return errorResponse(422, "UNIT_DEFINITION_NOT_EXECUTABLE", execution.message);
+    }
+    const governedOrders = (deployment.allowedOrders ?? execution.allowedOrderTypes)
+      .filter((order) => execution.allowedOrderTypes.includes(order));
+    if (!governedOrders.includes(intent.orderType as UnitOrder["orderType"])) {
       return errorResponse(422, "ORDER_INELIGIBLE", "This unit class cannot use that order type.");
     }
     if (!getOrderTypeDefinition(intent.orderType as UnitOrder["orderType"]).executable) {
@@ -531,7 +562,10 @@ export class CampaignDurableObject extends DurableObject<Env> {
     }
     const weaponIds = new Set(deployment.weapons.map((weapon) => weapon.id));
     const equipmentIds = new Set(deployment.equipmentIds);
-    const allowedActions = new Set(deployment.allowedActions ?? definition.allowedActions);
+    const allowedActions = new Set(
+      (deployment.allowedActions ?? execution.allowedActionTypes)
+        .filter((action) => execution.allowedActionTypes.includes(action)),
+    );
     let actions: StructuredAction[];
     let incidentalActions: StructuredAction[];
     try {
