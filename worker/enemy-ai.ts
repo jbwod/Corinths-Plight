@@ -17,6 +17,7 @@ function chooseTarget(enemy: CampaignDeployment, state: CampaignRuntimeState): C
     (candidate) =>
       candidate.side === "ALLIED" &&
       candidate.status !== "DESTROYED" &&
+      (candidate.locationState ?? "ON_MAP") === "ON_MAP" &&
       hasLineOfSight(enemy.position, candidate.position, state.map, enemy.stats.sensors),
   );
   const prioritised = enemy.weapons.some((weapon) => weapon.armorPiercing > 0)
@@ -53,7 +54,11 @@ function routeWithinBudget(
 
 export function generateEnemyOrders(state: CampaignRuntimeState, now: number): UnitOrder[] {
   return state.deployments
-    .filter((deployment) => deployment.side === "ENEMY" && deployment.status !== "DESTROYED")
+    .filter((deployment) =>
+      deployment.side === "ENEMY" &&
+      deployment.status === "ACTIVE" &&
+      (deployment.locationState ?? "ON_MAP") === "ON_MAP"
+    )
     .sort((left, right) => left.id.localeCompare(right.id))
     .map((enemy) => {
       const target = chooseTarget(enemy, state);

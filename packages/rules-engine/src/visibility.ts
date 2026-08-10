@@ -22,11 +22,16 @@ export function projectCampaignState(
   serverTime: number,
 ): CampaignView {
   const observers = state.deployments.filter(
-    (deployment) => deployment.side === viewer.side && deployment.status !== "DESTROYED",
+    (deployment) =>
+      deployment.side === viewer.side &&
+      deployment.status !== "DESTROYED" &&
+      (deployment.locationState ?? "ON_MAP") === "ON_MAP",
   );
   const visible = viewer.role === "ADMIN" ? new Set(state.map.map((hex) => coordKey(hex.coord))) : visibleHexes(observers, state.map);
   const deployments = state.deployments.filter(
-    (deployment) => deployment.side === viewer.side || visible.has(coordKey(deployment.position)),
+    (deployment) =>
+      (deployment.locationState ?? "ON_MAP") === "ON_MAP" &&
+      (deployment.side === viewer.side || visible.has(coordKey(deployment.position))),
   );
   const map = state.map.map((hex) => ({
     ...hex,
@@ -61,9 +66,15 @@ export function projectCampaignState(
       !allDeploymentIds.has(event.actor) ||
       visibleDeploymentIds.has(event.actor),
   );
-  const { resolutions: _resolutions, pendingPersistentEffects: _effects, ...publicState } = state;
+  const {
+    resolutions: _resolutions,
+    pendingPersistentEffects: _effects,
+    reinforcementWaves: _reinforcementWaves,
+    ...publicState
+  } = state;
   void _resolutions;
   void _effects;
+  void _reinforcementWaves;
   return {
     ...publicState,
     map,

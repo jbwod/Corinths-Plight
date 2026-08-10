@@ -34,7 +34,12 @@ const supportEvents = new Set([
   "STRUCTURE_COMPLETED",
   "SUPPLY_TRANSFERRED",
 ]);
-const objectiveEvents = new Set(["OBJECTIVE_CAPTURED", "CAMPAIGN_COMPLETED", "CAMPAIGN_FAILED"]);
+const objectiveEvents = new Set([
+  "OBJECTIVE_CAPTURED",
+  "ENEMY_REINFORCEMENTS_ARRIVED",
+  "CAMPAIGN_COMPLETED",
+  "CAMPAIGN_FAILED",
+]);
 
 function numberValue(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -157,6 +162,12 @@ export function describeCampaignReportEvent(
     }
     case "OBJECTIVE_CAPTURED":
       return `${objective} changed control to ${String(payload.owner ?? payload.to ?? "another side")}.`;
+    case "ENEMY_REINFORCEMENTS_ARRIVED": {
+      const callsigns = Array.isArray(payload.callsigns)
+        ? payload.callsigns.filter((callsign): callsign is string => typeof callsign === "string")
+        : [];
+      return `Enemy reinforcements entered the battlespace${callsigns.length ? `: ${callsigns.join(", ")}` : ""}.`;
+    }
     case "CAMPAIGN_COMPLETED":
       return typeof payload.summary === "string" ? payload.summary : outcomeDescription(payload, true);
     case "CAMPAIGN_FAILED":

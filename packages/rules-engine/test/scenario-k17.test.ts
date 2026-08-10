@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   createDemoCampaignState,
+  createScenarioCampaignState,
+  applyScenarioReinforcements,
   evaluateScenarioRoundEnd,
   resolveRound,
 } from "../src";
@@ -167,5 +169,45 @@ describe("declarative Outpost K-17 scenario policy", () => {
     ]);
     expect(output.state.outcome?.reason).toBe("PRIMARY_OBJECTIVE_LOST");
     expect(output.state.phase).toBe("COMPLETE");
+  });
+
+  it("activates authored assault waves once at the end of each non-terminal round", () => {
+    const allied = createDemoCampaignState(10_000).deployments
+      .filter((deployment) => deployment.side === "ALLIED")
+      .slice(0, 1)
+      .map((deployment) => ({ ...deployment, campaignId: "campaign-waves", persistentUnitId: undefined }));
+    const state = createScenarioCampaignState({
+      mapSourceKey: "fixture/outpost-k17",
+      campaignId: "campaign-waves",
+      campaignName: "Hold the Relay",
+      planetName: "Corinth",
+      now: 10_000,
+      durationMs: 300_000,
+      alliedDeployments: allied,
+    });
+    const output = resolveRound({
+      previousState: state,
+      rulesetVersion: state.rulesetVersion,
+      playerOrders: [],
+      enemyOrders: [],
+      seed: "k17-wave-2",
+      resolutionTime: 20_000,
+    });
+
+    expect(output.events.map((event) => event.type)).toEqual([
+      "ENEMY_REINFORCEMENTS_ARRIVED",
+      "ROUND_FINISHED",
+    ]);
+    expect(output.events[0]?.payload).toMatchObject({
+      waveId: "k17-wave-2",
+      entryRound: 2,
+      callsigns: ["RAZOR-2", "CHITIN-7"],
+    });
+    expect(output.state.reinforcementWaves?.[0]?.status).toBe("ARRIVED");
+    expect(output.state.deployments.filter((deployment) => deployment.status === "ACTIVE" && deployment.side === "ENEMY")).toHaveLength(5);
+
+    const replay = applyScenarioReinforcements(output.state);
+    expect(replay.arrivals).toEqual([]);
+    expect(replay.reinforcementWaves[0]?.status).toBe("ARRIVED");
   });
 });

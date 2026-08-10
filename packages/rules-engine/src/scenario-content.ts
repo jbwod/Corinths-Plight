@@ -5,7 +5,7 @@ import { createOutpostMap } from "./demo";
 import { ENGINE_VERSION } from "./resolver";
 
 export const OUTPOST_K17_SCENARIO_ID = "scenario-outpost-k17-hold-relay" as const;
-export const OUTPOST_K17_SCENARIO_VERSION = 1 as const;
+export const OUTPOST_K17_SCENARIO_VERSION = 2 as const;
 
 export interface ScenarioCampaignInput {
   mapSourceKey: string;
@@ -25,6 +25,7 @@ function enemy(
   callsign: string,
   position: { q: number; r: number },
   facing: Facing,
+  reserve = false,
 ): CampaignDeployment {
   const definition = getUnitClass(definitionId);
   return {
@@ -34,7 +35,7 @@ function enemy(
     side: "ENEMY",
     definitionId,
     callsign,
-    status: "ACTIVE",
+    status: reserve ? "READY" : "ACTIVE",
     position,
     facing,
     stats: structuredClone(definition.stats),
@@ -48,7 +49,7 @@ function enemy(
     equipmentIds: [],
     allowedActions: ["ATTACK"],
     allowedOrders: definition.allowedOrders.filter((order) => ["HOLD", "ADVANCE", "RUSH"].includes(order)) as CampaignDeployment["allowedOrders"],
-    locationState: "ON_MAP",
+    locationState: reserve ? "RESERVE" : "ON_MAP",
   };
 }
 
@@ -116,6 +117,12 @@ export function createScenarioCampaignState(input: ScenarioCampaignInput): Campa
       enemy(input.campaignId, "bug-drone-1", "enemy-bug-drone", "SKITTER-9", { q: 1, r: -1 }, 5),
       enemy(input.campaignId, "bug-warrior-1", "enemy-bug-warrior", "CHITIN-4", { q: 3, r: -1 }, 5),
       enemy(input.campaignId, "bug-heavy-1", "enemy-bug-heavy", "BEHEMOTH", { q: 4, r: -2 }, 4),
+      enemy(input.campaignId, "wave-2-drone", "enemy-bug-drone", "RAZOR-2", { q: 5, r: -2 }, 4, true),
+      enemy(input.campaignId, "wave-2-warrior", "enemy-bug-warrior", "CHITIN-7", { q: 5, r: -3 }, 4, true),
+      enemy(input.campaignId, "wave-3-warrior-a", "enemy-bug-warrior", "CLAW-3", { q: 5, r: -1 }, 4, true),
+      enemy(input.campaignId, "wave-3-warrior-b", "enemy-bug-warrior", "CLAW-8", { q: 4, r: 1 }, 3, true),
+      enemy(input.campaignId, "wave-4-drone", "enemy-bug-drone", "SKITTER-12", { q: 4, r: 0 }, 3, true),
+      enemy(input.campaignId, "wave-4-heavy", "enemy-bug-heavy", "BEHEMOTH-2", { q: 3, r: 0 }, 3, true),
     ],
     orders: [],
     objectives: objectives(),
@@ -127,6 +134,26 @@ export function createScenarioCampaignState(input: ScenarioCampaignInput): Campa
       primaryObjectiveId: "objective-outpost",
       capturableObjectiveIds: ["objective-nest", "objective-outpost", "objective-supply-route"],
     },
+    reinforcementWaves: [
+      {
+        id: "k17-wave-2",
+        arrivesAfterRound: round,
+        deploymentIds: [`${input.campaignId}:wave-2-drone`, `${input.campaignId}:wave-2-warrior`],
+        status: "PENDING",
+      },
+      {
+        id: "k17-wave-3",
+        arrivesAfterRound: round + 1,
+        deploymentIds: [`${input.campaignId}:wave-3-warrior-a`, `${input.campaignId}:wave-3-warrior-b`],
+        status: "PENDING",
+      },
+      {
+        id: "k17-wave-4",
+        arrivesAfterRound: round + 2,
+        deploymentIds: [`${input.campaignId}:wave-4-drone`, `${input.campaignId}:wave-4-heavy`],
+        status: "PENDING",
+      },
+    ],
     events: [{
       eventId: `${input.campaignId}:${round}:0001:ROUND_STARTED`,
       campaignId: input.campaignId,

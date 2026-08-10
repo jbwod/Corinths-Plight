@@ -2,6 +2,7 @@ import type {
   AxialCoord,
   CampaignDeployment,
   CampaignOutcome,
+  CampaignReinforcementWave,
   CampaignRuntimeState,
   FactionSide,
   ObjectiveState,
@@ -21,6 +22,18 @@ export interface ScenarioRoundEndResult {
   objectives: ObjectiveState[];
   captures: ObjectiveCaptureResult[];
   outcome?: CampaignOutcome;
+}
+
+export interface ReinforcementArrival {
+  waveId: string;
+  deploymentIds: string[];
+  callsigns: string[];
+}
+
+export interface ScenarioReinforcementResult {
+  deployments: CampaignDeployment[];
+  reinforcementWaves: CampaignReinforcementWave[];
+  arrivals: ReinforcementArrival[];
 }
 
 function samePosition(left: AxialCoord, right: AxialCoord): boolean {
@@ -150,4 +163,36 @@ export function evaluateScenarioRoundEnd(
     };
   }
   return { objectives, captures };
+}
+
+/** Activates authored reserve deployments after the completed round. */
+export function applyScenarioReinforcements(
+  state: Pick<CampaignRuntimeState, "round" | "deployments" | "reinforcementWaves" | "outcome">,
+): ScenarioReinforcementResult {
+  const deployments = state.deployments.map((deployment) => structuredClone(deployment));
+  const waves = (state.reinforcementWaves ?? []).map((wave) => structuredClone(wave));
+  if (state.outcome) return { deployments, reinforcementWaves: waves, arrivals: [] };
+
+  const byId = new Map(deployments.map((deployment) => [deployment.id, deployment]));
+  const arrivals: ReinforcementArrival[] = [];
+  for (const wave of waves
+    .filter((candidate) => candidate.status === "PENDING" && candidate.arrivesAfterRound === state.round)
+    .sort((left, right) => left.id.localeCompare(right.id))) {
+    const arriving = wave.deploymentIds.map((id) => byId.get(id));
+    if (arriving.some((deployment) => !deployment)) throw new Error(`Scenario wave ${wave.id} references a missing deployment.`);
+    for (const deployment of arriving as CampaignDeployment[]) {
+      if (deployment.side !== "ENEMY" || deployment.status !== "READY" || deployment.locationState !== "RESERVE") {
+        throw new Error(`Scenario wave ${wave.id} contains a deployment that is not an Enemy reserve.`);
+      }
+      deployment.status = "ACTIVE";
+      deployment.locationState = "ON_MAP";
+    }
+    wave.status = "ARRIVED";
+    arrivals.push({
+      waveId: wave.id,
+      deploymentIds: wave.deploymentIds.slice(),
+      callsigns: (arriving as CampaignDeployment[]).map((deployment) => deployment.callsign),
+    });
+  }
+  return { deployments, reinforcementWaves: waves, arrivals };
 }

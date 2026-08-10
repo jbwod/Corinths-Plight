@@ -1,4 +1,4 @@
-import { createDemoCampaignState, resolveRound } from "../packages/rules-engine/src";
+import { createDemoCampaignState, createScenarioCampaignState, resolveRound } from "../packages/rules-engine/src";
 import { describe, expect, it } from "vitest";
 import {
   CAMPAIGN_STORAGE_SCHEMA_VERSION,
@@ -173,6 +173,21 @@ describe("versioned campaign Durable Object storage", () => {
     const stored = encodeCampaignStoredState(state);
 
     expect(stored.schemaVersion).toBe(CAMPAIGN_STORAGE_SCHEMA_VERSION);
+    expect(parseCampaignStoredState(stored, CAMPAIGN_ID)).toEqual({ state, legacy: false });
+  });
+
+  it("round-trips authored reserve waves without exposing an invalid deployment shape", () => {
+    const state = createScenarioCampaignState({
+      mapSourceKey: "fixture/outpost-k17",
+      campaignId: CAMPAIGN_ID,
+      campaignName: "Hold the Relay",
+      planetName: "Corinth",
+      now: 100_000,
+      durationMs: 300_000,
+      alliedDeployments: fixture().deployments.filter((deployment) => deployment.side === "ALLIED").slice(0, 1),
+    });
+    const stored = encodeCampaignStoredState(state);
+
     expect(parseCampaignStoredState(stored, CAMPAIGN_ID)).toEqual({ state, legacy: false });
   });
 

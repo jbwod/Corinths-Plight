@@ -149,8 +149,27 @@ describe("campaign-state redaction", () => {
 
     expect("resolutions" in view).toBe(false);
     expect("pendingPersistentEffects" in view).toBe(false);
+    expect("reinforcementWaves" in view).toBe(false);
     expect(JSON.stringify(view)).not.toContain("server-secret-seed");
     expect(JSON.stringify(view)).not.toContain("secret-effect");
+  });
+
+  it("keeps reserve deployments and authored wave timing out of the player projection", () => {
+    const { state, hiddenEnemy } = visibilityFixture();
+    hiddenEnemy.status = "READY";
+    hiddenEnemy.locationState = "RESERVE";
+    state.reinforcementWaves = [{
+      id: "hidden-wave",
+      arrivesAfterRound: 1,
+      deploymentIds: [hiddenEnemy.id],
+      status: "PENDING",
+    }];
+
+    const view = projectCampaignState(state, alliedViewer, 9_999);
+
+    expect(view.deployments.map((deployment) => deployment.id)).not.toContain(hiddenEnemy.id);
+    expect("reinforcementWaves" in view).toBe(false);
+    expect(JSON.stringify(view)).not.toContain("hidden-wave");
   });
 
   it("marks LOS-visible map hexes visible and preserves non-visible memory state", () => {

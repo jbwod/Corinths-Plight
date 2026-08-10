@@ -800,6 +800,7 @@ export type CampaignEventType =
   | "UNIT_DESTROYED"
   | "STRUCTURE_COMPLETED"
   | "SUPPLY_TRANSFERRED"
+  | "ENEMY_REINFORCEMENTS_ARRIVED"
   | "OBJECTIVE_CAPTURED"
   | "ROUND_FINISHED"
   | "CAMPAIGN_COMPLETED"
@@ -843,6 +844,13 @@ export interface CampaignScenarioPolicyV1 {
 }
 
 export type CampaignScenarioPolicy = CampaignScenarioPolicyV1;
+
+export interface CampaignReinforcementWave {
+  id: string;
+  arrivesAfterRound: number;
+  deploymentIds: string[];
+  status: "PENDING" | "ARRIVED";
+}
 
 export type CampaignOutcomeReason =
   | "ALL_ALLIED_DEPLOYMENTS_LOST"
@@ -902,6 +910,7 @@ export interface CampaignRuntimeState {
   orders: UnitOrder[];
   objectives: ObjectiveState[];
   scenarioPolicy?: CampaignScenarioPolicy;
+  reinforcementWaves?: CampaignReinforcementWave[];
   outcome?: CampaignOutcome;
   events: CampaignEvent[];
   resolutions: Record<string, ResolutionRecord>;
@@ -932,7 +941,7 @@ export interface ViewerContext {
   battalionId?: string;
 }
 
-export interface CampaignView extends Omit<CampaignRuntimeState, "resolutions" | "pendingPersistentEffects"> {
+export interface CampaignView extends Omit<CampaignRuntimeState, "resolutions" | "pendingPersistentEffects" | "reinforcementWaves"> {
   viewer: ViewerContext;
   serverTime: number;
   connectionToken?: string;

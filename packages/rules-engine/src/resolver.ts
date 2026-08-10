@@ -18,7 +18,7 @@ import { cargoSlotsForItem, disembarkCargo, embarkCargo, reloadAmmunition } from
 import { resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
 import { createSeededRandom, hashSeed } from "./rng";
 import { getTacticalActionRule, getTacticalOrderRule } from "./tactical-grammar";
-import { evaluateScenarioRoundEnd } from "./scenario";
+import { applyScenarioReinforcements, evaluateScenarioRoundEnd } from "./scenario";
 
 export const ENGINE_VERSION = "foundation-0.1.0";
 
@@ -109,6 +109,7 @@ function campaignStateDigest(state: RoundOutput["state"]): string {
     deployments: state.deployments,
     objectives: state.objectives,
     scenarioPolicy: state.scenarioPolicy,
+    reinforcementWaves: state.reinforcementWaves,
     outcome: state.outcome,
     events: state.events,
   });
@@ -215,6 +216,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         !incomingIds.has(deployment.id) &&
         deployment.status !== "DESTROYED" &&
         deployment.status !== "WITHDRAWN" &&
+        (deployment.locationState ?? "ON_MAP") === "ON_MAP" &&
         sameCoord(deployment.position, destination.coord),
     ).length;
     if (occupants + incoming.length > destination.capacity) contestedDestinations.add(key);
@@ -489,13 +491,22 @@ export function resolveRound(input: RoundInput): RoundOutput {
   for (const capture of scenario.captures) {
     event("OBJECTIVE_CAPTURED", undefined, { ...capture });
   }
+  if (scenario.outcome) state.outcome = scenario.outcome;
+  const reinforcements = applyScenarioReinforcements(state);
+  state.deployments = reinforcements.deployments;
+  state.reinforcementWaves = reinforcements.reinforcementWaves;
+  for (const arrival of reinforcements.arrivals) {
+    event("ENEMY_REINFORCEMENTS_ARRIVED", undefined, {
+      ...arrival,
+      entryRound: state.round + 1,
+    });
+  }
   event("ROUND_FINISHED", undefined, {
     ordersAccepted: validOrders.size,
     ordersRejected: allOrders.length - validOrders.size,
     unitsDestroyed: state.deployments.filter((deployment) => deployment.status === "DESTROYED").length,
   });
   if (scenario.outcome) {
-    state.outcome = scenario.outcome;
     state.phase = "COMPLETE";
     event(
       scenario.outcome.result === "VICTORY" ? "CAMPAIGN_COMPLETED" : "CAMPAIGN_FAILED",

@@ -25,17 +25,23 @@ describe("authored scenario content", () => {
     expect(state).toMatchObject({
       campaignId: "campaign-live",
       scenarioId: OUTPOST_K17_SCENARIO_ID,
-      scenarioVersion: 1,
+      scenarioVersion: 2,
       round: 1,
       phase: "PLANNING",
       scenarioPolicy: { startRound: 1, maxRounds: 4, primaryObjectiveId: "objective-outpost" },
     });
     expect(state.deployments.filter((deployment) => deployment.side === "ALLIED")).toHaveLength(2);
-    expect(state.deployments.filter((deployment) => deployment.side === "ENEMY")).toHaveLength(3);
+    expect(state.deployments.filter((deployment) => deployment.side === "ENEMY" && deployment.status === "ACTIVE")).toHaveLength(3);
+    expect(state.deployments.filter((deployment) => deployment.locationState === "RESERVE")).toHaveLength(6);
+    expect(state.reinforcementWaves).toEqual([
+      expect.objectContaining({ id: "k17-wave-2", arrivesAfterRound: 1, status: "PENDING" }),
+      expect.objectContaining({ id: "k17-wave-3", arrivesAfterRound: 2, status: "PENDING" }),
+      expect.objectContaining({ id: "k17-wave-4", arrivesAfterRound: 3, status: "PENDING" }),
+    ]);
     expect(state.objectives).toHaveLength(3);
     expect(state.events[0]).toMatchObject({
       type: "ROUND_STARTED",
-      payload: { scenarioId: OUTPOST_K17_SCENARIO_ID, scenarioVersion: 1 },
+      payload: { scenarioId: OUTPOST_K17_SCENARIO_ID, scenarioVersion: 2 },
     });
   });
 

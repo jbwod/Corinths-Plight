@@ -64,6 +64,7 @@ const eventTypes = new Set([
   "UNIT_DESTROYED",
   "STRUCTURE_COMPLETED",
   "SUPPLY_TRANSFERRED",
+  "ENEMY_REINFORCEMENTS_ARRIVED",
   "OBJECTIVE_CAPTURED",
   "ROUND_FINISHED",
   "CAMPAIGN_COMPLETED",
@@ -469,6 +470,7 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     "orders",
     "objectives",
     "scenarioPolicy",
+    "reinforcementWaves",
     "outcome",
     "events",
     "resolutions",
@@ -560,6 +562,7 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
   }
 
   const deploymentIds = new Set<string>();
+  const deploymentState = new Map<string, { side: string; status: string; locationState?: string }>();
   for (const [index, deploymentValue] of stateArray(state.deployments, "$.deployments").entries()) {
     const path = `$.deployments[${index}]`;
     const deployment = stateRecord(deploymentValue, path);
@@ -616,6 +619,44 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     if (deployment.allowedOrders !== undefined) {
       for (const order of stateStringArray(deployment.allowedOrders, `${path}.allowedOrders`)) {
         if (!orderTypes.has(order as OrderType)) stateFail(`${path}.allowedOrders`, `unknown order ${order}`);
+      }
+    }
+    deploymentState.set(id, {
+      side: deployment.side as string,
+      status: deployment.status as string,
+      locationState: typeof deployment.locationState === "string" ? deployment.locationState : undefined,
+    });
+  }
+
+  if (state.reinforcementWaves !== undefined) {
+    const waveIds = new Set<string>();
+    const scheduledDeployments = new Set<string>();
+    const waves = stateArray(state.reinforcementWaves, "$.reinforcementWaves");
+    if (waves.length > 16) stateFail("$.reinforcementWaves", "too many reinforcement waves");
+    for (const [index, waveValue] of waves.entries()) {
+      const path = `$.reinforcementWaves[${index}]`;
+      const wave = stateRecord(waveValue, path);
+      stateOnlyKeys(wave, ["id", "arrivesAfterRound", "deploymentIds", "status"], path);
+      const id = stateString(wave.id, `${path}.id`);
+      if (waveIds.has(id)) stateFail(`${path}.id`, "duplicate reinforcement wave identifier");
+      waveIds.add(id);
+      stateInteger(wave.arrivesAfterRound, `${path}.arrivesAfterRound`, 1);
+      if (wave.status !== "PENDING" && wave.status !== "ARRIVED") stateFail(`${path}.status`, "invalid wave status");
+      const ids = stateStringArray(wave.deploymentIds, `${path}.deploymentIds`);
+      if (ids.length === 0) stateFail(`${path}.deploymentIds`, "wave requires at least one deployment");
+      if (new Set(ids).size !== ids.length) stateFail(`${path}.deploymentIds`, "duplicate deployment in wave");
+      for (const deploymentId of ids) {
+        if (scheduledDeployments.has(deploymentId)) stateFail(`${path}.deploymentIds`, "deployment belongs to another wave");
+        scheduledDeployments.add(deploymentId);
+        const deployment = deploymentState.get(deploymentId);
+        if (!deployment) stateFail(`${path}.deploymentIds`, "deployment does not exist");
+        if (deployment.side !== "ENEMY") stateFail(`${path}.deploymentIds`, "reinforcements must be Enemy deployments");
+        if (
+          wave.status === "PENDING" &&
+          (deployment.status !== "READY" || deployment.locationState !== "RESERVE")
+        ) {
+          stateFail(`${path}.deploymentIds`, "pending reinforcement is not in reserve");
+        }
       }
     }
   }
@@ -728,6 +769,23 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     }
     for (const [index, id] of capturableObjectiveIds.entries()) {
       if (!objectiveState.has(id)) stateFail(`$.scenarioPolicy.capturableObjectiveIds[${index}]`, "objective does not exist");
+    }
+    if (state.reinforcementWaves !== undefined) {
+      const finalRound = startRound + maxRounds - 1;
+      for (const [index, waveValue] of stateArray(state.reinforcementWaves, "$.reinforcementWaves").entries()) {
+        const wave = stateRecord(waveValue, `$.reinforcementWaves[${index}]`);
+        const arrivesAfterRound = stateInteger(
+          wave.arrivesAfterRound,
+          `$.reinforcementWaves[${index}].arrivesAfterRound`,
+          1,
+        );
+        if (arrivesAfterRound < startRound || arrivesAfterRound >= finalRound) {
+          stateFail(
+            `$.reinforcementWaves[${index}].arrivesAfterRound`,
+            "wave must arrive after a playable non-final scenario round",
+          );
+        }
+      }
     }
   }
 

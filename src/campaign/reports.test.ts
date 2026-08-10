@@ -49,6 +49,7 @@ describe("campaign reports", () => {
     expect(campaignReportGroup(event("DAMAGE_APPLIED"))).toBe("COMBAT");
     expect(campaignReportGroup(event("OBJECTIVE_CAPTURED"))).toBe("OBJECTIVES");
     expect(campaignReportGroup(event("ORDER_REJECTED"))).toBe("COMMAND");
+    expect(campaignReportGroup(event("ENEMY_REINFORCEMENTS_ARRIVED"))).toBe("OBJECTIVES");
   });
 
   it("uses projected deployment callsigns in human-readable entries", () => {
@@ -61,5 +62,12 @@ describe("campaign reports", () => {
     );
 
     expect(description).toBe("ROOK-7 attacked SKITTER-1: 2 damage, armour penetrated.");
+  });
+
+  it("names an arriving enemy wave from its public event payload", () => {
+    expect(describeCampaignReportEvent(event("ENEMY_REINFORCEMENTS_ARRIVED", {
+      waveId: "k17-wave-2",
+      callsigns: ["RAZOR-2", "CHITIN-7"],
+    }))).toBe("Enemy reinforcements entered the battlespace: RAZOR-2, CHITIN-7.");
   });
 });

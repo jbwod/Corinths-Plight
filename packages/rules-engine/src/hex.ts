@@ -159,6 +159,7 @@ export function canOccupyHex(
       deployment.id !== movingUnitId &&
       deployment.status !== "DESTROYED" &&
       deployment.status !== "WITHDRAWN" &&
+      (deployment.locationState ?? "ON_MAP") === "ON_MAP" &&
       sameCoord(deployment.position, coord),
   ).length;
   return occupied < hex.capacity;
