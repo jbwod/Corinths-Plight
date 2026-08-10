@@ -201,11 +201,11 @@ describe("armor, AP, rear arcs, Hits, and FS caps", () => {
     });
   });
 
-  it("ignores Armor and dug-in Defense from the direct rear", () => {
+  it("ignores ground vehicle Armor from the direct rear without clearing unrelated Defense", () => {
     const attacker = makeDeployment("attacker", { q: 0, r: 1 });
     const target = makeDeployment("target", { q: 0, r: 0 }, "ENEMY", {
       facing: 0,
-      statuses: ["DUG_IN"],
+      tags: ["GROUND", "VEHICLE"],
       stats: { healthModel: "HITS", maxHealth: 3, armor: 5, defense: 2 },
       currentHealth: 3,
     });
@@ -216,10 +216,46 @@ describe("armor, AP, rear arcs, Hits, and FS caps", () => {
       rearAttack: true,
       targetArmor: 5,
       effectiveArmor: 0,
+      targetDefense: 2,
+      threshold: 2,
+      penetrated: false,
+    });
+  });
+
+  it("removes only dug-in Defense from rear-attacked ground infantry", () => {
+    const attacker = makeDeployment("attacker", { q: 0, r: 1 });
+    const target = makeDeployment("target", { q: 0, r: 0 }, "ENEMY", {
+      facing: 0,
+      tags: ["GROUND", "PERSONNEL", "INFANTRY"],
+      statuses: ["DUG_IN"],
+      stats: { healthModel: "FORCE_STRENGTH", maxHealth: 6, armor: 2, defense: 2 },
+      currentHealth: 6,
+    });
+
+    expect(resolveAttackRoll(attacker, target, cannon, map, fixedRandom(1))).toMatchObject({
+      rearAttack: true,
+      targetArmor: 2,
+      effectiveArmor: 1,
       targetDefense: 0,
-      threshold: 0,
-      penetrated: true,
-      healthLoss: 1,
+      threshold: 1,
+      penetrated: false,
+    });
+  });
+
+  it("does not grant rear-attack benefits against aerospace targets", () => {
+    const attacker = makeDeployment("attacker", { q: 0, r: 1 });
+    const target = makeDeployment("target", { q: 0, r: 0 }, "ENEMY", {
+      facing: 0,
+      tags: ["AEROSPACE", "VEHICLE"],
+      stats: { healthModel: "HITS", maxHealth: 2, armor: 3, defense: 1 },
+      currentHealth: 2,
+    });
+
+    expect(resolveAttackRoll(attacker, target, cannon, map, fixedRandom(6))).toMatchObject({
+      rearAttack: false,
+      effectiveArmor: 2,
+      targetDefense: 1,
+      threshold: 3,
     });
   });
 

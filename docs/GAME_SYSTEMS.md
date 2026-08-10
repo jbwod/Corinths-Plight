@@ -231,7 +231,7 @@ A direct rear attack against a ground vehicle ignores that vehicle's Armor. A di
 
 Facing must therefore be present in tactical orders even though the deprecated order template is not authoritative.
 
-The foundation applies the submitted final facing for Hold as well as movement orders and uses that facing for its axial rear-arc check. The canonical ground/air and cover-category qualifications above remain requirements for the fuller typed combat policy.
+The foundation applies submitted final facing for Hold as well as movement orders and uses governed campaign tags for the axial rear-arc check. Ground vehicles lose Armor from the rear, dug-in ground infantry lose only their Dig In Defense, and aerospace/VTOL/orbital targets receive no flanking effect. Other future cover categories still need equally explicit source tags.
 
 ### 3.7 Terrain and cover
 

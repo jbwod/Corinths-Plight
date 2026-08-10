@@ -116,10 +116,15 @@ export function resolveAttackRoll(
   spotters: CampaignDeployment[] = [],
 ): AttackCalculation {
   const targetCheck = canTarget(attacker, target, weapon, hexes, spotters);
-  const rearAttack = isRearAttack(attacker.position, target.position, target.facing);
+  const rearGeometry = isRearAttack(attacker.position, target.position, target.facing);
+  const targetTags = new Set(target.tags ?? []);
+  const groundTarget = !targetTags.has("AEROSPACE") && !targetTags.has("VTOL") && !targetTags.has("ORBITAL");
+  const groundVehicleRear = rearGeometry && groundTarget && targetTags.has("VEHICLE");
+  const groundInfantryRear = rearGeometry && groundTarget && (targetTags.has("INFANTRY") || targetTags.has("PERSONNEL"));
+  const rearAttack = groundVehicleRear || groundInfantryRear;
   const targetArmor = target.stats.armor;
-  const effectiveArmor = rearAttack ? 0 : Math.max(0, targetArmor - weapon.armorPiercing);
-  const baseDefense = rearAttack && target.statuses.includes("DUG_IN") ? 0 : target.stats.defense;
+  const effectiveArmor = groundVehicleRear ? 0 : Math.max(0, targetArmor - weapon.armorPiercing);
+  const baseDefense = groundInfantryRear && target.statuses.includes("DUG_IN") ? 0 : target.stats.defense;
   const targetDefense = Math.max(0, baseDefense - (target.bombardmentSuppression?.stacks ?? 0));
   const threshold = effectiveArmor + targetDefense;
   const rapidFireMultiplier = weapon.tags.includes("RAPID_FIRE") && target.tags?.includes("HORDE") === true ? 2 : 1;
