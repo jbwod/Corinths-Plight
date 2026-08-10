@@ -105,7 +105,7 @@ export function GalacticOperationsView({
     onNotice({ tone: "info", message: reason });
   }
 
-  async function submitOrder(intent: Record<string, unknown>) {
+  async function submitOrder(intent: Record<string, unknown>, destinationNodeId?: string) {
     if (!selectedFormation || !canCreateOrders || submitting) return;
     setSubmitting(true);
     const result = await submitStrategicOrder({
@@ -114,6 +114,7 @@ export function GalacticOperationsView({
       expectedFormationVersion: selectedFormation.version,
       mapId: snapshot.map.id,
       formation: { kind: selectedFormation.kind, id: selectedFormation.id },
+      destinationNodeId,
       intent,
     });
     onNotice({
@@ -281,7 +282,9 @@ export function GalacticOperationsView({
                   <div className="route-inspector-list">
                     {routesAtSelectedNode.map((route) => {
                       const otherId = route.fromNodeId === selectedNode.id ? route.toNodeId : route.fromNodeId;
-                      return <div key={route.id}><i className={route.status.toLowerCase()} /><span><b>{nodeById.get(otherId)?.name ?? otherId}</b><small>{route.movementProfiles.join(" · ") || "PROFILE NOT REPORTED"}</small></span><strong>{routeLabel(route.travelRounds)}</strong></div>;
+                      const requiredProfile = selectedFormation?.kind === "TASK_FORCE" ? "TASK_FORCE" : "GROUND_BATTLEGROUP";
+                      const canMove = Boolean(selectedFormation && ["READY", "RECOVERING"].includes(selectedFormation.status) && selectedFormation.routeNodeIds.length === 0 && route.status === "OPEN" && route.travelRounds !== null && route.movementProfiles.includes(requiredProfile) && !selectedFormation.carrierTaskForceId);
+                      return <div key={route.id}><i className={route.status.toLowerCase()} /><span><b>{nodeById.get(otherId)?.name ?? otherId}</b><small>{route.movementProfiles.join(" · ") || "PROFILE NOT REPORTED"}</small></span><strong>{routeLabel(route.travelRounds)}</strong>{canMove && <button type="button" disabled={!canCreateOrders || submitting} onClick={() => void submitOrder({ type: selectedFormation!.kind === "TASK_FORCE" ? "MOVE_TASK_FORCE" : "MOVE_BATTLEGROUP" }, otherId)}>MOVE</button>}</div>;
                     })}
                   </div>
                 </section>

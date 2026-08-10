@@ -1207,6 +1207,13 @@ async function hydrateStrategicRuntime(
     );
   }));
   const ships = shipRows.map((ship) => strategicShipState(ship, shipCapabilities.get(ship.id) ?? []));
+  const scenarioMovement = parseJson<{
+    movementPointsPerRound?: Partial<Record<StrategicMovementProfile, number>>;
+  }>(map.configuration_json, {}).movementPointsPerRound ?? {};
+  const scenarioMovementPoints = (profile: StrategicMovementProfile): number | null => {
+    const value = scenarioMovement[profile];
+    return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+  };
   const taskForces: StrategicTaskForceState[] = forceRows.map((force) => {
     const summary = forceSummaries.find((candidate) => candidate.id === force.id)!;
     const state = parseJson<{ movementPointsPerRound?: number | null }>(force.state_json, {});
@@ -1220,7 +1227,7 @@ async function hydrateStrategicRuntime(
       movementPointsPerRound:
         typeof state.movementPointsPerRound === "number" && state.movementPointsPerRound > 0
           ? state.movementPointsPerRound
-          : null,
+          : scenarioMovementPoints("TASK_FORCE"),
       transit: summary.transit ?? null,
       version: force.revision,
       status: force.status as TaskForceStatus,
@@ -1241,7 +1248,7 @@ async function hydrateStrategicRuntime(
       name: group.name,
       currentNodeId: group.current_node_id,
       movementProfile: "GROUND_BATTLEGROUP",
-      movementPointsPerRound: null,
+      movementPointsPerRound: scenarioMovementPoints("GROUND_BATTLEGROUP"),
       transit: null,
       version: group.revision,
       status: group.status as BattlegroupStatus,
@@ -1254,7 +1261,7 @@ async function hydrateStrategicRuntime(
         domain: unit.movement_domain?.includes("AERO") || unit.movement_domain?.includes("AIR")
           ? "AEROSPACE"
           : "GROUND",
-        movementPointsPerRound: null,
+        movementPointsPerRound: scenarioMovementPoints("GROUND_BATTLEGROUP"),
         capabilitySources: unitCapabilitySources([unit]),
         transportRequirements: [],
       })),

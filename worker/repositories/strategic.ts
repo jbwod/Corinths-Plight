@@ -191,6 +191,7 @@ export interface StrategicMapRow {
   current_round: number;
   paused: number;
   revision: number;
+  configuration_json: string;
 }
 
 export interface StrategicRoundRow {
@@ -791,7 +792,8 @@ export async function getStrategicMap(
     .prepare(`SELECT maps.id, maps.name, maps.scope, maps.root_location_id,
                     maps.ruleset_id, maps.coordinator_key, maps.status,
                     maps.clock_mode, maps.tick_interval_seconds,
-                    maps.current_round, maps.paused, maps.revision
+                    maps.current_round, maps.paused, maps.revision,
+                    maps.configuration_json
                FROM strategic_maps AS maps
               WHERE maps.id = ?3 AND maps.status IN ('ACTIVE', 'PAUSED')
                 AND EXISTS (SELECT 1 FROM battalion_memberships AS viewer

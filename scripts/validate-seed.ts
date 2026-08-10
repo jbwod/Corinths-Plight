@@ -302,11 +302,12 @@ if (!onboardingSeedSql.includes("'production-onboarding-v1', 100, 100, 1, 1")) {
   failures.push("Onboarding charter policy must explicitly retain the audited 100 grant / 100 creation cost / one-charter limit.");
 }
 if (!onboardingSeedSql.includes("ON CONFLICT")) failures.push("Onboarding seed is not repeat-idempotent.");
-if (!phase3SeedSql.includes("NULL, 'BALANCE_REQUIRED'")) {
-  failures.push("Phase 3 routes must retain unresolved travel rounds as NULL / BALANCE_REQUIRED.");
+if ((phase3SeedSql.match(/'SCENARIO_CONFIG'/g) ?? []).length < 9 ||
+    !phase3SeedSql.includes('"travelTiming":"CORINTH_DEVELOPMENT_SCENARIO"')) {
+  failures.push("Phase 3 development routes must publish explicit Corinth-scenario travel timing and provenance.");
 }
-if (phase3SeedSql.includes("'SCENARIO_CONFIG'")) {
-  failures.push("Phase 3 development seed invents scenario travel timing instead of retaining unresolved values.");
+if (phase3SeedSql.includes("NULL, 'BALANCE_REQUIRED'")) {
+  failures.push("Phase 3 development routes still contain unresolved travel timing.");
 }
 if (!phase3MigrationSql.includes("UNIQUE (actor_user_id, command_id)")) {
   failures.push("Strategic-order idempotency must be scoped to the authenticated actor.");

@@ -3383,7 +3383,7 @@ summary:focus-visible {
 .formation-intentions-list span small { margin-top: 3px; color: var(--dim); font: 500 5px/1 var(--mono); }
 .formation-intentions-list p { margin: 5px 0 0; color: var(--muted); font-size: 7px; line-height: 1.35; }
 .route-inspector-list { margin-top: 8px; }
-.route-inspector-list > div { min-height: 48px; display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 7px; border-bottom: 1px solid var(--line); }
+.route-inspector-list > div { min-height: 48px; display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center; padding: 7px; border-bottom: 1px solid var(--line); }
 .route-inspector-list > div > i { width: 18px; height: 2px; background: var(--teal); }
 .route-inspector-list > div > i.blocked { background: var(--danger); }
 .route-inspector-list > div > i.contested { background: var(--gold); }
@@ -3392,6 +3392,7 @@ summary:focus-visible {
 .route-inspector-list span b { color: #acbfbd; font-size: 7px; }
 .route-inspector-list span small { margin-top: 4px; color: var(--dim); font: 500 5px/1.3 var(--mono); }
 .route-inspector-list > div > strong { max-width: 72px; color: var(--gold); font: 600 5px/1.25 var(--mono); text-align: right; }
+.route-inspector-list > div > button { min-width: 44px; min-height: 25px; border: 1px solid rgba(112, 217, 207, .28); background: rgba(42, 101, 96, .18); color: var(--teal-bright); font: 600 6px/1 var(--mono); }
 .strategic-order-block { padding: 12px; }
 .strategic-order-block button { width: 100%; min-height: 36px; border-color: rgba(210, 182, 111, 0.37); color: var(--gold); }
 .strategic-order-block p { margin: 7px 0 0; color: var(--dim); font-size: 7px; line-height: 1.4; }

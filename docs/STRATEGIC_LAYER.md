@@ -64,7 +64,7 @@ Helion System
 - nullable `base_travel_rounds` and a separate travel-cost status;
 - source and revision metadata.
 
-The V5 rules establish point-to-point movement but do not publish the complete travel timing for this development graph. Every seeded route therefore has `base_travel_rounds = NULL` and `travel_cost_status = BALANCE_REQUIRED`. This is not zero-cost travel. Order validation must fail closed until a pinned ruleset or explicitly authorised scenario supplies a positive duration.
+The V5 rules establish point-to-point movement but do not publish universal travel timing. The Corinth development scenario supplies one strategic movement point per round for Task Forces and ground Battlegroups plus positive route costs with `travel_cost_status = SCENARIO_CONFIG` and explicit `CORINTH_DEVELOPMENT_SCENARIO` metadata: one cost unit between adjacent surface objectives and the airbase, two for rough surface/orbital hops, and three between Relay Kappa and Corinth II. These are authored scenario values, not canonical V5 defaults. Any route or formation outside this scenario still fails closed unless its own content publishes positive timing.
 
 ## 5. Formations
 

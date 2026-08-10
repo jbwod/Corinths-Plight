@@ -216,7 +216,7 @@ INSERT INTO strategic_maps (
   1,
   'source-phase3-brief-2026-08-09',
   'Initial World; Corinth Planetary Map; Initial Strategic Scenario',
-  '{"developmentFixture":true,"coordinatorBoundary":"ONE_DURABLE_OBJECT_PER_STRATEGIC_MAP","travelValuesStatus":"BALANCE_REQUIRED"}'
+  '{"developmentFixture":true,"coordinatorBoundary":"ONE_DURABLE_OBJECT_PER_STRATEGIC_MAP","travelValuesStatus":"SCENARIO_CONFIG","movementPointsPerRound":{"TASK_FORCE":1,"GROUND_BATTLEGROUP":1}}'
 )
 ON CONFLICT(id) DO UPDATE SET
   name = excluded.name,
@@ -260,15 +260,15 @@ INSERT INTO strategic_routes (
   base_travel_rounds, travel_cost_status, allowed_profiles_json,
   status, source_id, source_locator, metadata_json
 ) VALUES
-  ('route-corinth-orbit-relay-kappa', 'strategic-map-corinth', 'node-corinth-high-orbit', 'node-relay-kappa', 'ORBITAL', 1, NULL, 'BALANCE_REQUIRED', '["TASK_FORCE"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Strategic Graph; Initial World', '{}'),
-  ('route-relay-kappa-corinth-ii', 'strategic-map-corinth', 'node-relay-kappa', 'node-corinth-ii', 'INTERPLANETARY', 1, NULL, 'BALANCE_REQUIRED', '["TASK_FORCE"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Strategic Graph; Initial World', '{}'),
-  ('route-relay-kappa-helion-jump', 'strategic-map-corinth', 'node-relay-kappa', 'node-helion-jump-point', 'JUMP_ROUTE', 1, NULL, 'BALANCE_REQUIRED', '["TASK_FORCE"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Strategic Graph; Initial World', '{}'),
-  ('route-corinth-orbit-north-airbase', 'strategic-map-corinth', 'node-corinth-high-orbit', 'node-north-airbase', 'AIR_CORRIDOR', 1, NULL, 'BALANCE_REQUIRED', '["AIR_MOBILE_BATTLEGROUP"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Surface Deployment Methods; Corinth Planetary Map', '{"requiresDeploymentCapability":true}'),
-  ('route-north-airbase-kestrel-ridge', 'strategic-map-corinth', 'node-north-airbase', 'node-kestrel-ridge', 'SURFACE_ROAD', 1, NULL, 'BALANCE_REQUIRED', '["GROUND_BATTLEGROUP","AIR_MOBILE_BATTLEGROUP"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Corinth Planetary Map', '{}'),
-  ('route-kestrel-outpost-k17', 'strategic-map-corinth', 'node-kestrel-ridge', 'node-outpost-k17', 'SURFACE_ROAD', 1, NULL, 'BALANCE_REQUIRED', '["GROUND_BATTLEGROUP","AIR_MOBILE_BATTLEGROUP"]', 'LOCKED', 'source-phase3-brief-2026-08-09', 'Strategic Consequences; Strategic-to-Tactical Test', '{"unlockEffect":"OPERATION_IRON_RAIN_VICTORY"}'),
-  ('route-north-airbase-junction-7', 'strategic-map-corinth', 'node-north-airbase', 'node-junction-7', 'SURFACE_ROAD', 1, NULL, 'BALANCE_REQUIRED', '["GROUND_BATTLEGROUP","AIR_MOBILE_BATTLEGROUP"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Corinth Planetary Map', '{}'),
-  ('route-junction-7-new-carthage', 'strategic-map-corinth', 'node-junction-7', 'node-new-carthage', 'SURFACE_ROAD', 1, NULL, 'BALANCE_REQUIRED', '["GROUND_BATTLEGROUP","AIR_MOBILE_BATTLEGROUP"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Corinth Planetary Map', '{}'),
-  ('route-junction-7-hive-basin', 'strategic-map-corinth', 'node-junction-7', 'node-hive-basin', 'SURFACE_PATH', 1, NULL, 'BALANCE_REQUIRED', '["GROUND_BATTLEGROUP","AIR_MOBILE_BATTLEGROUP"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Corinth Planetary Map', '{}')
+  ('route-corinth-orbit-relay-kappa', 'strategic-map-corinth', 'node-corinth-high-orbit', 'node-relay-kappa', 'ORBITAL', 1, 2, 'SCENARIO_CONFIG', '["TASK_FORCE"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Strategic Graph; Initial World', '{"travelTiming":"CORINTH_DEVELOPMENT_SCENARIO"}'),
+  ('route-relay-kappa-corinth-ii', 'strategic-map-corinth', 'node-relay-kappa', 'node-corinth-ii', 'INTERPLANETARY', 1, 3, 'SCENARIO_CONFIG', '["TASK_FORCE"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Strategic Graph; Initial World', '{"travelTiming":"CORINTH_DEVELOPMENT_SCENARIO"}'),
+  ('route-relay-kappa-helion-jump', 'strategic-map-corinth', 'node-relay-kappa', 'node-helion-jump-point', 'JUMP_ROUTE', 1, 2, 'SCENARIO_CONFIG', '["TASK_FORCE"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Strategic Graph; Initial World', '{"travelTiming":"CORINTH_DEVELOPMENT_SCENARIO"}'),
+  ('route-corinth-orbit-north-airbase', 'strategic-map-corinth', 'node-corinth-high-orbit', 'node-north-airbase', 'AIR_CORRIDOR', 1, 1, 'SCENARIO_CONFIG', '["AIR_MOBILE_BATTLEGROUP"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Surface Deployment Methods; Corinth Planetary Map', '{"requiresDeploymentCapability":true,"travelTiming":"CORINTH_DEVELOPMENT_SCENARIO"}'),
+  ('route-north-airbase-kestrel-ridge', 'strategic-map-corinth', 'node-north-airbase', 'node-kestrel-ridge', 'SURFACE_ROAD', 1, 1, 'SCENARIO_CONFIG', '["GROUND_BATTLEGROUP","AIR_MOBILE_BATTLEGROUP"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Corinth Planetary Map', '{"travelTiming":"CORINTH_DEVELOPMENT_SCENARIO"}'),
+  ('route-kestrel-outpost-k17', 'strategic-map-corinth', 'node-kestrel-ridge', 'node-outpost-k17', 'SURFACE_ROAD', 1, 1, 'SCENARIO_CONFIG', '["GROUND_BATTLEGROUP","AIR_MOBILE_BATTLEGROUP"]', 'LOCKED', 'source-phase3-brief-2026-08-09', 'Strategic Consequences; Strategic-to-Tactical Test', '{"unlockEffect":"OPERATION_IRON_RAIN_VICTORY","travelTiming":"CORINTH_DEVELOPMENT_SCENARIO"}'),
+  ('route-north-airbase-junction-7', 'strategic-map-corinth', 'node-north-airbase', 'node-junction-7', 'SURFACE_ROAD', 1, 1, 'SCENARIO_CONFIG', '["GROUND_BATTLEGROUP","AIR_MOBILE_BATTLEGROUP"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Corinth Planetary Map', '{"travelTiming":"CORINTH_DEVELOPMENT_SCENARIO"}'),
+  ('route-junction-7-new-carthage', 'strategic-map-corinth', 'node-junction-7', 'node-new-carthage', 'SURFACE_ROAD', 1, 1, 'SCENARIO_CONFIG', '["GROUND_BATTLEGROUP","AIR_MOBILE_BATTLEGROUP"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Corinth Planetary Map', '{"travelTiming":"CORINTH_DEVELOPMENT_SCENARIO"}'),
+  ('route-junction-7-hive-basin', 'strategic-map-corinth', 'node-junction-7', 'node-hive-basin', 'SURFACE_PATH', 1, 2, 'SCENARIO_CONFIG', '["GROUND_BATTLEGROUP","AIR_MOBILE_BATTLEGROUP"]', 'OPEN', 'source-phase3-brief-2026-08-09', 'Corinth Planetary Map', '{"travelTiming":"CORINTH_DEVELOPMENT_SCENARIO"}')
 ON CONFLICT(id) DO UPDATE SET
   map_id = excluded.map_id,
   from_node_id = excluded.from_node_id,
