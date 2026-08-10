@@ -81,6 +81,12 @@ class EffectStatement {
     if (this.query.includes("FROM campaign_results")) {
       return this.database.results.get(String(this.bindings[0])) === String(this.bindings[1]) ? { applied: 1 } : null;
     }
+    if (this.query.includes("FROM strategic_operations AS operations")) {
+      return this.database.linkedOperation;
+    }
+    if (this.query.includes("SELECT 1 FROM strategic_nodes") || this.query.includes("SELECT 1 FROM strategic_routes")) {
+      return { exists: 1 };
+    }
     return null;
   }
 }
@@ -90,6 +96,7 @@ class EffectDatabase {
   readonly receipts = new Set<string>();
   readonly results = new Map<string, string>();
   readonly appliedQueries: string[] = [];
+  linkedOperation: Record<string, unknown> | null = null;
 
   prepare(query: string): D1PreparedStatement {
     return new EffectStatement(this, query) as unknown as D1PreparedStatement;
@@ -348,6 +355,19 @@ describe("CampaignDurableObject campaign contracts", () => {
   it("keeps a terminal scenario on its completed round and clears the alarm", async () => {
     const database = new EffectDatabase();
     database.fail = false;
+    database.linkedOperation = {
+      id: "strategic-operation-k17-test",
+      map_id: "strategic-map-corinth",
+      current_round: 28,
+      battalion_id: "battalion-33rd-expeditionary",
+      effect_rules_json: JSON.stringify([{
+        when: { objectiveId: "objective-outpost", owner: "ALLIED" },
+        effects: [
+          { type: "STRATEGIC_NODE_CAPTURED", nodeId: "node-outpost-k17", control: "FRIENDLY" },
+          { type: "ROUTE_UNLOCKED", routeId: "route-kestrel-outpost-k17" },
+        ],
+      }]),
+    };
     const { campaign, storage } = campaignObject(database);
     expect((await campaign.fetch(request("/state"))).status).toBe(200);
     const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
@@ -392,6 +412,10 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(completed.events).not.toContainEqual(expect.objectContaining({ type: "ROUND_STARTED", round: 22 }));
     expect(storage.values.has("resolution/21")).toBe(true);
     expect(database.results.get(CAMPAIGN_ID)).toBe(`${CAMPAIGN_ID}:21:campaign-result`);
+    expect(database.appliedQueries.filter((query) => query.includes("INSERT INTO strategic_effect_receipts"))).toHaveLength(2);
+    expect(database.appliedQueries.filter((query) => query.includes("INSERT INTO strategic_events"))).toHaveLength(2);
+    expect(database.appliedQueries.some((query) => query.includes("UPDATE strategic_nodes SET control_status"))).toBe(true);
+    expect(database.appliedQueries.some((query) => query.includes("UPDATE strategic_routes SET status='OPEN'"))).toBe(true);
     expect(storage.alarm).toBeNull();
 
     const pause = await campaign.fetch(request("/pause", { method: "POST" }));

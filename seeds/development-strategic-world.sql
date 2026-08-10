@@ -320,7 +320,7 @@ INSERT INTO strategic_operations (
     '{"methods":["STANDARD_LANDING","VTOL_DEPLOYMENT","AEROSPACE_TRANSPORT","ORBITAL_DROP"],"methodAvailability":"CAPABILITY_DERIVED"}',
     '{"mode":"CAMPAIGN_CONFIGURED","status":"OPEN"}',
     '{"faction":"BUG_SWARM","detail":"KNOWN_ONLY"}',
-    '[{"when":{"objective":"HOLD_AIRFIELD","state":"COMPLETE"},"effects":[{"type":"STRATEGIC_NODE_CAPTURED","nodeId":"node-kestrel-ridge","control":"FRIENDLY"},{"type":"ROUTE_UNLOCKED","routeId":"route-kestrel-outpost-k17"}]}]',
+    '[{"when":{"objectiveId":"objective-kestrel-airfield","owner":"ALLIED"},"effects":[{"type":"STRATEGIC_NODE_CAPTURED","nodeId":"node-kestrel-ridge","control":"FRIENDLY"},{"type":"ROUTE_UNLOCKED","routeId":"route-kestrel-outpost-k17"}]}]',
     NULL, 1, 'source-phase3-brief-2026-08-09',
     'Initial Strategic Scenario: OPERATION IRON RAIN; Strategic-to-Tactical Test'
   ),

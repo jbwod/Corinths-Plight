@@ -86,7 +86,7 @@ The seeded operations are:
 | Night Glass | New Carthage | `ANNOUNCED` | Not bootstrapped |
 | Broken Road | Junction 7 | `ANNOUNCED` | Not bootstrapped |
 
-Iron Rain contains an admin-authored effect rule describing a successful objective capture and route unlock. It is configuration, not an already-applied result. `strategic_effect_receipts` must record any future application exactly once.
+Iron Rain contains an authored victory rule keyed to the tactical `objective-kestrel-airfield` result. When a terminal campaign result reports Allied control, the campaign effect batch changes Kestrel Ridge to `FRIENDLY`, opens `route-kestrel-outpost-k17`, increments the map, appends Battalion activity, and records both targets in `strategic_effect_receipts`. A failed or unmet objective applies neither consequence; unknown configured effect types fail closed.
 
 ## 7. Strategic clock, orders, and events
 

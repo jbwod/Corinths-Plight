@@ -59,7 +59,7 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 | Ship identity/modules/cargo/supply | partial/read-only | High | D1 schema and `GET /api/ships/primary`; `ShipView.tsx` | Acquisition/configuration/movement/transfers/combat deferred: CP-300/CP-301/CP-305. |
 | Campaign discovery/join | implemented foundation | High | `GET /api/campaigns` and idempotent `POST /api/campaigns/:id/join` drive the authenticated K-17 entry and deployment flow. Withdrawal, reinforcement administration and general authoring remain open. | CP-401/CP-405. |
 | Reports library/replay | partial UI and API | High | Report-by-round DO endpoint; `src/components/CampaignReports.tsx`; `src/campaign/reports.ts` | Local report selection/detail and terminal results work; index API, event-time redaction, playback/export and strategic consequences remain CP-403/CP-700. |
-| Multi-planet living war | missing end to end | High | One development strategic fixture and a supported manual-resolution slice; production content, movement, deployment/result reconciliation and additional worlds remain open | CP-302–CP-305/CP-600–CP-604. |
+| Multi-planet living war | partial | High | One development strategic fixture and a supported manual-resolution slice exist. Iron Rain victory now applies its authored Kestrel control and route-unlock consequences exactly once, but production content, strategic travel, automated deployment, formation recovery and additional worlds remain open. | CP-302–CP-305/CP-600–CP-604. |
 | CI, preview, recovery, SLOs, legal/a11y/performance | missing release evidence | High | Config/docs/workflow inventory | CP-001–CP-107/CP-702/CP-800–CP-805. |
 
 ## Critical findings register
