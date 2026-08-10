@@ -3,7 +3,6 @@ import type {
   CampaignDeployment,
   CampaignEvent,
   CampaignRuntimeState,
-  Facing,
   ResolutionRecord,
   StructuredAction,
   UnitOrder,
@@ -11,6 +10,7 @@ import type {
 } from "../packages/domain/src";
 import {
   createDemoCampaignState,
+  canTarget,
   getActionDefinition,
   getOrderTypeDefinition,
   getUnitClass,
@@ -26,8 +26,17 @@ import {
   pauseClock,
   removeScheduledEvent,
   resumeClock,
-  type ClockPreset,
 } from "./campaign-clock";
+import {
+  CampaignRequestContractError,
+  assertCampaignMutationBodyEmpty,
+  campaignCommandHash,
+  encodeCampaignStoredState,
+  parseCampaignClockIntent,
+  parseCampaignOrderIntent,
+  parseCampaignStoredState,
+  type CampaignActionIntent,
+} from "./campaign-contracts";
 import { viewerFromInternalRequest } from "./auth";
 import { generateEnemyOrders } from "./enemy-ai";
 import type { Env } from "./env";
@@ -37,8 +46,6 @@ import { validateIncidentalActions } from "./order-validation";
 const STATE_KEY = "state/current";
 const FOUNDATION_CAMPAIGN_ID = "outpost-k17";
 const MAX_ROUTE_LENGTH = 128;
-const MAX_FUTURE_ROUNDS = 8;
-const allowedOrderTypes = new Set(["HOLD", "ADVANCE", "RUSH", "EVASIVE", "MELEE_CHARGE", "STEALTH"]);
 const allowedActionTypes = new Set([
   "ATTACK",
   "ASSAULT",
@@ -61,33 +68,56 @@ const allowedActionTypes = new Set([
   "AIR_SUPPORT",
 ]);
 
-interface OrderIntent {
-  unitId?: string;
-  round?: number;
-  orderType?: string;
-  lifecycle?: "DRAFT" | "SUBMITTED";
-  route?: Array<{ q: number; r: number }>;
-  facing?: number;
-  actions?: Array<Partial<StructuredAction>>;
-  incidentalActions?: Array<Partial<StructuredAction>>;
-  optionalRoleplayText?: string;
-}
-
-interface ClockIntent {
-  preset?: ClockPreset;
-  durationMs?: number;
-}
-
 interface WebSocketAttachment {
   userId: string;
   side: string;
   role: string;
 }
 
-function isCoordinate(value: unknown): value is { q: number; r: number } {
-  if (!value || typeof value !== "object") return false;
-  const coord = value as { q?: unknown; r?: unknown };
-  return Number.isInteger(coord.q) && Number.isInteger(coord.r);
+type CampaignCommandOperation = "ORDER_UPSERT" | "CLOCK_UPDATE";
+
+interface CampaignCommandReceipt<TResponse extends object> {
+  schemaVersion: 1;
+  operation: CampaignCommandOperation;
+  actorUserId: string;
+  commandId: string;
+  requestHash: string;
+  status: 200 | 201;
+  response: TResponse;
+  createdAt: number;
+}
+
+interface OrderCommandResponse {
+  order: UnitOrder;
+  campaignVersion: number;
+}
+
+interface ClockCommandResponse {
+  clock: CampaignRuntimeState["clock"];
+  preset: string;
+  campaignVersion: number;
+}
+
+function commandReceipt<TResponse extends object>(
+  value: unknown,
+  operation: CampaignCommandOperation,
+): CampaignCommandReceipt<TResponse> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("CAMPAIGN_COMMAND_RECEIPT_INVALID");
+  const receipt = value as Partial<CampaignCommandReceipt<TResponse>>;
+  if (
+    receipt.schemaVersion !== 1 ||
+    receipt.operation !== operation ||
+    typeof receipt.actorUserId !== "string" ||
+    typeof receipt.commandId !== "string" ||
+    !/^[a-f0-9]{64}$/.test(receipt.requestHash ?? "") ||
+    (receipt.status !== 200 && receipt.status !== 201) ||
+    !receipt.response ||
+    typeof receipt.response !== "object" ||
+    !Number.isSafeInteger(receipt.createdAt)
+  ) {
+    throw new Error("CAMPAIGN_COMMAND_RECEIPT_INVALID");
+  }
+  return receipt as CampaignCommandReceipt<TResponse>;
 }
 
 function eventSequence(state: CampaignRuntimeState, round = state.round): number {
@@ -115,8 +145,12 @@ export class CampaignDurableObject extends DurableObject<Env> {
   }
 
   private async getState(): Promise<CampaignRuntimeState> {
-    const stored = await this.ctx.storage.get<CampaignRuntimeState>(STATE_KEY);
-    if (stored) return stored;
+    const stored = await this.ctx.storage.get<unknown>(STATE_KEY);
+    if (stored !== undefined) {
+      const parsed = parseCampaignStoredState(stored, this.campaignId());
+      if (parsed.legacy) await this.ctx.storage.put(STATE_KEY, encodeCampaignStoredState(parsed.state));
+      return parsed.state;
+    }
     const created = this.campaignId() === FOUNDATION_CAMPAIGN_ID
       ? createDemoCampaignState(Date.now(), this.configuredDuration(), this.campaignId())
       : await this.createPersistentCampaignState();
@@ -127,9 +161,21 @@ export class CampaignDurableObject extends DurableObject<Env> {
       this.configuredDuration(),
       this.configuredLockLead(),
     );
-    await this.ctx.storage.put(STATE_KEY, created);
+    await this.ctx.storage.put(STATE_KEY, encodeCampaignStoredState(created));
     await this.scheduleNextAlarm(created);
     return created;
+  }
+
+  private storedState(value: unknown, fallback: CampaignRuntimeState): CampaignRuntimeState {
+    return value === undefined ? fallback : parseCampaignStoredState(value, this.campaignId()).state;
+  }
+
+  private orderReceiptKey(userId: string, commandId: string): string {
+    return `command/order/${encodeURIComponent(userId)}/${encodeURIComponent(commandId)}`;
+  }
+
+  private clockReceiptKey(userId: string, commandId: string): string {
+    return `command/clock/${encodeURIComponent(userId)}/${encodeURIComponent(commandId)}`;
   }
 
   private async createPersistentCampaignState(): Promise<CampaignRuntimeState> {
@@ -360,20 +406,20 @@ export class CampaignDurableObject extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     try {
-      if (url.pathname === "/state" && request.method === "GET") return this.handleState(request);
-      if (url.pathname === "/orders" && request.method === "POST") return this.handleOrder(request);
+      if (url.pathname === "/state" && request.method === "GET") return await this.handleState(request);
+      if (url.pathname === "/orders" && request.method === "POST") return await this.handleOrder(request);
       if (url.pathname.startsWith("/orders/") && request.method === "DELETE") {
-        return this.handleCancelOrder(request, decodeURIComponent(url.pathname.slice("/orders/".length)));
+        return await this.handleCancelOrder(request, decodeURIComponent(url.pathname.slice("/orders/".length)));
       }
-      if (url.pathname === "/resolve" && request.method === "POST") return this.handleManualResolve(request);
-      if (url.pathname === "/clock" && request.method === "PATCH") return this.handleClock(request);
-      if (url.pathname === "/pause" && request.method === "POST") return this.handlePause(request);
-      if (url.pathname === "/resume" && request.method === "POST") return this.handleResume(request);
+      if (url.pathname === "/resolve" && request.method === "POST") return await this.handleManualResolve(request);
+      if (url.pathname === "/clock" && request.method === "PATCH") return await this.handleClock(request);
+      if (url.pathname === "/pause" && request.method === "POST") return await this.handlePause(request);
+      if (url.pathname === "/resume" && request.method === "POST") return await this.handleResume(request);
       if (url.pathname === "/ws" && request.headers.get("upgrade")?.toLowerCase() === "websocket") {
         return this.handleWebSocket(request);
       }
       if (url.pathname.startsWith("/reports/") && request.method === "GET") {
-        return this.handleReport(request, Number(url.pathname.slice("/reports/".length)));
+        return await this.handleReport(request, Number(url.pathname.slice("/reports/".length)));
       }
       return errorResponse(404, "NOT_FOUND", "Campaign endpoint not found.");
     } catch (error) {
@@ -381,7 +427,15 @@ export class CampaignDurableObject extends DurableObject<Env> {
       this.log("campaign.request.failed", { path: url.pathname, message });
       if (message === "REQUEST_TOO_LARGE") return errorResponse(413, message, "Request body is too large.");
       if (error instanceof SyntaxError) return errorResponse(400, "INVALID_JSON", "Request body is not valid JSON.");
-      return errorResponse(500, "CAMPAIGN_ERROR", "Campaign request failed.", { message });
+      if (error instanceof CampaignRequestContractError) {
+        return errorResponse(400, error.code, error.message, { path: error.path });
+      }
+      return errorResponse(
+        500,
+        "CAMPAIGN_ERROR",
+        "Campaign request failed.",
+        this.env.ENVIRONMENT === "production" ? undefined : { message },
+      );
     }
   }
 
@@ -392,7 +446,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
   }
 
   private sanitiseActions(
-    input: Array<Partial<StructuredAction>> | undefined,
+    input: CampaignActionIntent[] | undefined,
     unitId: string,
     deploymentWeaponIds: Set<string>,
     equipmentIds: Set<string>,
@@ -407,35 +461,47 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (candidate.weaponId && !deploymentWeaponIds.has(candidate.weaponId)) {
         throw new Error("Action references a weapon not fitted to the unit.");
       }
+      if (candidate.equipmentIds?.some((id) => !equipmentIds.has(id))) {
+        throw new Error("Action references equipment not fitted to the unit.");
+      }
       return {
         id: `action:${unitId}:${index + 1}`,
         type: candidate.type,
         economy: definition.economy,
         speedCost: definition.speedCost,
-        targetDeploymentId:
-          typeof candidate.targetDeploymentId === "string" ? candidate.targetDeploymentId.slice(0, 128) : undefined,
-        targetHex: isCoordinate(candidate.targetHex) ? candidate.targetHex : undefined,
+        targetDeploymentId: candidate.targetDeploymentId,
+        targetHex: candidate.targetHex,
         weaponId: candidate.weaponId,
-        equipmentIds: (candidate.equipmentIds ?? []).filter((id) => equipmentIds.has(id)).slice(0, 8),
-        ammoRequested:
-          Number.isInteger(candidate.ammoRequested) && (candidate.ammoRequested ?? 0) > 0
-            ? Math.min(candidate.ammoRequested!, 99)
-            : undefined,
-        payload: candidate.payload && typeof candidate.payload === "object" ? candidate.payload : undefined,
+        equipmentIds: candidate.equipmentIds ?? [],
+        payload: candidate.payload ? { ...candidate.payload } : undefined,
       };
     });
   }
 
   private async handleOrder(request: Request): Promise<Response> {
     const viewer = this.viewer(request);
-    const intent = await readJson<OrderIntent>(request);
-    if (!intent.unitId || typeof intent.unitId !== "string") {
-      return errorResponse(400, "UNIT_REQUIRED", "unitId is required.");
+    const intent = parseCampaignOrderIntent(await readJson<unknown>(request));
+    const requestHash = await campaignCommandHash(intent);
+    const receiptKey = this.orderReceiptKey(viewer.userId, intent.commandId);
+    const storedReceipt = await this.ctx.storage.get<unknown>(receiptKey);
+    if (storedReceipt !== undefined) {
+      const prior = commandReceipt<OrderCommandResponse>(storedReceipt, "ORDER_UPSERT");
+      if (prior.actorUserId !== viewer.userId || prior.commandId !== intent.commandId || prior.requestHash !== requestHash) {
+        return errorResponse(409, "COMMAND_REUSED", "commandId was already used with a different campaign order.");
+      }
+      return json(prior.response, { status: prior.status });
     }
-    const state = await this.getState();
+    const baseState = await this.getState();
+    if (intent.expectedCampaignVersion !== baseState.version) {
+      return errorResponse(409, "CAMPAIGN_VERSION_CHANGED", "Campaign state changed before this order was accepted.", {
+        expected: intent.expectedCampaignVersion,
+        actual: baseState.version,
+      });
+    }
+    const state = structuredClone(baseState);
     const round = intent.round ?? state.round;
-    if (round < state.round || round > state.round + MAX_FUTURE_ROUNDS) {
-      return errorResponse(409, "ROUND_OUT_OF_RANGE", "Scheduled order round is outside the supported window.");
+    if (round !== state.round) {
+      return errorResponse(422, "FUTURE_ORDER_UNSUPPORTED", "Orders may target only the current round in this runtime version.");
     }
     if (round === state.round && !isCurrentRoundOrderWindowOpen(state, Date.now())) {
       return errorResponse(409, "ROUND_LOCKED", "Orders for this round are locked.");
@@ -448,9 +514,6 @@ export class CampaignDurableObject extends DurableObject<Env> {
     if (deployment.status === "DESTROYED") {
       return errorResponse(409, "UNIT_DESTROYED", "Destroyed units cannot receive orders.");
     }
-    if (!intent.orderType || !allowedOrderTypes.has(intent.orderType)) {
-      return errorResponse(400, "ORDER_TYPE_INVALID", "A supported order type is required.");
-    }
     const definition = getUnitClass(deployment.definitionId);
     if (!(deployment.allowedOrders ?? definition.allowedOrders).includes(intent.orderType as UnitOrder["orderType"])) {
       return errorResponse(422, "ORDER_INELIGIBLE", "This unit class cannot use that order type.");
@@ -458,21 +521,17 @@ export class CampaignDurableObject extends DurableObject<Env> {
     if (!getOrderTypeDefinition(intent.orderType as UnitOrder["orderType"]).executable) {
       return errorResponse(422, "ORDER_NOT_EXECUTABLE", "This order is catalogued but not executable in the current engine version.");
     }
-    const route = intent.route?.filter(isCoordinate).slice(0, MAX_ROUTE_LENGTH) ?? [deployment.position];
+    const route = intent.route?.slice(0, MAX_ROUTE_LENGTH) ?? [deployment.position];
     if (route.length === 0) route.push(deployment.position);
-    if (!isCoordinate(route[0]) || route[0].q !== deployment.position.q || route[0].r !== deployment.position.r) {
+    if (route[0]!.q !== deployment.position.q || route[0]!.r !== deployment.position.r) {
+      if (route.length === MAX_ROUTE_LENGTH) {
+        return errorResponse(400, "ROUTE_TOO_LONG", "Route must leave room for the authoritative starting hex.");
+      }
       route.unshift(deployment.position);
-    }
-    if (!Number.isInteger(intent.facing) || intent.facing! < 0 || intent.facing! > 5) {
-      return errorResponse(400, "FACING_INVALID", "Facing must be a value from 0 through 5.");
     }
     const weaponIds = new Set(deployment.weapons.map((weapon) => weapon.id));
     const equipmentIds = new Set(deployment.equipmentIds);
     const allowedActions = new Set(deployment.allowedActions ?? definition.allowedActions);
-    const incidentalValidation = validateIncidentalActions(intent.incidentalActions);
-    if (!incidentalValidation.legal) {
-      return errorResponse(422, "ACTION_INELIGIBLE", incidentalValidation.reason);
-    }
     let actions: StructuredAction[];
     let incidentalActions: StructuredAction[];
     try {
@@ -491,6 +550,10 @@ export class CampaignDurableObject extends DurableObject<Env> {
         error instanceof Error ? error.message : "Action failed rules validation.",
       );
     }
+    const incidentalValidation = validateIncidentalActions(incidentalActions);
+    if (!incidentalValidation.legal) {
+      return errorResponse(422, "ACTION_INELIGIBLE", incidentalValidation.reason);
+    }
     if ([...actions, ...incidentalActions].filter((action) => action.type === "ATTACK").length > 1) {
       return errorResponse(422, "ATTACK_LIMIT", "A unit receives one attack activation per round.");
     }
@@ -504,10 +567,29 @@ export class CampaignDurableObject extends DurableObject<Env> {
     ) {
       return errorResponse(422, "TARGET_NOT_VISIBLE", "The target is not present in the unit's current battlefield intelligence.");
     }
+    for (const action of actions) {
+      if (action.type !== "ATTACK" || !action.targetDeploymentId) continue;
+      const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+      const weapon = deployment.weapons.find((candidate) => candidate.id === action.weaponId);
+      if (!target || !weapon) continue;
+      const intendedAttacker = { ...deployment, position: { ...route.at(-1)! } };
+      const targeting = canTarget(intendedAttacker, target, weapon, state.map, state.deployments);
+      if (!targeting.legal) {
+        return errorResponse(422, "TARGET_ILLEGAL", targeting.reason ?? "The attack target is not legal.");
+      }
+      action.targetHex = { ...target.position };
+    }
     const existingIndex = state.orders.findIndex(
-      (candidate) => candidate.unitId === deployment.id && candidate.round === round && candidate.lifecycle !== "CANCELLED",
+      (candidate) => candidate.unitId === deployment.id && candidate.round === round,
     );
     const existing = existingIndex >= 0 ? state.orders[existingIndex] : undefined;
+    const currentRevision = existing?.revision ?? 0;
+    if (intent.expectedOrderRevision !== currentRevision) {
+      return errorResponse(409, "ORDER_REVISION_CHANGED", "Order revision changed before this command was accepted.", {
+        expected: intent.expectedOrderRevision,
+        actual: currentRevision,
+      });
+    }
     if (existing && ["LOCKED", "RESOLVING", "RESOLVED"].includes(existing.lifecycle)) {
       return errorResponse(409, "ORDER_LOCKED", "The existing order can no longer be replaced.");
     }
@@ -522,18 +604,17 @@ export class CampaignDurableObject extends DurableObject<Env> {
       startHex: deployment.position,
       route,
       endHex: route.at(-1)!,
-      facing: intent.facing as Facing,
+      facing: intent.facing,
       actions,
       targets: actions.flatMap((action) => (action.targetDeploymentId ? [action.targetDeploymentId] : [])),
       equipmentUsed: [...new Set(actions.flatMap((action) => action.equipmentIds))],
       ammoUsed: Object.fromEntries(
         actions
-          .filter((action) => action.weaponId && action.ammoRequested)
-          .map((action) => [action.weaponId!, action.ammoRequested!]),
+          .filter((action) => action.type === "ATTACK" && action.weaponId)
+          .map((action) => [action.weaponId!, 1]),
       ),
       incidentalActions,
-      optionalRoleplayText:
-        typeof intent.optionalRoleplayText === "string" ? intent.optionalRoleplayText.trim().slice(0, 500) : undefined,
+      optionalRoleplayText: intent.optionalRoleplayText,
       submittedBy: viewer.userId,
       submittedAt: Date.now(),
     };
@@ -565,14 +646,66 @@ export class CampaignDurableObject extends DurableObject<Env> {
       visibility: "ALLIED",
     };
     state.events.push(submittedEvent);
-    await this.ctx.storage.put(STATE_KEY, state);
-    await this.ctx.storage.put(`event/${state.round}/${String(sequence).padStart(6, "0")}`, submittedEvent);
+    const response = { order, campaignVersion: state.version };
+    const status = existing ? 200 : 201;
+    const receipt: CampaignCommandReceipt<OrderCommandResponse> = {
+      schemaVersion: 1,
+      operation: "ORDER_UPSERT",
+      actorUserId: viewer.userId,
+      commandId: intent.commandId,
+      requestHash,
+      status,
+      response,
+      createdAt: order.submittedAt,
+    };
+    const commit = await this.ctx.storage.transaction(async (transaction) => {
+      const concurrentReceiptValue = await transaction.get<unknown>(receiptKey);
+      if (concurrentReceiptValue !== undefined) {
+        const concurrentReceipt = commandReceipt<OrderCommandResponse>(concurrentReceiptValue, "ORDER_UPSERT");
+        return concurrentReceipt.requestHash === requestHash &&
+          concurrentReceipt.actorUserId === viewer.userId &&
+          concurrentReceipt.commandId === intent.commandId
+          ? { kind: "REPLAY" as const, receipt: concurrentReceipt }
+          : { kind: "COMMAND_REUSED" as const };
+      }
+      const current = this.storedState(await transaction.get<unknown>(STATE_KEY), baseState);
+      const currentOrder = current.orders.find(
+        (candidate) => candidate.unitId === deployment.id && candidate.round === round,
+      );
+      if (
+        current.version !== intent.expectedCampaignVersion ||
+        (currentOrder?.revision ?? 0) !== intent.expectedOrderRevision
+      ) {
+        return {
+          kind: "VERSION_CHANGED" as const,
+          campaignVersion: current.version,
+          orderRevision: currentOrder?.revision ?? 0,
+        };
+      }
+      await transaction.put(STATE_KEY, encodeCampaignStoredState(state));
+      await transaction.put(`event/${state.round}/${String(sequence).padStart(6, "0")}`, submittedEvent);
+      await transaction.put(receiptKey, receipt);
+      return { kind: "COMMITTED" as const };
+    });
+    if (commit.kind === "REPLAY") return json(commit.receipt.response, { status: commit.receipt.status });
+    if (commit.kind === "COMMAND_REUSED") {
+      return errorResponse(409, "COMMAND_REUSED", "commandId was already used with a different campaign order.");
+    }
+    if (commit.kind === "VERSION_CHANGED") {
+      return errorResponse(409, "CAMPAIGN_VERSION_CHANGED", "Campaign or order state changed before commit.", {
+        expectedCampaignVersion: intent.expectedCampaignVersion,
+        actualCampaignVersion: commit.campaignVersion,
+        expectedOrderRevision: intent.expectedOrderRevision,
+        actualOrderRevision: commit.orderRevision,
+      });
+    }
     this.broadcast("order-updated", state, { orderId: order.id, unitId: deployment.id });
     this.log("order.saved", { userId: viewer.userId, unitId: deployment.id, orderId: order.id, revision: order.revision });
-    return json({ order, campaignVersion: state.version }, { status: existing ? 200 : 201 });
+    return json(response, { status });
   }
 
   private async handleCancelOrder(request: Request, orderId: string): Promise<Response> {
+    await assertCampaignMutationBodyEmpty(request);
     const viewer = this.viewer(request);
     const state = await this.getState();
     const order = state.orders.find((candidate) => candidate.id === orderId);
@@ -589,7 +722,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
     }
     order.lifecycle = "CANCELLED";
     state.version += 1;
-    await this.ctx.storage.put(STATE_KEY, state);
+    await this.ctx.storage.put(STATE_KEY, encodeCampaignStoredState(state));
     this.broadcast("order-cancelled", state, { orderId });
     return json({ orderId, lifecycle: order.lifecycle });
   }
@@ -597,7 +730,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
   private async lockRound(now = Date.now()): Promise<CampaignRuntimeState> {
     const fallback = await this.getState();
     const state = await this.ctx.storage.transaction(async (transaction) => {
-      const current = (await transaction.get<CampaignRuntimeState>(STATE_KEY)) ?? fallback;
+      const current = this.storedState(await transaction.get<unknown>(STATE_KEY), fallback);
       if (current.phase !== "PLANNING") return current;
       current.phase = "LOCKED";
       current.orders.forEach((order) => {
@@ -620,7 +753,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       };
       updated.events.push(event);
       updated.version += 1;
-      await transaction.put(STATE_KEY, updated);
+      await transaction.put(STATE_KEY, encodeCampaignStoredState(updated));
       await transaction.put(`event/${updated.round}/${String(sequence).padStart(6, "0")}`, event);
       return updated;
     });
@@ -643,7 +776,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       throw new Error(`Expected round ${expectedRound}, but campaign is on round ${fallback.round}.`);
     }
     const nextState = await this.ctx.storage.transaction(async (transaction) => {
-      const state = (await transaction.get<CampaignRuntimeState>(STATE_KEY)) ?? fallback;
+      const state = this.storedState(await transaction.get<unknown>(STATE_KEY), fallback);
       if (expectedRound !== undefined && state.round !== expectedRound) {
         const prior = await transaction.get<ResolutionRecord>(`resolution/${expectedRound}`);
         if (prior) {
@@ -665,7 +798,10 @@ export class CampaignDurableObject extends DurableObject<Env> {
         if (order.round === state.round && order.lifecycle === "SUBMITTED") order.lifecycle = "LOCKED";
         if (order.round === state.round && order.lifecycle === "LOCKED") order.lifecycle = "RESOLVING";
       });
-      await transaction.put(`snapshot/${state.round}`, structuredClone(state));
+      await transaction.put(
+        `snapshot/${state.round}`,
+        encodeCampaignStoredState(structuredClone(state)),
+      );
 
       const playerOrders = state.orders.filter(
         (order) => order.round === state.round && ["LOCKED", "RESOLVING"].includes(order.lifecycle),
@@ -717,7 +853,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       };
       output.state.events.push(roundStarted);
       output.state.version += 1;
-      await transaction.put(STATE_KEY, output.state);
+      await transaction.put(STATE_KEY, encodeCampaignStoredState(output.state));
       await transaction.put(`resolution/${completedRound}`, record);
       for (const resolvedEvent of output.events) {
         await transaction.put(
@@ -750,11 +886,15 @@ export class CampaignDurableObject extends DurableObject<Env> {
   }
 
   private async handleManualResolve(request: Request): Promise<Response> {
+    await assertCampaignMutationBodyEmpty(request);
     const viewer = this.viewer(request);
     if (!this.isOperator(viewer)) return errorResponse(403, "ADMIN_REQUIRED", "Campaign operator permission is required.");
     const state = await this.getState();
     const expectedHeader = request.headers.get("x-expected-round");
-    const expectedRound = expectedHeader === null ? state.round : Number(expectedHeader);
+    if (expectedHeader === null) {
+      return errorResponse(400, "EXPECTED_ROUND_REQUIRED", "x-expected-round is required for manual resolution.");
+    }
+    const expectedRound = Number(expectedHeader);
     if (!Number.isInteger(expectedRound) || expectedRound < 1) {
       return errorResponse(400, "ROUND_INVALID", "x-expected-round must be a positive integer.");
     }
@@ -772,36 +912,100 @@ export class CampaignDurableObject extends DurableObject<Env> {
   private async handleClock(request: Request): Promise<Response> {
     const viewer = this.viewer(request);
     if (!this.isOperator(viewer)) return errorResponse(403, "ADMIN_REQUIRED", "Campaign operator permission is required.");
-    const intent = await readJson<ClockIntent>(request);
+    const intent = parseCampaignClockIntent(await readJson<unknown>(request));
+    const requestHash = await campaignCommandHash(intent);
+    const receiptKey = this.clockReceiptKey(viewer.userId, intent.commandId);
+    const storedReceipt = await this.ctx.storage.get<unknown>(receiptKey);
+    if (storedReceipt !== undefined) {
+      const prior = commandReceipt<ClockCommandResponse>(storedReceipt, "CLOCK_UPDATE");
+      if (prior.actorUserId !== viewer.userId || prior.commandId !== intent.commandId || prior.requestHash !== requestHash) {
+        return errorResponse(409, "COMMAND_REUSED", "commandId was already used with a different clock command.");
+      }
+      const current = await this.getState();
+      await this.scheduleNextAlarm(current);
+      return json(prior.response, { status: prior.status });
+    }
     const durationMs =
       intent.preset && intent.preset in CLOCK_PRESETS
         ? CLOCK_PRESETS[intent.preset]
         : Number.isInteger(intent.durationMs) && intent.durationMs! >= 0 && intent.durationMs! <= 86_400_000
           ? intent.durationMs!
           : undefined;
-    if (durationMs === undefined) return errorResponse(400, "CLOCK_INVALID", "Choose a preset or a duration from 0 to 24 hours.");
-    const state = await this.getState();
-    if (state.phase !== "PLANNING") return errorResponse(409, "ROUND_NOT_PLANNING", "Clock can only change during planning.");
-    state.clock = makeRoundClock(state.campaignId, state.round, Date.now(), durationMs, this.configuredLockLead());
+    if (durationMs === undefined) throw new Error("Validated clock intent did not resolve to a duration.");
+    const baseState = await this.getState();
+    if (intent.expectedCampaignVersion !== baseState.version) {
+      return errorResponse(409, "CAMPAIGN_VERSION_CHANGED", "Campaign state changed before this clock command was accepted.", {
+        expected: intent.expectedCampaignVersion,
+        actual: baseState.version,
+      });
+    }
+    if (baseState.phase !== "PLANNING") return errorResponse(409, "ROUND_NOT_PLANNING", "Clock can only change during planning.");
+    const now = Date.now();
+    const state = structuredClone(baseState);
+    state.clock = makeRoundClock(state.campaignId, state.round, now, durationMs, this.configuredLockLead());
     state.version += 1;
-    await this.ctx.storage.put(STATE_KEY, state);
+    const response: ClockCommandResponse = {
+      clock: state.clock,
+      preset: intent.preset ?? "custom",
+      campaignVersion: state.version,
+    };
+    const receipt: CampaignCommandReceipt<ClockCommandResponse> = {
+      schemaVersion: 1,
+      operation: "CLOCK_UPDATE",
+      actorUserId: viewer.userId,
+      commandId: intent.commandId,
+      requestHash,
+      status: 200,
+      response,
+      createdAt: now,
+    };
+    const commit = await this.ctx.storage.transaction(async (transaction) => {
+      const concurrentReceiptValue = await transaction.get<unknown>(receiptKey);
+      if (concurrentReceiptValue !== undefined) {
+        const concurrentReceipt = commandReceipt<ClockCommandResponse>(concurrentReceiptValue, "CLOCK_UPDATE");
+        return concurrentReceipt.requestHash === requestHash &&
+          concurrentReceipt.actorUserId === viewer.userId &&
+          concurrentReceipt.commandId === intent.commandId
+          ? { kind: "REPLAY" as const, receipt: concurrentReceipt }
+          : { kind: "COMMAND_REUSED" as const };
+      }
+      const current = this.storedState(await transaction.get<unknown>(STATE_KEY), baseState);
+      if (current.version !== intent.expectedCampaignVersion || current.phase !== "PLANNING") {
+        return { kind: "VERSION_CHANGED" as const, campaignVersion: current.version, phase: current.phase };
+      }
+      await transaction.put(STATE_KEY, encodeCampaignStoredState(state));
+      await transaction.put(receiptKey, receipt);
+      return { kind: "COMMITTED" as const };
+    });
+    if (commit.kind === "REPLAY") return json(commit.receipt.response, { status: commit.receipt.status });
+    if (commit.kind === "COMMAND_REUSED") {
+      return errorResponse(409, "COMMAND_REUSED", "commandId was already used with a different clock command.");
+    }
+    if (commit.kind === "VERSION_CHANGED") {
+      return errorResponse(409, "CAMPAIGN_VERSION_CHANGED", "Campaign state changed before clock commit.", {
+        expectedCampaignVersion: intent.expectedCampaignVersion,
+        actualCampaignVersion: commit.campaignVersion,
+        phase: commit.phase,
+      });
+    }
     await this.scheduleNextAlarm(state);
     this.broadcast("clock-updated", state);
-    return json({ clock: state.clock, preset: intent.preset ?? "custom" });
+    return json(response);
   }
 
   private async handlePause(request: Request): Promise<Response> {
+    await assertCampaignMutationBodyEmpty(request);
     const viewer = this.viewer(request);
     if (!this.isOperator(viewer)) return errorResponse(403, "ADMIN_REQUIRED", "Campaign operator permission is required.");
     const now = Date.now();
     const fallback = await this.getState();
     const { state, changed } = await this.ctx.storage.transaction(async (transaction) => {
-      const current = (await transaction.get<CampaignRuntimeState>(STATE_KEY)) ?? fallback;
+      const current = this.storedState(await transaction.get<unknown>(STATE_KEY), fallback);
       const updated = pauseClock(current, now);
       if (updated === current) return { state: current, changed: false };
       const event = updated.events.at(-1);
       if (!event || event.type !== "CAMPAIGN_PAUSED") throw new Error("Pause transition did not emit its campaign event.");
-      await transaction.put(STATE_KEY, updated);
+      await transaction.put(STATE_KEY, encodeCampaignStoredState(updated));
       await transaction.put(`event/${updated.round}/${String(event.sequence).padStart(6, "0")}`, event);
       return { state: updated, changed: true };
     });
@@ -811,17 +1015,18 @@ export class CampaignDurableObject extends DurableObject<Env> {
   }
 
   private async handleResume(request: Request): Promise<Response> {
+    await assertCampaignMutationBodyEmpty(request);
     const viewer = this.viewer(request);
     if (!this.isOperator(viewer)) return errorResponse(403, "ADMIN_REQUIRED", "Campaign operator permission is required.");
     const now = Date.now();
     const fallback = await this.getState();
     const { state, changed } = await this.ctx.storage.transaction(async (transaction) => {
-      const current = (await transaction.get<CampaignRuntimeState>(STATE_KEY)) ?? fallback;
+      const current = this.storedState(await transaction.get<unknown>(STATE_KEY), fallback);
       const updated = resumeClock(current, now);
       if (updated === current) return { state: current, changed: false };
       const event = updated.events.at(-1);
       if (!event || event.type !== "CAMPAIGN_RESUMED") throw new Error("Resume transition did not emit its campaign event.");
-      await transaction.put(STATE_KEY, updated);
+      await transaction.put(STATE_KEY, encodeCampaignStoredState(updated));
       await transaction.put(`event/${updated.round}/${String(event.sequence).padStart(6, "0")}`, event);
       return { state: updated, changed: true };
     });
@@ -868,7 +1073,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
     const now = Date.now();
     const due = state.clock.schedule
       .filter((event) => event.runAt <= now)
-      .sort((left, right) => left.runAt - right.runAt || left.type.localeCompare(right.type));
+      .sort((left, right) => left.runAt - right.runAt || (left.type < right.type ? -1 : left.type > right.type ? 1 : 0));
     for (const scheduled of due) {
       state = await this.getState();
       if (scheduled.round !== state.round) continue;

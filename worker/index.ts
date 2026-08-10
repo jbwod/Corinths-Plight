@@ -17,6 +17,7 @@ import { routeAuthRequest } from "./routes/auth";
 import { routeDeploymentRequest } from "./routes/deployment";
 import { routeOnboardingRequest } from "./routes/onboarding";
 import { routeStrategicRequest } from "./routes/strategic";
+import { scheduleSecurityMaintenance } from "./security-maintenance";
 import { StrategicMapDurableObject } from "./strategic-map-durable-object";
 
 export { CampaignDurableObject, StrategicMapDurableObject };
@@ -40,7 +41,7 @@ function withSecurityHeaders(response: Response, requestId: string): Response {
   });
 }
 
-async function route(request: Request, env: Env, requestId: string): Promise<Response> {
+async function route(request: Request, env: Env, requestId: string, context: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   if (!authConfigurationIsSafe(env)) {
     return errorResponse(503, "AUTH_CONFIGURATION_UNSAFE", "Authentication configuration is not safe to serve requests.");
@@ -77,7 +78,7 @@ async function route(request: Request, env: Env, requestId: string): Promise<Res
   const authResponse = await routeAuthRequest(request, env);
   if (authResponse) return authResponse;
 
-  const onboardingResponse = await routeOnboardingRequest(request, env);
+  const onboardingResponse = await routeOnboardingRequest(request, env, context);
   if (onboardingResponse) return onboardingResponse;
 
   const forcesResponse = await routeForcesRequest(request, env);
@@ -133,12 +134,12 @@ async function route(request: Request, env: Env, requestId: string): Promise<Res
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, context: ExecutionContext): Promise<Response> {
     const requestId = request.headers.get("cf-ray") ?? crypto.randomUUID();
     const url = new URL(request.url);
     const startedAt = Date.now();
     try {
-      const response = await route(request, env, requestId);
+      const response = await route(request, env, requestId, context);
       console.log(
         JSON.stringify({
           level: "info",
@@ -168,5 +169,8 @@ export default {
         requestId,
       );
     }
+  },
+  async scheduled(controller: ScheduledController, env: Env, context: ExecutionContext): Promise<void> {
+    scheduleSecurityMaintenance(controller, env, context);
   },
 } satisfies ExportedHandler<Env>;

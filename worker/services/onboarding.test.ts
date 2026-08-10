@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../env";
-import { OnboardingServiceError, sendBattalionInviteEmail } from "./onboarding";
+import { InvitationDeliveryError, sendBattalionInviteEmail } from "./invitation-delivery";
 
 function environment(overrides: Partial<Env> = {}): Env {
   return {
@@ -13,7 +13,7 @@ function environment(overrides: Partial<Env> = {}): Env {
     AUTH_BASE_URL: "https://corinthplight.qnetica.com.au",
     AUTH_FROM_EMAIL: "Corinth's Plight <register@corinth.qnetica.com.au>",
     RESEND_API_KEY: "re_test_only",
-    AUTH_HASH_KEY: "test-only-key",
+    AUTH_HASH_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     DB: {} as D1Database,
     CAMPAIGN: {} as DurableObjectNamespace,
     STRATEGIC_MAP: {} as DurableObjectNamespace,
@@ -60,6 +60,6 @@ describe("Battalion invitation delivery", () => {
       battalionName: "Watch One",
       invitedBy: "Command",
       message: "",
-    })).rejects.toBeInstanceOf(OnboardingServiceError);
+    })).rejects.toBeInstanceOf(InvitationDeliveryError);
   });
 });

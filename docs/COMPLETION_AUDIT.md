@@ -2,7 +2,7 @@
 
 **Audited:** 2026-08-10
 
-**Commit:** `066f8f8` (`main`)
+**Commit:** `3d7e091` (`codex/phase0-release-baseline`) plus the local Phase-1 checkpoint described below
 
 **Authority:** `docs/GAME_COMPLETION_GOAL.md`
 
@@ -30,14 +30,14 @@ The audit began with only two unrelated untracked user paths, which were preserv
 | Seed/content validator | Pass | `npm run seed:check`: 34 definitions, 28 active, 95 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 3 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
 | TypeScript | Pass | `npm run typecheck`. |
 | ESLint | Pass | `npm run lint`. |
-| Unit/contract tests | Pass | `npm test`: 32 files, 201 tests, Vitest 4.1.10. |
-| Worker/client build | Pass | `WRANGLER_WRITE_LOGS=false npm run build`; Worker 470.94 kB, client JS 418.94 kB, CSS 120.83 kB. |
+| Unit/contract tests | Pass | `npm test`: 37 files, 256 tests, Vitest 4.1.10. |
+| Worker/client build | Pass | `WRANGLER_WRITE_LOGS=false npm run build`; Worker 533.15 kB, client JS 419.15 kB, CSS 120.83 kB. |
 | Production-mode build | Pass | `WRANGLER_WRITE_LOGS=false npm run build:production`. |
-| Empty D1 migration replay | Pass | All seven migrations applied in isolated Wrangler state; reapply reported no pending migration. |
+| Empty D1 migration replay | Pass | All eight migrations applied in isolated Wrangler state. |
 | Repeat seed replay | Pass | All seven seeds applied twice. |
-| D1 integrity | Pass | SQLite `integrity_check=ok`; `foreign_key_check` empty; 7 migration records. |
-| Application CI | Missing at baseline | Existing `.github/workflows` automate issues/projects only. See CP-001. |
-| Browser/a11y/performance tests | Missing | No committed Playwright/Cypress/Axe/Lighthouse or load suite. See CP-002, CP-702, CP-800, CP-802. |
+| D1 integrity | Pass | SQLite `integrity_check=ok`; `foreign_key_check` empty; 8 migration records and 115 application tables. |
+| Application CI | Local baseline implemented; remote proof pending | The application workflow now runs locked install, advisory audit, seed validation, typecheck, lint, Vitest, empty-D1 replay, production build and Playwright, then retains bundle/browser evidence. It has not run on GitHub or been made a protected required check. See CP-001. |
+| Browser/a11y/performance tests | Browser baseline partial | `CI=1 npm run test:browser`: 4/4 pass for the signed-out auth/enlist shell, authenticated live local strategic/tactical reads without showcase fallback, forged tactical economy rejection, and 390px document overflow. Full onboarding/game E2E, Axe/manual accessibility, performance and load remain CP-800/CP-702/CP-802. |
 
 The passing unit suite proves the tested helpers and contracts only. It does not activate catalogue-only content, validate real D1/DO crash boundaries, or prove a production browser workflow.
 
@@ -45,8 +45,8 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 
 | Capability | Status | Confidence | Evidence | Gap / roadmap |
 |---|---|---:|---|---|
-| Passwordless Resend registration, verification, login, logout | implemented foundation | High | `worker/routes/auth.ts:33-73`; `worker/services/auth.ts`; `src/components/AuthGateway.tsx` | Retention, session management, recovery, profile/data rights remain CP-102/CP-103/CP-107. |
-| Guided Battalion join/create/invite, starter unit and tour | implemented foundation | High | `worker/routes/onboarding.ts:60-90`; `src/components/GuidedOnboarding.tsx:192-243` | Abuse controls and full organisation lifecycle remain CP-104/CP-206/CP-207. |
+| Passwordless Resend registration, verification, login, logout | implemented foundation | High | `worker/routes/auth.ts:33-73`; `worker/services/auth.ts`; `src/components/AuthGateway.tsx` | Local terminal-record retention exists at migration `0008`; idle/absolute TTL, device/session management, recovery, profile/data rights, production migration and monitoring remain CP-102/CP-103/CP-107. |
+| Guided Battalion join/create/invite, starter unit and tour | implemented foundation | High | `worker/routes/onboarding.ts:60-90`; `src/components/GuidedOnboarding.tsx:192-243` | Local invitation limits/audit/outbox hardening exists; opt-out, production abuse evidence and the full organisation lifecycle remain CP-104/CP-206/CP-207. |
 | Force list/detail/history, unit/equipment purchase and loadout | partial | High | `worker/routes/forces.ts:114-177`; force/equipment services | D1/compiled split, no approved economy, UI false fronts/fallbacks and incomplete lifecycle: CP-200–CP-208. |
 | Deployment planning and commit | partial | High | `worker/routes/deployment.ts:49-86`; `worker/services/deployment.ts:335-445` | Demo IDs, no general scenario bootstrap, incomplete lift: CP-208/CP-400/CP-601. |
 | Tactical map and basic Hold/Advance/Rush/Attack | partial | High | `src/components/HexMap.tsx`; `packages/rules-engine/src/resolver.ts`; Campaign DO | Demo K-17 bootstrap, narrow composer, rule defects, unsafe journal/realtime: CP-400–CP-507. |
@@ -86,10 +86,10 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 | AUD-UI-002 — hard-coded production context | P0 | open | High | `demo-user`, `outpost-k17`, Spearhead, Hammer, Resolute/33rd and fixed round/unit IDs appear throughout App, Forces, DeploymentPlanner and strategic adapters. | CP-208/CP-401/CP-703 |
 | AUD-UI-003 — client fabricates tactical events | P0 | open | High | After order save, App creates local event ID/sequence/actor/payload/time/visibility (`src/App.tsx:360-376`) instead of consuming journal truth. | CP-403/CP-406 |
 | AUD-UI-004 — equipment selection does not mutate purchase | P1 | open | High | Forces requisition shows equipment checkboxes but omits `equipmentIds` from purchase payload (`ForcesView.tsx:504-550,583,636-644`). | CP-204/CP-208 |
-| AUD-AUTH-001 — retention and abuse operations absent | P0 | open | High | No scheduled cleanup exists for expired sessions/challenges/rate buckets/audit events; email invites lack actor/Battalion/recipient/IP quota controls. | CP-102/CP-104 |
+| AUD-AUTH-001 — auth/invitation operations are local-only and incomplete | P0 | partial | High | Local migration `0008` adds bounded hourly terminal-record cleanup, invitation actor/Battalion/recipient/IP limits, pseudonymized audit, a durable immediate-attempt/retry outbox and terminal invite PII retention. It is not deployed; idle/absolute session TTL, device/session controls, opt-out, production timing/abuse monitoring and broader integration evidence remain open. | CP-102/CP-104 |
 | AUD-OPS-001 — preview is a placeholder | P0 | blocked | High | Preview D1 ID is `00000000-0000-0000-0000-000000000002`; no preview migration/seed/deploy/smoke workflow. | CP-101 |
 | AUD-OPS-002 — no recovery evidence | P0 | open | High | No executable backup/restore/DO reconstruction/RPO/RTO rehearsal; health is shallow; release metadata/SLO dashboards/alerts absent. | CP-005/CP-105/CP-106 |
-| AUD-QA-001 — no application browser/accessibility/performance gate | P0 | open | High | Vitest is Node-only; no browser, Axe, screen-reader, visual, load or soak suite. Tactical canvas lacks a semantic route/target alternative. | CP-002/CP-702/CP-800/CP-802 |
+| AUD-QA-001 — browser baseline is not the release matrix | P0 | partial | High | Four local Playwright canaries and CI artifact wiring now exist, but there is no production-like multi-user/game-loop run, Axe/screen-reader/visual evidence, load or soak suite. Tactical canvas still lacks a semantic route/target alternative. | CP-002/CP-702/CP-800/CP-802 |
 | AUD-LEGAL-001 — public policy and asset-rights evidence absent | P0 | blocked | High for missing evidence | No privacy/terms/security/support/data-rights flow or asset provenance manifest. This does not prove assets are unlicensed; it proves clearance evidence is absent. | CP-107/CP-205/CP-804 |
 
 ## Public HTTP route inventory
@@ -110,7 +110,7 @@ All routes are Worker same-origin routes. `Implemented` here means the route has
 | `POST /api/onboarding/battalions/join` | Public/invite-code join | implemented |
 | `POST /api/onboarding/battalions` | One-time Req-backed Battalion charter | implemented product policy |
 | `POST /api/onboarding/battalions/settings` | Recruitment policy | implemented |
-| `POST /api/onboarding/battalions/invites` | Username/email invitation and email attempt | implemented; abuse controls missing |
+| `POST /api/onboarding/battalions/invites` | Generic accepted invitation command, pre/post-authority limits, durable delivery enqueue and immediate background attempt | local partial; production migration/monitoring and opt-out remain |
 | `POST /api/onboarding/battalions/invites/respond` | Accept/decline | implemented |
 | `POST /api/onboarding/starter-unit` | Idempotent starter grant | implemented product policy |
 | `POST /api/onboarding/complete` | Complete tour/progress | implemented |
@@ -153,7 +153,7 @@ No public campaign directory/create/join/leave, profile/settings/session-managem
 | Command | Runtime | Status/gap |
 |---|---|---|
 | `GET /state` | Project viewer campaign state | partial; demo scenario and current-time fog |
-| `POST /orders` | Save/update draft/submitted unit order | partial; no command receipt, broad split catalogue |
+| `POST /orders` | Strict current-round draft/submitted intent; actor-scoped SHA-256 receipt and campaign/order revision CAS; server-derived costs/attack audit | partial; broad split catalogue, owner-only authority, no immutable D1 order archive |
 | `DELETE /orders/:id` | Cancel current/future unlocked order | implemented backend; no UI |
 | `POST /resolve` | Admin manual tactical resolve | partial; unsafe journal boundary |
 | `PATCH /clock` | Admin clock preset | partial; generic player UI renders it |
@@ -228,11 +228,11 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 
 ## D1 inventory and workflow coverage
 
-Fresh replay produced 113 non-SQLite/non-Cloudflare tables including `d1_migrations`. The full names below are the reproducible schema inventory. Group status describes the strongest production workflow touching the family; individual gaps are called out afterward.
+Fresh replay produced 115 application tables, excluding SQLite/Cloudflare internals and `d1_migrations`. The grouped names below are the reproducible schema inventory. Group status describes the strongest production workflow touching the family; individual gaps are called out afterward.
 
 | Family | Tables | Strongest status |
 |---|---|---:|
-| Identity/profile/auth | `users`, `profiles`, `user_sessions`, `auth_identities`, `auth_email_challenges`, `auth_rate_limits`, `auth_audit_events`, `account_recovery_challenges` | partial; recovery/cleanup/settings absent |
+| Identity/profile/auth | `users`, `profiles`, `user_sessions`, `auth_identities`, `auth_email_challenges`, `auth_rate_limits`, `auth_audit_events`, `account_recovery_challenges`, `battalion_invitation_rate_limits`, `battalion_invitation_audit_events`, `battalion_invitation_delivery_jobs` | partial; local retention/invite operations, recovery/settings/session controls incomplete |
 | Published rules/content | `rulesets`, `ruleset_sources`, `rule_conflicts`, `unit_class_definitions`, `weapon_definitions`, `equipment_definitions`, `action_definitions`, `order_type_definitions`, `structure_definitions`, `terrain_definitions`, `ship_class_definitions`, `enemy_definitions`, `ruleset_implementation_overlays` | catalogue; runtime split/provenance broken |
 | Profiles/tags/abilities | `movement_profile_definitions`, `durability_profile_definitions`, `cargo_profile_definitions`, `supply_profile_definitions`, `deployment_profile_definitions`, `tag_definitions`, `ability_definitions`, `status_effect_definitions`, `unit_definition_profiles`, `unit_definition_tags`, `unit_definition_abilities`, `unit_definition_weapons`, `unit_equipment_slot_definitions`, `equipment_eligibility_rules` | partial catalogue/adapters |
 | Persistent force | `player_units`, `player_unit_equipment`, `unit_history`, `player_unit_loadouts`, `player_unit_loadout_items`, `player_unit_weapon_mounts`, `player_unit_supplies`, `player_unit_subsystems`, `player_unit_status_effects`, `unit_service_summaries`, `force_mutation_receipts` | partial live workflow |
@@ -273,18 +273,9 @@ Retained V1 reference findings:
 - prototypes, not working requirements: V1 requisition/deploy/order TODO alerts, hard-coded dossier stats, Phaser world map, disconnected PIXI ship builder;
 - do not delete the prototypes until their useful assets/workflows have an accepted production replacement and rights decision.
 
-## Documentation drift
+## Documentation reconciliation
 
-The live tree has outpaced several documents:
-
-- `GAME_SYSTEMS.md` contradicts itself on executable interaction actions and still describes a five-definition roster while D1 contains all 13 V5 classes.
-- `RULE_CONFLICTS.md` preserves the canonical 72-record register, while D1 seeds only 12 obsolete IDs.
-- test-count statements range from 62 to 177 rather than the audited 201.
-- architecture/Battalion docs still describe production login as deferred even though passwordless auth is deployed.
-- Cloudflare/auth/onboarding docs cite different deployment versions and migration heads.
-- Cloudflare documentation contains conflicting strategic deployment statements.
-
-CP-004 must reconcile these without upgrading implementation status merely to make prose consistent.
+CP-004 reconciled the architecture, authentication, Battalion, Cloudflare, data-model, onboarding and rules documents against the local Phase-1 checkpoint. They now distinguish deployed production migration `0007` from local migration head `0008`, the five-class compiled engine from the 16 allied D1 catalogue rows, the 72 canonical Markdown conflicts from 12 obsolete D1 IDs, tactical command receipts/state envelopes from the still-unsafe resolution journal, and implemented reads from strategic/tactical deferrals. Documentation agreement does not close the underlying implementation findings.
 
 ## Release decision
 

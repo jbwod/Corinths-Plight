@@ -210,6 +210,9 @@ function GameApp() {
   const currentOrder = campaign.orders.find(
     (order) => order.unitId === selectedUnit?.id && order.round === scheduledRound && order.lifecycle !== "CANCELLED",
   );
+  const currentOrderRevision = campaign.orders.find(
+    (order) => order.unitId === selectedUnit?.id && order.round === campaign.round,
+  )?.revision ?? 0;
   const routeResult = calculateRouteCost(draftedRoute, campaign.map, { rush: orderType === "RUSH" });
   const targetRange =
     targetUnit && draftedRoute.length > 0 ? hexDistance(draftedRoute.at(-1)!, targetUnit.position) : undefined;
@@ -223,6 +226,7 @@ function GameApp() {
     campaign.phase !== "PLANNING" ||
     (campaign.clock.lockAt > 0 && now >= campaign.clock.lockAt && scheduledRound === campaign.round);
   const manualClock = campaign.clock.resolvesAt === 0;
+  const showOperatorControls = campaign.viewer.role === "ADMIN" || import.meta.env.DEV;
   const countdown = manualClock ? "MANUAL" : formatCountdown(campaign.clock.resolvesAt - now);
   const lockCountdown = manualClock ? "operator controlled" : formatCountdown(campaign.clock.lockAt - now);
   const routeOverBudget = Boolean(selectedUnit && routeResult.total > selectedUnit.stats.speed);
@@ -256,8 +260,8 @@ function GameApp() {
   }, [campaign.orders, scheduledRound, selectedUnit]);
 
   useEffect(() => {
-    if (scheduledRound < campaign.round) {
-      // A resolved round invalidates the old scheduling window.
+    if (scheduledRound !== campaign.round) {
+      // This runtime accepts only authoritative current-round orders.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setScheduledRound(campaign.round);
     }
@@ -302,12 +306,10 @@ function GameApp() {
     if (targetUnit && orderType !== "RUSH") {
       actions.push({
         type: "ATTACK",
-        economy: "STANDARD",
         targetDeploymentId: targetUnit.id,
         targetHex: targetUnit.position,
         weaponId: selectedWeapon!.id,
         equipmentIds: [],
-        ammoRequested: selectedWeapon!.ammoCapacity === undefined ? undefined : 1,
       });
     }
     setBusy(true);
@@ -316,6 +318,9 @@ function GameApp() {
         method: "POST",
         headers: { "content-type": "application/json", "x-demo-user": DEMO_USER },
         body: JSON.stringify({
+          commandId: `order-${crypto.randomUUID()}`,
+          expectedCampaignVersion: campaign.version,
+          expectedOrderRevision: currentOrderRevision,
           unitId: selectedUnit.id,
           round: scheduledRound,
           orderType,
@@ -544,9 +549,9 @@ function GameApp() {
               <section className="composer-step">
                 <header><b>01</b><div><strong>Round & order</strong><small>Choose when and how this unit moves</small></div></header>
                 <div className="round-selector">
-                  <button onClick={() => setScheduledRound(Math.max(campaign.round, scheduledRound - 1))}>−</button>
-                  <span>ROUND <b>{scheduledRound}</b>{scheduledRound > campaign.round && <small>SCHEDULED</small>}</span>
-                  <button onClick={() => setScheduledRound(Math.min(campaign.round + 8, scheduledRound + 1))}>+</button>
+                  <button disabled aria-label="Previous round unavailable">−</button>
+                  <span>ROUND <b>{campaign.round}</b><small>CURRENT ONLY</small></span>
+                  <button disabled aria-label="Future scheduling unavailable">+</button>
                 </div>
                 <div className="order-types">
                   {selectedDefinition.allowedOrders.map((type) => {
@@ -614,17 +619,24 @@ function GameApp() {
             </>
           ) : <div className="empty-panel">No owned deployment is available.</div>}
 
-          <details className="operator-drawer">
-            <summary>DEVELOPMENT CLOCK CONTROLS</summary>
+          {showOperatorControls && <details className="operator-drawer">
+            <summary>CAMPAIGN OPERATOR CONTROLS</summary>
             <div>
               {(["manual", "1m", "5m", "30m", "24h"] as const).map((preset) => (
-                <button key={preset} disabled={busy} onClick={() => void runCommand("/clock", { method: "PATCH", body: JSON.stringify({ preset }) }, `Round clock set to ${preset}.`)}>{preset.toUpperCase()}</button>
+                <button key={preset} disabled={busy} onClick={() => void runCommand("/clock", {
+                  method: "PATCH",
+                  body: JSON.stringify({
+                    commandId: `clock-${crypto.randomUUID()}`,
+                    expectedCampaignVersion: campaign.version,
+                    preset,
+                  }),
+                }, `Round clock set to ${preset}.`)}>{preset.toUpperCase()}</button>
               ))}
-              <button disabled={busy || campaign.phase === "PAUSED"} onClick={() => void runCommand("/pause", { method: "POST", body: "{}" }, "Campaign clock paused.")}>PAUSE</button>
-              <button disabled={busy || campaign.phase !== "PAUSED"} onClick={() => void runCommand("/resume", { method: "POST", body: "{}" }, "Campaign clock resumed.")}>RESUME</button>
-              <button className="resolve" disabled={busy || campaign.phase === "PAUSED"} onClick={() => void runCommand("/resolve", { method: "POST", body: "{}", headers: { "x-expected-round": String(campaign.round) } }, `Round ${campaign.round} resolved.`)}>RESOLVE NOW</button>
+              <button disabled={busy || campaign.phase === "PAUSED"} onClick={() => void runCommand("/pause", { method: "POST" }, "Campaign clock paused.")}>PAUSE</button>
+              <button disabled={busy || campaign.phase !== "PAUSED"} onClick={() => void runCommand("/resume", { method: "POST" }, "Campaign clock resumed.")}>RESUME</button>
+              <button className="resolve" disabled={busy || campaign.phase === "PAUSED"} onClick={() => void runCommand("/resolve", { method: "POST", headers: { "x-expected-round": String(campaign.round) } }, `Round ${campaign.round} resolved.`)}>RESOLVE NOW</button>
             </div>
-          </details>
+          </details>}
         </aside>
 
         <section className="timeline panel">

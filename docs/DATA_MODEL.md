@@ -1,8 +1,8 @@
 # Corinth's Plight Data Model
 
-**Status:** Reconciled Phase 1–3 implemented schema plus target deltas (2026-08-10)
+**Status:** Phase-0 reconciled implemented schema/use plus target deltas (2026-08-10)
 
-**Scope:** D1 migrations `0001`–`0004`, core/Phase 2/development seeds, current Campaign Durable Object storage, and the Phase 3 Strategic Map coordination boundary
+**Scope:** D1 migrations `0001`–`0008`, all seven production/development seed files, current Campaign Durable Object storage, and the Phase 3 Strategic Map coordination boundary
 
 ## 1. Authority and status
 
@@ -14,13 +14,13 @@
 
 D1 owns global identity, ownership, economy, organisation, ship, strategic-world, campaign-registry, event, and archive truth. One named Campaign Durable Object owns the mutable tactical state of one active campaign. Phase 3 adds a separate sharded Strategic Map Durable Object boundary, one coordinator per strategic map/theatre. It is never a global-galaxy singleton.
 
-The current K-17 DO is authoritative only for its demo battlefield. It must not be mistaken for completed D1/DO reconciliation.
+The current K-17 DO is authoritative only for its demo battlefield. Non-K-17 state can load committed D1 force snapshots, but still inherits the K-17 demo map/terrain scaffold and is not a complete scenario authority. Neither path is evidence of completed D1/DO reconciliation.
 
 ## 2. Representation conventions
 
 - IDs are `TEXT`; trusted server code is expected to generate opaque stable values. The SQL does not itself prescribe UUID/ULID format.
-- D1 timestamp columns are integers; defaulted `created_at`/similar fields use Unix seconds through `unixepoch()`. Explicit fields such as `lock_at`, `resolves_at`, and `occurred_at` do not encode a unit in SQL and are not written by the current runtime. DO/domain timestamps use JavaScript milliseconds through `Date.now()`, so adapters must define and convert units explicitly.
-- D1 rules movement/action values use integer quarter-points (`speed_quarters`, `movement_cost_quarters`, `speed_cost_quarters`). Current TypeScript domain/engine values use whole speed units and exact fractional numbers such as `0.5`; a D1 catalogue adapter is not implemented yet.
+- D1 timestamp columns are integers; defaulted `created_at`/similar fields use Unix seconds through `unixepoch()`. Services write and read explicit strategic/history fields such as `lock_at`, `resolves_at`, and `occurred_at` as Unix seconds and convert them at the domain boundary. DO/domain timestamps use JavaScript milliseconds through `Date.now()`, so every adapter must keep that conversion explicit because SQL does not encode the unit.
+- D1 rules movement/action values use integer quarter-points (`speed_quarters`, `movement_cost_quarters`, `speed_cost_quarters`). Current TypeScript domain/engine values use whole speed units and exact fractional numbers such as `0.5`; partial D1 adapters exist, but they do not preserve every authority/status field and are not conformant with the compiled catalogue.
 - Hexes use integer axial coordinates `{q, r}` in JSON/domain state.
 - Phase 3 JSON columns also check top-level object/array shape where applicable. This still does not prove conformance to a full TypeScript/runtime DTO schema.
 - Definition identity is the composite primary key `(id, ruleset_id)`. There is no separate `slug`, `schema_version`, or `definition_hash` column in the current migrations.
@@ -28,7 +28,7 @@ The current K-17 DO is authoritative only for its demo battlefield. It must not 
 
 ## 3. Implemented D1 schema
 
-The six migrations create the following exact table families. Field lists below reflect landed SQL, not a claim that every service workflow is executable.
+The eight migrations create the following exact table families. Field lists below reflect landed SQL, not a claim that every service workflow is executable. Production is recorded through `0007`; the `0008` schema/use described below is local-only pending an authorized migration and deploy.
 
 ### 3.1 Identity and sessions
 
@@ -42,6 +42,8 @@ The six migrations create the following exact table families. Field lists below 
 
 Migration `0006_production_identity.sql` adds `auth_email_challenges`, `auth_rate_limits`, and `auth_audit_events`. Challenges store a normalized destination email because a registration User does not exist yet, but store only a SHA-256 token hash and HMAC-pseudonymized email/IP/User-Agent keys for lookup, rate limiting, and audit. See [AUTHENTICATION.md](./AUTHENTICATION.md).
 
+Migration `0008_auth_retention_and_invitation_abuse.sql` adds indexed cleanup paths over sessions, challenges, auth rate/audit rows, and invitations, plus leased invitation-delivery jobs. The invite command commits its source row, job, audit, and generic receipt atomically; an immediate `waitUntil` attempt and the local hourly handler process/recover jobs. The same hourly handler expires pending invitations/challenges and deletes only bounded terminal/aged records under explicit retention constants. The migration itself does not mutate accounts and is not active in the recorded production deployment.
+
 ### 3.2 Rulesets, provenance, and conflicts
 
 | Table | Implemented fields | Enforced constraints |
@@ -51,6 +53,8 @@ Migration `0006_production_identity.sql` adds `auth_email_challenges`, `auth_rat
 | `rule_conflicts` | `id`, `ruleset_id`, `category`, `summary`, `sources_json`, `disposition`, `status`, `notes` | Valid JSON; status `RESOLVED_FOR_PROFILE`, `OPEN`, `DEFERRED`, or `INCOMPLETE_DATA` |
 
 The index named `idx_one_active_ruleset_version` is unique on `version` only when active. Because `rulesets.version` is already unique, it does **not** enforce a single active ruleset across all versions.
+
+The documentation conflict register contains 72 stable namespaced records, while the current core seed inserts only 12 obsolete short IDs. Phase-2 definitions can therefore cite conflict IDs with no matching D1 row. Until CP-200 reconciles that provenance, `rule_conflicts` is an incomplete database mirror rather than the canonical conflict audit.
 
 The published catalogue is split between `seeds/v5-core-curated.sql`, `seeds/v5-phase2-combined-arms.sql`, and `seeds/v5-equipment-deployment.sql`; `npm run db:seed:local` executes all three with Wrangler. `npm run db:seed:demo:local` then applies the explicit local-only force, strategic-world, and Spearhead fixtures in order. `npm run seed:check` checks source hashes, duplicate/missing IDs, runtime-versus-SQL status, provenance, the active ruleset, Phase 2/3 boundaries, and the equipment/deployment definitions. It does not compare every definition field or generate the runtime catalogue.
 
@@ -74,7 +78,7 @@ Every definition table has composite PK `(id, ruleset_id)` and a foreign key to 
 
 Definition status is lower-case `active`, `experimental`, `legacy`, or `incomplete`. JSON columns have syntax checks; table-specific numeric/boolean checks are in the migration.
 
-The running `/api/rulesets/v5-core-curated` endpoint currently serves compiled `allDefinitions` from `packages/rules-engine/src/catalogue.ts`, not rows loaded from D1. D1 and TypeScript are therefore two representations with partial validator coverage. A generated catalogue or stronger canonical-hash pipeline is required before claiming a single immutable rules authority.
+The running `/api/rulesets/v5-core-curated` endpoint currently serves compiled `allDefinitions` from `packages/rules-engine/src/catalogue.ts`, not rows loaded from D1. The compiled tactical catalogue has five allied unit classes, while the D1 Phase-2 catalogue contains all thirteen V5 starting classes plus three companion catalogue classes and can mark definitions executable that compiled lookup cannot resolve. D1 and TypeScript are therefore two incompatible representations with partial validator coverage. A generated catalogue or stronger canonical-hash pipeline is required before claiming a single immutable rules authority.
 
 ### 3.4 Persistent forces and economy
 
@@ -144,6 +148,9 @@ Migration 0007 adds the server-authoritative post-verification onboarding aggreg
 | `battalion_creation_charters` | One charter per creator, one Battalion per charter, exact Req cost, and immutable ledger transaction reference. |
 | `battalion_email_invites` | Unregistered-email invitation, same-Battalion rank, single-use token hash, seven-day lifecycle, inviter-scoped command, Resend delivery state/ID, and revision. One pending invite per Battalion/email. |
 | `onboarding_starter_unit_grants` | One User-to-Player-Unit grant and pinned class/ruleset identity. Both User and unit are unique. |
+| `battalion_invitation_rate_limits` | Fixed-window bucket keyed by actor, Battalion, HMAC-pseudonymized recipient, or HMAC-pseudonymized IP; attempt count, cooldown, last outcome, and update time. Added by local migration `0008`. |
+| `battalion_invitation_audit_events` | Private accepted/rejected/failed invitation-security outcome, reason, optional actor/Battalion references, pseudonymized recipient/IP keys, bounded object metadata, and occurrence time. Added by local migration `0008`. |
+| `battalion_invitation_delivery_jobs` | Leased `PENDING`/`SENT`/`ABANDONED` Resend outbox keyed uniquely to an account/email invitation, with attempt/backoff/expiry/error state and pseudonymized recipient/IP keys. Added by local migration `0008`; source-validation and source-delete triggers prevent orphaned jobs. |
 
 The production-safe onboarding seed creates three open NPC Battalions and the system recruitment authority. These are product fixtures, not canonical lore. Existing verified human accounts are enrolled and credited once on rollout; reserved `.invalid` development/system identities are excluded.
 
@@ -186,15 +193,17 @@ The development seed uses `strategic-map-corinth`, CSV Resolute, the Resolute Ta
 
 ## 4. Current Campaign Durable Object records
 
-One DO is named by the URL/D1 campaign ID. `outpost-k17` uses the explicit demo state; other authorised campaigns initialise only from committed D1 deployment/loadout snapshots and fail with `CAMPAIGN_NOT_INITIALISED` when none exist.
+One DO is named by the URL/D1 campaign ID. `outpost-k17` uses the explicit demo state. Other authorised campaigns require committed D1 deployment/loadout snapshots and fail with `CAMPAIGN_NOT_INITIALISED` when none exist, but their initialization still calls the K-17 demo-state factory, retains its map/terrain shape, clears its objectives, and applies fallback positions. Force loading is implemented; general scenario initialization is not.
 
 | Storage key | Implemented contents | Current behavior |
 |---|---|---|
-| `state/current` | Full `CampaignRuntimeState`: campaign/rules/engine identifiers, round/phase, clock including embedded schedule, map, deployments, orders, objectives, a bounded event list, in-state resolution map, pending-effect list, version | Rewritten by serialized commands; version increments on accepted state transitions |
-| `snapshot/{round}` | Structured clone of the pre-resolution state after entering `RESOLVING` | Written inside the resolution transaction |
+| `state/current` | Schema-version-1 envelope containing the full `CampaignRuntimeState`: campaign/rules/engine identifiers, round/phase, clock including embedded schedule, map, deployments, orders, objectives, a bounded event list, in-state resolution map, pending-effect list, version | Critical nested map/deployment/weapon/order/clock/event/effect fields are validated on read and before write; a validated legacy raw state is upgraded to the envelope |
+| `snapshot/{round}` | Schema-version-1 envelope containing a structured clone of the pre-resolution state after entering `RESOLVING` | Written inside the resolution transaction and validated with the same storage-envelope contract |
 | `resolution/{round}` | Current `ResolutionRecord` | Presence is the current duplicate-resolution guard |
 | `event/{round}/{sequence}` | Individual canonical `CampaignEvent`; storage sequence is six-digit padded | Written for order, lock, pause/resume, resolution, and next-round events |
 | `pending-effect/{idempotencyKey}` | Current `PendingPersistentEffect` | Written after resolver output; applied through a D1 batch and deleted after a matching `campaign_effect_receipts` row is verified |
+| `command/order/{encodedUserId}/{encodedCommandId}` | Schema-version-1 order-upsert receipt with actor, command ID, SHA-256 request hash, HTTP status, exact response, and creation time | Commits atomically with `state/current` and the order event; matching retries replay and changed-payload reuse fails closed |
+| `command/clock/{encodedUserId}/{encodedCommandId}` | Schema-version-1 clock-update receipt with actor, command ID, SHA-256 request hash, HTTP status, exact response, and creation time | Commits atomically with `state/current`; matching retries replay and changed-payload reuse fails closed |
 
 There are **no** separate `schedule/{id}` records. `ORDER_LOCK` and `ROUND_RESOLVE` items live only in `state/current.clock.schedule`; consumed items are removed rather than retained with a status. The one DO alarm is set from the earliest embedded `runAt`.
 
@@ -238,6 +247,7 @@ The resolution seed is currently a predictable string derived from campaign, rou
 - one order archive revision per campaign/round/unit/revision;
 - one archive event per event ID and campaign/round/sequence;
 - one D1 effect row per idempotency key;
+- unique invitation-security bucket keys plus constrained scope/outcome vocabularies and indexed bounded cleanup paths from migration `0008`;
 - acyclic structured strategic-location hierarchy and same-map, non-self route edges;
 - one active operational Battalion selection backed by active membership;
 - Battalion-consistent ranks, Task Force ships, Battlegroup embarkations, and strategic-order subjects;
@@ -250,9 +260,12 @@ The resolution seed is currently a predictable string derived from campaign, rou
 
 - a session identity must be active and a campaign request must resolve an existing supported membership;
 - local demo identity is restricted to K-17 and Operation Spearhead and cannot be enabled in production;
+- local `0008` code applies fixed-window invitation limits across actor/Battalion/recipient/IP scopes and performs bounded hourly expiry/retention maintenance; these controls are not active in the recorded production version;
+- tactical order/clock payloads reject unknown/unbounded fields, bodyless mutations reject payloads, and critical `state/current`/snapshot fields are runtime-validated before read/write through a versioned storage envelope;
+- tactical order upsert requires actor-scoped command ID plus expected campaign/order revisions; clock update requires actor-scoped command ID plus expected campaign version; both atomically store hashed request/response receipts with their state changes;
 - current-milestone orders are owner-only and cannot mutate after the current round locks;
 - the server derives start position, revisions, rules costs, fitted weapon/equipment references, and visible target set;
-- only executable Hold/Advance/Rush and the migrated Attack/Load/Unload/Reload/Scan/Deploy Drone actions enter the current resolver;
+- Hold/Advance/Rush, basic Attack, and narrow Load/Unload/Reload paths enter the current resolver; Scan and Deploy Drone are mechanically accepted but currently stop at events/cooldowns rather than completing their advertised visibility/state effects, so they are release-blocked;
 - routes are adjacent/in-map and fit speed/action budget;
 - facing is normalised to six values, final capacity is checked, and destroyed/withdrawn occupants do not consume capacity;
 - resolver events are monotonic within the round, and only the exact accepted order ID/revision is marked resolved;
@@ -263,12 +276,12 @@ The resolution seed is currently a predictable string derived from campaign, rou
 - complete Req pricing/income/replacement rules beyond the currently published purchases;
 - full unit/ship/location reconciliation beyond the implemented loadout/deployment boundary;
 - immutable published ruleset content and a campaign-bound engine/content hash;
-- scenario-specific battlefield/map/objective bootstrap beyond the committed force snapshots;
+- scenario-specific battlefield/map/objective bootstrap beyond the K-17-derived scaffold and committed force snapshots;
 - immutable archival of all order revisions and canonical events into D1;
 - cryptographic input/output/effect payload hashes;
 - cryptographically journaled exactly-once D1 damage, death, equipment loss, history, and requisition effects beyond the current receipt-idempotent subset;
 - acknowledgement of all required D1 effects before opening the next round;
-- tactical command idempotency and service-level compare-and-set for recorded strategic expected revisions;
+- idempotency/compare-and-set for tactical cancel and operator pause/resume/resolve commands, plus service-level enforcement of recorded strategic expected revisions;
 - runtime validation of every bounded JSON/public DTO.
 
 ## 6. Target D1/DO effects protocol
@@ -287,9 +300,9 @@ The tactical `persistent_effects` table still needs a follow-up migration or del
 
 1. Add runtime schemas and explicit D1-to-domain adapters, including seconds/milliseconds and quarter-point conversion.
 2. Choose one generated/hashed source of rules truth and enforce published immutability.
-3. Extend the deployed passwordless identity/onboarding boundary with operator account controls and session/device management without exposing auth identities publicly.
-4. Implement campaign bootstrap from an authorised D1 strategic deployment snapshot; keep K-17 and the Corinth Expedition fixtures local-only.
-5. Implement purchase/equip/deploy/withdrawal services against existing constraints before exposing those tables as complete features.
+3. Deploy and monitor the locally implemented `0008` retention/invitation controls only after migration approval, then extend the passwordless boundary with operator account controls and session/device management without exposing auth identities publicly.
+4. Replace the K-17-derived non-demo initializer with runtime-validated battlefield/map/objective content from an authorised D1 strategic deployment/scenario snapshot; keep K-17 and the Corinth Expedition fixtures local-only.
+5. Complete and reconcile the existing purchase/equip/deploy services, then add withdrawal/recovery before exposing the broader table families as complete features.
 6. Add the tactical PREPARED/hash journal and D1 persistent-effect applier before claiming exact-once tactical-to-strategic resolution.
 7. Reconcile legacy Player Unit/ship compatibility locations with structured strategic location through one transactional service.
 8. Add archival workers/effects and reconciliation tooling only after the primary result/effect handshake is proven.

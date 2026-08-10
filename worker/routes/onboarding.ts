@@ -22,6 +22,7 @@ import {
   respondBattalionInvite,
   updateBattalionRecruitment,
 } from "../services/onboarding";
+import { processInvitationDeliveryJobs } from "../services/security-operations";
 
 function isOnboardingPath(pathname: string): boolean {
   return pathname === "/api/onboarding" || pathname.startsWith("/api/onboarding/");
@@ -49,7 +50,11 @@ function parsed<T>(result: ValidationResult<T>): T {
   return result.value;
 }
 
-export async function routeOnboardingRequest(request: Request, env: Env): Promise<Response | null> {
+export async function routeOnboardingRequest(
+  request: Request,
+  env: Env,
+  context?: Pick<ExecutionContext, "waitUntil">,
+): Promise<Response | null> {
   const url = new URL(request.url);
   if (!isOnboardingPath(url.pathname)) return null;
   try {
@@ -75,7 +80,22 @@ export async function routeOnboardingRequest(request: Request, env: Env): Promis
     }
     if (url.pathname === "/api/onboarding/battalions/invites") {
       if (request.method !== "POST") return methodNotAllowed("POST");
-      return json(await inviteBattalionMember(env, userId, parsed(validateInviteBattalionMemberCommand(await body(request)))), { status: 202 });
+      const result = await inviteBattalionMember(
+        env,
+        userId,
+        parsed(validateInviteBattalionMemberCommand(await body(request))),
+        request,
+      );
+      if (result.deliveryQueued && context) {
+        context.waitUntil(processInvitationDeliveryJobs(env).catch((error) => {
+          console.error(JSON.stringify({
+            level: "error",
+            operation: "invitation.delivery.immediate.failed",
+            message: error instanceof Error ? error.message : String(error),
+          }));
+        }));
+      }
+      return json(result.response, { status: 202 });
     }
     if (url.pathname === "/api/onboarding/battalions/invites/respond") {
       if (request.method !== "POST") return methodNotAllowed("POST");

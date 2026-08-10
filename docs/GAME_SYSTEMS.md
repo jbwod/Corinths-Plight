@@ -61,25 +61,25 @@ Canonical status MUST NOT be inferred from an implementation flag, and implement
 
 | System | Canonical profile | Foundation implementation |
 |---|---|---|
-| Hold, Advance, Rush | `canonical_active` | `foundation_executable`: explicit axial route, scenario terrain cost, Speed budget, end position, end facing, and Rush attack/damage restrictions. Hold still applies final facing. |
+| Hold, Advance, Rush | `canonical_active` | `foundation_partial`: explicit axial route, Speed budget, end position/facing, and Rush attack/damage restrictions resolve; Hold applies final facing. Unpinned terrain defaults and incomplete distance-increment hostile contention prevent a full implementation claim. |
 | Evasive, Melee Charge, Stealth | `canonical_active`/`active_provisional` | `foundation_deferred`: structured definitions exist with `executable=false`; submission and resolver validation reject them. |
-| Attack action | `canonical_active` plus V5 rulings | `foundation_executable`: one Attack action per unit; seeded weapon roll; FS cap; Armor/AP/Defense; axial rear arc; range, direct LOS, indirect spotting, ammo, cooldown, Rush damage; simultaneous damage commit. |
+| Attack action | `canonical_active` plus V5 rulings | `foundation_partial`: one seeded weapon Attack per unit implements FS cap, Armor/AP/Defense, axial rear calculation, range, direct LOS, indirect spotting, ammo, cooldown, Rush damage, and simultaneous commit. Rear-attack Armor bypass is not yet correctly category-scoped, and the remaining firing/melee/aerospace rules are deferred. |
 | Multiweapon attack activation | `active_provisional` (`RC-V5-003`) | `foundation_deferred`: the current order contract permits only one Attack action/weapon selection per unit. |
 | High ground, dynamic cover/Dig In, Evasive modifiers, Rapid Fire, Subsystems | Canonical or `active_provisional` | `foundation_deferred`: the basic mitigation pipeline is executable, but these modifiers/effects are not yet applied by the resolver. |
 | Simultaneous resolution | `canonical_active` plus `RC-V5-031` | `foundation_partial`: attacks aggregate before damage is committed and same-destination capacity contests are symmetric. Full distance-increment hostile route contention and melee defensive-fire timing are deferred. |
-| Hex geometry, pathing, LOS, capacity | Scenario-owned implementation of canonical measurement/LOS | `foundation_executable`: axial distance, adjacency, battlefield bounds, pathfinding, map movement cost, opt-in elevation/river/road features, LOS blockers, sensors, and per-hex capacity. Scenario terrain data does not revive legacy global defaults. |
+| Hex geometry, pathing, LOS, capacity | Scenario-owned implementation of canonical measurement/LOS | `foundation_partial`: axial distance, adjacency, battlefield bounds, pathfinding, movement cost, LOS blockers, sensors, and per-hex capacity exist. Road/elevation/river defaults still execute without a fully pinned scenario profile, and hostile route contention is incomplete. |
 | Direct and indirect targeting | `canonical_active` | `foundation_executable`: direct fire needs LOS; indirect fire still needs an active friendly spotter with LOS to the target. The firing unit is not an automatic spotter unless it independently satisfies that friendly-spotter set. |
-| Medic, engineer, artillery, cargo, logistics and Small Supply actions | `canonical_active`/`active_provisional` | `foundation_partial`: paired Load/Unload, finite-weapon Reload from Small Supply, Scan, and Deploy Drone are executable in the equipment/deployment slice. Heal, Repair, Construct, Bombardment/Funnel, general Resupply, Deploy/Pack Up, and Garrison remain deferred. |
-| Thirteen non-orbital V5 starting classes | `canonical_active` | `foundation_partial`: the runtime catalogue currently has Infantry Squad, Engineers, Light Vehicle, Main Battle Tank, and Artillery. Other canonical classes remain data work, not silently substituted units. |
+| Medic, engineer, artillery, cargo, logistics and Small Supply actions | `canonical_active`/`active_provisional` | `foundation_partial`: paired Load/Unload and finite-weapon Reload have narrow resolver paths, with known action-ledger/occupancy/cargo gaps. Scan and Deploy Drone are currently accepted but only emit events/cooldowns; their advertised visibility/state effects are not implemented and they are release-blocked. Heal, Repair, Construct, Bombardment/Funnel, general Resupply, Deploy/Pack Up, and Garrison remain deferred. |
+| Thirteen non-orbital V5 starting classes | `canonical_active` | `foundation_partial` with split truth: D1 catalogues all thirteen plus three companion-only classes, while the compiled tactical catalogue resolves only Infantry Squad, Engineers, Light Vehicle, Main Battle Tank, and Artillery. A D1-only class marked executable can fail compiled tactical lookup. |
 | Aerospace tactical rules | `canonical_active` | `foundation_deferred`: no landing, takeoff, altitude transition, bombing path, Interceptor, cargo, or reload action is resolved. |
-| Optional Store equipment/refits | `catalogued` unless separately migrated | `foundation_partial`: Flak Vests, Lightweight Anti-armour, Vehicle Optics, Drone Operator, and Orbital Drop Training have explicit data/handlers; all other Store items remain blocked/catalogue-only. |
+| Optional Store equipment/refits | `catalogued` unless separately migrated | `foundation_partial`: Flak Vests and Lightweight Anti-armour have narrow effective-unit/resolver handling. Vehicle Optics and Drone Operator are release-blocked because their current handlers do not implement the advertised state/visibility effects and depend on unresolved interpretation; Orbital Drop Training records an eligibility mutation while orbital deployment remains disabled. Other Store items remain blocked/catalogue-only. |
 | Orbital Crew and hull combat | `catalogued`/`blocked` | `not_executable`: no canonical Light Freighter/hull, Atmo-Fuel, Req, or conversion data. |
 | Medium/Large Supply, FOBs, HQs, Tac-Com, strategic movement, boarding | `deferred` | `not_executable`. |
-| Req economy/store purchasing | `blocked` | `not_executable`: budgets and most canonical costs are absent. |
+| Req economy/store purchasing | `blocked` for canonical balance | `foundation_partial` product infrastructure: user ledger, published equipment purchases, and the onboarding charter grant/cost exist. All base player-class prices remain `NULL/BALANCE_REQUIRED`, so ordinary production unit purchase is blocked and onboarding policy is not canonical V5 balance. |
 | Legacy Build Points, expanded classes, occupancy thirds, battleline, Combat Ineffective | `rejected_by_profile`/`catalogued` | `not_executable`; they require a separate legacy profile or explicit V5 migration. |
-| Deterministic replay, event sequencing, and hidden-information projection | Application contract | `foundation_executable`: stable order sorting, same-round event sequence continuation, exact order revision lifecycle, idempotent replay, private seeds, side-aware event/state projection. |
+| Deterministic replay, event sequencing, and hidden-information projection | Application contract | `foundation_partial`/unsafe for release: the pure resolver is deterministic for its narrow grammar and events continue sequence numbers, but ordering uses locale-sensitive comparison in tactical paths, hashes are non-cryptographic, the seed is predictable, reports use present-time visibility, generic WebSocket broadcasts can reveal order/unit IDs, and no catch-up endpoint exists. |
 
-The executable round grammar remains intentionally small: **Hold/Advance/Rush** plus the server-approved actions **Attack, Load, Unload, Reload, Scan, and Deploy Drone**, with constrained airdrop at deployment resolution. Every other special order or action is deferred and MUST fail validation with a structured rejection until its rule hook, authoritative data, and tests exist.
+The mechanically accepted round grammar remains intentionally small: **Hold/Advance/Rush** plus **Attack, Load, Unload, Reload, Scan, and Deploy Drone**, with a constrained airdrop path at deployment resolution. “Accepted” is not the same as release-ready: Scan/Drone effects and several cargo/airdrop checks remain blockers. Every other special order or action is deferred and MUST fail validation with a structured rejection until its rule hook, authoritative data, and tests exist.
 
 ### 1.4 Phase 2 persistent-force catalogue
 
@@ -149,8 +149,8 @@ This glossary states canonical profile meaning. Terms marked as foundation-defer
 - **Small Supply**: tactical ammunition, repair, medical, or construction supply.
 - **Medium Supply**: FOB construction/operation resource; deferred in the selected profile and not foundation-executable.
 - **Large Supply**: strategic orbital/HQ resource; deferred in the selected profile and not foundation-executable.
-- **Requisition Value (Req)**: purchase/customization cost. The concept is canonical, but the economy is blocked pending complete prices and budgets.
-- **Cooldown**: whole rounds remaining before an ability can be used again. Weapon cooldowns and the migrated Deploy Drone cooldown execute; other optional equipment cooldowns remain catalogue data only.
+- **Requisition Value (Req)**: purchase/customization cost. The concept is canonical, but canonical unit budgets/prices remain blocked. The deployed onboarding charter and published-equipment ledger are product infrastructure, not a V5 balance ruling.
+- **Cooldown**: whole rounds remaining before an ability can be used again. Weapon cooldowns execute. Deploy Drone currently records a cooldown, but its gameplay effect remains release-blocked; other optional equipment cooldowns remain catalogue data only.
 
 ### 2.4 Canonical tags
 
@@ -196,11 +196,11 @@ For simultaneous route contention, blocking ground units move in scenario distan
 
 The foundation currently resolves an explicit axial route to its final hex, blocks ordinary occupied destinations, and symmetrically blocks all arrivals when simultaneous arrivals exceed destination capacity. It does not yet perform the canonical distance-increment hostile-ground contention above; that portion of `RC-V5-031` remains a selected rule awaiting implementation.
 
-The legacy `+1` elevation/river costs, one-Speed rotation, three-units-per-hex limit, and hex thirds are not active. A scenario that needs those rules must select a future map profile rather than applying them implicitly.
+The legacy `+1` elevation/river costs, one-Speed rotation, three-units-per-hex limit, and hex thirds are not active profile rules. The current hex helper nevertheless applies unpinned road/elevation/river defaults; that is a known implementation defect, not canonical activation. A scenario that needs such rules must select a future map profile rather than applying them implicitly.
 
 Standard Actions are resolved at their declared position on the route. Loading or unloading normally consumes `0.5 Speed` from both the transport and transported unit. A HAT instead spends `0.5 Speed` for each cargo slot involved, while a transported unit still spends `0.5 Speed` (`RC-V5-010`).
 
-No interaction action in the preceding paragraph is foundation-executable. Submitting it is rejected rather than silently moving the unit without the interaction.
+Load/Unload has a narrow resolver path, but occupancy, remaining-Speed ledger, towing/mixed-capacity, and specialist airdrop validation are incomplete. Other unmigrated route interactions are rejected rather than silently moving the unit without the interaction.
 
 ### 3.5 Combat resolution
 
@@ -276,7 +276,7 @@ The scenario must define the set of enemy observers and its LOS limit. More than
 
 These V5 values override same-named rows in `Classes.html`.
 
-This is the selected profile roster, not the current runtime catalogue. The foundation catalogue currently supplies five allied definitions: Infantry Squad, Engineers, Light Vehicle, Main Battle Tank, and Artillery. Its Bug Drone/Warrior/Heavy definitions are scenario-specific experimental enemies, not additional V5 source classes. A missing foundation definition MUST NOT be filled by a same-named legacy class.
+This is the selected profile roster, not a statement that every row is tactically executable. D1 catalogues all thirteen non-orbital V5 classes plus three companion-only classes. The separate compiled tactical catalogue supplies only five allied definitions: Infantry Squad, Engineers, Light Vehicle, Main Battle Tank, and Artillery. Its Bug Drone/Warrior/Heavy definitions are scenario-specific experimental enemies, not additional V5 source classes. A missing compiled definition MUST NOT be filled by a same-named legacy class or treated as executable merely because D1 says it is.
 
 | Unit | Canonical base profile | Active notes |
 |---|---|---|
@@ -295,11 +295,11 @@ This is the selected profile roster, not the current runtime catalogue. The foun
 | Heavy Air Transport | Crew 3; Hits 1; Speed 7; 5 cargo slots; no weapon | Atmo Flight; Aerospace; cargo conversions below; cannot spot ground units. |
 | Orbital Crew | FS 3; Speed 1; no weapon; 2 Req orbital equipment | Catalogue-only until a canonical Light Freighter/orbital hull exists. |
 
-The Infantry Squad through Heavy Air Transport are the thirteen canonical selectable classes targeted by this profile. Only the five foundation definitions named above can currently be instantiated through the foundation catalogue. Power armor, irregulars, special forces, sappers, tank variants, artillery variants, medium/heavy mechs, and orbital hulls are not canonical selectable classes.
+The Infantry Squad through Heavy Air Transport are the thirteen canonical selectable classes targeted by this profile. Only the five compiled allied definitions named above can currently pass the tactical catalogue lookup; D1 can persist/catalogue more classes, which is the open split-authority defect rather than proof that they are playable. Power armor, irregulars, special forces, sappers, tank variants, artillery variants, medium/heavy mechs, and orbital hulls are not canonical selectable classes.
 
 ## 5. Canonical support systems (foundation-partial)
 
-Most rules below remain selected profile truth but deferred. `transferSupply`, `advanceBuildProgress`, and `canEquip` are deterministic helpers; the separate equipment/deployment slice explicitly activates only paired cargo actions, finite-weapon Reload, Scan, Deploy Drone, and its enumerated equipment effects. It does not activate general Resupply, Construct, Repair, or Heal, and the build helper does not reactivate the rejected legacy Build Point economy.
+Most rules below remain selected profile truth but deferred. `transferSupply`, `advanceBuildProgress`, and `canEquip` are deterministic helpers; the separate equipment/deployment slice adds narrow paired-cargo and finite-weapon Reload paths. Scan and Deploy Drone are accepted by the current action ledger but remain release-blocked because their advertised state/visibility effects are incomplete. The slice does not activate general Resupply, Construct, Repair, or Heal, and the build helper does not reactivate the rejected legacy Build Point economy.
 
 ### 5.1 Medical
 
@@ -378,7 +378,7 @@ The V5 order format is authoritative. The deprecated sheet contributes useful st
 | `unit_id`, `callsign` | Client sends `unit_id`; the callsign is read from the deployment and is seven characters or fewer. |
 | `unit_type_id` | Server-owned canonical class ID from the deployment. |
 | `carrying` | Required when transport actions become executable; stable IDs and quantities. |
-| `equipment`, `ammo` | Server-authoritative snapshot; clients may reference fitted IDs but cannot set inventory. Optional Store gear remains non-executable. |
+| `equipment`, `ammo` | Server-authoritative snapshot; clients may reference fitted IDs but cannot set inventory. Only explicitly migrated fitted gear can affect the narrow resolver; unapproved or catalogue-only Store gear remains non-executable. |
 | `order_type` | Foundation: Hold, Advance, or Rush, subject to the unit class allowed list. Eligible special orders remain canonical but are rejected while `executable=false`. |
 | `start_position`, `end_position`, `route` | Scenario coordinate type plus ordered path. |
 | `end_facing` | Required for ground units because rear attacks are active. |
@@ -412,11 +412,13 @@ The worker currently performs steps 1–5 at submission; the resolver repeats th
 - The seed is trusted server input and is stored only with the private resolution record. It MUST NOT appear in campaign views, public reports, WebSocket payloads, resolution events, or `ROUND_FINISHED`. Public records expose the digest and event IDs, not the seed.
 - A newly applied cooldown survives the attack round at full duration and first ticks at the start of the next resolution.
 
+The Campaign DO's tactical order upsert now requires an actor-scoped command ID plus expected campaign/order revisions; clock update requires a command ID plus expected campaign version. Both commit SHA-256 request-hash/response receipts atomically with state (and the order event where applicable). Matching retries replay; changed-payload command reuse and stale revisions fail. Orders are current-round-only and replace the same unit/round aggregate, including a cancelled revision. Cancellation and operator pause/resume/resolve commands still lack the same idempotency/compare-and-set contract, so the command lifecycle is partial rather than a general replay guarantee.
+
 The present deterministic seed construction is an implementation replay key, not a published randomness proof or player-verifiable commit/reveal scheme. A future fairness protocol must preserve replay while keeping unrevealed seed material out of live client projections.
 
 ### 6.3 Hidden-information boundary
 
-Campaign views include a player's own deployments/orders and only currently observable enemies. Unknown hexes retain public terrain/memory state but redact dynamic control, objectives, structures, and hazards. Events are projected by visibility and actor observability; a nominally public event whose deployment actor is unseen is withheld with its entire payload so it cannot reveal an unseen route or target. Resolution journals, seeds, and pending persistent effects are server-only. Administrators may receive the full authorized projection, but projection MUST NOT mutate authoritative state.
+Campaign views include a player's own deployments/orders and only currently observable enemies. Unknown hexes retain public terrain/memory state but redact dynamic control, objectives, structures, and hazards. The current event projector withholds events whose deployment actor is unseen, and resolution journals, seeds, and pending persistent effects are omitted from ordinary views. This is not a complete information-security boundary: reports re-evaluate stored events against present-time visibility, generic WebSocket invalidations are not viewer-specific and can include order/unit IDs, and public payload fields lack a complete event-time/declassification policy. Administrators may receive the full authorized projection, but projection MUST NOT mutate authoritative state.
 
 ## 7. Catalogue and provenance model
 
@@ -458,7 +460,7 @@ Implementation requirements:
 
 Before a deferred system can become active, it needs the following:
 
-- Special orders/actions: resolver hooks and tests for Evasive, Melee Charge/Brawl, Stealth, Dig In, Heal, Repair, Construct, Bombardment/Funnel, Deploy/Pack Up, general Resupply, Garrison, Assault, and Break Out/profile rejection behavior. Load/Unload, finite-weapon Reload, Scan, and Deploy Drone are the narrow migrated exceptions.
+- Special orders/actions: resolver hooks and tests for Evasive, Melee Charge/Brawl, Stealth, Dig In, Heal, Repair, Construct, Bombardment/Funnel, Deploy/Pack Up, general Resupply, Garrison, Assault, and Break Out/profile rejection behavior. Load/Unload and finite-weapon Reload are narrow migrated paths; Scan and Deploy Drone still require authoritative effects/projection before release activation.
 - Tactical completeness: multiweapon attack activations, dynamic cover/Dig In, high ground, Rapid Fire, Subsystems, typed firing/flanking exclusions, melee timing, and distance-increment hostile route contention.
 - Canonical roster: normalized foundation definitions for Medic, Logi Truck, IFV, Light Mech, Fighter, Bomber, VTOL, and Heavy Air Transport without importing legacy same-name statistics.
 - Optional equipment: V5-compatible unit access and slot budgets, action costs, dice semantics, ammo/reload data, durations, stack limits, and Req economy.
@@ -473,6 +475,6 @@ Activation requires updating this document and the conflict register in the same
 
 ## 9. Verification baseline
 
-As of this release candidate, the full root suite passes **26 test files / 177 tests**. Coverage includes deterministic tactical and strategic resolution, redaction, routes/LOS/capacity, combat/ammo/cooldowns, force/auth APIs, strategic adapters/coordinator boundaries, effective-unit construction, deployment/cargo validation, and the migrated equipment actions.
+At the current local reconciliation point, the full root suite passes **37 test files / 256 tests** (the committed Phase-0 baseline was 32/201). The focused rules-engine command `npx vitest run packages/rules-engine/test` passes **14 files / 111 tests**. Coverage includes deterministic tactical and strategic helpers, redaction, routes/LOS/capacity, combat/ammo/cooldowns, force/auth APIs, campaign contracts, strategic adapters/coordinator boundaries, effective-unit construction, deployment/cargo validation, and migrated equipment-action paths. The separate Playwright smoke baseline passes 4/4 locally.
 
 This passing baseline proves only the foundation capabilities named in section 1.3. It does not make catalogue-only or foundation-deferred canonical systems executable.

@@ -11,6 +11,9 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
+  "triggers": {
+    "crons": ["0 * * * *"]
+  },
   "vars": {
     "ENVIRONMENT": "development",
     "ALLOW_DEMO_AUTH": "true",
@@ -56,6 +59,9 @@
   "env": {
     "preview": {
       "name": "corinths-plight-preview",
+      "triggers": {
+        "crons": ["0 * * * *"]
+      },
       "vars": {
         "ENVIRONMENT": "preview",
         "ALLOW_DEMO_AUTH": "false",
@@ -91,6 +97,9 @@
     },
     "production": {
       "name": "corinths-plight",
+      "triggers": {
+        "crons": ["0 * * * *"]
+      },
       "workers_dev": true,
       "routes": [
         {

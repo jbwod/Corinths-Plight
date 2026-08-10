@@ -1,8 +1,8 @@
 # Corinth's Plight Architecture
 
-**Status:** Reconciled Phase 1–3 foundation decision record (2026-08-10)
+**Status:** Phase-0 reconciled Phase 1–3 foundation decision record (2026-08-10)
 
-**Scope:** The original foundation milestone plus additive Phase 2 persistent forces, Phase 3 strategic war, the equipment/deployment slice, production identity, and guided enlistment; not the complete Phase 3 success scenario
+**Scope:** The original foundation milestone plus additive Phase 2 persistent forces, Phase 3 strategic war, the equipment/deployment slice, production identity/security operations, and guided enlistment; not the complete Phase 3 success scenario
 
 **V1 baseline:** commit `609ea9f50b4d595cfa07c2677d3eeb681d45d0ce`; see [V1_AUDIT.md](./V1_AUDIT.md)
 
@@ -16,7 +16,7 @@ This document distinguishes three states:
 | **Target** | An accepted architecture decision that still needs implementation before production |
 | **Deferred** | Outside the first foundation deliverable |
 
-The current repository is a deployed Phase 3/equipment/identity/guided-enlistment foundation with local K-17, Corinth strategic, and Spearhead fixtures. It is **not** yet the complete production game: production scenario bootstrap, tactical-to-strategic effect finalisation, complete retry journals, and full withdrawal/redeployment remain open.
+The current repository is a deployed identity/guided-enlistment foundation with partial force, equipment, deployment, tactical, and strategic read-model work. K-17, the Corinth strategic world, and Spearhead are development fixtures. It is **not** yet the complete production game: production has no world/campaign content, public strategic order submission and resolution are explicitly blocked, non-K-17 tactical state still inherits the K-17 demo map, and the tactical effect journal advances before D1 acknowledgement.
 
 ## 2. Exact foundation milestone
 
@@ -25,19 +25,19 @@ The current repository is a deployed Phase 3/equipment/identity/guided-enlistmen
 | Deliverable | Repository evidence | Status |
 |---|---|---|
 | Foundation and Phase 3 design/audit documents | Original seven documents plus `STRATEGIC_LAYER.md`, `BATTALION_MODEL.md`, `SHIP_SYSTEM.md`, and `STRATEGIC_RESOLUTION.md` | Implemented |
-| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0007_guided_onboarding_and_battalions.sql` | Seven additive schema artifacts; applied through `0007` in production |
-| Ruleset seed | `seeds/v5-core-curated.sql`; consistency check in `scripts/validate-seed.ts` | Implemented as an idempotent SQL seed |
-| Domain contracts | `packages/domain/src/index.ts` | Implemented TypeScript interfaces; runtime schemas are not yet present |
+| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0008_auth_retention_and_invitation_abuse.sql` | Eight additive schema artifacts in the repository; production is recorded only through `0007`, so `0008` is not active there |
+| Ruleset seed | `seeds/v5-core-curated.sql`; consistency check in `scripts/validate-seed.ts` | Idempotent SQL artifact exists, but its 12 obsolete conflict IDs and split compiled/D1 catalogue prevent a complete authority claim |
+| Domain contracts | `packages/domain/src/index.ts`, `worker/campaign-contracts.ts` | Shared TypeScript interfaces plus bounded tactical request contracts and a versioned, validated Campaign DO state/snapshot envelope; general public DTO/runtime schemas remain incomplete |
 | Pure rules engine | `packages/rules-engine/src/` and `packages/rules-engine/test/` | Implemented foundation subset |
-| Campaign DO skeleton | `worker/campaign-durable-object.ts` | Implemented for K-17 plus fail-closed bootstrap from committed deployment snapshots |
+| Campaign DO skeleton | `worker/campaign-durable-object.ts` | Implemented for K-17; non-K-17 initialization requires committed deployment snapshots but still derives map/terrain defaults from the K-17 demo factory and is not a general scenario bootstrap |
 | Accelerated clock | `worker/campaign-clock.ts` and its tests | Implemented, including manual/1m/5m/30m/24h presets |
 | Basic hex-map prototype | `src/App.tsx`, `src/components/HexMap.tsx`, `src/components/Glyph.tsx` | Implemented |
 | Phase 2 persistent forces | `0003`, the combined-arms catalogue/fixture, typed force services and UI | Implemented checkpoint; not every catalogue mutation is active |
 | Phase 3 strategic schema/world | `0004`, `development-strategic-world.sql`, and the four Phase 3 design documents | Implemented local checkpoint |
-| Strategic resolver/API/UI | Domain, pure-engine, Worker, and responsive strategic workspace files | Checkpoint work; verify landed tests before release |
-| Equipment/loadout/deployment slice | `0005`, canonical equipment seed, pure engine, Worker services, planner/force UI, and Spearhead fixture | Implemented release candidate; broader Store content remains blocked |
-| Public home and production identity slice | Public React gateway, Resend passwordless services/routes, opaque sessions, and `0006` | Implemented and deployed; live Resend delivered-test passed |
-| Guided enlistment and Battalion recruitment | `0007`, `onboarding-foundation.sql`, typed Worker services, and responsive guided/recruitment UI | Implemented and deployed |
+| Strategic resolver/API/UI | Domain, pure-engine, Worker, and responsive strategic workspace files | Partial read/prototype checkpoint: read APIs exist, the internal order service is not exposed by the public route, public order submission returns `501`, the coordinator resolver returns `501`, and the UI can fall back to showcase data |
+| Equipment/loadout/deployment slice | `0005`, equipment seed, pure engine, Worker services, planner/force UI, and Spearhead fixture | Partial vertical slice; D1/compiled catalogue drift, companion slot authority, Scan/Drone effects, broader Store content, and general campaign bootstrap remain blockers |
+| Public home and production identity slice | Public React gateway, Resend passwordless services/routes, opaque sessions, `0006`, and local `0008` retention operations | Passwordless flow implemented/deployed; `0008` cleanup cron is implemented and locally verified but not deployed |
+| Guided enlistment and Battalion recruitment | `0007`, `onboarding-foundation.sql`, typed Worker services/UI, and local `0008` invitation controls | Core flow implemented/deployed; `0008` abuse/expiry controls are implemented and locally verified but not deployed |
 | Successful remote foundation deployment | Production D1 is migrated through `0007`; Phase 3/equipment/identity/onboarding Worker and UI are available at `corinthplight.qnetica.com.au` | Implemented on 2026-08-10; production scenario data remains open |
 
 The full Phase 3 scenario—production account creation, invitation, purchase, ship travel, deployment into a tactical campaign, exact-once permanent strategic consequences, recovery, and redeployment—is the product definition of success, not a claim about this checkpoint.
@@ -90,15 +90,16 @@ There are no independently deployed microservices. The client, Worker entry poin
 | `src/components/` | Hex map and reusable visual components | No D1/DO access |
 | `worker/index.ts` | Public API composition, origin policy, authentication, D1 campaign authorization, named-DO forwarding, security headers | Browser never receives a DO stub |
 | `worker/auth.ts` | Demo/session authentication, D1 membership lookup, trusted viewer headers | Demo mode is development-only; no V1 credential compatibility |
-| `worker/campaign-durable-object.ts` | Campaign state, committed-snapshot bootstrap, orders, alarms, sockets, resolution, projections, and narrow receipt-idempotent D1 writeback | Next-round acknowledgement gate and cryptographic effect journal remain open |
+| `worker/services/security-operations.ts`, `worker/repositories/security-operations.ts`, `worker/services/invitation-delivery.ts` | Bounded retention maintenance, pseudonymized invitation throttling/audit, and a leased Resend delivery outbox | Immediate `waitUntil` attempts plus hourly recovery and migration `0008` exist locally; production remains on the pre-`0008` deployment |
+| `worker/campaign-durable-object.ts` | K-17 campaign state, fixture-derived committed-snapshot initialization, orders, alarms, sockets, resolution, projections, and narrow receipt-idempotent D1 writeback | General scenario bootstrap, next-round acknowledgement gate, audience-safe realtime/reporting, and cryptographic effect journal remain open |
 | `worker/campaign-clock.ts` | Pure clock/schedule transitions | Schedule is currently embedded in `state/current`, not separate storage records |
 | `worker/strategic-*` | Strategic request policy/validation/clock and map coordination as landed | Must remain map-sharded and permission scoped; no global game object |
 | `worker/enemy-ai.ts` | Deterministic foundation enemy orders | No LLM or network dependency |
-| `worker/http.ts` | JSON/no-store responses, body-size limit, JSON parsing | It does not provide general runtime schema validation or content-type enforcement |
+| `worker/http.ts` | JSON/no-store responses, body-size limit, JSON parsing | It does not provide general runtime schema validation or content-type enforcement; campaign-specific parsing lives in `worker/campaign-contracts.ts` |
 | `packages/domain/src/` | Shared TypeScript interfaces and constants | Compile-time contracts only; not a runtime schema package yet |
-| `packages/rules-engine/src/` | Pure catalogue, hex, mechanics, visibility, RNG, enemy/demo fixtures, and resolver | No storage, network, wall-clock reads, or `Math.random()` |
+| `packages/rules-engine/src/` | Pure compiled catalogue, hex, mechanics, visibility, RNG, enemy/demo fixtures, and resolver | No storage, network, wall-clock reads, or `Math.random()`; its five allied tactical definitions do not cover all D1 classes marked executable |
 | `packages/rules-engine/test/` | Pure engine fixtures and regression tests | No live Cloudflare integration |
-| `migrations/` | Seven ordered additive D1 SQL migrations | No new runtime uses the legacy Alembic files also retained in this directory |
+| `migrations/` | Eight ordered additive D1 SQL migrations | Production is recorded through `0007`; no new runtime uses the legacy Alembic files also retained in this directory |
 | `seeds/v5-core-curated.sql`, `seeds/v5-phase2-combined-arms.sql` | Versioned D1 rules/source/conflict catalogue | Definitions only; availability overlays distinguish executable/catalogue state |
 | `seeds/onboarding-foundation.sql` | Production-safe guided-enlistment policy and three NPC recruitment Battalions | Product fixture, not canonical V5 lore; no development User or campaign data |
 | `seeds/development-forces.sql`, `seeds/development-strategic-world.sql` | Explicit local-only Phase 2/3 fixtures | Never production data or automatically canonical lore |
@@ -133,21 +134,21 @@ For `/api/campaigns/{campaignId}/*` the current Worker:
 7. strips cookies, authorization/demo inputs, and client-supplied internal viewer headers before adding server-derived viewer headers;
 8. routes to `CAMPAIGN.getByName(campaignId)`.
 
-The DO self-initialises demo state only for `outpost-k17`. A registered non-K-17 campaign initialises only from committed D1 deployment snapshots; without them it fails rather than inventing forces.
+The DO self-initialises without D1 only for `outpost-k17`. A registered non-K-17 campaign requires committed D1 deployment snapshots for its forces, but it still calls `createDemoCampaignState`, retains the K-17 map/terrain shape, clears objectives, and applies fallback positions. This prevents arbitrary force invention but is not fail-closed scenario initialization.
 
-Current order commands derive start position, class eligibility, executable order/action definitions, action economy/speed cost, fitted weapons/equipment, owner, current visible target IDs, and one-attack limits on the server. The pure resolver independently rechecks the pinned ruleset, executable definitions, routes, speed/action budget, attack count, targets, weapons, LOS/range, ammo, cooldown, and friendly-fire rules.
+Current tactical order commands derive start position, class eligibility, executable order/action definitions, action economy/speed cost, fitted weapons/equipment, owner, current visible target IDs, and one-attack limits on the server. Order upsert requires an actor-scoped `commandId`, `expectedCampaignVersion`, and `expectedOrderRevision`; clock update requires `commandId` and `expectedCampaignVersion`. Each stores a SHA-256 request hash and exact response receipt atomically with its state/event changes, matching retries replay, and changed-payload reuse fails. The pure resolver independently rechecks the pinned ruleset, compiled executable definitions, routes, speed/action budget, attack count, targets, weapons, LOS/range, ammo, cooldown, and friendly-fire rules. This boundary is incomplete while D1 can mark a class executable that the compiled catalogue cannot resolve.
 
 Still target rather than implemented:
 
 - general runtime request schemas and versioned public DTO schemas;
-- client command idempotency keys and expected-revision compare-and-set;
+- idempotency/expected-version contracts for tactical cancellation and operator pause/resume/resolve commands (order upsert and clock update now have this boundary);
 - delegated Battalion command and production-grade admin audit;
 - session rotation/device management, operator account controls, and legacy account migration;
 - an events-after-sequence reconnect endpoint.
 
 ### 5.1 Phase 3 organisation and strategic request flow
 
-Strategic requests use global session identity and explicit current-Battalion context. Read repositories include owner/Battalion predicates. Mutations additionally require exact rank permission, actor-scoped `commandId`, canonical request hash, expected revision, bounded/shape-validated JSON, and same-origin/CSRF protection. A client-supplied User, Battalion, rank, permission, route cost, capability, or supply result is never authority.
+Strategic reads use global session identity and explicit current-Battalion context. Read repositories include owner/Battalion predicates. The internal strategic-order service is designed to require exact rank permission, actor-scoped `commandId`, canonical request hash, expected revision, bounded/shape-validated JSON, and same-origin protection, but the public `POST /api/strategic/orders` route validates and then returns `501 STRATEGIC_ORDER_EXECUTION_DEFERRED`. The Strategic Map DO resolver also returns `501 STRATEGIC_RESOLUTION_NOT_IMPLEMENTED`. No public strategic mutation is currently executable.
 
 `user_active_battalions` is navigation context, not an authorization cache: each request rechecks active membership. Where revealing an ID would leak another Battalion's assets, a failed owner predicate returns not found.
 
@@ -182,7 +183,7 @@ The implemented engine foundation now:
 - ticks old cooldowns before attacks so a newly assigned cooldown survives the round;
 - applies Hold facing even when no movement occurs;
 - blocks all simultaneously over-capacity arrivals consistently and ignores destroyed/withdrawn occupants;
-- supports deterministic Hold, Advance, Rush, and Attack only; catalogued advanced orders/actions fail closed;
+- supports deterministic Hold/Advance/Rush, basic Attack, and narrow Load/Unload/Reload action paths; other advanced orders/actions fail closed, while Scan/Deploy Drone remain release-blocked because their advertised effects are incomplete;
 - derives indirect-fire legality from an eligible friendly spotter and aggregates combat damage before casualty application.
 
 Projection removes resolution records and pending effects, hides non-visible deployments, keeps other users' drafts private, and redacts dynamic control/objective/structure/environment fields on wholly unknown hexes. Reports pass stored events through the same current projector and do not expose the stored seed.
@@ -253,17 +254,17 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 
 ### ADR-A06: Replace V1 authentication before real-account migration
 
-**Status:** Fail-closed boundary implemented; production provider deferred.
+**Status:** Production passwordless identity/session boundary implemented and deployed; operational lifecycle incomplete.
 
-**Decision:** V1 credentials never cross into the new authority. Demo auth is explicit local-only; production requires a secure provider/session lifecycle.
+**Decision:** V1 credentials never cross into the new authority. Demo auth is explicit local-only. Production uses verified Resend email links and opaque, hashed D1 sessions.
 
-**Trade-off:** There is no production login yet.
+**Trade-off:** Passwordless registration/login/logout exists. Bounded retention cleanup and invitation abuse controls now exist locally but are not deployed; session/device management, operator controls, recovery-challenge delivery, MFA/account linking, and legacy-account migration remain open.
 
-**Revisit:** This must be resolved before preview users, public deployment, or account migration.
+**Revisit:** Before public release, close the retention, abuse, account-management, privacy, and recovery operations listed in `RELEASE_READINESS.md`.
 
 ### ADR-A07: D1 strategic truth plus one coordinator per strategic map
 
-**Status:** Accepted; additive schema/fixture implemented and coordinator checkpoint under verification.
+**Status:** Accepted; additive schema, development fixture, read models, and internal coordinator shell exist. Public order execution and coordinator resolution are blocked.
 
 **Decision:** D1 owns strategic locations, graph, formations, logistics, operations, events, and outcomes. One Strategic Map Durable Object serialises the clock/orders for one map or tightly coordinated theatre. Tactical campaigns retain separate Campaign Durable Objects.
 
@@ -276,20 +277,21 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 | Check | Status | Evidence or remaining work |
 |---|---|---|
 | Package skeleton, TypeScript, lint, unit tests, local production build | Complete | Root package scripts |
-| Migrations and idempotent seed artifacts | Complete locally and in production through `0007` | Seven additive SQL migrations, canonical seeds, production-safe onboarding seed, local fixtures, `seed:check` |
-| Deterministic resolver subset and regression coverage | Complete for the stated subset | Hold/Advance/Rush/Attack engine tests |
+| Application browser smoke baseline | Partial/local | Playwright covers public auth, authenticated live navigation without showcase fallback, tactical rejection of client-authored economy, and 390px overflow (4 tests); remote CI evidence, broader browser matrix, accessibility, and performance gates remain open |
+| Migrations and idempotent seed artifacts | Local head `0008`; production head `0007` | Fresh empty D1 replay through all eight migrations and all seven seeds twice passes integrity/FK checks; production-approved and development seed families remain separated |
+| Deterministic resolver subset and regression coverage | Partial but tested | Narrow Hold/Advance/Rush/Attack/equipment paths have unit coverage; locale ordering, terrain defaults, category-scoped flanking, cargo ledger, and release journal defects remain |
 | K-17 state, alarms, clock, pause/resume, sockets | Partial | Unit coverage exists; crash/alarm/WebSocket integration coverage does not |
 | Viewer projection | Partial | Basic state/report redaction exists; event-time and socket-field leakage tests remain |
 | D1 persistent-effect applier and next-round gate | Partial | Supported effects use D1 receipts; cryptographic journal, automatic reconciliation, and next-round acknowledgement gate remain open |
 | PREPARED journal, cryptographic input/output hashes, secret seed commitment | Open | Current record is a committed snapshot with a predictable seed and 32-bit digest |
 | Separate persisted schedule records and reconnect catch-up | Open | Schedule lives inside current state; no events-after-sequence API |
-| Production passwordless identity/session issuance | Complete | Resend verified-email links, opaque sessions, logout, rate limits, and pseudonymized audit are deployed |
-| Guided enlistment and Battalion recruitment | Complete and deployed | Public/private/code/targeted joins, one-charter economy, starter grant, tour, recruitment settings, and Resend invitation tests |
-| Helion/Corinth strategic schema and fixture | Complete locally | Fresh 0001–0004, all seeds twice, integrity/FK and negative probes |
-| Strategic map sharding, pure resolver, permission-scoped APIs, responsive UI | Checkpoint verification required | Phase 3 domain/engine/Worker/UI lanes; release only after full tests/build and visual inspection |
-| Strategic-to-tactical deployment/result reconciliation | Partial | Loadout/deployment commit, campaign snapshot bootstrap, and narrow tactical writeback exist; withdrawal and the full acknowledgement-gated protocol remain deferred |
+| Production passwordless identity/session issuance | Deployed foundation | Resend verified-email links, opaque sessions, logout, auth rate limits, and pseudonymized audit are deployed; `0008` retention schedule is local-only pending migration/deployment |
+| Guided enlistment and Battalion recruitment | Deployed foundation | Public/private/code/targeted joins, one-charter economy, starter grant, tour, recruitment settings, and Resend delivery are deployed; `0008` invitation throttling/expiry is local-only |
+| Helion/Corinth strategic schema and fixture | Complete as development data only | Fresh 0001–0008 replay and all seven seeds twice passed; production seeds still create no strategic world or campaigns |
+| Strategic map sharding, pure resolver, permission-scoped reads, responsive UI | Partial/blocked | Unit tests cover the pure resolver and service shell; public order submission and DO resolution return `501`, route durations are `BALANCE_REQUIRED`, and the UI can use showcase state |
+| Strategic-to-tactical deployment/result reconciliation | Partial | Loadout/deployment commit and narrow tactical writeback exist; scenario bootstrap remains K-17-derived, and withdrawal plus the acknowledgement-gated protocol remain deferred |
 | Production D1 and custom-domain foundation | Complete | Production binding is migrated through `0007`; `corinthplight.qnetica.com.au` serves the current Worker/UI |
-| Phase 3/identity/onboarding remote deployment | Complete | Cloudflare version `f34fa674-b242-4bda-9a7d-dd06cddc7363`; custom-domain health/UI/auth/origin-policy smoke tests passed |
+| Phase 3/identity/onboarding code deployment | Recorded foundation deployment | Cloudflare version `f34fa674-b242-4bda-9a7d-dd06cddc7363`; custom-domain health/UI/auth/origin-policy smoke tests passed, but Phase 3 execution is not complete |
 
 Phase 3 should not be described as complete until the open deployment/result, correctness, scenario, and release gates above are closed. See [STRATEGIC_LAYER.md](./STRATEGIC_LAYER.md), [BATTALION_MODEL.md](./BATTALION_MODEL.md), [SHIP_SYSTEM.md](./SHIP_SYSTEM.md), and [STRATEGIC_RESOLUTION.md](./STRATEGIC_RESOLUTION.md).
 
@@ -301,6 +303,6 @@ The landed vertical slice adds three authority boundaries without moving rules d
 2. `buildEffectiveUnit` and `validateDeploymentPlan` are pure deterministic handlers. The Worker never accepts client-authored stats, eligibility, cargo capacity, ammo, cooldown, or costs.
 3. Worker services own actor-scoped idempotency, optimistic revisions, Battalion/campaign permission, atomic inventory/loadout mutation, deployment approval, snapshot locking, and tactical bootstrap.
 
-The Campaign Durable Object can now bootstrap a non-K-17 campaign from committed D1 deployments. Load/Unload, Scan, Deploy Drone, Reload, ammo use, cooldowns, Supply, cargo, and location state resolve in the pure engine and are applied back to D1 through `campaign_effect_receipts`.
+The Campaign Durable Object can load non-K-17 forces from committed D1 deployments, but still creates their battlefield from the K-17 demo factory and clears its objectives. Load/Unload, Reload, ammo use, cooldowns, Supply, cargo, and location state have narrow resolver/writeback paths. Scan and Deploy Drone currently emit events/cooldowns without completing their advertised visibility/state effects and must remain blocked for release pending the recorded rule decision.
 
 Remaining correctness boundary: the DO persists its result and opens the next round before the D1 application finishes. The applier retries safely by receipt, but a fully compliant `EFFECTS_PENDING`/acknowledgement gate and cryptographic payload journal remain required.

@@ -10,6 +10,8 @@
 
 This register does not turn recommendations into rules. A decision becomes active only after explicit owner approval, a stable decision/conflict ID, versioned source/provenance, an additive migration or repeat-idempotent seed update, campaign/ruleset pinning, implementation, and tests.
 
+The local Phase-1 security checkpoint adds provisional operational retention periods, invitation quotas and delivery retry limits. Those are abuse/reliability defaults, not game rules or a legal retention decision, and they do **not** resolve DEC-016. No rules or balance decision was activated by that checkpoint.
+
 ## Decision protocol
 
 For every `PENDING` row:

@@ -8,6 +8,8 @@ No entry in this document deletes or rewrites a source value. A disposition sele
 
 This register contains **72 stable conflict records**. Their status and disposition describe canonical source decisions, not implementation completion. In particular, `RESOLVED-MVP` means that the profile has selected a value; it does not mean every system using that value is executable in `foundation-0.1.0`. Current execution is the separate overlay below and in `GAME_SYSTEMS.md` section 1.3.
 
+The current D1 core seed is not a complete mirror of this register: it inserts 12 obsolete short conflict IDs, while Phase-2 definitions can cite the namespaced IDs used here. Until the catalogue/provenance reconciliation closes CP-200, this Markdown register remains the canonical decision audit and D1 conflict references must not be presented as complete or referentially sound.
+
 ## Status legend
 
 | Status | Meaning |
@@ -25,17 +27,17 @@ This overlay records current capability without adding, deleting, closing, or ch
 
 | Capability | Foundation status | Conflict-register relationship |
 |---|---|---|
-| Hold, Advance, Rush | Executable | Uses the selected V5 order/action economy and Rush decisions. Hold also commits submitted final facing. |
-| Attack | Executable basic subset | Seeded one-weapon Attack; Range/LOS; indirect fire only with a friendly live spotter that has LOS; ammo/cooldown; FS cap; Armor/AP/Defense; rear arc; Hits; Rush multiplier; simultaneous damage. Selected multiweapon, high-ground, Evasive, Rapid Fire, Subsystem, melee, and aerospace details remain deferred. |
+| Hold, Advance, Rush | Partial executable subset | Uses the selected V5 order/action economy and Rush decisions, and Hold commits submitted final facing. Unpinned terrain defaults and incomplete distance-increment hostile contention remain implementation defects. |
+| Attack | Partial executable subset | Seeded one-weapon Attack; Range/LOS; indirect fire only with a friendly live spotter that has LOS; ammo/cooldown; FS cap; Armor/AP/Defense; rear calculation; Hits; Rush multiplier; simultaneous damage. Rear Armor bypass is not correctly category-scoped; multiweapon, high-ground, Evasive, Rapid Fire, Subsystem, melee, and aerospace details remain deferred. |
 | Special orders | Explicitly deferred | Evasive, Melee Charge, and Stealth are canonical definitions with `executable=false`; the server and resolver reject them instead of accepting them as no-ops. |
-| Special/support actions | Explicitly deferred | Dig In, Heal, Repair, Construct, Bombardment/Funnel, Deploy/Pack Up, Load/Unload, Resupply, Reload, Garrison, Scan, Assault, Break Out, and other non-Attack actions do not execute. Isolated Supply/build/equipment helpers do not change this status. |
+| Special/support actions | Partial/deferred | Load/Unload and finite-weapon Reload have narrow resolver paths with known action-ledger/occupancy/cargo gaps. Scan and Deploy Drone are mechanically accepted but currently stop at events/cooldowns rather than completing their advertised state/visibility effects, so they remain release-blocked. Dig In, Heal, Repair, Construct, Bombardment/Funnel, Deploy/Pack Up, general Resupply, Garrison, Assault, Break Out, and other unmigrated actions remain deferred. |
 | Movement simultaneity | Partial | Endpoint capacity and same-destination contests execute. The selected distance-increment hostile contention in `RC-V5-031` is not yet implemented. |
-| Server trust boundary | Executable | The worker resolves the unit definition, checks class `allowedOrders`/`allowedActions`, rejects non-executable definitions, and derives action economy/Speed cost from the pinned catalogue. Client values are not authority; the resolver revalidates normalized orders. |
-| Determinism/replay | Executable | Stable order sorting, exact order ID/revision lifecycle, same-round event sequence continuation, simultaneous damage, idempotent replay, and stable persistent-effect keys are tested. |
-| Seed secrecy and hidden information | Executable | Seeds remain in private resolution storage and are omitted from events, campaign views, public reports, and broadcasts. Side projections redact unseen deployments/orders and dynamic unknown-hex fields, and withhold deployment-actor events when that actor is unseen. |
-| Canonical roster and support/aerospace systems | Partial/catalogued | Five allied foundation unit definitions are present; the full thirteen-class canonical roster and its special systems are not yet executable. No legacy class may fill a missing canonical definition. |
+| Server trust boundary | Partial | Tactical submission derives trusted compiled definitions and the resolver revalidates normalized orders, but D1 can mark a class executable that compiled lookup cannot resolve, and the current adapter invents or loses authority fields. Client values are not authority; catalogue convergence remains a P0 gate. |
+| Determinism/replay | Partial | The narrow pure resolver's exact accepted-revision behavior, same-round event sequence continuation, simultaneous damage, duplicate-resolution guard, and stable effect keys are tested. Campaign order upsert and clock update now have actor-scoped hashed receipts plus compare-and-set, but cancel/pause/resume/resolve do not. Tactical ordering is locale-sensitive, the digest is non-cryptographic, the seed is predictable, and there is no PREPARED/effect-acknowledgement journal. |
+| Seed secrecy and hidden information | Partial/unsafe | Stored seeds are omitted from ordinary views and reports, and state projection redacts unseen deployments. Reports use present-time rather than event-time visibility, generic WebSocket broadcasts can include order/unit IDs for every socket, and there is no sequence catch-up route. |
+| Canonical roster and support/aerospace systems | Partial/catalogued | D1 catalogues all thirteen canonical classes plus three companion-only classes, while the compiled tactical catalogue contains five allied definitions. D1-only executable overlays can fail tactical lookup; no legacy class may fill that gap. |
 
-At this reconciliation baseline, `npx vitest run packages/rules-engine/test` passes **7 test files / 62 tests**. That result verifies the overlay, not the unimplemented canonical rules described by the records below.
+At the current local reconciliation point, `npx vitest run packages/rules-engine/test` passes **14 test files / 111 tests** and the full root suite passes **37 files / 256 tests** (the committed Phase-0 baseline was 32/201). Those results verify only the covered helpers and contracts, not the unimplemented canonical rules or release boundaries described below.
 
 ## Phase 2 catalogue overlay (non-conflict)
 

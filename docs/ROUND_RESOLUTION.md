@@ -1,8 +1,8 @@
 # Corinth's Plight Round Resolution
 
-**Status:** Reconciled implemented foundation and target retry protocol (2026-08-09)
+**Status:** Reconciled implemented foundation and target retry protocol (2026-08-10)
 
-**Implemented subset:** deterministic Hold, Advance, Rush, Attack, Load/Unload, Reload, Scan, Deploy Drone, constrained airdrop, clock/alarm coordination, DO-local result deduplication, and idempotent D1 effect receipts
+**Implemented subset:** deterministic Hold, Advance, Rush, Attack, Load/Unload, Reload, Scan, Deploy Drone, constrained airdrop, strict current-round order/clock command envelopes, SHA-256 command receipts with optimistic concurrency, versioned DO state/snapshots, clock/alarm coordination, DO-local result deduplication, and idempotent D1 effect receipts
 
 **Not yet implemented:** PREPARED/hash journal, server-secret seed commitment, cryptographic effect payload journal, acknowledgement-gated next-round transition, separate persisted schedule records
 
@@ -12,6 +12,7 @@
 |---|---|---|
 | Pure deterministic computation | Fixed `RoundInput` uses seeded RNG and ordered processing; regression tests cover the implemented subset | Version/hash-pinned engine and byte/canonical replay evidence |
 | One DO result per round | `resolution/{round}` prevents a second committed result | PREPARED input hash, cryptographic output hash, attempts/statuses, mismatch incident handling |
+| Order/clock command retry | Actor-scoped command receipt, canonical SHA-256 request hash, campaign/order revision compare-and-swap, and replay of the original response | Extend the same versioned command protocol to cancel, pause, resume, resolve and every later tactical mutation; retain immutable order revisions |
 | Permanent consequences exactly once | Resolver emits effects; the DO applies supported unit/resource effects in D1 with an idempotency receipt, then removes the pending record | Add payload-hash collision detection, status/attempt journal, automatic reconciliation, and acknowledgement gating |
 | Next round waits for effects | No; the DO increments/open the next round in the result transaction | Remain `EFFECTS_PENDING` until every required D1 effect is applied |
 | Scheduling survives eviction | Clock and pending items are inside `state/current`; next DO alarm is derived from them | Separate status-bearing `schedule/{id}` records and consumed/recovery history |
@@ -49,25 +50,27 @@ The runtime catalogue and D1 seed both identify `v5-core-curated@1`; `ENGINE_VER
 
 ### 3.1 Submission
 
-The public request supplies intent. The DO constructs the authoritative `UnitOrder`:
+The public request is parsed as a strict, unknown-field-rejecting intent envelope. It supplies `commandId`, `expectedCampaignVersion`, `expectedOrderRevision`, current-round unit/order/facing/route intent, and narrowly typed action fields. It cannot supply action economy, speed cost or audited ammunition use. The DO constructs the authoritative `UnitOrder`:
 
 - stable ID `order:{campaignId}:{round}:{deploymentId}`;
 - server-incremented revision;
 - owner, current start position, end position, submitted time, fitted equipment/weapons, and rules-derived action cost;
 - `DRAFT` or `SUBMITTED` lifecycle;
-- current or up to eight future rounds.
+- the current round only.
 
-Before accepting a current submitted order, the Worker/DO path checks owner, deployed/not-destroyed state, class `allowedOrders`/`allowedActions`, executable catalogue flags, fitted weapon/equipment IDs, current projected target visibility, action economy/speed, and the one-attack limit. The pure resolver rechecks ruleset, executable order/action definitions, start/route/end, speed/action budget, Rush restrictions, attack count, target/weapon, range/LOS, friendly fire, ammo, and cooldown.
+Before accepting a submitted order, the Worker/DO path checks owner, deployed/not-destroyed state, class `allowedOrders`/`allowedActions`, executable catalogue flags, fitted weapon/equipment IDs, current projected target visibility, authoritative targeting/range/LOS/ammo/cooldown/spotter rules, action economy/speed, and the one-attack limit. The pure resolver rechecks ruleset, executable order/action definitions, start/route/end, speed/action budget, Rush restrictions, attack count, target/weapon, range/LOS, friendly fire, ammo, and cooldown.
 
-Only `HOLD`, `ADVANCE`, `RUSH`, and `ATTACK` are executable. Other order/action names remain catalogued but fail closed.
+Only `HOLD`, `ADVANCE`, and `RUSH` order types are executable. The narrow executable action set is described in `GAME_SYSTEMS.md`; other names remain catalogued and fail closed. There is currently no executable Incidental action, and the Incidental ledger rejects Standard/Primary actions rather than silently accepting them.
+
+For order and clock writes, the DO canonicalises the validated intent with Unicode code-point key ordering, hashes it with SHA-256, and stores the actor-scoped receipt in the same DO transaction as the new state (and order event, where applicable). An exact retry returns the original status/body. Reusing a command ID with different intent returns `409`; a stale campaign or order revision also returns `409`. A cancelled current-round order is replaced in the aggregate at its deterministic ID, preventing a duplicate order from corrupting the stored state.
 
 Current limitations:
 
-- the client does not send a stable command idempotency key or expected revision;
 - replacing an order overwrites the current in-state revision instead of retaining every immutable revision in the DO;
 - D1 `order_archive` is not populated;
 - current command authority is owner-only; delegated command is not wired;
-- compile-time interfaces plus manual sanitisation are used instead of general runtime request schemas.
+- cancel, pause, resume and manual resolve do not yet use the command-receipt/CAS protocol;
+- the runtime accepts current-round orders only; future-round scheduling is deliberately disabled until it can validate against projected positions and preserve revisions safely.
 
 ### 3.2 Lifecycle
 
@@ -76,9 +79,15 @@ DRAFT -> SUBMITTED -> LOCKED -> RESOLVING -> RESOLVED | FAILED
    \-----------> CANCELLED       (before lock only)
 ```
 
-The DO locks current submitted orders at the lock alarm/manual resolve. The resolver marks only the exact accepted `(order.id, order.revision)` resolved. Future orders are preserved when the completed round is removed; a replacement/future revision is not accidentally marked resolved.
+The DO locks current submitted orders at the lock alarm/manual resolve. The resolver marks only the exact accepted `(order.id, order.revision)` resolved. The completed current-round aggregate is removed after resolution.
 
-The target command protocol adds a client idempotency key and expected revision, retains immutable revisions, and returns the original semantic result for duplicate delivery.
+The landed order/clock command protocol supplies idempotency, compare-and-swap and exact semantic replay. The remaining target work is immutable revision/archive retention and applying the same contract to every tactical mutation.
+
+### 3.3 Request and stored-state boundaries
+
+Order and clock JSON are parsed before authority-dependent game mutation. Unknown fields, malformed coordinates/identifiers/facing, oversized routes/action lists/text, client-authored economy/cost/ammunition, and action-inappropriate target/payload fields fail closed. Cancel, pause, resume and resolve require an empty body; manual resolve also requires a positive `x-expected-round`, so replaying a lost response cannot accidentally resolve the next round.
+
+`state/current` and `snapshot/{round}` now use a versioned `{ schemaVersion: 1, state }` envelope. Reads validate campaign identity, clock/deadline/schedule coherence, map edges, deployments/weapons, order/action IDs and routes, events, resolution keys, objectives and pending-effect types. A valid legacy raw state is wrapped on read. New writes are validated before persistence. This is a compatibility and corruption boundary, not yet a general schema-migration registry or proof against every semantically impossible nested state.
 
 ## 4. Implemented resolver pipeline
 
@@ -111,6 +120,8 @@ Clock presets in `worker/campaign-clock.ts` are:
 
 A timed clock embeds `ORDER_LOCK` and `ROUND_RESOLVE` items in `state/current.clock.schedule`. The DO sets its one alarm to the earliest `runAt`. `ORDER_LOCK` is removed when consumed; after resolution the entire clock is replaced with the next round's schedule. There are no `schedule/{id}` storage records or consumed schedule history yet.
 
+Clock replacement uses the same actor-scoped command ID, SHA-256 request hash and expected campaign-version transaction as orders. Exact retries replay the original clock response and re-arm the derived alarm if necessary. Custom timed durations are bounded from five seconds through 24 hours; manual mode is exactly zero.
+
 Manual duration `0` has `lockAt=0`, `resolvesAt=0`, an empty schedule, and accepts current-round orders while phase is `PLANNING`. Manual resolve uses the same lock/resolve functions as an alarm.
 
 Pause/resume is implemented as a real state transition:
@@ -128,7 +139,7 @@ Alarms may be delivered late or more than once. The current guard is round/phase
 For the small K-17 scenario, `resolveCurrentRound` currently:
 
 1. returns an existing `resolution/{round}` when present;
-2. enters `RESOLVING`, records `snapshot/{round}`, selects current locked orders, and generates deterministic enemy orders;
+2. enters `RESOLVING`, records a versioned and validated `snapshot/{round}`, selects current locked orders, and generates deterministic enemy orders;
 3. derives the predictable seed `${campaignId}:${round}:${rulesetVersion}:foundation-seed-commit`;
 4. calls the pure resolver inside the DO storage transaction;
 5. creates this landed record:
@@ -158,7 +169,7 @@ This transaction avoids a partial DO result. A repeated call for a completed rou
 - supported pending effects are applied to D1 with `campaign_effect_receipts`, but receipts do not yet bind a cryptographic payload hash or attempt state;
 - the next round opens before permanent consequences acknowledge, and automatic failed-effect recovery remains incomplete.
 
-Consequently a successful DO commit can expose the next planning round before D1 application completes. A failed D1 batch leaves the pending DO record for an explicit retry, but there is not yet an automatic reconciliation/gating protocol.
+Consequently a successful DO commit can expose the next planning round before D1 application completes. A failed D1 batch leaves the pending DO record, but the consumed alarm is not re-armed and the duplicate manual-resolution response does not retry effects. There is no public recovery/reconciliation or acknowledgement-gating protocol yet.
 
 ## 7. Target resolution journal
 
@@ -197,7 +208,7 @@ campaignId:round:destroy:persistentUnitId
 campaignId:round:damage:persistentUnitId
 ```
 
-Current DO records contain an ID, type, optional unit ID, payload, and status. Current D1 `persistent_effects` has an idempotency-key PK and status/attempt/error fields, but no runtime applier and no payload hash/ordinal/result fields.
+Current DO records contain an ID, type, optional unit ID, payload, and status. The landed campaign applier records `campaign_effect_receipts` and applies its supported unit/resource/cargo/history consequences transactionally. It does not yet provide the target cryptographic payload binding, status/attempt journal, mismatch incident path, acknowledgement-gated round transition, or complete effect-type coverage. The older generic `persistent_effects` table is not the authoritative landed campaign applier.
 
 The target applier must:
 
@@ -257,17 +268,17 @@ Sockets are read-only for commands; gameplay correctness does not depend on rece
 | Before DO result transaction commits | No result should persist; retry re-enters current round | PREPARED input makes recovery explicit |
 | During pure compute | DO transaction fails/retries; no attempt journal exists | Recompute immutable prepared input and count attempts |
 | After DO result commit | Existing `resolution/{round}` returns duplicate; result/events are not duplicated | Also verify input/output hashes |
-| Before/during D1 effects | No applier exists; pending record remains forever while next round is open | Transactional applier plus `EFFECTS_PENDING` gate |
+| Before/during D1 effects | Supported effects use receipt-idempotent D1 batches; a failed application leaves the pending record, the next round is already open, and the consumed alarm is not re-armed | Cryptographic transactional applier plus `EFFECTS_PENDING` gate and reconciliation |
 | Duplicate/late alarm | Round/phase/journal generally makes it a no-op | Persist consumed schedule record and integration-test all crash points |
 | WebSocket disconnect | Authoritative DO state remains | Filtered snapshot plus events-after-sequence catch-up |
 
 ## 11. Verification status
 
-Implemented tests cover pure RNG, hex geometry/routes/LOS/capacity, mechanics, fog projection, deterministic resolver fixtures, event sequence continuation, exact revision handling, cooldown timing, Hold facing, simultaneous capacity contests, attack/action legality, and clock/auth policy including pause/resume and manual mode.
+Implemented tests cover pure RNG, hex geometry/routes/LOS/capacity, mechanics, fog projection, deterministic resolver fixtures, event sequence continuation, exact revision handling, cooldown timing, Hold facing, simultaneous capacity contests, attack/action legality, request/state contract rejection, command replay/reuse/CAS behavior, cancel-and-resubmit persistence across a DO restart, and clock/auth policy including pause/resume and manual mode. A local browser canary has also read an aged pre-envelope K-17 state successfully through the migration path.
 
 Still required before production:
 
-- workerd integration tests for duplicate/late alarms and DO eviction/restart;
+- workerd integration tests for duplicate/late alarms and broader DO eviction/restart failures;
 - crash injection before/after PREPARED, result commit, every D1 effect batch, acknowledgement, and next-round finalisation;
 - D1 applier tests proving one death/damage/history/ledger/archive mutation;
 - mismatched input/output/effect hash fail-closed tests;
@@ -325,9 +336,9 @@ The resolver now executes a narrow server-authoritative action phase before atta
 - paired Load/Unload actions validate co-location, carrier profile, manifest eligibility, capacity, speed cost, and legal destination;
 - Paradrop requires the target hex on the carrier path and emits an explicit success/failure event;
 - Reload consumes one Small Supply and restores finite ammunition to capacity;
-- Scan and Deploy Drone validate target range; Drone starts a six-round ability cooldown;
+- Scan and Deploy Drone validate target range and emit events; Drone starts a six-round ability cooldown. Neither action currently changes the visibility projection, so both remain semantically incomplete and must not be advertised as a reveal mechanic;
 - Attack ammunition and all new cooldown/supply/cargo/location consequences are included in stable `UNIT_STATE_UPDATED` effects.
 
 The Campaign Durable Object applies these effects to D1 in transactional batches keyed by `campaign_effect_receipts`, updates weapon mounts/Supply/cargo/persistent locations, and appends owner-visible unit history. Duplicate effects return the existing receipt.
 
-This is not yet the target protocol in ADR-R03: the current round result advances the DO before D1 acknowledgement. A D1 outage leaves the pending DO records available for retry, but planning is not yet held in `EFFECTS_PENDING`.
+This is not yet the target protocol in ADR-R03: the current round result advances the DO before D1 acknowledgement. A D1 outage leaves pending DO records without an automatic/public retry path and can leave the next clock unarmed; planning is not held in `EFFECTS_PENDING`.

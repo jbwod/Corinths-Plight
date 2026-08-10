@@ -39,6 +39,14 @@ import {
   type OnboardingReceiptRow,
   type StarterDefinitionRow,
 } from "../repositories/onboarding";
+import { invitationDeliveryJobStatement, type InvitationSource } from "../repositories/security-operations";
+import {
+  GENERIC_INVITATION_RESPONSE,
+  InvitationSecurityError,
+  enforceInvitationRateLimit,
+  invitationSecurityAuditStatement,
+  invitationSecurityContext,
+} from "./security-operations";
 
 const POLICY_ID = "production-onboarding-v1";
 const INVITE_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -64,10 +72,6 @@ function randomCode(length = 12): string {
 async function sha256(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function escapeHtml(value: string): string {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 
 function permissions(value: string | null): BattalionPermission[] {
@@ -448,132 +452,140 @@ export async function updateBattalionRecruitment(
   return committed;
 }
 
-export async function sendBattalionInviteEmail(
-  env: Env,
-  input: { invitationId: string; email: string; battalionName: string; invitedBy: string; message: string; inviteCode?: string },
-): Promise<string> {
-  if (!env.RESEND_API_KEY || !env.AUTH_FROM_EMAIL || !env.AUTH_BASE_URL) {
-    if (env.ENVIRONMENT === "development") return "development-delivery";
-    throw new OnboardingServiceError(503, "EMAIL_NOT_CONFIGURED", "Battalion invitation email is not configured.");
-  }
-  const url = `${env.AUTH_BASE_URL.replace(/\/$/, "")}/${input.inviteCode ? `?invite=${encodeURIComponent(input.inviteCode)}` : ""}`;
-  const note = input.message ? `\n\nMessage from command: ${input.message}` : "";
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${env.RESEND_API_KEY}`,
-      "content-type": "application/json",
-      "idempotency-key": `battalion-invite/${input.invitationId}`,
-      "user-agent": "CorinthsPlight/0.1",
-    },
-    body: JSON.stringify({
-      from: env.AUTH_FROM_EMAIL,
-      to: [input.email],
-      subject: `Invitation to ${input.battalionName}`,
-      text: `${input.invitedBy} has invited you to join ${input.battalionName} in Corinth's Plight.${note}\n\nSign in or enlist here: ${url}\n\nThis invitation expires in seven days.`,
-      html: `<div style="background:#071013;color:#dce8e8;padding:32px;font-family:Arial,sans-serif"><h1 style="font-size:22px">Battalion invitation</h1><p><strong>${escapeHtml(input.invitedBy)}</strong> has invited you to join <strong>${escapeHtml(input.battalionName)}</strong>.</p>${input.message ? `<p style="color:#b9cbcb">${escapeHtml(input.message)}</p>` : ""}<p><a href="${escapeHtml(url)}" style="display:inline-block;padding:12px 18px;background:#76e3d2;color:#071013;text-decoration:none;font-weight:700">OPEN BATTALION ASSIGNMENT</a></p><p style="color:#93a7a8;font-size:13px">Sign in with the invited email. This invitation expires in seven days.</p></div>`,
-      tags: [{ name: "category", value: "battalion-invitation" }],
-    }),
-  });
-  const body = await response.json().catch(() => ({})) as { id?: string };
-  if (!response.ok || !body.id) throw new OnboardingServiceError(503, "INVITE_EMAIL_FAILED", "The invitation was saved, but its email could not be delivered. Try again shortly.");
-  return body.id;
-}
-
 export async function inviteBattalionMember(
   env: Env,
   userId: string,
   command: InviteBattalionMemberCommand,
-): Promise<unknown> {
+  request: Request,
+): Promise<{ response: unknown; deliveryQueued: boolean }> {
   const operation = "INVITE_BATTALION_MEMBER";
   const requestHash = await onboardingCommandHash({ userId, ...command });
   const replay = await committedReceipt(env, userId, command.commandId, operation, requestHash);
-  if (replay) return replay;
+  if (replay) return { response: replay, deliveryQueued: false };
+  const now = Math.floor(Date.now() / 1000);
+  let securityContext;
+  try {
+    securityContext = await invitationSecurityContext(request, env, `${command.targetType}:${command.target}`);
+    await enforceInvitationRateLimit(env, {
+      actorUserId: userId,
+      context: securityContext,
+      scopes: ["ACTOR", "IP"],
+      now,
+    });
+  } catch (error) {
+    if (error instanceof InvitationSecurityError) throw new OnboardingServiceError(error.status, error.code, error.message);
+    throw error;
+  }
+  const ineligible = async (reasonCode: string, battalionId?: string): Promise<{ response: unknown; deliveryQueued: false }> => {
+    await env.DB.batch([
+      invitationSecurityAuditStatement(env, {
+        actorUserId: userId,
+        battalionId,
+        context: securityContext,
+        outcome: "REJECTED",
+        reasonCode,
+        metadata: { targetType: command.targetType },
+        now,
+      }),
+      env.DB.prepare(`INSERT INTO onboarding_command_receipts (
+          user_id,command_id,operation,request_hash,response_json,created_at
+        ) VALUES (?1,?2,?3,?4,?5,?6)
+        ON CONFLICT(user_id,command_id) DO NOTHING`)
+        .bind(userId, command.commandId, operation, requestHash, JSON.stringify(GENERIC_INVITATION_RESPONSE), now),
+    ]);
+    const response = (await committedReceipt(env, userId, command.commandId, operation, requestHash))
+      ?? GENERIC_INVITATION_RESPONSE;
+    return { response, deliveryQueued: false };
+  };
   const authority = await getActorBattalionAuthority(env.DB, userId);
   if (!authority || !permissions(authority.permissions).includes("MEMBER_INVITE")) {
-    throw new OnboardingServiceError(404, "BATTALION_NOT_FOUND", "Recruiting Battalion context was not found.");
+    return ineligible("AUTHORITY_UNAVAILABLE");
+  }
+  try {
+    await enforceInvitationRateLimit(env, {
+      actorUserId: userId,
+      battalionId: authority.battalion_id,
+      context: securityContext,
+      scopes: ["BATTALION", "RECIPIENT"],
+      now,
+    });
+  } catch (error) {
+    if (error instanceof InvitationSecurityError) {
+      throw new OnboardingServiceError(error.status, error.code, error.message);
+    }
+    throw error;
   }
   const target = await getInviteTarget(env.DB, command.targetType, command.target);
-  if (!target) throw new OnboardingServiceError(404, "INVITE_TARGET_NOT_FOUND", "That commander could not be invited.");
-  if (target.user_id === userId) throw new OnboardingServiceError(422, "INVITE_SELF", "You are already in command of this Battalion.");
+  if (!target) return ineligible("TARGET_UNKNOWN", authority.battalion_id);
+  if (target.user_id === userId) return ineligible("TARGET_SELF", authority.battalion_id);
   if (target.user_id) {
     const existingMember = await env.DB.prepare(`SELECT 1 FROM battalion_memberships
       WHERE battalion_id=?1 AND user_id=?2 AND status='ACTIVE' LIMIT 1`).bind(authority.battalion_id, target.user_id).first();
-    if (existingMember) throw new OnboardingServiceError(409, "ALREADY_MEMBER", "That commander is already an active member.");
+    if (existingMember) return ineligible("TARGET_ACTIVE_MEMBER", authority.battalion_id);
   }
-  const ownerNamespace = (await onboardingCommandHash(userId)).slice(0, 16);
   const invitationId = `battalion-invite-${requestHash.slice(0, 24)}`;
-  const now = Math.floor(Date.now() / 1000);
+  const deliveryJobId = `invitation-delivery-${requestHash.slice(0, 24)}`;
   const expiresAt = now + INVITE_TTL_SECONDS;
-  const inviteCode = target.user_id ? undefined : requestHash.slice(0, 16).toUpperCase();
+  const source: InvitationSource = target.user_id ? "ACCOUNT" : "EMAIL";
+  const inviteCode = source === "EMAIL" ? requestHash.slice(0, 16).toUpperCase() : undefined;
   const inviteCodeHash = inviteCode ? await sha256(inviteCode) : undefined;
   try {
-    if (target.user_id) {
-      await env.DB.prepare(`INSERT INTO battalion_invites (
+    const invitationStatement = target.user_id
+      ? env.DB.prepare(`INSERT INTO battalion_invites (
           id,battalion_id,invited_user_id,invited_by_user_id,rank_id,status,message,
           command_id,request_hash,created_at,expires_at,revision,delivery_status
         ) VALUES (?1,?2,?3,?4,?5,'PENDING',?6,?7,?8,?9,?10,1,'PENDING')`)
         .bind(invitationId, authority.battalion_id, target.user_id, userId,
-          authority.recruitment_rank_id, command.message, command.commandId, requestHash, now, expiresAt).run();
-    } else {
-      await env.DB.prepare(`INSERT INTO battalion_email_invites (
+          authority.recruitment_rank_id, command.message, command.commandId, requestHash, now, expiresAt)
+      : env.DB.prepare(`INSERT INTO battalion_email_invites (
           id,battalion_id,recipient_email,invited_by_user_id,rank_id,token_hash,status,
           message,command_id,request_hash,created_at,expires_at,revision,delivery_status
         ) VALUES (?1,?2,?3,?4,?5,?6,'PENDING',?7,?8,?9,?10,?11,1,'PENDING')`)
         .bind(invitationId, authority.battalion_id, target.email, userId,
           authority.recruitment_rank_id, inviteCodeHash, command.message,
-          command.commandId, requestHash, now, expiresAt).run();
-    }
+          command.commandId, requestHash, now, expiresAt);
+    await env.DB.batch([
+      invitationStatement,
+      invitationDeliveryJobStatement(env.DB, {
+        jobId: deliveryJobId,
+        invitationId,
+        invitationSource: source,
+        nextAttemptAt: now,
+        expiresAt,
+        recipientHash: securityContext.recipientHash,
+        ipHash: securityContext.ipHash,
+        createdAt: now,
+      }),
+      invitationSecurityAuditStatement(env, {
+        actorUserId: userId,
+        battalionId: authority.battalion_id,
+        context: securityContext,
+        outcome: "ACCEPTED",
+        reasonCode: "DELIVERY_QUEUED",
+        metadata: { targetType: command.targetType, source },
+        now,
+      }),
+      env.DB.prepare(`INSERT INTO onboarding_command_receipts (
+          user_id,command_id,operation,request_hash,response_json,created_at
+        ) VALUES (?1,?2,?3,?4,?5,?6)`)
+        .bind(userId, command.commandId, operation, requestHash, JSON.stringify(GENERIC_INVITATION_RESPONSE), now),
+    ]);
   } catch (error) {
     const prior = await env.DB.prepare(`SELECT request_hash FROM ${target.user_id ? "battalion_invites" : "battalion_email_invites"}
       WHERE invited_by_user_id=?1 AND command_id=?2 LIMIT 1`).bind(userId, command.commandId).first<{ request_hash: string }>();
     if (!prior || prior.request_hash !== requestHash) {
       if (error instanceof Error && error.message.includes("UNIQUE")) {
-        throw new OnboardingServiceError(409, "INVITATION_PENDING", "A pending invitation already exists for that commander.");
+        return ineligible("TARGET_PENDING_INVITATION", authority.battalion_id);
       }
       throw error;
     }
-  }
-  let resendId: string;
-  try {
-    resendId = await sendBattalionInviteEmail(env, {
-      invitationId,
-      email: target.email,
-      battalionName: authority.battalion_name,
-      invitedBy: "Battalion command",
-      message: command.message,
-      inviteCode,
-    });
-  } catch (error) {
-    await env.DB.prepare(`UPDATE ${target.user_id ? "battalion_invites" : "battalion_email_invites"}
-      SET delivery_status='FAILED' WHERE id=?1 AND invited_by_user_id=?2`).bind(invitationId, userId).run();
+    const raced = await committedReceipt(env, userId, command.commandId, operation, requestHash);
+    if (raced) return { response: raced, deliveryQueued: false };
     throw error;
   }
-  const response = {
-    accepted: true,
-    invitationId,
-    target: command.targetType === "USERNAME" ? command.target : "EMAIL",
-    delivery: "SENT",
-    expiresAt,
-  };
-  const table = target.user_id ? "battalion_invites" : "battalion_email_invites";
-  await env.DB.batch([
-    env.DB.prepare(`UPDATE ${table} SET delivery_status='SENT',resend_email_id=?1
-      WHERE id=?2 AND invited_by_user_id=?3 AND status='PENDING'`).bind(resendId, invitationId, userId),
-    env.DB.prepare(`INSERT INTO strategic_events (
-        event_id,event_type,battalion_id,actor_user_id,audience,subject_type,subject_id,
-        summary,payload_json,event_hash,idempotency_key,occurred_at
-      ) SELECT ?1,'BATTALION_INVITATION_SENT',?2,?3,'BATTALION','INVITATION',?4,
-               'Battalion command issued a recruitment invitation.','{}',?5,?6,?7
-          WHERE EXISTS (SELECT 1 FROM ${table} WHERE id=?4 AND delivery_status='SENT')`)
-      .bind(`event:onboarding:${ownerNamespace}:${command.commandId}`, authority.battalion_id,
-        userId, invitationId, requestHash, `onboarding:event:${ownerNamespace}:${command.commandId}`, now),
-    env.DB.prepare(`INSERT INTO onboarding_command_receipts (user_id,command_id,operation,request_hash,response_json)
-      SELECT ?1,?2,?3,?4,?5 WHERE EXISTS (
-        SELECT 1 FROM ${table} WHERE id=?6 AND delivery_status='SENT')`)
-      .bind(userId, command.commandId, operation, requestHash, JSON.stringify(response), invitationId),
-  ]);
-  return (await committedReceipt(env, userId, command.commandId, operation, requestHash)) ?? response;
+  const response = (await committedReceipt(env, userId, command.commandId, operation, requestHash))
+    ?? GENERIC_INVITATION_RESPONSE;
+  return { response, deliveryQueued: true };
 }
 
 export async function respondBattalionInvite(

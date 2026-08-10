@@ -1,6 +1,6 @@
 # Corinth's Plight Battalion Model
 
-**Status:** Phase 3 organisation schema and read/order foundation (2026-08-10)
+**Status:** Phase 3 organisation schema/read foundation plus deployed recruitment; migration `0008` abuse/retention controls are local-only and wider mutations remain deferred (2026-08-10)
 
 ## 1. Identity is not membership
 
@@ -16,7 +16,7 @@ User ── public Profile
 
 `users` is the account root. `profiles` is the player-facing identity. Provider subjects live only in `auth_identities` as hashes; public Battalion responses must never expose email, provider identity, session, recovery, IP-hash, or user-agent-hash fields.
 
-Migration 0004 adds the provider-neutral `auth_identities` and hashed `account_recovery_challenges` tables. Production provider login, session issuance/rotation, recovery delivery, MFA, and account linking are still deferred. Existing production session validation remains fail closed.
+Migration 0004 adds the provider-neutral `auth_identities` and hashed `account_recovery_challenges` tables. Migration 0006 and the auth service implement verified Resend email identities, opaque D1 session issuance/validation, and logout revocation. Migration 0008 adds bounded retention cleanup locally, but is not deployed. Session rotation/device management, recovery-challenge delivery, MFA, account linking, and legacy-account migration remain deferred. Production session validation fails closed.
 
 ## 2. Active Battalion selection
 
@@ -49,6 +49,8 @@ Migration 0007 adds `battalion_email_invites` for a normalized email that does n
 
 Invite command idempotency is scoped to the authenticated inviter by `UNIQUE(invited_by_user_id, command_id)`. A repeat with the same command must compare `request_hash`; a changed hash is a collision, not a retry.
 
+Migration 0008 adds fixed-window invitation limits for actor, Battalion, HMAC-pseudonymized recipient, and HMAC-pseudonymized source IP, plus private invitation-security audit rows, a leased delivery outbox, and bounded invitation-expiry/PII maintenance. The invitation command returns a generic accepted response before Resend; `waitUntil` makes the first bounded attempt and the hourly job recovers/retries. Eligibility remains non-enumerating and blocked scopes share one generic response. This code is locally verified but not part of the recorded production `0007` deployment.
+
 Invite/send/accept/decline, public/code joins, and recruitment settings are implemented. Leave/remove, rank editing, ownership transfer, and invite revocation remain deferred.
 
 ## 5. Configurable ranks and permissions
@@ -63,7 +65,7 @@ battalion_ranks
 
 The Phase 3 permission vocabulary includes Battalion editing, membership, rank, Battlegroup, operation, ship, supply, deployment, and strategic-order permissions. `battalion_permission_definitions.implementation_status` distinguishes executable permissions from schema-only/deferred product surface.
 
-The development fixture marks the landed read/order authority (`SHIP_VIEW`, `SUPPLY_VIEW`, `SHIP_MOVE`, `STRATEGIC_ORDER_CREATE`, and environment-gated `STRATEGIC_ORDER_APPROVE`) as active. The production-safe onboarding seed also activates `BATTALION_EDIT` and `MEMBER_INVITE` for the implemented recruitment services. Other mutation permissions remain schema-only or deferred until their server workflows are verified.
+The development fixture marks several permission definitions (`SHIP_VIEW`, `SUPPLY_VIEW`, `SHIP_MOVE`, `STRATEGIC_ORDER_CREATE`, and environment-gated `STRATEGIC_ORDER_APPROVE`) active for policy/service exercises. An active permission definition does not make its product mutation executable: the public strategic-order route returns `501`, strategic resolution returns `501`, and no public ship-movement workflow exists. The production-safe onboarding seed activates `BATTALION_EDIT` and `MEMBER_INVITE`, which the deployed recruitment settings and invitation services consume. Other mutation permissions remain schema-only or deferred until their server workflows are verified.
 
 The 33rd Expeditionary fixture has configurable Commander, Operations Officer, and Trooper ranks. The Commander receives the full defined vocabulary for permission-check exercises; that fixture does not bypass implementation-status or environment gates.
 
@@ -116,7 +118,7 @@ An unauthorised subject should resolve as not found where exposing existence wou
 
 ## 10. Concurrency and history
 
-All organisation mutations require an expected revision and actor-scoped command ID. The service must perform compare-and-set inside a D1 transaction/batch and emit a canonical `strategic_events` record. Membership is not deleted when a User leaves. Battalion history is assembled from audience-safe events rather than low-level table audit noise.
+The implemented onboarding/recruitment mutations use actor-scoped command receipts and canonical request hashes; revisioned aggregates use compare-and-set and committed organisation mutations emit a Battalion-audience `strategic_events` record. This is the required pattern for future organisation mutations, not evidence that leave/remove, rank editing, ownership transfer, invite revocation, ship movement, or public strategic orders exist. Membership is not deleted when a User leaves. Battalion history is assembled from audience-safe events rather than low-level table audit noise.
 
 The schema prevents cross-Battalion ranks, current selection without active membership, cross-Battalion formation joins, duplicate pending invites, and duplicate actor command IDs. It does not by itself decide whether a given active permission is sufficient for a particular API route; that policy belongs in the Worker service and tests.
 
