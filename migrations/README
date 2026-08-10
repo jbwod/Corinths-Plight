@@ -11,5 +11,7 @@ Current sequence:
 - `0005` equipment and deployment;
 - `0006` production passwordless identity;
 - `0007` guided onboarding and Battalion recruitment.
+- `0008` authentication retention and invitation abuse controls;
+- `0009` idempotent campaign-join command receipts.
 
 Use the root `db:migrate:local` or guarded `db:migrate:remote` package scripts. Production-safe catalogue/onboarding seeds are separate from development fixtures.

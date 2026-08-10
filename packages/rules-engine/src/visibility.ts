@@ -29,9 +29,12 @@ export function projectCampaignState(
   );
   const visible = viewer.role === "ADMIN" ? new Set(state.map.map((hex) => coordKey(hex.coord))) : visibleHexes(observers, state.map);
   const deployments = state.deployments.filter(
-    (deployment) =>
-      (deployment.locationState ?? "ON_MAP") === "ON_MAP" &&
-      (deployment.side === viewer.side || visible.has(coordKey(deployment.position))),
+    (deployment) => {
+      const location = deployment.locationState ?? "ON_MAP";
+      if (location === "RESERVE") return false;
+      if (deployment.side === viewer.side) return true;
+      return location === "ON_MAP" && visible.has(coordKey(deployment.position));
+    },
   );
   const map = state.map.map((hex) => ({
     ...hex,

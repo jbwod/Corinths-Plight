@@ -728,6 +728,17 @@ export async function grantStarterUnit(env: Env, userId: string, command: GrantS
     env.DB.prepare(`INSERT INTO unit_service_summaries (
         player_unit_id,campaigns_completed,rounds_served,objectives_completed,units_destroyed,revision
       ) SELECT id,0,0,0,0,1 FROM player_units WHERE id=?1 AND owner_id=?2`).bind(unitId, userId),
+    env.DB.prepare(`INSERT INTO battlegroups (
+        id,battalion_id,name,objective,leader_user_id,persistent,status,updated_at
+      ) SELECT ?1,active.battalion_id,?2,'First field command.',?3,1,'READY',unixepoch()
+          FROM user_active_battalions AS active
+         WHERE active.user_id=?3
+           AND EXISTS (SELECT 1 FROM player_units WHERE id=?4 AND owner_id=?3)`)
+      .bind(`battlegroup-starter:${unitId}`, `Starter Detachment ${unitId.slice(-8)}`, userId, unitId),
+    env.DB.prepare(`INSERT INTO battlegroup_units (
+        battlegroup_id,player_unit_id,delegated_command
+      ) SELECT ?1,id,0 FROM player_units WHERE id=?2 AND owner_id=?3`)
+      .bind(`battlegroup-starter:${unitId}`, unitId, userId),
     env.DB.prepare(`INSERT INTO unit_history (
         id,player_unit_id,event_type,summary,definition_id,payload_json,occurred_at,
         idempotency_key,actor_user_id,visibility

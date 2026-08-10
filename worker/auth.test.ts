@@ -126,20 +126,27 @@ describe("campaign authorization", () => {
     ).toEqual({ allowed: false, reason: "ROLE_UNSUPPORTED" });
   });
 
-  it("allows a demo identity only into the explicit local demo campaigns", async () => {
+  it("allows a locally enabled demo identity only into its D1-backed campaign memberships", async () => {
     const identity: AuthenticatedIdentity = {
       kind: "DEMO",
       viewer: { userId: "demo-user", side: "ALLIED", role: "PLAYER" },
     };
     const env = {
-      ...envWithRow(null),
+      ...envWithRow({
+        campaign_id: LOCAL_DEMO_CAMPAIGN_ID,
+        side: "ALLIED",
+        role: "PLAYER",
+        battalion_id: "battalion-demo",
+      }),
       ENVIRONMENT: "development",
       ALLOW_DEMO_AUTH: "true",
     } satisfies Env;
 
     await expect(authorizeCampaign(identity, LOCAL_DEMO_CAMPAIGN_ID, env)).resolves.toMatchObject({ allowed: true });
-    await expect(authorizeCampaign(identity, "operation-spearhead", env)).resolves.toMatchObject({ allowed: true });
-    await expect(authorizeCampaign(identity, "invented-campaign", env)).resolves.toEqual({
+    await expect(authorizeCampaign(identity, "invented-campaign", {
+      ...env,
+      DB: envWithRow(null).DB,
+    })).resolves.toEqual({
       allowed: false,
       reason: "NOT_FOUND",
     });

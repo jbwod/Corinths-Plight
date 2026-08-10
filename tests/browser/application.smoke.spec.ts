@@ -10,6 +10,54 @@ async function expectNoDocumentOverflow(page: Page): Promise<void> {
   );
 }
 
+async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<void> {
+  const join = page.getByRole("button", { name: /JOIN K-17: HOLD THE RELAY/i });
+  const map = page.getByRole("region", { name: "Tactical operations map" });
+  const noPlayableCampaign = page.getByRole("heading", { name: "No playable campaign assigned" });
+  await expect(map.or(noPlayableCampaign)).toBeVisible();
+  if (await map.isVisible() && !deployFoundation) return;
+  if (await join.isVisible()) {
+    await join.click();
+    await expect(page.getByText(/Campaign joined/)).toBeVisible();
+    await expect.poll(async () => {
+      const response = await page.request.get("/api/campaigns", { headers: { "x-demo-user": "demo-user" } });
+      if (!response.ok()) return false;
+      const directory = await response.json() as { campaigns?: Array<{ campaignId: string }> };
+      return directory.campaigns?.some((campaign) => campaign.campaignId === "campaign-k17-relay") ?? false;
+    }).toBe(true);
+  }
+
+  const stateResponse = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  const deployedCallsigns = stateResponse.ok()
+    ? new Set(((await stateResponse.json()) as { deployments?: Array<{ callsign: string }> }).deployments?.map((unit) => unit.callsign) ?? [])
+    : new Set<string>();
+
+  await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Deployment" }).click();
+  await expect(page.getByRole("heading", { name: "Deployment planner", exact: true })).toBeVisible();
+  await expect(page.getByText("PLANNER LIVE", { exact: true })).toBeVisible();
+  const deployableUnits = page.locator('input[type="checkbox"]:enabled');
+  let selectedForDeployment = 0;
+  for (let index = 0; index < await deployableUnits.count(); index += 1) {
+    const checkbox = deployableUnits.nth(index);
+    const label = await checkbox.locator("..").innerText();
+    const foundationSupportUnit = ["ANVIL", "LONGBOW"].some((callsign) => label.includes(callsign));
+    if (foundationSupportUnit && ![...deployedCallsigns].some((callsign) => label.includes(callsign))) {
+      await checkbox.check();
+      selectedForDeployment += 1;
+    }
+  }
+  if (selectedForDeployment > 0) {
+    await page.getByRole("button", { name: /VALIDATE PLAN|REVALIDATE PLAN/ }).click();
+    await expect(page.getByRole("heading", { name: "Ready for command" })).toBeVisible();
+    await page.getByRole("button", { name: "COMMIT DEPLOYMENT" }).click();
+    await expect(page.getByText(/deployment snapshots committed/i)).toBeVisible();
+  }
+  await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Campaigns" }).click();
+  await expect(map).toBeVisible();
+}
+
 test("public landing exposes the signed-out authentication shell", async ({ page }) => {
   const sessionResponse = page.waitForResponse((response) => response.url().endsWith("/api/auth/session"));
 
@@ -44,21 +92,21 @@ test("local demo navigation reaches live strategic and tactical services", async
   await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();
   await expect(page.getByText("Local showcase · read only", { exact: true })).toHaveCount(0);
 
-  const campaignResponse = page.waitForResponse((candidate) => (
-    candidate.url().includes("/api/campaigns/outpost-k17/state") && candidate.request().method() === "GET"
-  ));
   await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Campaigns" }).click();
-
-  const campaign = await campaignResponse;
+  await ensurePlayableK17(page);
+  const campaign = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
+    headers: { "x-demo-user": "demo-user" },
+  });
   expect(campaign.status()).toBe(200);
-  await expect(campaign.json()).resolves.toMatchObject({ campaignId: "outpost-k17" });
+  await expect(campaign.json()).resolves.toMatchObject({ campaignId: "campaign-k17-relay" });
   await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Outpost K-17" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "K-17: Hold the Relay" })).toBeVisible();
   await expect(page.getByText(/Local tactical projection active/)).toHaveCount(0);
 });
 
 test("tactical API rejects client-authored action economy", async ({ page }) => {
   await page.goto("/?view=campaigns");
+  await ensurePlayableK17(page);
   await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
 
   const rejected = await page.evaluate(async () => {
@@ -90,6 +138,24 @@ test("tactical API rejects client-authored action economy", async ({ page }) => 
   });
 });
 
+test("tactical composer exposes every currently executable action and no catalogue-only controls", async ({ page }) => {
+  await page.goto("/?view=campaigns");
+  await ensurePlayableK17(page, true);
+  await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
+  const composer = page.locator(".right-panel");
+
+  await expect(composer.getByRole("button", { name: "LOAD", exact: true })).toBeVisible();
+  await expect(composer.getByRole("button", { name: "UNLOAD", exact: true })).toBeVisible();
+  await expect(composer.getByRole("button", { name: "HEAL", exact: true })).toHaveCount(0);
+  await expect(composer.getByRole("button", { name: "SCAN", exact: true })).toHaveCount(0);
+
+  await page.locator(".unit-roster").getByRole("button", { name: /LONGBOW/ }).click();
+  await expect(composer.getByRole("button", { name: "ATTACK", exact: true })).toBeVisible();
+  await expect(composer.getByRole("button", { name: "RELOAD", exact: true })).toBeVisible();
+  await composer.getByRole("button", { name: "RELOAD", exact: true }).click();
+  await expect(composer.getByText(/SMALL SUPPLY:/)).toBeVisible();
+});
+
 test("public and authenticated shells do not overflow a 390px viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
 
@@ -97,13 +163,7 @@ test("public and authenticated shells do not overflow a 390px viewport", async (
   await expect(page.getByRole("heading", { name: "Every unit has a name. Every order has a cost." })).toBeVisible();
   await expectNoDocumentOverflow(page);
 
-  const campaignResponse = page.waitForResponse((candidate) => (
-    candidate.url().includes("/api/campaigns/outpost-k17/state") && candidate.request().method() === "GET"
-  ));
   await page.goto("/?view=campaigns");
-  const campaign = await campaignResponse;
-  expect(campaign.status()).toBe(200);
-  await expect(campaign.json()).resolves.toMatchObject({ campaignId: "outpost-k17" });
-  await expect(page.getByRole("region", { name: "Tactical operations map" })).toBeVisible();
+  await ensurePlayableK17(page);
   await expectNoDocumentOverflow(page);
 });

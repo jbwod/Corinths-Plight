@@ -49,7 +49,7 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 | Guided Battalion join/create/invite, starter unit and tour | implemented foundation | High | `worker/routes/onboarding.ts:60-90`; `src/components/GuidedOnboarding.tsx:192-243` | Local invitation limits/audit/outbox hardening exists; opt-out, production abuse evidence and the full organisation lifecycle remain CP-104/CP-206/CP-207. |
 | Force list/detail/history, unit/equipment purchase and loadout | partial | High | `worker/routes/forces.ts:114-177`; force/equipment services | D1/compiled split, no approved economy, UI false fronts/fallbacks and incomplete lifecycle: CP-200–CP-208. |
 | Deployment planning and commit | partial | High | `worker/routes/deployment.ts:49-86`; `worker/services/deployment.ts:335-445` | Demo IDs, no general scenario bootstrap, incomplete lift: CP-208/CP-400/CP-601. |
-| Tactical map and basic Hold/Advance/Rush/Attack | partial | High | `src/components/HexMap.tsx`; `packages/rules-engine/src/resolver.ts`; Campaign DO | The demo now resolves objective capture and a bounded four-round outcome, but bootstrap remains demo-bound and the composer/rules/journal remain narrow: CP-400–CP-507. |
+| Tactical map and executable composer | partial/playable | High | `src/App.tsx`; `src/components/HexMap.tsx`; generated tactical grammar; Campaign DO/resolver | Authenticated authored campaigns expose generated Hold/Advance/Rush and Attack/Reload/Load/Unload with server-derived costs and blockers. Broader combined-arms rules and accessible map alternative remain CP-500–CP-507/CP-702. |
 | Deterministic enemy orders | prototype | High | `worker/enemy-ai.ts:15-101` | Hard-coded nearest-target doctrine and `objective-outpost`; D1 enemy data unused: CP-506. |
 | Tactical persistent effects | partial/gated | High | `worker/campaign-durable-object.ts` effect applier and round finaliser | Supported D1 consequences now acknowledge before the next round opens and retry safely; PREPARED/crypto/collision/attempt coverage remains CP-402. |
 | Tactical realtime/report API | partial/unsafe | High | Campaign DO report endpoint; `src/components/CampaignReports.tsx` | Round detail is now visible and grouped, but broadcasts still leak identifiers, there is no catch-up/index/playback/export, and reports use current-state redaction: CP-403/CP-700. |
@@ -57,7 +57,7 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 | Strategic order submission | blocked | High | `worker/routes/strategic.ts:139-146` | Always `501 STRATEGIC_ORDER_EXECUTION_DEFERRED`: CP-302/CP-303. |
 | Strategic resolution | blocked | High | `worker/strategic-map-durable-object.ts:124-140` | Always `501 STRATEGIC_RESOLUTION_NOT_IMPLEMENTED`; no alarm/journal runtime: CP-302. |
 | Ship identity/modules/cargo/supply | partial/read-only | High | D1 schema and `GET /api/ships/primary`; `ShipView.tsx` | Acquisition/configuration/movement/transfers/combat deferred: CP-300/CP-301/CP-305. |
-| Campaign discovery/create/join/scenario authoring | missing | High | No public route; only `/api/campaigns/:id/*` proxy | CP-400/CP-401/CP-405. |
+| Campaign discovery/join | implemented foundation | High | `GET /api/campaigns` and idempotent `POST /api/campaigns/:id/join` drive the authenticated K-17 entry and deployment flow. Withdrawal, reinforcement administration and general authoring remain open. | CP-401/CP-405. |
 | Reports library/replay | partial UI and API | High | Report-by-round DO endpoint; `src/components/CampaignReports.tsx`; `src/campaign/reports.ts` | Local report selection/detail and terminal results work; index API, event-time redaction, playback/export and strategic consequences remain CP-403/CP-700. |
 | Multi-planet living war | missing end to end | High | One development strategic fixture; public mutations blocked | CP-302–CP-305/CP-600–CP-604. |
 | CI, preview, recovery, SLOs, legal/a11y/performance | missing release evidence | High | Config/docs/workflow inventory | CP-001–CP-107/CP-702/CP-800–CP-805. |
@@ -179,7 +179,7 @@ No public campaign directory/create/join/leave, profile/settings/session-managem
 | Landing registration/login/verification/logout | implemented foundation | Server-backed auth flow. Marketing copy overstates living-war readiness and must be narrowed until gates pass. |
 | Guided Battalion directory/code/create, invites, starter unit, tour | implemented foundation | Product-policy numbers/lore are not canonical rules. |
 | Tactical campaign selection | missing | App always uses `outpost-k17`. |
-| Tactical unit/route/facing/order/Attack | partial | Fixed demo context; only Attack authored although server handles a few more actions. |
+| Tactical unit/route/facing/order/actions | partial/playable | Campaign-selected composer exposes the exact generated executable orders and Attack/Reload/Load/Unload; paired cargo remains a two-order coordination flow and advanced rules are deferred. |
 | Tactical order cancel | missing UI | Backend exists. |
 | Tactical `MY UNITS/ALLIED`, `SURFACE/INTEL/SUPPLY` | inert prototype | Buttons have no handlers. |
 | Tactical non-foundation order types | catalogue-only | Disabled and marked soon. |
@@ -223,7 +223,7 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 ### Orders, actions, equipment and deployment
 
 - Compiled executable orders: Hold, Advance and Rush only.
-- Generated executable action grammar: Attack, Reload, Load and Unload; Scan and Drone are rejected until their visibility state effects exist. The tactical UI currently exposes only Attack.
+- Generated executable action grammar and tactical UI: Attack, Reload, Load and Unload; Scan and Drone are rejected and unadvertised until their visibility state effects exist.
 - D1 has 22 action definitions. CP-201 preserves their audit links but exposes only action/order types backed by a registered generated foundation handler; First Aid, MASH, artillery deployment/funnel, supply transfer, crew repair, flight operations, airdrop and sabotage remain non-executable end to end.
 - The executable equipment subset is narrow: Flak Vests and Light AT currently have proven handlers. Generated corrections fail closed on Optics and Drone Operator because their visibility effects are not implemented; Orbital Drop Training and the remaining items stay partial, blocked or hidden.
 - Standard, Vehicle, VTOL, HAT and Paradrop deployment rows are marked implemented, but planner/scenario/aerospace integration is incomplete; Orbital remains partial and unresolved.

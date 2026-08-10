@@ -50,13 +50,12 @@ async function joinCampaign(request: Request, env: Env, campaignId: string): Pro
       typeof record.commandId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/.test(record.commandId)) {
     return errorResponse(400, "INVALID_COMMAND", "Campaign join command is invalid.");
   }
-  const operation = "JOIN_CAMPAIGN";
   const requestHash = await commandHash({ campaignId, userId });
-  const prior = await env.DB.prepare(`SELECT operation,request_hash,response_json
-    FROM onboarding_command_receipts WHERE user_id=?1 AND command_id=?2 LIMIT 1`)
-    .bind(userId, record.commandId).first<{ operation: string; request_hash: string; response_json: string }>();
+  const prior = await env.DB.prepare(`SELECT campaign_id,request_hash,response_json
+    FROM campaign_join_receipts WHERE user_id=?1 AND command_id=?2 LIMIT 1`)
+    .bind(userId, record.commandId).first<{ campaign_id: string; request_hash: string; response_json: string }>();
   if (prior) {
-    if (prior.operation !== operation || prior.request_hash !== requestHash) {
+    if (prior.campaign_id !== campaignId || prior.request_hash !== requestHash) {
       return errorResponse(409, "COMMAND_ID_REUSED", "commandId was already used for a different command.");
     }
     return json(JSON.parse(prior.response_json));
@@ -70,15 +69,15 @@ async function joinCampaign(request: Request, env: Env, campaignId: string): Pro
         AND campaigns.map_source_key='fixture/outpost-k17'
         AND (SELECT COUNT(*) FROM campaign_memberships WHERE campaign_id=campaigns.id) < campaigns.maximum_players
       ON CONFLICT(campaign_id,user_id) DO NOTHING`).bind(userId, campaignId),
-    env.DB.prepare(`INSERT INTO onboarding_command_receipts
-      (user_id,command_id,operation,request_hash,response_json)
+    env.DB.prepare(`INSERT INTO campaign_join_receipts
+      (user_id,command_id,campaign_id,request_hash,response_json)
       SELECT ?1,?2,?3,?4,?5 WHERE EXISTS (
         SELECT 1 FROM campaign_memberships WHERE campaign_id=?6 AND user_id=?1)`)
-      .bind(userId, record.commandId, operation, requestHash, JSON.stringify(response), campaignId),
+      .bind(userId, record.commandId, campaignId, requestHash, JSON.stringify(response), campaignId),
   ]);
-  const committed = await env.DB.prepare(`SELECT response_json FROM onboarding_command_receipts
-    WHERE user_id=?1 AND command_id=?2 AND operation=?3 AND request_hash=?4 LIMIT 1`)
-    .bind(userId, record.commandId, operation, requestHash).first<{ response_json: string }>();
+  const committed = await env.DB.prepare(`SELECT response_json FROM campaign_join_receipts
+    WHERE user_id=?1 AND command_id=?2 AND campaign_id=?3 AND request_hash=?4 LIMIT 1`)
+    .bind(userId, record.commandId, campaignId, requestHash).first<{ response_json: string }>();
   if (!committed) return errorResponse(409, "CAMPAIGN_JOIN_UNAVAILABLE", "The campaign is full, closed, or your active Battalion is missing.");
   return json(JSON.parse(committed.response_json), { status: 201 });
 }

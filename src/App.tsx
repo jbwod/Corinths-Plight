@@ -12,6 +12,7 @@ import {
   FACING_LABELS,
   calculateRouteCost,
   createDemoCampaignState,
+  getTacticalActionRule,
   getTacticalOrderRule,
   getUnitClass,
   hexDistance,
@@ -70,6 +71,8 @@ interface CampaignDirectoryEntry {
   canJoin?: boolean;
 }
 type Notice = { tone: "info" | "success" | "danger"; message: string };
+type ComposerActionMode = "NONE" | "ATTACK" | "RELOAD" | "LOAD" | "UNLOAD";
+const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "RELOAD", "LOAD", "UNLOAD"];
 
 function initialCampaign(): CampaignView {
   const now = Date.now();
@@ -144,6 +147,8 @@ function GameApp() {
   const [draftedRoute, setDraftedRoute] = useState<AxialCoord[]>([{ q: -3, r: 1 }]);
   const [draftedFacing, setDraftedFacing] = useState<Facing>(2);
   const [targetUnitId, setTargetUnitId] = useState<string>();
+  const [supportTargetUnitId, setSupportTargetUnitId] = useState<string>();
+  const [actionMode, setActionMode] = useState<ComposerActionMode>("NONE");
   const [selectedWeaponId, setSelectedWeaponId] = useState<string>();
   const [scheduledRound, setScheduledRound] = useState(18);
   const [hovered, setHovered] = useState<{ coord?: AxialCoord; unit?: CampaignDeployment }>({});
@@ -256,8 +261,43 @@ function GameApp() {
     ownUnits.find((deployment) => deployment.id === selectedUnitId) ?? ownUnits.find((unit) => unit.status !== "DESTROYED");
   const selectedDefinition = selectedUnit ? getUnitClass(selectedUnit.definitionId) : undefined;
   const selectedAllowedOrders = selectedUnit?.allowedOrders ?? selectedDefinition?.allowedOrders ?? [];
+  const selectedAllowedActions = selectedUnit?.allowedActions ?? selectedDefinition?.allowedActions ?? [];
+  const executableComposerActions = composerActionModes.filter(
+    (type) => selectedAllowedActions.includes(type) && getTacticalActionRule(type).executable,
+  );
   const targetUnit = campaign.deployments.find((deployment) => deployment.id === targetUnitId);
-  const selectedWeapon = selectedUnit?.weapons.find((weapon) => weapon.id === selectedWeaponId) ?? selectedUnit?.weapons[0];
+  const reloadableWeapons = selectedUnit?.weapons.filter((weapon) =>
+    weapon.ammoCapacity !== undefined &&
+    (selectedUnit.ammunition[weapon.id] ?? 0) < weapon.ammoCapacity
+  ) ?? [];
+  const actionWeapons = actionMode === "RELOAD" ? reloadableWeapons : selectedUnit?.weapons ?? [];
+  const selectedWeapon = actionWeapons.find((weapon) => weapon.id === selectedWeaponId) ?? actionWeapons[0];
+  const coLocatedAllies = selectedUnit ? campaign.deployments.filter((deployment) =>
+    deployment.id !== selectedUnit.id &&
+    deployment.side === selectedUnit.side &&
+    deployment.status !== "DESTROYED" &&
+    coordinatesEqual(deployment.position, selectedUnit.position)
+  ) : [];
+  const loadTargets = selectedUnit
+    ? selectedUnit.cargoProfile
+      ? coLocatedAllies.filter((deployment) => (deployment.locationState ?? "ON_MAP") === "ON_MAP")
+      : coLocatedAllies.filter((deployment) => deployment.cargoProfile !== undefined)
+    : [];
+  const unloadTargets = selectedUnit
+    ? selectedUnit.cargoProfile
+      ? (selectedUnit.cargo ?? []).flatMap((item) => {
+          const deployment = item.unitId
+            ? campaign.deployments.find((candidate) => candidate.id === item.unitId)
+            : undefined;
+          return deployment ? [deployment] : [];
+        })
+      : campaign.deployments.filter((deployment) =>
+          deployment.cargoProfile !== undefined &&
+          deployment.cargo?.some((item) => item.unitId === selectedUnit.id)
+        )
+    : [];
+  const supportTargets = actionMode === "LOAD" ? loadTargets : actionMode === "UNLOAD" ? unloadTargets : [];
+  const supportTarget = supportTargets.find((deployment) => deployment.id === supportTargetUnitId) ?? supportTargets[0];
   const currentOrder = campaign.orders.find(
     (order) => order.unitId === selectedUnit?.id && order.round === scheduledRound && order.lifecycle !== "CANCELLED",
   );
@@ -287,16 +327,30 @@ function GameApp() {
   const lockCountdown = manualClock ? "operator controlled" : formatCountdown(campaign.clock.lockAt - now);
   const routeOverBudget = Boolean(selectedUnit && routeResult.total > selectedUnit.stats.speed);
   const targetOutOfRange = Boolean(
-    targetUnit && selectedWeapon && targetRange !== undefined && targetRange > selectedWeapon.range,
+    actionMode === "ATTACK" && targetUnit && selectedWeapon && targetRange !== undefined && targetRange > selectedWeapon.range,
   );
+  const actionReady =
+    actionMode === "NONE" ||
+    (actionMode === "ATTACK" && Boolean(targetUnit && selectedWeapon && orderType !== "RUSH" && !targetOutOfRange)) ||
+    (actionMode === "RELOAD" && Boolean(selectedWeapon && (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0)) ||
+    ((actionMode === "LOAD" || actionMode === "UNLOAD") && Boolean(supportTarget));
   const canSubmit = Boolean(
     selectedUnit &&
       selectedDefinition &&
       routeResult.legal &&
       !routeOverBudget &&
       !locked &&
-      (!targetUnit || (selectedWeapon && orderType !== "RUSH" && !targetOutOfRange)),
+      actionReady,
   );
+  const actionSummary = actionMode === "ATTACK" && targetUnit && selectedWeapon
+    ? `engage ${targetUnit.callsign} with ${selectedWeapon.name}`
+    : actionMode === "RELOAD" && selectedWeapon
+      ? `reload ${selectedWeapon.name} using one Small Supply`
+      : actionMode === "LOAD" && supportTarget
+        ? `coordinate loading with ${supportTarget.callsign}`
+        : actionMode === "UNLOAD" && supportTarget
+          ? `coordinate unloading with ${supportTarget.callsign}`
+          : undefined;
 
   useEffect(() => {
     if (!selectedUnit) return;
@@ -311,8 +365,18 @@ function GameApp() {
     setOrderType(order?.orderType ?? (getUnitClass(selectedUnit.definitionId).allowedOrders.includes("ADVANCE") ? "ADVANCE" : "HOLD"));
     setDraftedRoute(order?.route ?? [{ ...selectedUnit.position }]);
     setDraftedFacing(order?.facing ?? selectedUnit.facing);
-    setTargetUnitId(order?.targets[0]);
-    setSelectedWeaponId(order?.actions.find((action) => action.type === "ATTACK")?.weaponId ?? selectedUnit.weapons[0]?.id);
+    const storedAction = order?.actions[0];
+    const storedMode = storedAction && composerActionModes.includes(storedAction.type as Exclude<ComposerActionMode, "NONE">)
+      ? storedAction.type as ComposerActionMode
+      : "NONE";
+    setActionMode(storedMode);
+    setTargetUnitId(storedAction?.type === "ATTACK" ? storedAction.targetDeploymentId : undefined);
+    setSupportTargetUnitId(
+      storedAction?.type === "LOAD" || storedAction?.type === "UNLOAD"
+        ? storedAction.targetDeploymentId ?? (typeof storedAction.payload?.cargoDeploymentId === "string" ? storedAction.payload.cargoDeploymentId : undefined)
+        : undefined,
+    );
+    setSelectedWeaponId(storedAction?.weaponId ?? selectedUnit.weapons[0]?.id);
   }, [campaign.orders, scheduledRound, selectedUnit]);
 
   useEffect(() => {
@@ -335,6 +399,11 @@ function GameApp() {
       return;
     }
     if (unit?.side === "ENEMY") {
+      if (!executableComposerActions.includes("ATTACK")) {
+        setNotice({ tone: "danger", message: `${selectedUnit?.callsign ?? "This unit"} cannot perform an Attack action.` });
+        return;
+      }
+      setActionMode("ATTACK");
       setTargetUnitId(unit.id);
       setNotice({ tone: "info", message: `${unit.callsign} designated as the attack target.` });
       return;
@@ -357,14 +426,24 @@ function GameApp() {
 
   async function submitOrder(lifecycle: "DRAFT" | "SUBMITTED" = "SUBMITTED") {
     if (!campaignId || !selectedUnit || (lifecycle === "SUBMITTED" && !canSubmit)) return;
-    if (targetUnit && !selectedWeapon) return;
     const actions: Array<Partial<StructuredAction>> = [];
-    if (targetUnit && orderType !== "RUSH") {
+    if (actionMode === "ATTACK" && targetUnit && selectedWeapon && orderType !== "RUSH") {
       actions.push({
         type: "ATTACK",
         targetDeploymentId: targetUnit.id,
         targetHex: targetUnit.position,
         weaponId: selectedWeapon!.id,
+        equipmentIds: [],
+      });
+    } else if (actionMode === "RELOAD" && selectedWeapon) {
+      actions.push({ type: "RELOAD", weaponId: selectedWeapon.id, equipmentIds: [] });
+    } else if (actionMode === "LOAD" && supportTarget) {
+      actions.push({ type: "LOAD", targetDeploymentId: supportTarget.id, equipmentIds: [] });
+    } else if (actionMode === "UNLOAD" && supportTarget) {
+      actions.push({
+        type: "UNLOAD",
+        targetDeploymentId: supportTarget.id,
+        targetHex: selectedUnit.cargoProfile ? draftedRoute.at(-1) ?? selectedUnit.position : undefined,
         equipmentIds: [],
       });
     }
@@ -682,7 +761,10 @@ function GameApp() {
                       onClick={() => {
                         setOrderType(type as OrderType);
                         if (type === "HOLD") setDraftedRoute([{ ...selectedUnit.position }]);
-                        if (type === "RUSH") setTargetUnitId(undefined);
+                        if (type === "RUSH") {
+                          setTargetUnitId(undefined);
+                          if (actionMode === "ATTACK") setActionMode("NONE");
+                        }
                       }}
                     >{type.replaceAll("_", " ")}{!definition.executable ? " · SOON" : ""}</button>
                     );
@@ -707,8 +789,33 @@ function GameApp() {
               </section>
 
               <section className="composer-step">
-                <header><b>03</b><div><strong>Attack action</strong><small>Optional standard engagement</small></div></header>
-                {selectedUnit.weapons.length > 0 ? (
+                <header><b>03</b><div><strong>Tactical action</strong><small>Choose one server-supported action</small></div></header>
+                <div className="order-types action-types" aria-label="Tactical action">
+                  <button
+                    className={actionMode === "NONE" ? "active" : ""}
+                    onClick={() => {
+                      setActionMode("NONE");
+                      setTargetUnitId(undefined);
+                      setSupportTargetUnitId(undefined);
+                    }}
+                  >NO ACTION</button>
+                  {executableComposerActions.map((type) => (
+                    <button
+                      className={actionMode === type ? "active" : ""}
+                      key={type}
+                      disabled={type === "ATTACK" && orderType === "RUSH"}
+                      onClick={() => {
+                        setActionMode(type);
+                        if (type !== "ATTACK") setTargetUnitId(undefined);
+                        if (type === "RELOAD") setSelectedWeaponId(reloadableWeapons[0]?.id);
+                        setSupportTargetUnitId(
+                          type === "LOAD" ? loadTargets[0]?.id : type === "UNLOAD" ? unloadTargets[0]?.id : undefined,
+                        );
+                      }}
+                    >{type}</button>
+                  ))}
+                </div>
+                {actionMode === "ATTACK" && selectedUnit.weapons.length > 0 ? (
                   <>
                     <label className="field-label" htmlFor="weapon">WEAPON</label>
                     <select id="weapon" value={selectedWeapon?.id ?? ""} onChange={(event) => setSelectedWeaponId(event.target.value)} disabled={orderType === "RUSH"}>
@@ -722,12 +829,66 @@ function GameApp() {
                     {targetOutOfRange && <p className="validation danger">Target is beyond the selected weapon's range.</p>}
                     {orderType === "RUSH" && <p className="validation">Rush doubles received damage and forbids attacks.</p>}
                   </>
-                ) : <p className="validation">This unit has no active weapon profile. Use support actions in a later slice.</p>}
+                ) : actionMode === "ATTACK" ? (
+                  <p className="validation danger">This unit has no executable weapon profile.</p>
+                ) : actionMode === "RELOAD" ? (
+                  <>
+                    <label className="field-label" htmlFor="reload-weapon">WEAPON TO RELOAD</label>
+                    <select
+                      id="reload-weapon"
+                      value={selectedWeapon?.id ?? ""}
+                      onChange={(event) => setSelectedWeaponId(event.target.value)}
+                      disabled={reloadableWeapons.length === 0}
+                    >
+                      {reloadableWeapons.map((weapon) => (
+                        <option value={weapon.id} key={weapon.id}>
+                          {weapon.name} · {selectedUnit.ammunition[weapon.id] ?? 0}/{weapon.ammoCapacity} AMMO
+                        </option>
+                      ))}
+                    </select>
+                    <p className={`validation ${(selectedUnit.supplies?.SMALL_SUPPLY ?? 0) < 1 ? "danger" : ""}`}>
+                      SMALL SUPPLY: {selectedUnit.supplies?.SMALL_SUPPLY ?? 0} · reload consumes 1
+                    </p>
+                    {reloadableWeapons.length === 0 && <p className="validation">Every finite-ammo weapon is already full.</p>}
+                  </>
+                ) : actionMode === "LOAD" || actionMode === "UNLOAD" ? (
+                  <>
+                    <label className="field-label" htmlFor="cargo-target">
+                      {actionMode === "LOAD" ? "CARRIER / CARGO PARTNER" : "CARGO / CARRIER PARTNER"}
+                    </label>
+                    <select
+                      id="cargo-target"
+                      value={supportTarget?.id ?? ""}
+                      onChange={(event) => setSupportTargetUnitId(event.target.value)}
+                      disabled={supportTargets.length === 0}
+                    >
+                      {supportTargets.map((deployment) => (
+                        <option value={deployment.id} key={deployment.id}>
+                          {deployment.callsign} · {definitionLabel(deployment)}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="validation">
+                      {actionMode === "LOAD"
+                        ? "Carrier and cargo must be co-located and both submit matching Load actions."
+                        : "Carrier and embarked cargo must both submit matching Unload actions before lock."}
+                    </p>
+                    {supportTargets.length === 0 && (
+                      <p className="validation danger">
+                        No eligible {actionMode === "LOAD" ? "co-located loading partner" : "manifested cargo partner"} is available.
+                      </p>
+                    )}
+                  </>
+                ) : executableComposerActions.length === 0 ? (
+                  <p className="validation">This unit has no additional executable tactical actions.</p>
+                ) : (
+                  <p className="validation">Movement and facing only. Select an action when needed.</p>
+                )}
               </section>
 
               <div className="order-summary-card">
                 <span>AUTO-GENERATED ORDER</span>
-                <p><b>{selectedUnit.callsign}</b> will <b>{orderType.replaceAll("_", " ")}</b> to hex <b>{draftedRoute.at(-1)?.q}.{draftedRoute.at(-1)?.r}</b>, face <b>{FACING_LABELS[draftedFacing]}</b>{targetUnit ? <> and engage <b>{targetUnit.callsign}</b> with <b>{selectedWeapon?.name}</b></> : ""}.</p>
+                <p><b>{selectedUnit.callsign}</b> will <b>{orderType.replaceAll("_", " ")}</b> to hex <b>{draftedRoute.at(-1)?.q}.{draftedRoute.at(-1)?.r}</b>, face <b>{FACING_LABELS[draftedFacing]}</b>{actionSummary ? <> and <b>{actionSummary}</b></> : ""}.</p>
               </div>
               <div className="composer-actions">
                 <button className="secondary" disabled={busy || locked} onClick={() => void submitOrder("DRAFT")}>SAVE DRAFT</button>

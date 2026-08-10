@@ -21,7 +21,6 @@ export type CampaignAccessDecision =
   | { allowed: false; reason: "NOT_FOUND" | "FORBIDDEN" | "ROLE_UNSUPPORTED" };
 
 export const LOCAL_DEMO_CAMPAIGN_ID = "outpost-k17";
-export const LOCAL_DEMO_CAMPAIGN_IDS = new Set([LOCAL_DEMO_CAMPAIGN_ID, "operation-spearhead"]);
 const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
 const knownEnvironments = new Set(["development", "preview", "production"]);
 
@@ -148,11 +147,8 @@ export async function authorizeCampaign(
   campaignId: string,
   env: Env,
 ): Promise<CampaignAccessDecision> {
-  if (identity.kind === "DEMO") {
-    return demoAuthEnabled(env) && LOCAL_DEMO_CAMPAIGN_IDS.has(campaignId)
-      ? { allowed: true, viewer: identity.viewer }
-      : { allowed: false, reason: "NOT_FOUND" };
-  }
+  if (identity.kind === "DEMO" && !demoAuthEnabled(env)) return { allowed: false, reason: "NOT_FOUND" };
+  const userId = identity.kind === "DEMO" ? identity.viewer.userId : identity.userId;
 
   const row = await env.DB.prepare(
     `SELECT c.id AS campaign_id, m.side, m.role, m.battalion_id
@@ -160,12 +156,12 @@ export async function authorizeCampaign(
        LEFT JOIN campaign_memberships m
          ON m.campaign_id = c.id AND m.user_id = ?2
       WHERE c.id = ?1
-        AND c.status IN ('ACTIVE', 'PAUSED', 'COMPLETE', 'FAILED')
+        AND c.status IN ('RECRUITING', 'ACTIVE', 'PAUSED', 'COMPLETE', 'FAILED')
       LIMIT 1`,
   )
-    .bind(campaignId, identity.userId)
+    .bind(campaignId, userId)
     .first<CampaignMembershipRow>();
-  return campaignAccessFromRow(identity.userId, row);
+  return campaignAccessFromRow(userId, row);
 }
 
 export function internalViewerHeaders(viewer: ViewerContext): Headers {

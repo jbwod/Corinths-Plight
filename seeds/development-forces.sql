@@ -416,5 +416,5 @@ INSERT INTO battlegroup_units (battlegroup_id, player_unit_id, delegated_command
 SELECT 'battlegroup-hammer', id, 0
   FROM player_units
  WHERE owner_id = 'demo-user'
-   AND id IN ('force-raven-2', 'force-anvil', 'force-carrier-6', 'force-bellator')
+   AND id IN ('force-raven-2', 'force-anvil', 'force-longbow', 'force-nomad', 'force-carrier-6', 'force-bellator')
 ON CONFLICT(battlegroup_id, player_unit_id) DO UPDATE SET delegated_command = 0;

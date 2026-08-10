@@ -40,7 +40,7 @@ This is the live release checklist. A checked local build item is not permission
 | `npm test` | local | PASS | Vitest 4.1.10; 48 files / 335 tests. |
 | `npm run build` | local development config | PASS | Worker 969.77 kB; client JS 431.21 kB; CSS 129.97 kB; Wrangler emitted only its known sandboxed debug-log warning. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
-| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0008 applied. |
+| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0009 applied. |
 | Seven seeds, twice | same isolated D1 | PASS | Core, Phase 2, equipment, onboarding and three development fixtures replayed twice. |
 | SQLite integrity | isolated D1 database | PASS | `integrity_check=ok`; `foreign_key_check` empty. |
 | `npm run ci:verify:d1` | isolated local D1 | PASS | Eight migrations; seven seeds twice; stable table fingerprints/counts; 115 checked application tables. |
@@ -85,6 +85,7 @@ The workflow is a Phase-0 baseline, not a complete release pipeline. Official ac
 | 0006 | `0006_production_identity.sql` | Email challenges, throttling and auth audit | pass |
 | 0007 | `0007_guided_onboarding_and_battalions.sql` | Onboarding policies/progress/receipts and recruitment/invites | pass |
 | 0008 | `0008_auth_retention_and_invitation_abuse.sql` | Auth/invitation retention, abuse audit/rate state and durable invitation delivery | local pass; not deployed |
+| 0009 | `0009_campaign_join_receipts.sql` | Campaign-owned join receipts and deployable starter-Battlegroup backfill | local pass; not deployed |
 
 ### Production-approved seed families
 
@@ -151,14 +152,14 @@ No external state was changed during this Phase-0 assessment.
 | Public-v1 loop | Status | Blocking IDs |
 |---|---:|---|
 | Register, verify, sign in, sign out | foundation implemented | CP-102/CP-103 operational completion |
-| Guided join/create Battalion and starter unit | foundation implemented | CP-104/CP-206 for mature operation |
+| Guided join/create Battalion and deployable starter unit | foundation implemented | CP-104/CP-206 for mature operation |
 | Obtain/purchase approved mixed force | blocked/partial | CP-200–CP-203; DEC-001–DEC-004 |
 | Equip/refit/readiness/history/icons | partial | CP-204/CP-205/DEC-017/DEC-018 |
 | Battalion/Battlegroup organise/delegate | partial/read-only | CP-206/CP-207 |
 | Own/configure/embark ship | read-only/blocked | CP-300/CP-301/DEC-010 |
 | Submit/resolve strategic travel to another planet | blocked/501 | CP-302–CP-304/DEC-005 |
 | Choose operation and create scenario campaign | missing | CP-400/CP-401/CP-601 |
-| Submit/edit/cancel/schedule tactical orders | partial | CP-406 and general campaign UI |
+| Submit/edit/cancel/schedule tactical orders | partial | Current-round generated order/action composer and cancel path exist; future scheduling remains intentionally unavailable pending its reliable semantics. |
 | Resolve deterministic PvE combined arms | narrow partial | CP-500–CP-507 |
 | Persist effects before next round | narrow pass | Supported tactical effects hold `EFFECTS_PENDING` and acknowledge before one next round; broaden under CP-402. |
 | Audience-safe reconnect/report/replay | partial/fail | A local report-detail UI consumes projected round events, but event-time redaction, reconnect catch-up, index/playback/export and browser evidence remain CP-403/CP-700. |

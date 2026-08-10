@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "test:browser": "playwright test",
     "test:browser:ui": "playwright test --ui",
-    "test:browser:serve": "WRANGLER_WRITE_LOGS=false npm run db:migrate:local && WRANGLER_WRITE_LOGS=false npm run db:seed:local && WRANGLER_WRITE_LOGS=false npm run db:seed:demo:local && vite --host 127.0.0.1 --port 4173 --strictPort",
+    "test:browser:serve": "node --import tsx scripts/prepare-browser-d1.ts && CORINTH_BROWSER_PERSIST_PATH=.wrangler/browser-test-state vite --host 127.0.0.1 --port 4173 --strictPort",
     "ci:verify:d1": "node --import tsx scripts/verify-d1-ci.ts",
     "check:production-config": "node -e \"const fs=require('node:fs');const config=fs.readFileSync('wrangler.jsonc','utf8');if(config.includes('00000000-0000-0000-0000-000000000003')){console.error('Production deploy blocked: replace the placeholder D1 database ID in wrangler.jsonc.');process.exit(1)}if(process.env.CORINTH_RELEASE_APPROVED!=='true'){console.error('Production deploy blocked: migration/runtime verification and explicit CORINTH_RELEASE_APPROVED=true are required.');process.exit(1)}\"",
     "deploy": "npm run check:production-config && npm run build:production && wrangler deploy --env production",
