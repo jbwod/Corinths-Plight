@@ -3,6 +3,11 @@ import type { CSSProperties } from "react";
 import type {
   AbilityRef,
   AvailabilityStatus,
+  BattlegroupManagementGroupDto,
+  BattlegroupManagementProjectionDto,
+  BattlegroupManagementUnitDto,
+  BattalionMemberDto,
+  BattlegroupMutationResultDto,
   ForceBattlegroupSummaryDto,
   ForceSummaryDto,
   FriendlyUnitInspectionDto,
@@ -348,6 +353,147 @@ function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClos
   </dialog>;
 }
 
+function BattlegroupDialog({
+  units,
+  selectedUnit,
+  onClose,
+  onChanged,
+}: {
+  units: ForceUnitView[];
+  selectedUnit?: ForceUnitView;
+  onClose: () => void;
+  onChanged: (message: string) => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [groups, setGroups] = useState<BattlegroupManagementGroupDto[]>([]);
+  const [roster, setRoster] = useState<BattlegroupManagementUnitDto[]>([]);
+  const [members, setMembers] = useState<BattalionMemberDto[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState("");
+  const [name, setName] = useState("");
+  const [callsign, setCallsign] = useState("");
+  const [objective, setObjective] = useState("");
+  const [leaderUserId, setLeaderUserId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  const selectedGroup = groups.find((group) => group.id === selectedGroupId);
+  const selectedMembership = selectedUnit
+    ? roster.find((entry) => entry.unitId === selectedUnit.unitId)
+    : undefined;
+  const groupUnits = roster.filter((entry) => entry.battlegroupId === selectedGroupId);
+
+  useEffect(() => {
+    const dialog = ref.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
+
+  const refresh = useCallback(async (preferredId?: string) => {
+    const headers = { "x-demo-user": DEMO_USER };
+    const [groupsResponse, membersResponse] = await Promise.all([
+      fetch("/api/battlegroups", { headers }),
+      fetch("/api/battalions/current/members", { headers }),
+    ]);
+    if (!groupsResponse.ok || !membersResponse.ok) throw new Error(`Battlegroup registry request failed (${groupsResponse.status || membersResponse.status}).`);
+    const next = await groupsResponse.json() as BattlegroupManagementProjectionDto;
+    const memberPayload = await membersResponse.json() as { members: BattalionMemberDto[] };
+    setGroups(next.battlegroups);
+    setRoster(next.units);
+    setMembers(memberPayload.members.filter((member) => member.status === "ACTIVE"));
+    const nextSelection = next.battlegroups.find((group) => group.id === preferredId) ?? next.battlegroups[0];
+    setSelectedGroupId(nextSelection?.id ?? "");
+    if (nextSelection) {
+      setName(nextSelection.name);
+      setCallsign(nextSelection.callsign);
+      setObjective(nextSelection.objective);
+      setLeaderUserId(nextSelection.leaderUserId ?? "");
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void refresh().catch((reason) => setError(reason instanceof Error ? reason.message : "Battlegroup registry unavailable."));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [refresh]);
+
+  function selectGroup(group: BattlegroupManagementGroupDto) {
+    setSelectedGroupId(group.id);
+    setName(group.name);
+    setCallsign(group.callsign);
+    setObjective(group.objective);
+    setLeaderUserId(group.leaderUserId ?? "");
+    setError(undefined);
+  }
+
+  async function post(path: string, value: Record<string, unknown>): Promise<BattlegroupMutationResultDto> {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-demo-user": DEMO_USER },
+      body: JSON.stringify(value),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({})) as { error?: { message?: string } };
+      throw new Error(payload.error?.message ?? `Battlegroup command failed (${response.status}).`);
+    }
+    return response.json() as Promise<BattlegroupMutationResultDto>;
+  }
+
+  async function mutate(work: () => Promise<BattlegroupMutationResultDto>, success: string) {
+    setBusy(true); setError(undefined);
+    try {
+      const result = await work();
+      await refresh(result.battlegroupId);
+      onChanged(success);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Battlegroup command failed.");
+    } finally { setBusy(false); }
+  }
+
+  function beginCreate() {
+    setSelectedGroupId("");
+    setName(""); setCallsign(""); setObjective(""); setLeaderUserId(""); setError(undefined);
+  }
+
+  const assignedHere = selectedMembership?.battlegroupId === selectedGroupId;
+  const leader = members.find((member) => member.userId === leaderUserId);
+  const assignedViews = groupUnits.map((entry) => ({ entry, unit: units.find((unit) => unit.unitId === entry.unitId) }));
+
+  return <dialog ref={ref} className="battlegroup-dialog" aria-labelledby="battlegroup-dialog-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
+    <header><div><span className="eyebrow">PERSISTENT FORMATION COMMAND</span><h2 id="battlegroup-dialog-title">Battlegroup management</h2></div><button aria-label="Close Battlegroup management" onClick={onClose}>×</button></header>
+    <div className="battlegroup-manager">
+      <nav aria-label="Battlegroups">
+        <button className={!selectedGroupId ? "selected" : ""} onClick={beginCreate}>＋ NEW BATTLEGROUP</button>
+        {groups.map((group) => <button className={group.id === selectedGroupId ? "selected" : ""} key={group.id} onClick={() => selectGroup(group)}><strong>{group.callsign}</strong><span>{group.name}</span><small>{group.status} · R{group.revision}</small></button>)}
+      </nav>
+      <section className="battlegroup-editor">
+        <div className="battlegroup-fields">
+          <label>FORMATION NAME<input value={name} maxLength={64} onChange={(event) => setName(event.target.value)} placeholder="e.g. Raven Battlegroup" /></label>
+          <label>CALLSIGN<input value={callsign} maxLength={16} onChange={(event) => setCallsign(event.target.value.toUpperCase())} placeholder="RAVEN" /></label>
+          <label className="wide">MISSION / OBJECTIVE<textarea value={objective} maxLength={240} onChange={(event) => setObjective(event.target.value)} placeholder="Persistent formation intention" /></label>
+          {selectedGroup && <label className="wide">FORMATION LEADER<select value={leaderUserId} onChange={(event) => setLeaderUserId(event.target.value)}><option value="">Unassigned</option>{members.map((member) => <option key={member.userId} value={member.userId}>{member.callsign} · {member.displayName}</option>)}</select></label>}
+        </div>
+        <div className="battlegroup-command-row">
+          {!selectedGroup ? <button className="primary" disabled={busy || name.trim().length < 3 || callsign.trim().length < 2} onClick={() => void mutate(() => post("/api/battlegroups", { commandId: crypto.randomUUID(), name, callsign, objective }), "Battlegroup created." )}>CREATE FORMATION</button>
+            : <button className="primary" disabled={busy} onClick={() => void mutate(() => post(`/api/battlegroups/${encodeURIComponent(selectedGroup.id)}/update`, { commandId: crypto.randomUUID(), expectedRevision: selectedGroup.revision, name, callsign, objective, leaderUserId: leaderUserId || null }), "Battlegroup command record updated.")}>SAVE COMMAND RECORD</button>}
+        </div>
+        {selectedGroup && <div className="battlegroup-roster-editor">
+          <header><div><span className="eyebrow">LIVE ROSTER</span><h3>{groupUnits.length} assigned units</h3></div><span>{leader ? `LEADER // ${leader.callsign}` : "LEADER UNASSIGNED"}</span></header>
+          <div className="battlegroup-roster-list">
+            {assignedViews.map(({ entry, unit }) => <article key={entry.unitId}><div><strong>{unit?.callsign ?? entry.unitId}</strong><small>{unit?.className ?? "Persistent unit"}</small></div><span>{entry.delegatedCommand ? "ORDER AUTHORITY DELEGATED" : entry.ownerId === leaderUserId ? "OWNER COMMAND" : "OWNER AUTHORITY"}</span>{selectedUnit?.unitId === entry.unitId && <button disabled={busy} onClick={() => void mutate(() => post(`/api/battlegroups/${encodeURIComponent(selectedGroup.id)}/units/remove`, { commandId: crypto.randomUUID(), expectedRevision: selectedGroup.revision, unitId: entry.unitId }), `${unit?.callsign ?? "Unit"} removed from ${selectedGroup.callsign}.`)}>REMOVE</button>}</article>)}
+            {!assignedViews.length && <p>No units assigned. Add an operational reserve unit to make this formation ready.</p>}
+          </div>
+          {selectedUnit && <div className="selected-unit-command"><div><span className="eyebrow">SELECTED FORCE UNIT</span><strong>{selectedUnit.callsign}</strong><small>{selectedUnit.className} · {selectedUnit.locationState}</small></div>
+            {!selectedMembership && <button disabled={busy || !["RESERVE", "ON_SHIP"].includes(selectedUnit.locationState)} onClick={() => void mutate(() => post(`/api/battlegroups/${encodeURIComponent(selectedGroup.id)}/units/assign`, { commandId: crypto.randomUUID(), expectedRevision: selectedGroup.revision, unitId: selectedUnit.unitId }), `${selectedUnit.callsign} assigned to ${selectedGroup.callsign}.`)}>ASSIGN TO {selectedGroup.callsign}</button>}
+            {assignedHere && leaderUserId && <button disabled={busy} onClick={() => void mutate(() => post(`/api/battlegroups/${encodeURIComponent(selectedGroup.id)}/delegations`, { commandId: crypto.randomUUID(), expectedRevision: selectedGroup.revision, unitId: selectedUnit.unitId, delegateUserId: leaderUserId, active: !selectedMembership.delegatedCommand }), `${selectedUnit.callsign} order delegation ${selectedMembership.delegatedCommand ? "revoked" : "granted"}.`)}>{selectedMembership.delegatedCommand ? "REVOKE LEADER AUTHORITY" : "DELEGATE TO LEADER"}</button>}
+            {selectedMembership && !assignedHere && <small>Currently assigned to another Battlegroup. Remove it there before reassignment.</small>}
+          </div>}
+        </div>}
+        {error && <p className="battlegroup-manager-error" role="alert">{error}</p>}
+      </section>
+    </div>
+  </dialog>;
+}
+
 function normalizeInspection(payload: unknown, summary: ForceUnitView): ForceUnitView {
   const outer = asRecord(payload) ?? {};
   const record = asRecord(outer.unit) ?? asRecord(outer.force) ?? asRecord(outer.inspection) ?? outer;
@@ -668,6 +814,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
   const [detailLoading, setDetailLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loadoutOpen, setLoadoutOpen] = useState(false);
+  const [battlegroupOpen, setBattlegroupOpen] = useState(false);
   const [requisitionBalance, setRequisitionBalance] = useState<number | null>(null);
   const [registryNote, setRegistryNote] = useState("Connecting to the owner-scoped force registry…");
 
@@ -893,7 +1040,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
           <div className="battlegroup-stack">
             {battlegroupUnits.map((unit) => <button key={unit.unitId} onClick={() => void inspect(unit)}><span className={`force-marker small role-${unit.role.toLowerCase()}`}>{markerCode(unit)}</span><span><strong>{unit.callsign}</strong><small>{unit.className}</small></span><b className={unit.readiness?.ready ? "ready" : "blocked"}>{unit.readiness?.ready ? "READY" : "CHECK"}</b></button>)}
           </div>
-          <button className="formation-action" disabled={!activeBattlegroup} onClick={() => onNotice({ tone: "info", message: `Battlegroup ${activeBattlegroup?.name ?? "selection"} is selected for planning filters; campaign deployment mutation remains server-authoritative.` })}>SHOW IN OPERATIONS</button>
+          <button className="formation-action" disabled={mode !== "LIVE"} onClick={() => setBattlegroupOpen(true)}>MANAGE BATTLEGROUPS</button>
         </section>
         <section className="readiness-card">
           <header><span className="eyebrow">DEPLOYMENT GATE</span><h2>{selectedUnit?.readiness?.ready ? "Ready to deploy" : "Readiness check"}</h2></header>
@@ -918,6 +1065,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
 
       {drawerOpen && <RequisitionDialog catalogue={catalogue} live={mode === "LIVE"} requisitionBalance={requisitionBalance} onClose={() => setDrawerOpen(false)} onPurchased={(unit) => { setUnits((current) => [unit, ...current]); setSelectedUnitId(unit.unitId); setDrawerOpen(false); onNotice({ tone: "success", message: `${unit.callsign} added to your persistent force.` }); void loadForces(true); }} />}
       {loadoutOpen && selectedUnit && <LoadoutDialog unit={selectedUnit} onClose={() => setLoadoutOpen(false)} onSaved={() => { onNotice({ tone: "success", message: `${selectedUnit.callsign} effective loadout committed.` }); void inspect(selectedUnit); }} />}
+      {battlegroupOpen && <BattlegroupDialog units={units} selectedUnit={selectedUnit} onClose={() => setBattlegroupOpen(false)} onChanged={(message) => { onNotice({ tone: "success", message }); void loadForces(true); }} />}
     </main>
   );
 }

@@ -73,6 +73,8 @@ The 33rd Expeditionary fixture has configurable Commander, Operations Officer, a
 
 A Battlegroup is a persistent deployable ground formation. Its Phase 3 strategic fields are callsign, status, node, operation, carrier Task Force, revision, and update time. Its existing leader is a coordinator, not an owner.
 
+The CP-207 management slice is live through Forces. Active members with the published formation permissions can create a formation, edit its identity/mission/leader, and assign or remove operational reserve/shipboard units. A unit has one current Battlegroup. Aerospace may attach but does not make an otherwise aerospace-only group READY; orbital units fail closed. Deployed, embarked, or moving groups cannot be reorganised.
+
 ```text
 Player Unit owner ── player_units.owner_id
 Battlegroup assignment ── battlegroup_units
@@ -86,6 +88,8 @@ Aerospace support may be attached to a Battlegroup, but a Battlegroup composed o
 ## 7. Explicit order delegation
 
 `unit_order_delegations` grants a named Battalion member order authority for one owner-controlled Player Unit. It can be scoped to a Battlegroup, campaign, or time window. It records start/end/revocation, optimistic revision, actor-scoped command ID, and request hash.
+
+Formation assignment never grants that authority. The unit owner must explicitly grant or revoke it in the management view; the UI and API expose the two states separately.
 
 Composite foreign keys ensure:
 

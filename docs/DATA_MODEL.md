@@ -2,7 +2,7 @@
 
 **Status:** Phase-0 reconciled implemented schema/use plus target deltas (2026-08-10)
 
-**Scope:** D1 migrations `0001`–`0010`, all production/development seed files, current Campaign Durable Object storage, and the Phase 3 Strategic Map coordination boundary
+**Scope:** D1 migrations `0001`–`0011`, all production/development seed files, current Campaign Durable Object storage, and the Phase 3 Strategic Map coordination boundary
 
 ## 1. Authority and status
 
@@ -134,6 +134,7 @@ Migration 0004 adds `users.last_active_at`, `profiles.timezone`, Battalion short
 | `battalion_invites` | Persistent invitation lifecycle, Battalion-local rank, inviter/invitee, expiry, revision, request hash, inviter-scoped command ID, Resend delivery ID, and delivery status. One pending invite per Battalion/User. |
 | `user_active_battalions` | One explicit operational Battalion per User; composite membership FK plus triggers requiring/retaining only an active membership. |
 | `unit_order_delegations` | Owner-preserving per-unit order authority scoped to Battlegroup, campaign, or time window; owner/member composite FKs, revision, request hash, and owner-scoped command ID. |
+| `battlegroup_mutation_receipts` | Actor-scoped exact-once receipts for formation identity, roster, and delegation commands. Migration `0011` also adds a compare-and-set mutation token, one-current-formation unit uniqueness, and one-active-Battlegroup-delegation uniqueness. |
 
 ### 3.8 Guided enlistment and recruitment
 

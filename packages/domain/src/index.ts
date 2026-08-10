@@ -1516,6 +1516,77 @@ export interface BattlegroupDto extends BattlegroupSummaryDto {
   units: BattlegroupUnitSummaryDto[];
 }
 
+export interface BattlegroupManagementDto {
+  battlegroup: BattlegroupSummaryDto;
+  units: BattlegroupUnitSummaryDto[];
+  delegatedUnitIds: string[];
+}
+
+export interface CreateBattlegroupCommand {
+  commandId: string;
+  name: string;
+  callsign: string;
+  objective: string;
+}
+
+export interface UpdateBattlegroupCommand {
+  commandId: string;
+  expectedRevision: number;
+  name: string;
+  callsign: string;
+  objective: string;
+  leaderUserId: string | null;
+}
+
+export interface AssignBattlegroupUnitCommand {
+  commandId: string;
+  expectedRevision: number;
+  unitId: string;
+}
+
+export type RemoveBattlegroupUnitCommand = AssignBattlegroupUnitCommand;
+
+export interface SetBattlegroupDelegationCommand extends AssignBattlegroupUnitCommand {
+  delegateUserId: string;
+  active: boolean;
+}
+
+export interface BattlegroupMutationResultDto {
+  operation:
+    | "CREATE_BATTLEGROUP"
+    | "UPDATE_BATTLEGROUP"
+    | "ASSIGN_BATTLEGROUP_UNIT"
+    | "REMOVE_BATTLEGROUP_UNIT"
+    | "SET_BATTLEGROUP_DELEGATION";
+  battlegroupId: string;
+  revision: number;
+  unitId?: string;
+  delegateUserId?: string;
+  delegationActive?: boolean;
+}
+
+export interface BattlegroupManagementGroupDto {
+  id: string;
+  name: string;
+  callsign: string;
+  objective: string;
+  leaderUserId: string | null;
+  status: BattlegroupStatus;
+  revision: number;
+}
+
+export interface BattlegroupManagementUnitDto {
+  battlegroupId: string;
+  unitId: string;
+  ownerId: string;
+  delegatedCommand: boolean;
+}
+
+export interface BattlegroupManagementProjectionDto {
+  battlegroups: BattlegroupManagementGroupDto[];
+  units: BattlegroupManagementUnitDto[];
+}
+
 export type ShipStatus =
   | "DOCKED"
   | "ORBIT"

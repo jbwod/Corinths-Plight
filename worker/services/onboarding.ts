@@ -341,8 +341,15 @@ export async function createBattalion(env: Env, userId: string, command: CreateB
       .bind(commanderRankId, battalionId, now, recruitRankId),
     env.DB.prepare(`INSERT INTO rank_permissions (rank_id,permission)
       SELECT ?1,permission FROM battalion_permission_definitions
-      WHERE permission IN ('BATTALION_EDIT','MEMBER_INVITE') AND implementation_status='ACTIVE'`)
+      WHERE permission IN (
+        'BATTALION_EDIT','MEMBER_INVITE',
+        'BATTLEGROUP_CREATE','BATTLEGROUP_EDIT','BATTLEGROUP_ASSIGN'
+      ) AND implementation_status='ACTIVE'`)
       .bind(commanderRankId),
+    env.DB.prepare(`INSERT INTO rank_permissions (rank_id,permission)
+      SELECT ?1,permission FROM battalion_permission_definitions
+      WHERE permission IN ('BATTLEGROUP_CREATE','BATTLEGROUP_EDIT','BATTLEGROUP_ASSIGN')
+        AND implementation_status='ACTIVE'`).bind(recruitRankId),
     env.DB.prepare(`INSERT INTO battalion_memberships (
         battalion_id,user_id,rank_id,status,command_role,joined_at,status_changed_at,revision,updated_at
       ) SELECT ?1,?2,?3,'ACTIVE','BATTALION_COMMAND',?4,?4,1,?4

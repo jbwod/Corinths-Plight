@@ -13,6 +13,9 @@ ON CONFLICT(id) DO UPDATE SET
 INSERT INTO battalion_permission_definitions (permission, description, implementation_status) VALUES
   ('BATTALION_EDIT', 'Edit Battalion public identity and recruitment configuration.', 'ACTIVE'),
   ('MEMBER_INVITE', 'Invite a player to the Battalion.', 'ACTIVE'),
+  ('BATTLEGROUP_CREATE', 'Create a persistent Battlegroup.', 'ACTIVE'),
+  ('BATTLEGROUP_EDIT', 'Edit a Battlegroup identity, objective, and leader.', 'ACTIVE'),
+  ('BATTLEGROUP_ASSIGN', 'Assign eligible persistent units to a Battlegroup.', 'ACTIVE'),
   ('SHIP_VIEW', 'View Battalion ship and module state.', 'ACTIVE')
 ON CONFLICT(permission) DO UPDATE SET
   description = excluded.description,
@@ -62,6 +65,21 @@ INSERT INTO rank_permissions (rank_id, permission) VALUES
   ('rank-npc-support-command', 'MEMBER_INVITE'),
   ('rank-npc-nightwatch-command', 'BATTALION_EDIT'),
   ('rank-npc-nightwatch-command', 'MEMBER_INVITE')
+ON CONFLICT(rank_id, permission) DO NOTHING;
+
+INSERT INTO rank_permissions (rank_id, permission)
+SELECT ranks.id, permissions.permission
+  FROM battalion_ranks AS ranks
+  CROSS JOIN (
+    SELECT 'BATTLEGROUP_CREATE' AS permission
+    UNION ALL SELECT 'BATTLEGROUP_EDIT'
+    UNION ALL SELECT 'BATTLEGROUP_ASSIGN'
+  ) AS permissions
+ WHERE ranks.id IN (
+   'rank-npc-corinth-line-recruit',
+   'rank-npc-support-recruit',
+   'rank-npc-nightwatch-recruit'
+ )
 ON CONFLICT(rank_id, permission) DO NOTHING;
 
 INSERT INTO battalion_memberships (
