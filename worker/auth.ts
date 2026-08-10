@@ -21,6 +21,7 @@ export type CampaignAccessDecision =
   | { allowed: false; reason: "NOT_FOUND" | "FORBIDDEN" | "ROLE_UNSUPPORTED" };
 
 export const LOCAL_DEMO_CAMPAIGN_ID = "outpost-k17";
+export const LOCAL_DEMO_CAMPAIGN_IDS = new Set([LOCAL_DEMO_CAMPAIGN_ID, "operation-spearhead"]);
 const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
 const knownEnvironments = new Set(["development", "preview", "production"]);
 
@@ -139,7 +140,7 @@ export async function authorizeCampaign(
   env: Env,
 ): Promise<CampaignAccessDecision> {
   if (identity.kind === "DEMO") {
-    return demoAuthEnabled(env) && campaignId === LOCAL_DEMO_CAMPAIGN_ID
+    return demoAuthEnabled(env) && LOCAL_DEMO_CAMPAIGN_IDS.has(campaignId)
       ? { allowed: true, viewer: identity.viewer }
       : { allowed: false, reason: "NOT_FOUND" };
   }

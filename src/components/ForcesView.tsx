@@ -254,6 +254,100 @@ function normalizeSummary(value: unknown, catalogue: Map<string, ForceCatalogueV
   };
 }
 
+type LoadoutPayload = {
+  unitId: string;
+  unitVersion: number;
+  loadout: { id: string; revision: number; status: string; lockedAt: number | null; items: Array<{ inventoryId: string; definitionId: string; name: string; slotType: string; slotIndex: number }> };
+  slots: Record<string, number>;
+  validation: { valid: boolean; errors: Array<{ code: string; message: string }> };
+  ownedEquipment: Array<{ inventoryId: string; definitionId: string; name: string; assignedUnitId?: string; state: string; implementationStatus: string; executable: boolean; allowedSlots: string[] }>;
+};
+
+function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClose: () => void; onSaved: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [payload, setPayload] = useState<LoadoutPayload>();
+  const [items, setItems] = useState<LoadoutPayload["loadout"]["items"]>([]);
+  const [eligible, setEligible] = useState<Array<{ id: string; name: string; requisition_cost: number | null; implementation_status: string; requisition_status: string; availability_status: string }>>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  useEffect(() => {
+    const dialog = ref.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
+  const refresh = useCallback(() => {
+    let cancelled = false;
+    void Promise.all([
+      fetch(`/api/forces/${encodeURIComponent(unit.unitId)}/loadout`, { headers: { "x-demo-user": DEMO_USER } }),
+      fetch(`/api/forces/${encodeURIComponent(unit.unitId)}/eligible-equipment`, { headers: { "x-demo-user": DEMO_USER } }),
+    ])
+      .then(async ([loadoutResponse, eligibleResponse]) => {
+        if (!loadoutResponse.ok) throw new Error(errorMessage(loadoutResponse.status));
+        const next = await loadoutResponse.json() as LoadoutPayload;
+        const eligiblePayload = eligibleResponse.ok ? await eligibleResponse.json() as { equipment?: typeof eligible } : {};
+        return { next, nextEligible: eligiblePayload.equipment ?? [] };
+      })
+      .then(({ next, nextEligible }) => { if (!cancelled) { setPayload(next); setItems(next.loadout.items); setEligible(nextEligible); } })
+      .catch((reason) => { if (!cancelled) setError(reason instanceof Error ? reason.message : "Loadout unavailable."); });
+    return () => { cancelled = true; };
+  }, [unit.unitId]);
+  useEffect(() => refresh(), [refresh]);
+  function toggle(equipment: LoadoutPayload["ownedEquipment"][number]) {
+    const existing = items.find((item) => item.inventoryId === equipment.inventoryId);
+    if (existing) { setItems((current) => current.filter((item) => item.inventoryId !== equipment.inventoryId)); return; }
+    const allowed = equipment.allowedSlots.map((slot) => slot.toUpperCase());
+    for (const slotType of allowed) {
+      const capacity = payload?.slots[slotType] ?? 0;
+      for (let slotIndex = 0; slotIndex < capacity; slotIndex += 1) {
+        if (!items.some((item) => item.slotType === slotType && item.slotIndex === slotIndex)) {
+          setItems((current) => [...current, { inventoryId: equipment.inventoryId, definitionId: equipment.definitionId, name: equipment.name, slotType, slotIndex }]);
+          return;
+        }
+      }
+    }
+    setError(`${equipment.name} has no compatible free slot.`);
+  }
+  async function save() {
+    if (!payload || busy) return;
+    setBusy(true); setError(undefined);
+    try {
+      const response = await fetch(`/api/forces/${encodeURIComponent(unit.unitId)}/loadout-changes`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-demo-user": DEMO_USER },
+        body: JSON.stringify({
+          commandId: crypto.randomUUID(), expectedVersion: payload.unitVersion,
+          expectedLoadoutRevision: payload.loadout.revision, context: "PRE_CAMPAIGN_MUSTER",
+          campaignId: "operation-spearhead",
+          items: items.map(({ inventoryId, slotType, slotIndex }) => ({ inventoryId, slotType, slotIndex })),
+        }),
+      });
+      if (!response.ok) throw new Error(errorMessage(response.status));
+      onSaved(); onClose();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Loadout update failed."); }
+    finally { setBusy(false); }
+  }
+  async function requisition(definitionId: string) {
+    setBusy(true); setError(undefined);
+    try {
+      const response = await fetch("/api/requisition/equipment-purchases", {
+        method: "POST", headers: { "content-type": "application/json", "x-demo-user": DEMO_USER },
+        body: JSON.stringify({ commandId: crypto.randomUUID(), definitionId, developerOverride: false }),
+      });
+      if (!response.ok) throw new Error(errorMessage(response.status));
+      refresh();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Equipment requisition failed."); }
+    finally { setBusy(false); }
+  }
+  return <dialog ref={ref} className="loadout-dialog" aria-labelledby="loadout-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
+    <header><div><span className="eyebrow">AUTHORITATIVE QUARTERMASTER</span><h2 id="loadout-title">{unit.callsign} loadout</h2></div><button aria-label="Close loadout" onClick={onClose}>×</button></header>
+    <div className="loadout-state"><span>UNIT VERSION <b>{payload?.unitVersion ?? "—"}</b></span><span>LOADOUT REVISION <b>{payload?.loadout.revision ?? "—"}</b></span><span>STATE <b>{payload?.loadout.lockedAt ? "LOCKED" : payload?.loadout.status ?? "LOADING"}</b></span></div>
+    <section><div className="slot-board">{Object.entries(payload?.slots ?? {}).map(([type, count]) => <article key={type}><strong>{type}</strong>{Array.from({ length: count }, (_, index) => { const item = items.find((candidate) => candidate.slotType === type && candidate.slotIndex === index); return <span className={item ? "occupied" : ""} key={index}><b>{index + 1}</b>{item?.name ?? "EMPTY"}</span>; })}</article>)}</div>
+      <div className="owned-equipment"><span className="eyebrow">OWNED EQUIPMENT</span>{payload?.ownedEquipment.map((equipment) => { const selected = items.some((item) => item.inventoryId === equipment.inventoryId); return <button key={equipment.inventoryId} className={selected ? "selected" : ""} disabled={!equipment.executable || (Boolean(equipment.assignedUnitId) && equipment.assignedUnitId !== unit.unitId)} onClick={() => toggle(equipment)}><i>{selected ? "✓" : "+"}</i><span><strong>{equipment.name}</strong><small>{equipment.allowedSlots.join(" / ")} · {equipment.implementationStatus.replaceAll("_", " ")}</small></span></button>; })}<span className="eyebrow requisition-heading">ELIGIBLE REQUISITION</span>{eligible.map((equipment) => <button key={equipment.id} disabled={busy || equipment.requisition_status !== "PUBLISHED" || equipment.requisition_cost === null} onClick={() => void requisition(equipment.id)}><i>RP</i><span><strong>{equipment.name}</strong><small>{equipment.implementation_status.replaceAll("_", " ")} · {equipment.requisition_cost === null ? "BALANCE REQUIRED" : `${equipment.requisition_cost} RP`}</small></span></button>)}</div>
+    </section>
+    <footer><div>{error && <p role="alert">{error}</p>}<small>Server rebuilds effective stats, weapons, ammo, actions and eligibility before committing.</small></div><button onClick={onClose}>CANCEL</button><button className="primary" disabled={!payload || busy || Boolean(payload.loadout.lockedAt)} onClick={() => void save()}>{busy ? "VALIDATING…" : "COMMIT LOADOUT"}</button></footer>
+  </dialog>;
+}
+
 function normalizeInspection(payload: unknown, summary: ForceUnitView): ForceUnitView {
   const outer = asRecord(payload) ?? {};
   const record = asRecord(outer.unit) ?? asRecord(outer.force) ?? asRecord(outer.inspection) ?? outer;
@@ -573,6 +667,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
   const [statusFilter, setStatusFilter] = useState<ForceStatusFilter>("ALL");
   const [detailLoading, setDetailLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [loadoutOpen, setLoadoutOpen] = useState(false);
   const [requisitionBalance, setRequisitionBalance] = useState<number | null>(null);
   const [registryNote, setRegistryNote] = useState("Connecting to the owner-scoped force registry…");
 
@@ -759,7 +854,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
                     </div>
                   </section>
                   <section className="inspection-section equipment-section">
-                    <header><div><span className="eyebrow">PERSISTENT OWNERSHIP</span><h3>Equipment</h3></div><b>{selectedUnit.equipment.length}</b></header>
+                    <header><div><span className="eyebrow">PERSISTENT OWNERSHIP</span><h3>Equipment</h3></div><span className="equipment-header-actions"><b>{selectedUnit.equipment.length}</b><button disabled={mode !== "LIVE" || selectedUnit.locationState !== "RESERVE"} onClick={() => setLoadoutOpen(true)}>MANAGE LOADOUT</button></span></header>
                     <div className="equipment-list">
                       {selectedUnit.equipment.map((equipment) => <article key={equipment.id}><span>{equipment.slot}</span><div><strong>{equipment.name}</strong><p>{equipment.description}</p></div></article>)}
                       {!selectedUnit.equipment.length && <p className="section-empty">No installed equipment returned by the registry.</p>}
@@ -822,6 +917,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
       </aside>
 
       {drawerOpen && <RequisitionDialog catalogue={catalogue} live={mode === "LIVE"} requisitionBalance={requisitionBalance} onClose={() => setDrawerOpen(false)} onPurchased={(unit) => { setUnits((current) => [unit, ...current]); setSelectedUnitId(unit.unitId); setDrawerOpen(false); onNotice({ tone: "success", message: `${unit.callsign} added to your persistent force.` }); void loadForces(true); }} />}
+      {loadoutOpen && selectedUnit && <LoadoutDialog unit={selectedUnit} onClose={() => setLoadoutOpen(false)} onSaved={() => { onNotice({ tone: "success", message: `${selectedUnit.callsign} effective loadout committed.` }); void inspect(selectedUnit); }} />}
     </main>
   );
 }

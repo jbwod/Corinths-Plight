@@ -6,6 +6,7 @@ import {
   validateReadinessCheckCommand,
   validateRenameForceCommand,
 } from "../forces-validation";
+import { validateLoadoutChangeCommand, validatePurchaseEquipmentCommand } from "../equipment-validation";
 import { errorResponse, json, readJson } from "../http";
 import type { ForceListFilters } from "../repositories/forces";
 import {
@@ -21,13 +22,15 @@ import {
   purchaseForce,
   renameForce,
 } from "../services/forces";
+import { changeUnitLoadout, getUnitLoadout, purchaseEquipment } from "../services/equipment";
 
 const forceId = "([A-Za-z0-9][A-Za-z0-9._:-]{0,127})";
 const forceDetailPath = new RegExp(`^/api/forces/${forceId}$`);
 const forceHistoryPath = new RegExp(`^/api/forces/${forceId}/history$`);
 const eligibleEquipmentPath = new RegExp(`^/api/forces/${forceId}/eligible-equipment$`);
 const forceRenamePath = new RegExp(`^/api/forces/${forceId}/rename$`);
-const forceLoadoutPath = new RegExp(`^/api/forces/${forceId}/loadout-changes$`);
+const forceLoadoutPath = new RegExp(`^/api/forces/${forceId}/loadout$`);
+const forceLoadoutChangesPath = new RegExp(`^/api/forces/${forceId}/loadout-changes$`);
 const unitStatuses = new Set(["ACTIVE", "DEPLOYED", "DAMAGED", "DESTROYED", "RETIRED"]);
 const locationStates = new Set([
   "RESERVE",
@@ -47,6 +50,7 @@ function isForcesApiPath(pathname: string): boolean {
     pathname === "/api/catalogue/units" ||
     pathname === "/api/requisition" ||
     pathname === "/api/requisition/purchases" ||
+    pathname === "/api/requisition/equipment-purchases" ||
     pathname === "/api/deployment-readiness/check"
   );
 }
@@ -125,6 +129,12 @@ export async function routeForcesRequest(request: Request, env: Env): Promise<Re
       if (!parsed.valid) validationError(parsed);
       return json(await purchaseForce(env, ownerId, parsed.value), { status: 201 });
     }
+    if (url.pathname === "/api/requisition/equipment-purchases") {
+      if (request.method !== "POST") return methodNotAllowed(["POST"]);
+      const parsed = validatePurchaseEquipmentCommand(await body(request));
+      if (!parsed.valid) validationError(parsed);
+      return json(await purchaseEquipment(env, ownerId, parsed.value), { status: 201 });
+    }
     if (url.pathname === "/api/deployment-readiness/check") {
       if (request.method !== "POST") return methodNotAllowed(["POST"]);
       const parsed = validateReadinessCheckCommand(await body(request));
@@ -149,12 +159,17 @@ export async function routeForcesRequest(request: Request, env: Env): Promise<Re
       if (!parsed.valid) validationError(parsed);
       return json(await renameForce(env, ownerId, renameMatch[1], parsed.value));
     }
-    if (forceLoadoutPath.test(url.pathname)) {
-      return errorResponse(
-        501,
-        "LOADOUT_MUTATION_NOT_IMPLEMENTED",
-        "Persistent loadout mutation is catalogued but not executable in this Phase 2 slice.",
-      );
+    const loadoutMatch = url.pathname.match(forceLoadoutPath);
+    if (loadoutMatch) {
+      if (request.method !== "GET") return methodNotAllowed(["GET"]);
+      return json(await getUnitLoadout(env, ownerId, loadoutMatch[1]));
+    }
+    const loadoutChangesMatch = url.pathname.match(forceLoadoutChangesPath);
+    if (loadoutChangesMatch) {
+      if (request.method !== "POST") return methodNotAllowed(["POST"]);
+      const parsed = validateLoadoutChangeCommand(await body(request));
+      if (!parsed.valid) validationError(parsed);
+      return json(await changeUnitLoadout(env, ownerId, loadoutChangesMatch[1], parsed.value));
     }
     const detailMatch = url.pathname.match(forceDetailPath);
     if (detailMatch) {

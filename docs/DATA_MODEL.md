@@ -28,7 +28,7 @@ The current K-17 DO is authoritative only for its demo battlefield. It must not 
 
 ## 3. Implemented D1 schema
 
-The four migrations create the following exact table families. Field lists below reflect landed SQL, not a claim that every service workflow is executable.
+The five migrations create the following exact table families. Field lists below reflect landed SQL, not a claim that every service workflow is executable.
 
 ### 3.1 Identity and sessions
 
@@ -50,7 +50,7 @@ The four migrations create the following exact table families. Field lists below
 
 The index named `idx_one_active_ruleset_version` is unique on `version` only when active. Because `rulesets.version` is already unique, it does **not** enforce a single active ruleset across all versions.
 
-The published catalogue is split between `seeds/v5-core-curated.sql` and `seeds/v5-phase2-combined-arms.sql`; `npm run db:seed:local` executes both with Wrangler. `npm run db:seed:demo:local` then applies the explicit local-only force and strategic-world fixtures in order. `npm run seed:check` checks source hashes, duplicate/missing IDs, runtime-versus-SQL status, provenance, the active ruleset, Phase 2 catalogue coverage, and required Phase 3 schema/fixture boundaries. It does not compare every definition field or generate the runtime catalogue.
+The published catalogue is split between `seeds/v5-core-curated.sql`, `seeds/v5-phase2-combined-arms.sql`, and `seeds/v5-equipment-deployment.sql`; `npm run db:seed:local` executes all three with Wrangler. `npm run db:seed:demo:local` then applies the explicit local-only force, strategic-world, and Spearhead fixtures in order. `npm run seed:check` checks source hashes, duplicate/missing IDs, runtime-versus-SQL status, provenance, the active ruleset, Phase 2/3 boundaries, and the equipment/deployment definitions. It does not compare every definition field or generate the runtime catalogue.
 
 The seed uses `ON CONFLICT ... DO UPDATE`. Therefore “published rules are immutable” is currently application/release policy, not an SQL guarantee: rerunning a changed seed can update selected published fields. A content hash and immutable-publication guard are target work.
 
@@ -83,7 +83,7 @@ The running `/api/rulesets/v5-core-curated` endpoint currently serves compiled `
 | `unit_history` | `id`, `player_unit_id`, `event_type`, optional `campaign_id`/`round_number`, `payload_json`, `occurred_at`, globally unique `idempotency_key`. |
 | `requisition_transactions` | `id`, `user_id`, non-zero signed `amount`, `reason_code`, `description`, optional related entity fields, globally unique `idempotency_key`, `created_at`. The implemented ledger is user-scoped only; no Battalion account field exists. |
 
-These tables are not yet wired into purchase/equip/deploy or round-effect services. Non-negative balances, slot compatibility, location reconciliation, append-only service permissions, and transactional purchase semantics are target service invariants rather than current end-to-end behavior.
+Force and equipment purchase, loadout mutation, deployment commit, and the narrow post-round effect set are wired through owner-scoped Worker services. The server enforces non-negative balances, inventory ownership, compatible slots/tags/limits, optimistic revisions, idempotency receipts, facility/muster context, and snapshot locking. Broader equipment-loss, recovery, and every optional catalogue effect remain target work.
 
 ### 3.5 Battalions, battlegroups, and ships
 
@@ -168,7 +168,7 @@ The development seed uses `strategic-map-corinth`, CSV Resolute, the Resolute Ta
 
 ## 4. Current Campaign Durable Object records
 
-One DO is named by the URL/D1 campaign ID. `worker/campaign-durable-object.ts` currently initialises only the explicit `outpost-k17` name; other names fail with `CAMPAIGN_NOT_INITIALISED` until a real bootstrap workflow is added.
+One DO is named by the URL/D1 campaign ID. `outpost-k17` uses the explicit demo state; other authorised campaigns initialise only from committed D1 deployment/loadout snapshots and fail with `CAMPAIGN_NOT_INITIALISED` when none exist.
 
 | Storage key | Implemented contents | Current behavior |
 |---|---|---|
@@ -176,7 +176,7 @@ One DO is named by the URL/D1 campaign ID. `worker/campaign-durable-object.ts` c
 | `snapshot/{round}` | Structured clone of the pre-resolution state after entering `RESOLVING` | Written inside the resolution transaction |
 | `resolution/{round}` | Current `ResolutionRecord` | Presence is the current duplicate-resolution guard |
 | `event/{round}/{sequence}` | Individual canonical `CampaignEvent`; storage sequence is six-digit padded | Written for order, lock, pause/resume, resolution, and next-round events |
-| `pending-effect/{idempotencyKey}` | Current `PendingPersistentEffect` | Written after resolver output; never consumed or acknowledged by D1 code |
+| `pending-effect/{idempotencyKey}` | Current `PendingPersistentEffect` | Written after resolver output; applied through a D1 batch and deleted after a matching `campaign_effect_receipts` row is verified |
 
 There are **no** separate `schedule/{id}` records. `ORDER_LOCK` and `ROUND_RESOLVE` items live only in `state/current.clock.schedule`; consumed items are removed rather than retained with a status. The one DO alarm is set from the earliest embedded `runAt`.
 
@@ -231,10 +231,10 @@ The resolution seed is currently a predictable string derived from campaign, rou
 ### 5.2 Enforced in the current Worker/DO/engine subset
 
 - a session identity must be active and a campaign request must resolve an existing supported membership;
-- local demo identity is restricted to K-17 and cannot be enabled in production;
+- local demo identity is restricted to K-17 and Operation Spearhead and cannot be enabled in production;
 - current-milestone orders are owner-only and cannot mutate after the current round locks;
 - the server derives start position, revisions, rules costs, fitted weapon/equipment references, and visible target set;
-- only executable Hold/Advance/Rush and Attack definitions enter the current resolver;
+- only executable Hold/Advance/Rush and the migrated Attack/Load/Unload/Reload/Scan/Deploy Drone actions enter the current resolver;
 - routes are adjacent/in-map and fit speed/action budget;
 - facing is normalised to six values, final capacity is checked, and destroyed/withdrawn occupants do not consume capacity;
 - resolver events are monotonic within the round, and only the exact accepted order ID/revision is marked resolved;
@@ -242,13 +242,13 @@ The resolution seed is currently a predictable string derived from campaign, rou
 
 ### 5.3 Target invariants not yet enforced end to end
 
-- non-negative requisition after an atomic purchase and asset creation;
-- equipment compatibility/ownership and full unit/ship/location reconciliation;
+- complete Req pricing/income/replacement rules beyond the currently published purchases;
+- full unit/ship/location reconciliation beyond the implemented loadout/deployment boundary;
 - immutable published ruleset content and a campaign-bound engine/content hash;
-- server-created deployment snapshot/bootstrap for every D1 campaign;
+- scenario-specific battlefield/map/objective bootstrap beyond the committed force snapshots;
 - immutable archival of all order revisions and canonical events into D1;
 - cryptographic input/output/effect payload hashes;
-- exactly-once D1 damage, death, equipment loss, history, and requisition effects;
+- cryptographically journaled exactly-once D1 damage, death, equipment loss, history, and requisition effects beyond the current receipt-idempotent subset;
 - acknowledgement of all required D1 effects before opening the next round;
 - tactical command idempotency and service-level compare-and-set for recorded strategic expected revisions;
 - runtime validation of every bounded JSON/public DTO.
@@ -278,3 +278,17 @@ The tactical `persistent_effects` table still needs a follow-up migration or del
 9. Evolve schedules into persisted status-bearing records if alarm crash/retry integration tests demonstrate the target protocol.
 
 Related decisions: [ARCHITECTURE.md](./ARCHITECTURE.md), [STRATEGIC_LAYER.md](./STRATEGIC_LAYER.md), [BATTALION_MODEL.md](./BATTALION_MODEL.md), [SHIP_SYSTEM.md](./SHIP_SYSTEM.md), [STRATEGIC_RESOLUTION.md](./STRATEGIC_RESOLUTION.md), [ROUND_RESOLUTION.md](./ROUND_RESOLUTION.md), [CLOUDFLARE.md](./CLOUDFLARE.md), and the source dispositions in [RULE_CONFLICTS.md](./RULE_CONFLICTS.md).
+
+## 8. Equipment/deployment vertical slice (migration 0005)
+
+Migration `0005_equipment_deployment_vertical_slice.sql` adds typed equipment effects/refits, owner inventory, loadout locks/effective hashes, deployment methods/zones/plans, transport assignments, immutable campaign snapshots, campaign weapon/ability state, and actor-scoped mutation/effect receipts.
+
+Authoritative mutation flow:
+
+- owned inventory is distinct from installed `player_unit_equipment`;
+- one active default loadout is mutable only with expected unit/loadout revisions and an authorised facility/muster context;
+- a deployment plan stores owner and command approval separately;
+- commit locks the selected loadout, changes the persistent unit to deployed state, creates one immutable `campaign_loadout_snapshot`, and creates the compatible tactical `deployments` row;
+- `campaign_weapon_states`, `campaign_ability_states`, and `campaign_effect_receipts` preserve finite resources and idempotent post-round writeback.
+
+The current effect receipt is an exactly-once application key, but it does not yet carry a cryptographic payload hash/attempt journal. The tactical round still opens before D1 acknowledgement; that stronger gate remains open.

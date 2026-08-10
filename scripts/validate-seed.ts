@@ -44,7 +44,10 @@ const seedSql = await readFile("seeds/v5-core-curated.sql", "utf8");
 const phase2SeedSql = await readFile("seeds/v5-phase2-combined-arms.sql", "utf8");
 const phase3MigrationSql = await readFile("migrations/0004_phase3_strategic_layer.sql", "utf8");
 const phase3SeedSql = await readFile("seeds/development-strategic-world.sql", "utf8");
-const combinedSeedSql = `${seedSql}\n${phase2SeedSql}`;
+const equipmentMigrationSql = await readFile("migrations/0005_equipment_deployment_vertical_slice.sql", "utf8");
+const equipmentSeedSql = await readFile("seeds/v5-equipment-deployment.sql", "utf8");
+const spearheadSeedSql = await readFile("seeds/development-spearhead.sql", "utf8");
+const combinedSeedSql = `${seedSql}\n${phase2SeedSql}\n${equipmentSeedSql}`;
 
 const definitionTables = new Set([
   "unit_class_definitions",
@@ -84,7 +87,10 @@ for (const definition of allDefinitions) {
     failures.push(`D1 seed is missing ${definition.id}.`);
     continue;
   }
-  if (!tuple.includes(`'${definition.status}'`)) {
+  const promotedEquipment = new Set(["equipment-flak-vests", "equipment-light-at", "equipment-vehicle-optics"]);
+  const promotedByVerticalSlice = promotedEquipment.has(definition.id) && definition.status === "active" &&
+    equipmentSeedSql.includes(`id IN ('equipment-flak-vests','equipment-light-at','equipment-vehicle-optics')`);
+  if (!tuple.includes(`'${definition.status}'`) && !promotedByVerticalSlice) {
     failures.push(
       `D1 seed status mismatch for ${definition.id}: runtime catalogue is ${definition.status}.`,
     );
@@ -284,6 +290,47 @@ if (phase3MigrationSql.includes("ORBITAL_BOMBARDMENT")) {
   failures.push("Full orbital combat orders are deferred and must fail closed in Phase 3.");
 }
 
+for (const requiredTable of [
+  "equipment_effect_definitions",
+  "player_equipment_inventory",
+  "deployment_method_definitions",
+  "campaign_insertion_zones",
+  "deployment_plans",
+  "deployment_plan_units",
+  "deployment_transport_assignments",
+  "campaign_loadout_snapshots",
+  "campaign_weapon_states",
+  "campaign_ability_states",
+  "deployment_mutation_receipts",
+  "campaign_effect_receipts",
+]) {
+  if (!equipmentMigrationSql.includes(`CREATE TABLE ${requiredTable}`)) {
+    failures.push(`Equipment/deployment migration does not create ${requiredTable}.`);
+  }
+}
+for (const requiredId of [
+  "weapon-light-at",
+  "action-deploy-drone",
+  "ability-deploy-drone",
+  "equipment-drone-operator",
+  "equipment-orbital-drop-training",
+  "STANDARD_GROUND",
+  "VEHICLE_TRANSPORT",
+  "VTOL_INSERTION",
+  "HEAVY_AIR_TRANSPORT",
+  "PARADROP",
+  "ORBITAL_DROP",
+]) {
+  if (!equipmentSeedSql.includes(`'${requiredId}'`)) failures.push(`Equipment/deployment seed is missing ${requiredId}.`);
+}
+if (!equipmentSeedSql.includes("'ORBITAL_DROP', 'ruleset-v5-core-curated-1', 'Orbital Drop', 'PARTIAL'")) {
+  failures.push("Orbital Drop must remain visibly partial and non-executable.");
+}
+for (const requiredId of ["operation-spearhead", "spearhead-zone-landing", "spearhead-zone-drop"]) {
+  if (!spearheadSeedSql.includes(`'${requiredId}'`)) failures.push(`Operation Spearhead fixture is missing ${requiredId}.`);
+}
+if (!spearheadSeedSql.includes("ON CONFLICT")) failures.push("Operation Spearhead fixture is not repeat-idempotent.");
+
 if (failures.length > 0) {
   console.error(failures.join("\n"));
   process.exitCode = 1;
@@ -300,6 +347,9 @@ if (failures.length > 0) {
         phase2EnemyRoles: phase2Enemies.length,
         phase3Map: "strategic-map-corinth",
         phase3Operations: 3,
+        equipmentEffects: 9,
+        deploymentMethods: 6,
+        developmentCampaign: "operation-spearhead",
         sourceHashes: Object.keys(sourceHashes).length,
       },
       null,

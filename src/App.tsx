@@ -20,6 +20,7 @@ import {
 } from "../packages/rules-engine/src";
 import brandMark from "../app/static/img/brand-icon.gif";
 import { ForcesView } from "./components/ForcesView";
+import { DeploymentPlanner } from "./components/DeploymentPlanner";
 import { Glyph } from "./components/Glyph";
 import { HexMap } from "./components/HexMap";
 import { StrategicWorkspace, type StrategicView } from "./components/StrategicWorkspace";
@@ -39,6 +40,7 @@ const navigation = [
   ["battalion", "Battalion"],
   ["ship", "Ship"],
   ["forces", "Forces"],
+  ["route", "Deployment"],
   ["target", "Campaigns"],
   ["reports", "Reports"],
 ] as const;
@@ -379,6 +381,7 @@ export default function App() {
     Battalion: { eyebrow: "COOPERATIVE ORGANISATION // ACTIVE MEMBERSHIP", title: "Battalion Command" },
     Ship: { eyebrow: "PRIMARY ORBITAL // BATTALION HOME", title: "CSV Resolute" },
     Forces: { eyebrow: "33RD EXPEDITIONARY BATTALION // MUSTER", title: "Persistent Force Registry" },
+    Deployment: { eyebrow: "OPERATION SPEARHEAD // FORCE PROJECTION", title: "Deployment Planner" },
     Campaigns: { eyebrow: `ACTIVE OPERATION // ${campaign.planetName.toUpperCase()}`, title: campaign.campaignName },
   };
 
@@ -449,6 +452,8 @@ export default function App() {
         />
       ) : activeNav === "Forces" ? (
         <ForcesView onNotice={setNotice} />
+      ) : activeNav === "Deployment" ? (
+        <DeploymentPlanner onNotice={setNotice} />
       ) : (
       <main className="operations-layout">
         <aside className="left-panel panel">

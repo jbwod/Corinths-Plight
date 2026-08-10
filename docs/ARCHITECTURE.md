@@ -2,7 +2,7 @@
 
 **Status:** Reconciled Phase 1–3 foundation decision record (2026-08-10)
 
-**Scope:** The original foundation milestone plus the additive Phase 2 persistent-forces and Phase 3 strategic-war checkpoint; not the complete Phase 3 success scenario
+**Scope:** The original foundation milestone plus additive Phase 2 persistent forces, Phase 3 strategic war, and the equipment/deployment vertical slice; not the complete Phase 3 success scenario
 
 **V1 baseline:** commit `609ea9f50b4d595cfa07c2677d3eeb681d45d0ce`; see [V1_AUDIT.md](./V1_AUDIT.md)
 
@@ -25,16 +25,17 @@ The current repository is a working local foundation with the Outpost K-17 tacti
 | Deliverable | Repository evidence | Status |
 |---|---|---|
 | Foundation and Phase 3 design/audit documents | Original seven documents plus `STRATEGIC_LAYER.md`, `BATTALION_MODEL.md`, `SHIP_SYSTEM.md`, and `STRATEGIC_RESOLUTION.md` | Implemented |
-| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0004_phase3_strategic_layer.sql` | Implemented as additive schema artifacts |
+| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0005_equipment_deployment_vertical_slice.sql` | Implemented as additive schema artifacts |
 | Ruleset seed | `seeds/v5-core-curated.sql`; consistency check in `scripts/validate-seed.ts` | Implemented as an idempotent SQL seed |
 | Domain contracts | `packages/domain/src/index.ts` | Implemented TypeScript interfaces; runtime schemas are not yet present |
 | Pure rules engine | `packages/rules-engine/src/` and `packages/rules-engine/test/` | Implemented foundation subset |
-| Campaign DO skeleton | `worker/campaign-durable-object.ts` | Implemented for the explicit K-17 scenario |
+| Campaign DO skeleton | `worker/campaign-durable-object.ts` | Implemented for K-17 plus fail-closed bootstrap from committed deployment snapshots |
 | Accelerated clock | `worker/campaign-clock.ts` and its tests | Implemented, including manual/1m/5m/30m/24h presets |
 | Basic hex-map prototype | `src/App.tsx`, `src/components/HexMap.tsx`, `src/components/Glyph.tsx` | Implemented |
 | Phase 2 persistent forces | `0003`, the combined-arms catalogue/fixture, typed force services and UI | Implemented checkpoint; not every catalogue mutation is active |
 | Phase 3 strategic schema/world | `0004`, `development-strategic-world.sql`, and the four Phase 3 design documents | Implemented local checkpoint |
 | Strategic resolver/API/UI | Domain, pure-engine, Worker, and responsive strategic workspace files | Checkpoint work; verify landed tests before release |
+| Equipment/loadout/deployment slice | `0005`, canonical equipment seed, pure engine, Worker services, planner/force UI, and Spearhead fixture | Implemented release candidate; broader Store content remains blocked |
 | Successful remote foundation deployment | Production D1 is provisioned and the pre-Phase-3 foundation is available at `corinthplight.qnetica.com.au` | Implemented before this Phase 3 checkpoint; Phase 3 is not deployed |
 
 The full Phase 3 scenario—production account creation, invitation, purchase, ship travel, deployment into a tactical campaign, exact-once permanent strategic consequences, recovery, and redeployment—is the product definition of success, not a claim about this checkpoint.
@@ -72,9 +73,9 @@ flowchart LR
     CampaignDO --> Domain
     StrategicDO --> Domain
     Engine --> Domain
-    CampaignDO -. "target: acknowledged effects" .-> Applier["D1 persistent-effect applier"]
+    CampaignDO -->|"receipt-idempotent effects"| Applier["D1 persistent-effect applier"]
     StrategicDO -. "canonical strategic effects" .-> Applier
-    Applier -. "not implemented" .-> D1
+    Applier --> D1
 ```
 
 There are no independently deployed microservices. The client, Worker entry point, Campaign and Strategic Map Durable Objects, shared contracts, and pure engine are one repository and release train with explicit dependency boundaries.
@@ -87,7 +88,7 @@ There are no independently deployed microservices. The client, Worker entry poin
 | `src/components/` | Hex map and reusable visual components | No D1/DO access |
 | `worker/index.ts` | Public API composition, origin policy, authentication, D1 campaign authorization, named-DO forwarding, security headers | Browser never receives a DO stub |
 | `worker/auth.ts` | Demo/session authentication, D1 membership lookup, trusted viewer headers | Demo mode is development-only; no V1 credential compatibility |
-| `worker/campaign-durable-object.ts` | K-17 active state, orders, alarms, sockets, snapshots, events, resolution records, and projections | No implemented D1 persistent-force/economy writes |
+| `worker/campaign-durable-object.ts` | Campaign state, committed-snapshot bootstrap, orders, alarms, sockets, resolution, projections, and narrow receipt-idempotent D1 writeback | Next-round acknowledgement gate and cryptographic effect journal remain open |
 | `worker/campaign-clock.ts` | Pure clock/schedule transitions | Schedule is currently embedded in `state/current`, not separate storage records |
 | `worker/strategic-*` | Strategic request policy/validation/clock and map coordination as landed | Must remain map-sharded and permission scoped; no global game object |
 | `worker/enemy-ai.ts` | Deterministic foundation enemy orders | No LLM or network dependency |
@@ -95,7 +96,7 @@ There are no independently deployed microservices. The client, Worker entry poin
 | `packages/domain/src/` | Shared TypeScript interfaces and constants | Compile-time contracts only; not a runtime schema package yet |
 | `packages/rules-engine/src/` | Pure catalogue, hex, mechanics, visibility, RNG, enemy/demo fixtures, and resolver | No storage, network, wall-clock reads, or `Math.random()` |
 | `packages/rules-engine/test/` | Pure engine fixtures and regression tests | No live Cloudflare integration |
-| `migrations/` | Four ordered additive D1 SQL migrations | No new runtime uses the legacy Alembic files also retained in this directory |
+| `migrations/` | Five ordered additive D1 SQL migrations | No new runtime uses the legacy Alembic files also retained in this directory |
 | `seeds/v5-core-curated.sql`, `seeds/v5-phase2-combined-arms.sql` | Versioned D1 rules/source/conflict catalogue | Definitions only; availability overlays distinguish executable/catalogue state |
 | `seeds/development-forces.sql`, `seeds/development-strategic-world.sql` | Explicit local-only Phase 2/3 fixtures | Never production data or automatically canonical lore |
 | `scripts/validate-seed.ts` | Source-digest, catalogue, Phase 2, and Phase 3 seed-presence checks | It is a validator, not a D1 importer or full content-hash proof |
@@ -123,13 +124,13 @@ For `/api/campaigns/{campaignId}/*` the current Worker:
 1. rejects an unsafe production auth configuration;
 2. requires an exact same-origin `Origin` for mutations and WebSocket upgrades, and rejects explicitly cross-origin API requests;
 3. authenticates either an explicitly enabled development demo identity or a SHA-256-digested `corinth_session` row joined to an `ACTIVE` user;
-4. allows the demo identity only when `ENVIRONMENT=development`, `ALLOW_DEMO_AUTH=true`, and the campaign is exactly `outpost-k17`;
+4. allows the demo identity only when `ENVIRONMENT=development`, `ALLOW_DEMO_AUTH=true`, and the campaign is an explicit local fixture (`outpost-k17` or `operation-spearhead`);
 5. for session identities, reads an existing campaign and membership from D1 before resolving a DO name; only `ACTIVE`, `PAUSED`, `COMPLETE`, or `FAILED` campaigns route;
 6. maps campaign `PLAYER`, `BATTALION_COMMAND`, and `GM` roles to supported viewer contexts; `OBSERVER` and unsafe neutral projections fail closed;
 7. strips cookies, authorization/demo inputs, and client-supplied internal viewer headers before adding server-derived viewer headers;
 8. routes to `CAMPAIGN.getByName(campaignId)`.
 
-The DO itself initialises state only when its name is exactly `outpost-k17`; an arbitrary DO name no longer creates a demo campaign. A registered non-K-17 D1 campaign still needs a production bootstrap/deployment-snapshot workflow—currently it reaches an uninitialised DO and fails rather than inventing state.
+The DO self-initialises demo state only for `outpost-k17`. A registered non-K-17 campaign initialises only from committed D1 deployment snapshots; without them it fails rather than inventing forces.
 
 Current order commands derive start position, class eligibility, executable order/action definitions, action economy/speed cost, fitted weapons/equipment, owner, current visible target IDs, and one-attack limits on the server. The pure resolver independently rechecks the pinned ruleset, executable definitions, routes, speed/action budget, attack count, targets, weapons, LOS/range, ammo, cooldown, and friendly-fire rules.
 
@@ -161,9 +162,9 @@ The stable strategic coordinator name comes from `strategic_maps.coordinator_key
 | Strategic round/order coordination | Phase 3 map-sharded coordinator boundary | One named Strategic Map DO per tightly coordinated map/theatre |
 | Round snapshot/result deduplication | `snapshot/{round}` and `resolution/{round}` in DO storage | PREPARED/committed hash journal in DO storage |
 | Scheduled lock/resolve items | Embedded in `state/current.clock.schedule`; one DO alarm | Separate durable `schedule/{id}` records with status/history |
-| Persistent consequences | Resolver emits and DO stores `pending-effect/{id}` | Idempotent D1 applier and acknowledgement before next round |
+| Persistent consequences | Resolver emits/stores `pending-effect/{id}` and applies supported effects with a D1 receipt | Add cryptographic payload journal, automatic reconciliation, and acknowledgement before next round |
 
-The current DO transaction writes the snapshot, result state, resolution record, events, and pending-effect records atomically in DO storage. It then opens the next round immediately. It does **not** apply or acknowledge `persistent_effects` in D1. Therefore the architecture's intended cross-store exactly-once invariant is not yet satisfied; see [ROUND_RESOLUTION.md](./ROUND_RESOLUTION.md).
+The current DO transaction writes the snapshot, result state, resolution record, events, and pending-effect records atomically in DO storage, then attempts an idempotent D1 batch and deletes each pending record after receipt verification. It still opens the next round before that acknowledgement and lacks a payload-hash/attempt journal, so the intended cross-store exactly-once invariant is not yet fully satisfied; see [ROUND_RESOLUTION.md](./ROUND_RESOLUTION.md).
 
 No authoritative state belongs in process globals, browser storage, WebSocket delivery, or KV. R2 and Queues are optional future boundaries described in [CLOUDFLARE.md](./CLOUDFLARE.md).
 
@@ -270,18 +271,30 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 | Check | Status | Evidence or remaining work |
 |---|---|---|
 | Package skeleton, TypeScript, lint, unit tests, local production build | Complete | Root package scripts |
-| Migrations and idempotent seed artifacts | Complete locally as artifacts | Four additive SQL migrations, catalogue seeds, two local fixtures, `seed:check` |
+| Migrations and idempotent seed artifacts | Complete locally as artifacts | Five additive SQL migrations, three canonical seeds, three local fixtures, `seed:check` |
 | Deterministic resolver subset and regression coverage | Complete for the stated subset | Hold/Advance/Rush/Attack engine tests |
 | K-17 state, alarms, clock, pause/resume, sockets | Partial | Unit coverage exists; crash/alarm/WebSocket integration coverage does not |
 | Viewer projection | Partial | Basic state/report redaction exists; event-time and socket-field leakage tests remain |
-| D1 persistent-effect applier and next-round gate | Open | Pending effects are stored but never applied/acknowledged |
+| D1 persistent-effect applier and next-round gate | Partial | Supported effects use D1 receipts; cryptographic journal, automatic reconciliation, and next-round acknowledgement gate remain open |
 | PREPARED journal, cryptographic input/output hashes, secret seed commitment | Open | Current record is a committed snapshot with a predictable seed and 32-bit digest |
 | Separate persisted schedule records and reconnect catch-up | Open | Schedule lives inside current state; no events-after-sequence API |
 | Production login/provider/session issuance | Open | Existing session rows can be validated only |
 | Helion/Corinth strategic schema and fixture | Complete locally | Fresh 0001–0004, all seeds twice, integrity/FK and negative probes |
 | Strategic map sharding, pure resolver, permission-scoped APIs, responsive UI | Checkpoint verification required | Phase 3 domain/engine/Worker/UI lanes; release only after full tests/build and visual inspection |
-| Strategic-to-tactical deployment/result reconciliation | Open | Campaign bootstrap, withdrawal, and exact-once tactical effect applier are deferred |
+| Strategic-to-tactical deployment/result reconciliation | Partial | Loadout/deployment commit, campaign snapshot bootstrap, and narrow tactical writeback exist; withdrawal and the full acknowledgement-gated protocol remain deferred |
 | Production D1 and custom-domain foundation | Complete for the earlier release | Production binding is provisioned; `corinthplight.qnetica.com.au` serves the pre-Phase-3 foundation |
 | Phase 3 remote deployment | Not performed | This checkpoint remains local until a separate release verification pass |
 
 Phase 3 should not be described as complete or production-ready until the open identity, deployment/result, correctness, and release gates above are closed. See [STRATEGIC_LAYER.md](./STRATEGIC_LAYER.md), [BATTALION_MODEL.md](./BATTALION_MODEL.md), [SHIP_SYSTEM.md](./SHIP_SYSTEM.md), and [STRATEGIC_RESOLUTION.md](./STRATEGIC_RESOLUTION.md).
+
+## 11. Equipment/deployment vertical slice
+
+The landed vertical slice adds three authority boundaries without moving rules decisions into React:
+
+1. D1 repositories load the pinned class, profiles, slots, tags, abilities, weapons, owned inventory, effects, and current resources.
+2. `buildEffectiveUnit` and `validateDeploymentPlan` are pure deterministic handlers. The Worker never accepts client-authored stats, eligibility, cargo capacity, ammo, cooldown, or costs.
+3. Worker services own actor-scoped idempotency, optimistic revisions, Battalion/campaign permission, atomic inventory/loadout mutation, deployment approval, snapshot locking, and tactical bootstrap.
+
+The Campaign Durable Object can now bootstrap a non-K-17 campaign from committed D1 deployments. Load/Unload, Scan, Deploy Drone, Reload, ammo use, cooldowns, Supply, cargo, and location state resolve in the pure engine and are applied back to D1 through `campaign_effect_receipts`.
+
+Remaining correctness boundary: the DO persists its result and opens the next round before the D1 application finishes. The applier retries safely by receipt, but a fully compliant `EFFECTS_PENDING`/acknowledgement gate and cryptographic payload journal remain required.

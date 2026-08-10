@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import type {
+  CampaignDeployment,
   CampaignEvent,
   CampaignRuntimeState,
   Facing,
@@ -116,10 +117,9 @@ export class CampaignDurableObject extends DurableObject<Env> {
   private async getState(): Promise<CampaignRuntimeState> {
     const stored = await this.ctx.storage.get<CampaignRuntimeState>(STATE_KEY);
     if (stored) return stored;
-    if (this.campaignId() !== FOUNDATION_CAMPAIGN_ID) {
-      throw new Error("CAMPAIGN_NOT_INITIALISED");
-    }
-    const created = createDemoCampaignState(Date.now(), this.configuredDuration(), this.campaignId());
+    const created = this.campaignId() === FOUNDATION_CAMPAIGN_ID
+      ? createDemoCampaignState(Date.now(), this.configuredDuration(), this.campaignId())
+      : await this.createPersistentCampaignState();
     created.clock = makeRoundClock(
       created.campaignId,
       created.round,
@@ -132,6 +132,92 @@ export class CampaignDurableObject extends DurableObject<Env> {
     return created;
   }
 
+  private async createPersistentCampaignState(): Promise<CampaignRuntimeState> {
+    const campaign = await this.env.DB.prepare(`SELECT campaigns.id, campaigns.status,
+        campaigns.name, planets.name AS planet_name
+      FROM campaigns
+      JOIN planets ON planets.id = campaigns.planet_id
+      WHERE campaigns.id = ?1 AND campaigns.status IN ('ACTIVE','DRAFT','RECRUITING') LIMIT 1`)
+      .bind(this.campaignId()).first<{ id: string; status: string; name: string; planet_name: string }>();
+    if (!campaign) throw new Error("CAMPAIGN_NOT_INITIALISED");
+    const rows = await this.env.DB.prepare(`SELECT deployments.id, deployments.owner_id,
+        deployments.side, deployments.status, deployments.snapshot_json,
+        units.id AS persistent_unit_id, units.definition_id, units.callsign
+      FROM deployments JOIN player_units AS units ON units.id = deployments.player_unit_id
+      WHERE deployments.campaign_id = ?1 AND deployments.status IN ('READY','ACTIVE','IMMOBILISED')
+      ORDER BY deployments.id`).bind(campaign.id).all<{
+        id: string; owner_id: string; side: CampaignDeployment["side"];
+        status: CampaignDeployment["status"]; snapshot_json: string;
+        persistent_unit_id: string; definition_id: string; callsign: string;
+      }>();
+    if (rows.results.length === 0) throw new Error("CAMPAIGN_NOT_INITIALISED");
+    const created = createDemoCampaignState(Date.now(), this.configuredDuration(), campaign.id);
+    created.campaignName = campaign.name;
+    created.planetName = campaign.planet_name;
+    created.round = 1;
+    created.phase = "PLANNING";
+    created.orders = [];
+    created.events = [];
+    created.objectives = [];
+    created.pendingPersistentEffects = [];
+    created.deployments = rows.results.map((row): CampaignDeployment => {
+      const snapshot = JSON.parse(row.snapshot_json) as Record<string, unknown>;
+      const position = snapshot.position as { q?: unknown; r?: unknown } | undefined;
+      const stats = snapshot.stats as CampaignDeployment["stats"] | undefined;
+      return {
+        id: row.id,
+        campaignId: campaign.id,
+        persistentUnitId: row.persistent_unit_id,
+        ownerId: row.owner_id,
+        side: row.side,
+        definitionId: row.definition_id,
+        callsign: row.callsign,
+        status: row.status,
+        position: position && Number.isInteger(position.q) && Number.isInteger(position.r)
+          ? { q: position.q as number, r: position.r as number }
+          : { q: -4, r: 1 },
+        facing: 2,
+        stats: stats ?? getUnitClass(row.definition_id).stats,
+        currentHealth: typeof snapshot.currentHealth === "number"
+          ? snapshot.currentHealth
+          : stats?.maxHealth ?? getUnitClass(row.definition_id).stats.maxHealth,
+        weapons: Array.isArray(snapshot.weapons) ? snapshot.weapons as CampaignDeployment["weapons"] : [],
+        ammunition: snapshot.ammunition && typeof snapshot.ammunition === "object" ? snapshot.ammunition as Record<string, number> : {},
+        cooldowns: snapshot.cooldowns && typeof snapshot.cooldowns === "object" ? snapshot.cooldowns as Record<string, number> : {},
+        statuses: [],
+        equipmentIds: Array.isArray(snapshot.equipmentInstanceIds) ? snapshot.equipmentInstanceIds.filter((id): id is string => typeof id === "string") : [],
+        allowedActions: Array.isArray(snapshot.allowedActions) ? snapshot.allowedActions as CampaignDeployment["allowedActions"] : undefined,
+        allowedOrders: Array.isArray(snapshot.allowedOrders) ? snapshot.allowedOrders as CampaignDeployment["allowedOrders"] : undefined,
+        abilities: Array.isArray(snapshot.abilities) ? snapshot.abilities as CampaignDeployment["abilities"] : [],
+        supplies: snapshot.supplies && typeof snapshot.supplies === "object"
+          ? snapshot.supplies as CampaignDeployment["supplies"]
+          : {},
+        cargo: [],
+        cargoProfile: snapshot.cargoProfile && typeof snapshot.cargoProfile === "object"
+          ? snapshot.cargoProfile as CampaignDeployment["cargoProfile"]
+          : undefined,
+        locationState: typeof snapshot.carrierUnitId === "string" ? "EMBARKED" : "ON_MAP",
+      };
+    });
+    for (const row of rows.results) {
+      const snapshot = JSON.parse(row.snapshot_json) as Record<string, unknown>;
+      if (typeof snapshot.carrierUnitId !== "string") continue;
+      const carrier = created.deployments.find((deployment) => deployment.persistentUnitId === snapshot.carrierUnitId);
+      const cargo = created.deployments.find((deployment) => deployment.persistentUnitId === row.persistent_unit_id);
+      if (!carrier || !cargo) continue;
+      cargo.position = { ...carrier.position };
+      carrier.cargo = [...(carrier.cargo ?? []), {
+        id: `campaign-cargo:${campaign.id}:${cargo.id}`,
+        kind: cargo.stats.healthModel === "FORCE_STRENGTH" ? "PERSONNEL" : "VEHICLE",
+        quantity: 1,
+        tags: cargo.stats.healthModel === "FORCE_STRENGTH" ? ["INFANTRY"] : ["VEHICLE"],
+        transportMode: "EMBARKED",
+        unitId: cargo.id,
+      }];
+    }
+    return created;
+  }
+
   private async scheduleNextAlarm(state: CampaignRuntimeState): Promise<void> {
     const next = nextScheduledTime(state);
     if (next === null) {
@@ -140,6 +226,97 @@ export class CampaignDurableObject extends DurableObject<Env> {
     }
     const current = await this.ctx.storage.getAlarm();
     if (current === null || current !== next) await this.ctx.storage.setAlarm(next);
+  }
+
+  private async applyPendingPersistentEffects(): Promise<void> {
+    const pending = await this.ctx.storage.list<{
+      idempotencyKey: string;
+      type: string;
+      unitId?: string;
+      payload: Record<string, unknown>;
+    }>({ prefix: "pending-effect/" });
+    for (const [storageKey, effect] of pending) {
+      const prior = await this.env.DB.prepare(`SELECT 1 FROM campaign_effect_receipts
+        WHERE idempotency_key = ?1 LIMIT 1`).bind(effect.idempotencyKey).first();
+      if (prior) {
+        await this.ctx.storage.delete(storageKey);
+        continue;
+      }
+      const campaignId = typeof effect.payload.campaignId === "string" ? effect.payload.campaignId : this.campaignId();
+      const round = Number(effect.payload.round);
+      if (!effect.unitId || !Number.isInteger(round) || round < 1) throw new Error("PERSISTENT_EFFECT_INVALID");
+      const statements: D1PreparedStatement[] = [];
+      if (effect.type === "UNIT_DESTROYED") {
+        statements.push(this.env.DB.prepare(`UPDATE player_units SET status = 'DESTROYED',
+          location_kind = 'DESTROYED', location_state = 'DESTROYED', location_id = NULL,
+          current_health = 0, destroyed_at = unixepoch(), destroyed_campaign_id = ?1,
+          destroyed_round = ?2, version = version + 1, updated_at = unixepoch()
+          WHERE id = ?3 AND status <> 'DESTROYED'`).bind(campaignId, round, effect.unitId));
+      } else if (effect.type === "UNIT_DAMAGED") {
+        const health = Number(effect.payload.currentHealth);
+        statements.push(this.env.DB.prepare(`UPDATE player_units SET current_health = ?1,
+          status = CASE WHEN ?1 <= 0 THEN 'DESTROYED' ELSE 'DAMAGED' END,
+          version = version + 1, updated_at = unixepoch() WHERE id = ?2`)
+          .bind(health, effect.unitId));
+      } else if (effect.type === "UNIT_STATE_UPDATED") {
+        const ammunition = effect.payload.ammunition && typeof effect.payload.ammunition === "object"
+          ? effect.payload.ammunition as Record<string, number> : {};
+        const cooldowns = effect.payload.cooldowns && typeof effect.payload.cooldowns === "object"
+          ? effect.payload.cooldowns as Record<string, number> : {};
+        const supplies = effect.payload.supplies && typeof effect.payload.supplies === "object"
+          ? effect.payload.supplies as Record<string, number> : {};
+        const locationState = typeof effect.payload.locationState === "string" ? effect.payload.locationState : "ON_MAP";
+        statements.push(this.env.DB.prepare(`UPDATE player_units SET ammunition_json = ?1,
+          location_state = ?2, version = version + 1, updated_at = unixepoch() WHERE id = ?3`)
+          .bind(JSON.stringify(ammunition), locationState, effect.unitId));
+        for (const [weaponId, amount] of Object.entries(ammunition)) {
+          statements.push(this.env.DB.prepare(`UPDATE player_unit_weapon_mounts SET current_ammo = ?1,
+            cooldown_remaining = ?2, updated_at = unixepoch()
+            WHERE player_unit_id = ?3 AND weapon_definition_id = ?4`)
+            .bind(amount, cooldowns[weaponId] ?? 0, effect.unitId, weaponId));
+        }
+        for (const [resourceType, amount] of Object.entries(supplies)) {
+          statements.push(this.env.DB.prepare(`UPDATE player_unit_supplies SET
+            current_quantity = MIN(maximum_quantity, ?1), revision = revision + 1,
+            updated_at = unixepoch() WHERE player_unit_id = ?2 AND resource_type = ?3`)
+            .bind(amount, effect.unitId, resourceType));
+        }
+        const cargo = Array.isArray(effect.payload.cargo) ? effect.payload.cargo as Array<Record<string, unknown>> : [];
+        statements.push(this.env.DB.prepare(`DELETE FROM unit_cargo_items
+          WHERE carrier_unit_id = ?1 AND state = 'LOADED'`).bind(effect.unitId));
+        for (const item of cargo) {
+          if (typeof item.id !== "string" || typeof item.kind !== "string" || typeof item.quantity !== "number") continue;
+          statements.push(this.env.DB.prepare(`INSERT INTO unit_cargo_items (
+            id,carrier_unit_id,item_kind,carried_unit_id,reference_id,resource_type,
+            quantity,transport_mode,cargo_slots_quarters,state,state_json
+          ) SELECT ?1,?2,?3,?4,NULL,?5,?6,?7,?8,'LOADED','{}'
+            WHERE EXISTS (SELECT 1 FROM unit_cargo_manifests WHERE carrier_unit_id = ?2)`)
+            .bind(item.id, effect.unitId, item.kind === "SUPPLY" ? "SUPPLY" : "UNIT",
+              typeof item.unitId === "string" ? item.unitId : null,
+              typeof item.supplyType === "string" ? item.supplyType : null,
+              item.quantity, typeof item.transportMode === "string" ? item.transportMode : "EMBARKED",
+              typeof item.slotsQuarters === "number" ? item.slotsQuarters : 1));
+        }
+      }
+      statements.push(
+        this.env.DB.prepare(`INSERT INTO unit_history (
+          id,player_unit_id,event_type,campaign_id,round_number,payload_json,
+          occurred_at,idempotency_key,summary,visibility
+        ) SELECT ?1,id,?2,?3,?4,?5,unixepoch(),?1,?6,'OWNER'
+          FROM player_units WHERE id = ?7`)
+          .bind(`effect:${effect.idempotencyKey}`, effect.type, campaignId, round,
+            JSON.stringify(effect.payload), `Campaign round ${round} persistent state applied.`, effect.unitId),
+        this.env.DB.prepare(`INSERT INTO campaign_effect_receipts (
+          idempotency_key,campaign_id,round_number,effect_type,player_unit_id,payload_json
+        ) SELECT ?1,?2,?3,?4,?5,?6 FROM player_units WHERE id = ?5`)
+          .bind(effect.idempotencyKey, campaignId, round, effect.type, effect.unitId, JSON.stringify(effect.payload)),
+      );
+      await this.env.DB.batch(statements);
+      const applied = await this.env.DB.prepare(`SELECT 1 FROM campaign_effect_receipts
+        WHERE idempotency_key = ?1 LIMIT 1`).bind(effect.idempotencyKey).first();
+      if (!applied) throw new Error("PERSISTENT_EFFECT_NOT_APPLIED");
+      await this.ctx.storage.delete(storageKey);
+    }
   }
 
   private viewer(request: Request): ViewerContext {
@@ -275,7 +452,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       return errorResponse(400, "ORDER_TYPE_INVALID", "A supported order type is required.");
     }
     const definition = getUnitClass(deployment.definitionId);
-    if (!definition.allowedOrders.includes(intent.orderType)) {
+    if (!(deployment.allowedOrders ?? definition.allowedOrders).includes(intent.orderType as UnitOrder["orderType"])) {
       return errorResponse(422, "ORDER_INELIGIBLE", "This unit class cannot use that order type.");
     }
     if (!getOrderTypeDefinition(intent.orderType as UnitOrder["orderType"]).executable) {
@@ -291,7 +468,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
     }
     const weaponIds = new Set(deployment.weapons.map((weapon) => weapon.id));
     const equipmentIds = new Set(deployment.equipmentIds);
-    const allowedActions = new Set(definition.allowedActions);
+    const allowedActions = new Set(deployment.allowedActions ?? definition.allowedActions);
     const incidentalValidation = validateIncidentalActions(intent.incidentalActions);
     if (!incidentalValidation.legal) {
       return errorResponse(422, "ACTION_INELIGIBLE", incidentalValidation.reason);
@@ -557,6 +734,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
     });
 
     if (!committedRecord) throw new Error("Resolution transaction completed without a record.");
+    await this.applyPendingPersistentEffects();
     await this.scheduleNextAlarm(nextState);
     this.broadcast(duplicate ? "round-resolution-replayed" : "round-resolved", nextState, {
       resolutionKey: committedRecord.key,

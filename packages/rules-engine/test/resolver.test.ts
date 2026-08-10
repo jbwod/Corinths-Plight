@@ -214,6 +214,11 @@ describe("simultaneous combat and capacity resolution", () => {
     expect(output.events.filter((event) => event.type === "DAMAGE_APPLIED")).toHaveLength(2);
     expect(output.events.filter((event) => event.type === "UNIT_DESTROYED")).toHaveLength(2);
     expect(output.state.deployments.every((deployment) => deployment.status === "DESTROYED")).toBe(true);
+    expect(output.state.deployments.every((deployment) => deployment.locationState === "DESTROYED")).toBe(true);
+    expect(output.persistentEffects
+      .filter((effect) => effect.type === "UNIT_STATE_UPDATED")
+      .map((effect) => effect.payload.locationState))
+      .toEqual(["DESTROYED", "DESTROYED"]);
   });
 
   it("blocks movement into an already full destination hex", () => {

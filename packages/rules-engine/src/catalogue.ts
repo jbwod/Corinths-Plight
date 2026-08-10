@@ -253,8 +253,8 @@ export const equipment: EquipmentDefinition[] = [
     tags: ["ANTI_ARMOUR", "AMMO"],
     rulesetVersion: RULESET_VERSION,
     source: "The Store - Equipment List.html row 10",
-    status: "experimental",
-    notes: "Catalogued companion content pending an executable weapon profile.",
+    status: "active",
+    notes: "Executable finite-ammunition weapon grant in the equipment/deployment vertical slice.",
   },
   {
     id: "equipment-vehicle-optics",
@@ -313,7 +313,7 @@ export const orderTypeDefinitions: OrderTypeRuleDefinition[] = (
   }));
 
 const actionProfiles: Record<
-  "ATTACK" | "DIG_IN" | "REPAIR" | "CONSTRUCT" | "BOMBARDMENT" | "RELOAD",
+  "ATTACK" | "DIG_IN" | "REPAIR" | "CONSTRUCT" | "BOMBARDMENT" | "RELOAD" | "LOAD" | "UNLOAD" | "SCAN" | "DEPLOY_DRONE",
   { economy: ActionEconomy; speedCost: number; usesAttack: boolean; executable: boolean }
 > = {
   ATTACK: { economy: "STANDARD", speedCost: 0, usesAttack: true, executable: true },
@@ -321,13 +321,17 @@ const actionProfiles: Record<
   REPAIR: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
   CONSTRUCT: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
   BOMBARDMENT: { economy: "PRIMARY", speedCost: 0, usesAttack: true, executable: false },
-  RELOAD: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
+  RELOAD: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  LOAD: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  UNLOAD: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  SCAN: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  DEPLOY_DRONE: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
 };
 
 export const actionDefinitions: ActionRuleDefinition[] = (
-  ["ATTACK", "DIG_IN", "REPAIR", "CONSTRUCT", "BOMBARDMENT", "RELOAD"] as const
+  ["ATTACK", "DIG_IN", "REPAIR", "CONSTRUCT", "BOMBARDMENT", "RELOAD", "LOAD", "UNLOAD", "SCAN", "DEPLOY_DRONE"] as const
 ).map((name) => ({
-    id: `action-${name.toLowerCase().replaceAll("_", "-")}`,
+    id: name === "LOAD" ? "action-load-cargo" : name === "UNLOAD" ? "action-unload-cargo" : `action-${name.toLowerCase().replaceAll("_", "-")}`,
     kind: "action" as const,
     name,
     actionType: name,

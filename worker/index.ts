@@ -12,6 +12,7 @@ import { CampaignDurableObject } from "./campaign-durable-object";
 import type { Env } from "./env";
 import { errorResponse, json } from "./http";
 import { routeForcesRequest } from "./routes/forces";
+import { routeDeploymentRequest } from "./routes/deployment";
 import { routeStrategicRequest } from "./routes/strategic";
 import { StrategicMapDurableObject } from "./strategic-map-durable-object";
 
@@ -72,6 +73,9 @@ async function route(request: Request, env: Env, requestId: string): Promise<Res
 
   const forcesResponse = await routeForcesRequest(request, env);
   if (forcesResponse) return forcesResponse;
+
+  const deploymentResponse = await routeDeploymentRequest(request, env);
+  if (deploymentResponse) return deploymentResponse;
 
   const strategicResponse = await routeStrategicRequest(request, env);
   if (strategicResponse) return strategicResponse;

@@ -1,0 +1,25 @@
+# Equipment and Deployment Rule Interpretations
+
+This document records the narrow decisions used by the equipment/loadout/deployment vertical slice. It does not silently activate the wider companion catalogue.
+
+## Active interpretations
+
+1. Effective units are rebuilt from the pinned unit definition, installed refits, selected owned equipment, and current campaign resources. Refits apply before equipment; definitions and instances use Unicode code-point ordering.
+2. Equipment and refits remain distinct. Equipment occupies an owned slot and can be reassigned only at an authorised facility or pre-campaign muster. Campaign snapshots are immutable.
+3. Transport capacity uses nominal unit size, not current casualties or damage. Six Force Strength of Infantry consumes one slot; a vehicle consumes two slots where the carrier profile says so. This avoids damage creating free lift capacity.
+4. Loading and unloading require a matching Standard Action from both carrier and cargo. Normal unloading uses the carrier hex. Heavy Air Transport uses its rules-data per-slot action cost.
+5. Paradrop accepts Infantry and Light Vehicle cargo only, and the drop hex must occur on the submitted carrier route. Blocked/invalid drops fail closed. The source does not define deterministic hazardous scatter or damage, so hazardous-drop resolution is not invented.
+6. Lightweight Anti-armour is a fitted, finite-ammunition weapon: Range 1, AP +1, three uses. It is not automatically reloadable unless a rules-defined reload source is present.
+7. Drone Operator grants the Deploy Drone action at Range 5 with a six-round cooldown. Vehicle Optics grants Scan. Both are resolved server-side.
+8. Field Reload consumes one Small Supply and restores a finite weapon to its published capacity. Campaign ammo, cooldown, supply, location, and cargo consequences are written back idempotently after resolution.
+9. Orbital Drop Training applies its published effective-unit mutation and records eligibility, but orbital deployment remains disabled because the coordinator/hazard rules are incomplete.
+
+## Explicitly unresolved
+
+- hazardous airdrop deviation, damage, and cargo-destruction consequences;
+- whether campaign-end ammunition is restored, retained, or replenished through a separate logistics process;
+- exact facility coverage for every vehicle/aerospace refit category;
+- strategic Supply lift from a selected store in the planner (unit cargo is executable; store-backed Supply lift remains blocked);
+- tactical cryptographic PREPARED/result journal and acknowledgement-gated next-round transition.
+
+These items must remain visible blockers or catalogue-only states until a source-backed deterministic rule is adopted.

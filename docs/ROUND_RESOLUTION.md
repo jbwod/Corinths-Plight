@@ -2,9 +2,9 @@
 
 **Status:** Reconciled implemented foundation and target retry protocol (2026-08-09)
 
-**Implemented subset:** deterministic Hold, Advance, Rush, Attack, K-17 enemy intentions, clock/alarm coordination, DO-local result deduplication
+**Implemented subset:** deterministic Hold, Advance, Rush, Attack, Load/Unload, Reload, Scan, Deploy Drone, constrained airdrop, clock/alarm coordination, DO-local result deduplication, and idempotent D1 effect receipts
 
-**Not yet implemented:** PREPARED/hash journal, server-secret seed commitment, D1 persistent-effect applier/acknowledgement, next-round effect gate, separate persisted schedule records
+**Not yet implemented:** PREPARED/hash journal, server-secret seed commitment, cryptographic effect payload journal, acknowledgement-gated next-round transition, separate persisted schedule records
 
 ## 1. Guarantees: current versus target
 
@@ -12,12 +12,12 @@
 |---|---|---|
 | Pure deterministic computation | Fixed `RoundInput` uses seeded RNG and ordered processing; regression tests cover the implemented subset | Version/hash-pinned engine and byte/canonical replay evidence |
 | One DO result per round | `resolution/{round}` prevents a second committed result | PREPARED input hash, cryptographic output hash, attempts/statuses, mismatch incident handling |
-| Permanent consequences exactly once | Resolver emits effects and DO stores them only | Idempotent D1 applier, payload-hash collision check, acknowledgements, reconciliation |
+| Permanent consequences exactly once | Resolver emits effects; the DO applies supported unit/resource effects in D1 with an idempotency receipt, then removes the pending record | Add payload-hash collision detection, status/attempt journal, automatic reconciliation, and acknowledgement gating |
 | Next round waits for effects | No; the DO increments/open the next round in the result transaction | Remain `EFFECTS_PENDING` until every required D1 effect is applied |
 | Scheduling survives eviction | Clock and pending items are inside `state/current`; next DO alarm is derived from them | Separate status-bearing `schedule/{id}` records and consumed/recovery history |
 | Reports/fog | Current state and report events use the projector; seed is removed | Event-time field-level projections and per-audience socket/report/replay DTOs |
 
-The current code establishes a deterministic engine skeleton and DO-local duplicate guard. It does not yet prove exact-once resolution across Durable Object storage and D1.
+The current code establishes a deterministic engine skeleton, DO-local duplicate guard, and receipt-idempotent D1 application for the narrow effect set. It does not yet prove the full acknowledgement-gated exactly-once protocol across Durable Object storage and D1.
 
 ## 2. Current pure contract
 
@@ -155,10 +155,10 @@ This transaction avoids a partial DO result. A repeated call for a completed rou
 - there is no attempt count/status machine or cryptographic output hash;
 - the seed is predictable and stored in plaintext (although report responses remove it);
 - a determinism mismatch cannot be detected against a committed output hash;
-- pending effects are never sent to/applied in D1;
-- the next round opens before permanent consequences acknowledge.
+- supported pending effects are applied to D1 with `campaign_effect_receipts`, but receipts do not yet bind a cryptographic payload hash or attempt state;
+- the next round opens before permanent consequences acknowledge, and automatic failed-effect recovery remains incomplete.
 
-Consequently a successful DO commit can show a destroyed battlefield unit while the D1 `player_units` row remains unchanged indefinitely.
+Consequently a successful DO commit can expose the next planning round before D1 application completes. A failed D1 batch leaves the pending DO record for an explicit retry, but there is not yet an automatic reconciliation/gating protocol.
 
 ## 7. Target resolution journal
 
@@ -317,3 +317,17 @@ Still required before production:
 **Revisit:** If a verifiable public randomness protocol provides equivalent replay and anti-prediction properties.
 
 See [DATA_MODEL.md](./DATA_MODEL.md) for current record/table shapes and [CLOUDFLARE.md](./CLOUDFLARE.md) for alarm/environment/deployment boundaries.
+
+## 13. Equipment/cargo action phase
+
+The resolver now executes a narrow server-authoritative action phase before attacks:
+
+- paired Load/Unload actions validate co-location, carrier profile, manifest eligibility, capacity, speed cost, and legal destination;
+- Paradrop requires the target hex on the carrier path and emits an explicit success/failure event;
+- Reload consumes one Small Supply and restores finite ammunition to capacity;
+- Scan and Deploy Drone validate target range; Drone starts a six-round ability cooldown;
+- Attack ammunition and all new cooldown/supply/cargo/location consequences are included in stable `UNIT_STATE_UPDATED` effects.
+
+The Campaign Durable Object applies these effects to D1 in transactional batches keyed by `campaign_effect_receipts`, updates weapon mounts/Supply/cargo/persistent locations, and appends owner-visible unit history. Duplicate effects return the existing receipt.
+
+This is not yet the target protocol in ADR-R03: the current round result advances the DO before D1 acknowledgement. A D1 outage leaves the pending DO records available for retry, but planning is not yet held in `EFFECTS_PENDING`.

@@ -60,13 +60,13 @@ describe("Forces routes", () => {
     expect(await response?.json()).toMatchObject({ error: { code: "JSON_REQUIRED" } });
   });
 
-  it("keeps unimplemented loadout mutations explicit", async () => {
+  it("requires JSON for authoritative loadout mutations", async () => {
     const response = await routeForcesRequest(
       demoRequest("/api/forces/force-raven/loadout-changes", { method: "POST" }),
       developmentEnv,
     );
-    expect(response?.status).toBe(501);
-    expect(await response?.json()).toMatchObject({ error: { code: "LOADOUT_MUTATION_NOT_IMPLEMENTED" } });
+    expect(response?.status).toBe(415);
+    expect(await response?.json()).toMatchObject({ error: { code: "JSON_REQUIRED" } });
   });
 
   it("validates list filters", async () => {

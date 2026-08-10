@@ -9,6 +9,7 @@ export type DefinitionKind =
   | "unit-class"
   | "weapon"
   | "equipment"
+  | "refit"
   | "action"
   | "order-type"
   | "structure"
@@ -436,6 +437,147 @@ export interface EquipmentDefinition extends GameDefinition {
   rulesText: string;
 }
 
+export type EquipmentEffect =
+  | { type: "STAT_ADD"; stat: keyof Pick<UnitStats, "maxHealth" | "armor" | "defense" | "speed" | "sensors" | "capacity">; amount: number }
+  | { type: "STAT_SET_IF"; stat: keyof Pick<UnitStats, "armor" | "defense" | "speed" | "sensors">; whenEquals: number; value: number }
+  | { type: "TAG_GRANT"; tag: string }
+  | { type: "TAG_REMOVE"; tag: string }
+  | { type: "WEAPON_GRANT"; weapon: WeaponProfile }
+  | { type: "WEAPON_MODIFIER"; weaponId?: string; tag?: string; armorPiercing?: number; range?: number; damageModifier?: number }
+  | { type: "ACTION_GRANT"; action: ActionType }
+  | { type: "ORDER_GRANT"; order: OrderType }
+  | { type: "ABILITY_GRANT"; ability: AbilityRef }
+  | { type: "CARGO_CAPACITY_ADD"; slotsQuarters: number }
+  | { type: "DEPLOYMENT_GRANT"; method: DeploymentMethodId }
+  | { type: "AMMO_GRANT"; weaponId: string; capacity: number }
+  | { type: "COOLDOWN_GRANT"; abilityOrWeaponId: string; rounds: number };
+
+export interface RefitDefinition extends GameDefinition {
+  kind: "refit";
+  allowedUnitDefinitionIds: string[];
+  requiredTags: string[];
+  effects: EquipmentEffect[];
+  implementationStatus: ImplementationStatus;
+}
+
+export interface SelectedEquipment {
+  instanceId: string;
+  definition: EquipmentDefinition;
+  effects: EquipmentEffect[];
+  slotType: string;
+  slotIndex: number;
+  state: "AVAILABLE" | "INSTALLED" | "DAMAGED" | "EXPENDED";
+}
+
+export interface InstalledRefit {
+  instanceId: string;
+  definition: RefitDefinition;
+}
+
+export interface EffectiveUnit {
+  rulesetVersion: string;
+  definitionId: string;
+  persistentUnitId?: string;
+  stats: UnitStats;
+  tags: string[];
+  weapons: WeaponProfile[];
+  allowedActions: ActionType[];
+  allowedOrders: OrderType[];
+  abilities: AbilityRef[];
+  deploymentMethods: DeploymentMethodId[];
+  cargoProfile?: CargoProfile;
+  equipmentInstanceIds: string[];
+  refitInstanceIds: string[];
+  ammunition: Record<string, number>;
+  cooldowns: Record<string, number>;
+  sourceHash: string;
+}
+
+export interface EffectiveUnitBuildInput {
+  rulesetVersion: string;
+  unitDefinition: UnitDefinition;
+  playerUnit?: PlayerUnit;
+  refits: InstalledRefit[];
+  equipment: SelectedEquipment[];
+  ammunition?: Record<string, number>;
+  cooldowns?: Record<string, number>;
+}
+
+export interface EffectiveUnitBuildResult {
+  valid: boolean;
+  errors: DeploymentValidationIssue[];
+  warnings: DeploymentValidationIssue[];
+  unit?: EffectiveUnit;
+}
+
+export type DeploymentMethodId =
+  | "STANDARD_GROUND"
+  | "VEHICLE_TRANSPORT"
+  | "VTOL_INSERTION"
+  | "HEAVY_AIR_TRANSPORT"
+  | "PARADROP"
+  | "ORBITAL_DROP";
+
+export type DeploymentPlanStatus =
+  | "DRAFT"
+  | "VALID"
+  | "INVALID"
+  | "COMMITTED"
+  | "DEPLOYING"
+  | "DEPLOYED"
+  | "CANCELLED";
+
+export interface DeploymentValidationIssue {
+  code: string;
+  severity: "ERROR" | "WARNING";
+  entityId?: string;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+export interface DeploymentUnitSelection {
+  unitId: string;
+  ownerId: string;
+  effectiveUnit: EffectiveUnit;
+  ownerApproved: boolean;
+  commandApproved: boolean;
+}
+
+export interface DeploymentTransportAssignment {
+  carrierUnitId: string;
+  cargo: CargoManifestItem[];
+  profile: CargoProfile;
+}
+
+export interface DeploymentPlanState {
+  id: string;
+  campaignId: string;
+  battalionId: string;
+  battlegroupId?: string;
+  createdBy: string;
+  status: DeploymentPlanStatus;
+  revision: number;
+  method: DeploymentMethodId;
+  insertionHex?: AxialCoord;
+  transportRoute?: AxialCoord[];
+  unitSelections: DeploymentUnitSelection[];
+  transportAssignments: DeploymentTransportAssignment[];
+}
+
+export interface CampaignLoadoutSnapshot {
+  id: string;
+  campaignId: string;
+  deploymentPlanId: string;
+  playerUnitId: string;
+  rulesetVersion: string;
+  unitDefinitionVersion: string;
+  effectiveUnit: EffectiveUnit;
+  insertionMethod: DeploymentMethodId;
+  carrierUnitId?: string;
+  lockedAt: number;
+  snapshotHash: string;
+}
+
 export interface EquipmentEligibilityRule extends RuleMetadata {
   id: string;
   equipmentDefinitionId: string;
@@ -496,6 +638,7 @@ export interface PlayerUnit {
   statusEffects?: StatusEffectState[];
   subsystems?: SubsystemState[];
   cargo?: CargoManifestItem[];
+  cargoProfile?: CargoProfile;
   towedUnitId?: string;
 }
 
@@ -517,6 +660,8 @@ export interface CampaignDeployment {
   cooldowns: Record<string, number>;
   statuses: string[];
   equipmentIds: string[];
+  allowedActions?: ActionType[];
+  allowedOrders?: OrderType[];
   battlegroupId?: string;
   movementProfile?: MovementProfile;
   durabilityProfile?: DurabilityProfile;
@@ -525,6 +670,7 @@ export interface CampaignDeployment {
   statusEffects?: StatusEffectState[];
   subsystems?: SubsystemState[];
   cargo?: CargoManifestItem[];
+  cargoProfile?: CargoProfile;
   artilleryDeployment?: ArtilleryDeploymentState;
   locationState?: UnitLocationState;
   towedUnitId?: string;
@@ -625,6 +771,13 @@ export type CampaignEventType =
   | "UNIT_MOVED"
   | "UNIT_BLOCKED"
   | "UNIT_ATTACKED"
+  | "CARGO_LOADED"
+  | "CARGO_UNLOADED"
+  | "AIR_DROP_COMPLETED"
+  | "AIR_DROP_FAILED"
+  | "WEAPON_RELOADED"
+  | "HEX_SCANNED"
+  | "DRONE_DEPLOYED"
   | "DICE_ROLLED"
   | "DAMAGE_APPLIED"
   | "UNIT_DESTROYED"
@@ -658,7 +811,7 @@ export interface ObjectiveState {
 
 export interface PendingPersistentEffect {
   idempotencyKey: string;
-  type: "UNIT_DESTROYED" | "UNIT_DAMAGED" | "REQUISITION_AWARDED" | "CAMPAIGN_HISTORY";
+  type: "UNIT_DESTROYED" | "UNIT_DAMAGED" | "UNIT_STATE_UPDATED" | "REQUISITION_AWARDED" | "CAMPAIGN_HISTORY";
   unitId?: string;
   payload: Record<string, unknown>;
   status: "PENDING" | "APPLIED" | "FAILED";

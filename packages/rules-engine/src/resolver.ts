@@ -11,8 +11,10 @@ import {
   calculateRouteCost,
   canOccupyHex,
   coordKey,
+  hexDistance,
   sameCoord,
 } from "./hex";
+import { cargoSlotsForItem, disembarkCargo, embarkCargo, reloadAmmunition } from "./logistics";
 import { resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
 import { createSeededRandom, hashSeed } from "./rng";
 import { getActionDefinition, getOrderTypeDefinition } from "./catalogue";
@@ -34,6 +36,10 @@ export function validateOrder(
   if (!deployment) return { legal: false, reasons: ["Deployment does not exist."], movementCost: 0 };
   if (deployment.status === "DESTROYED") reasons.push("Unit was destroyed before the order resolved.");
   if (deployment.status === "IMMOBILISED" && order.route.length > 1) reasons.push("Unit is immobilised.");
+  const embarked = deployment.locationState === "EMBARKED" || deployment.locationState === "IN_VEHICLE" || deployment.locationState === "IN_AIR_TRANSPORT";
+  if (embarked && (order.route.length > 1 || order.actions.some((action) => action.type !== "UNLOAD"))) {
+    reasons.push("Embarked units cannot move or perform actions other than coordinated unloading.");
+  }
   if (order.campaignId !== input.previousState.campaignId) reasons.push("Order belongs to another campaign.");
   if (order.round !== input.previousState.round) reasons.push("Order targets another round.");
   if (order.unitId !== deployment.id) reasons.push("Order unit does not match deployment.");
@@ -230,6 +236,111 @@ export function resolveRound(input: RoundInput): RoundOutput {
     });
   }
 
+  for (const order of validOrders.values()) {
+    const actor = state.deployments.find((candidate) => candidate.id === order.unitId)!;
+    const actorVisibility: CampaignEvent["visibility"] = actor.side === "ENEMY" ? "ENEMY" : "ALLIED";
+    for (const action of order.actions.filter((candidate) => candidate.type !== "ATTACK")) {
+      if (action.type === "LOAD") {
+        if (!actor.cargoProfile && action.targetDeploymentId && state.deployments.find((candidate) => candidate.id === action.targetDeploymentId)?.cargoProfile) continue;
+        const cargo = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+        const matching = cargo && validOrders.get(cargo.id)?.actions.some((candidate) => candidate.type === "LOAD" && candidate.targetDeploymentId === actor.id);
+        if (!cargo || !matching || !actor.cargoProfile || !sameCoord(actor.position, cargo.position) || cargo.locationState === "EMBARKED") {
+          event("ORDER_REJECTED", actor.id, { orderId: order.id, actionId: action.id, reasons: ["Loading requires an eligible co-located carrier and matching cargo action."] }, actorVisibility);
+          continue;
+        }
+        const item = {
+          id: `campaign-cargo:${state.campaignId}:${cargo.id}`,
+          kind: cargo.stats.healthModel === "FORCE_STRENGTH" ? "PERSONNEL" as const : "VEHICLE" as const,
+          quantity: 1,
+          tags: cargo.stats.healthModel === "FORCE_STRENGTH" ? ["INFANTRY"] : ["VEHICLE"],
+          transportMode: "EMBARKED" as const,
+          unitId: cargo.id,
+        };
+        const loaded = embarkCargo(actor.cargoProfile, actor.cargo ?? [], item, Math.round(actor.stats.speed * 4));
+        if (!loaded.legal) {
+          event("ORDER_REJECTED", actor.id, { orderId: order.id, actionId: action.id, reasons: [loaded.reason ?? "Cargo cannot be loaded."] }, actorVisibility);
+          continue;
+        }
+        actor.cargo = loaded.manifest;
+        cargo.locationState = "EMBARKED";
+        cargo.position = { ...actor.position };
+        event("CARGO_LOADED", actor.id, { actionId: action.id, cargoDeploymentId: cargo.id, speedCostQuarters: loaded.speedCostQuarters }, actorVisibility);
+      }
+      if (action.type === "UNLOAD") {
+        if (!actor.cargoProfile && action.targetDeploymentId && state.deployments.find((candidate) => candidate.id === action.targetDeploymentId)?.cargoProfile) continue;
+        const cargoId = typeof action.payload?.cargoDeploymentId === "string" ? action.payload.cargoDeploymentId : action.targetDeploymentId;
+        const cargo = state.deployments.find((candidate) => candidate.id === cargoId);
+        const item = actor.cargo?.find((candidate) => candidate.unitId === cargo?.id);
+        const matching = cargo && validOrders.get(cargo.id)?.actions.some((candidate) => candidate.type === "UNLOAD" && candidate.targetDeploymentId === actor.id);
+        if (!cargo || !item || !matching || !actor.cargoProfile) {
+          event("ORDER_REJECTED", actor.id, { orderId: order.id, actionId: action.id, reasons: ["Unloading requires manifested cargo and matching cargo action."] }, actorVisibility);
+          continue;
+        }
+        const targetHex = action.targetHex ?? actor.position;
+        const hex = state.map.find((candidate) => sameCoord(candidate.coord, targetHex));
+        const isAirDrop = item.transportMode === "AIRLIFTED" || action.payload?.mode === "PARADROP";
+        if (!hex || (isAirDrop && !canOccupyHex(targetHex, cargo.id, state.deployments, state.map))) {
+          event("AIR_DROP_FAILED", actor.id, { actionId: action.id, cargoDeploymentId: cargo.id, targetHex, reason: "DROP_HEX_BLOCKED" }, actorVisibility);
+          continue;
+        }
+        if (!isAirDrop && !sameCoord(targetHex, actor.position)) {
+          event("ORDER_REJECTED", actor.id, { orderId: order.id, actionId: action.id, reasons: ["Normal unloading must use the carrier hex."] }, actorVisibility);
+          continue;
+        }
+        const unloaded = disembarkCargo(actor.cargoProfile, actor.cargo ?? [], [item.id], Math.round(actor.stats.speed * 4));
+        if (!unloaded.legal) {
+          event("ORDER_REJECTED", actor.id, { orderId: order.id, actionId: action.id, reasons: [unloaded.reason ?? "Cargo cannot unload."] }, actorVisibility);
+          continue;
+        }
+        actor.cargo = unloaded.manifest;
+        cargo.locationState = "ON_MAP";
+        cargo.position = { ...targetHex };
+        event(isAirDrop ? "AIR_DROP_COMPLETED" : "CARGO_UNLOADED", actor.id, {
+          actionId: action.id, cargoDeploymentId: cargo.id, targetHex, speedCostQuarters: unloaded.speedCostQuarters,
+        }, actorVisibility);
+      }
+      if (action.type === "RELOAD") {
+        const weapon = actor.weapons.find((candidate) => candidate.id === action.weaponId);
+        if (!weapon) {
+          event("ORDER_REJECTED", actor.id, { orderId: order.id, actionId: action.id, reasons: ["Reload weapon is not fitted."] }, actorVisibility);
+          continue;
+        }
+        const currentAmmo = actor.ammunition[weapon.id] ?? 0;
+        const reloaded = reloadAmmunition({
+          profile: { id: "v5-field-reload", supplyType: "SMALL", supplyCost: 1, ammunitionPerAction: "FULL", requiresLanding: false, requiredFacilityTags: [], facilityTagMatch: "ANY", actionEconomy: "STANDARD" },
+          weapon,
+          currentAmmo,
+          supplies: actor.supplies ?? {},
+          landed: true,
+          facilityTags: [],
+        });
+        if (!reloaded.legal) {
+          event("ORDER_REJECTED", actor.id, { orderId: order.id, actionId: action.id, reasons: [reloaded.reason ?? "Reload is illegal."] }, actorVisibility);
+          continue;
+        }
+        actor.ammunition[weapon.id] = reloaded.ammunitionAfter;
+        actor.supplies = reloaded.supplies;
+        event("WEAPON_RELOADED", actor.id, { actionId: action.id, weaponId: weapon.id, ammunitionAfter: reloaded.ammunitionAfter, supplySpent: reloaded.supplySpent }, actorVisibility);
+      }
+      if (action.type === "SCAN" || action.type === "DEPLOY_DRONE") {
+        const targetHex = action.targetHex;
+        const ability = action.type === "DEPLOY_DRONE"
+          ? actor.abilities?.find((candidate) => candidate.handlerId === "DEPLOY_DRONE" || candidate.abilityId === "ability-deploy-drone")
+          : undefined;
+        const maximumRange = action.type === "DEPLOY_DRONE" ? 5 : actor.stats.sensors;
+        const cooldownKey = ability?.abilityId ?? action.type;
+        if (!targetHex || hexDistance(actor.position, targetHex) > maximumRange || (actor.cooldowns[cooldownKey] ?? 0) > 0 || (action.type === "DEPLOY_DRONE" && !ability)) {
+          event("ORDER_REJECTED", actor.id, { orderId: order.id, actionId: action.id, reasons: ["Scan target, range, ability, or cooldown is invalid."] }, actorVisibility);
+          continue;
+        }
+        if (action.type === "DEPLOY_DRONE") actor.cooldowns[cooldownKey] = 6;
+        event(action.type === "DEPLOY_DRONE" ? "DRONE_DEPLOYED" : "HEX_SCANNED", actor.id, {
+          actionId: action.id, targetHex, maximumRange, cooldownRounds: action.type === "DEPLOY_DRONE" ? 6 : 0,
+        }, actorVisibility);
+      }
+    }
+  }
+
   const damage = new Map<string, number>();
   const rushingUnits = new Set(
     [...validOrders.entries()]
@@ -302,6 +413,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
     });
     if (target.currentHealth === 0) {
       target.status = "DESTROYED";
+      target.locationState = "DESTROYED";
       event("UNIT_DESTROYED", target.id, {
         persistentUnitId: target.persistentUnitId,
         equipmentLost: target.equipmentIds,
@@ -324,6 +436,30 @@ export function resolveRound(input: RoundInput): RoundOutput {
         status: "PENDING",
       });
     }
+  }
+
+  for (const deployment of state.deployments.filter((candidate) => candidate.persistentUnitId)) {
+    effects.push({
+      idempotencyKey: `${state.campaignId}:${state.round}:state:${deployment.persistentUnitId}`,
+      type: "UNIT_STATE_UPDATED",
+      unitId: deployment.persistentUnitId,
+      payload: {
+        campaignId: state.campaignId,
+        round: state.round,
+        locationState: deployment.locationState ?? "ON_MAP",
+        ammunition: deployment.ammunition,
+        cooldowns: deployment.cooldowns,
+        supplies: deployment.supplies ?? {},
+        cargo: (deployment.cargo ?? []).map((item) => ({
+          ...item,
+          slotsQuarters: deployment.cargoProfile ? cargoSlotsForItem(deployment.cargoProfile, item).slotsQuarters : 0,
+          unitId: item.unitId
+            ? state.deployments.find((candidate) => candidate.id === item.unitId)?.persistentUnitId ?? item.unitId
+            : undefined,
+        })),
+      },
+      status: "PENDING",
+    });
   }
 
   for (const order of state.orders) {

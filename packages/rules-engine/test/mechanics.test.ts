@@ -286,14 +286,15 @@ describe("ammo, cooldown, Supply, build, and equipment restrictions", () => {
     const infantry = getUnitClass("unit-infantry-squad");
     const tank = getUnitClass("unit-main-battle-tank");
     const flak = equipment.find((item) => item.id === "equipment-flak-vests")!;
-    const experimentalAt = equipment.find((item) => item.id === "equipment-light-at")!;
+    const lightAt = equipment.find((item) => item.id === "equipment-light-at")!;
 
     expect(canEquip(infantry, flak, [], new Map())).toEqual({ legal: true });
     expect(canEquip(tank, flak, [], new Map())).toMatchObject({
       legal: false,
       reason: "Unit class is not eligible for this equipment.",
     });
-    expect(canEquip(infantry, experimentalAt, [], new Map())).toMatchObject({
+    expect(canEquip(infantry, lightAt, [], new Map())).toEqual({ legal: true });
+    expect(canEquip(infantry, { ...lightAt, status: "experimental" }, [], new Map())).toMatchObject({
       legal: false,
       reason: "Equipment is not active.",
     });

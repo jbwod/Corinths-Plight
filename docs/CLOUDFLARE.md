@@ -1,6 +1,6 @@
 # Corinth's Plight Cloudflare Architecture
 
-**Status:** Phase 2 production runtime plus local-only Phase 3 foundation (2026-08-10)
+**Status:** Phase 3 plus equipment/deployment release candidate (2026-08-10)
 
 **Configuration:** `vite.config.ts`, `wrangler.jsonc`, and root `package.json`
 
@@ -26,9 +26,9 @@ flowchart TD
     DO --> Engine["Pure tactical rules engine"]
     SDO --> StrategicEngine["Pure strategic rules engine"]
     DO -->|hibernating WebSockets| Client
-    DO -. "target only: persistent effects" .-> Applier["D1 effect applier"]
+    DO -->|"idempotent persistent effects"| Applier["D1 effect applier"]
     SDO -. "resolution persistence deferred" .-> DB
-    Applier -. "not implemented" .-> DB
+    Applier --> DB
 ```
 
 All public traffic passes through the Worker. Campaign traffic resolves D1 campaign membership before a named Campaign DO lookup. Strategic traffic resolves the caller's active Battalion, permissions, map, and stable `coordinator_key` before a named Strategic Map DO lookup. Strategic order submission is serialized by the map coordinator; development resolution remains fail-closed until its authoritative D1 journal/effect applier is implemented.
@@ -53,10 +53,13 @@ All public traffic passes through the Worker. Campaign traffic resolves D1 campa
 | `migrations/0002_persistent_world.sql` | Persistent forces, Battalion/ship, campaign, archive/effect schema |
 | `migrations/0003_phase2_persistent_forces.sql` | Phase 2 force identity, profile, loadout, cargo, supply, status, service, and ship-capability schema |
 | `migrations/0004_phase3_strategic_layer.sql` | Phase 3 identity/org evolution, locations, maps/routes, operations, Task Forces, supply, rounds, orders, events, receipts, and war variables |
+| `migrations/0005_equipment_deployment_vertical_slice.sql` | Equipment effects/refits, owner inventory, loadout locks, deployment plans/transports/snapshots, campaign resource state, and effect receipts |
 | `seeds/v5-core-curated.sql` | Idempotent D1 SQL rules seed |
 | `seeds/v5-phase2-combined-arms.sql` | Provenance-bearing Phase 2 combined-arms catalogue |
+| `seeds/v5-equipment-deployment.sql` | Canonical executable equipment/action/deployment-method overlays for the narrow vertical slice |
 | `seeds/development-forces.sql` | Local-only Operation Iron Rain force fixture |
 | `seeds/development-strategic-world.sql` | Local-only Helion/Corinth, CSV Resolute, Task Force, operations, and strategic supply fixture |
+| `seeds/development-spearhead.sql` | Local-only Operation Spearhead loadout/deployment fixture |
 | `scripts/validate-seed.ts` | Source hash and runtime/SQL seed consistency checks |
 | `wrangler.jsonc` | compatibility date, variables, D1/DO bindings, DO migration, environments |
 | `vite.config.ts` | React and Cloudflare Vite plugins |
@@ -70,7 +73,7 @@ There is no `worker/demo.ts` or `scripts/seed-ruleset.ts`. Demo authentication i
 | Binding/config | Current resource | Authority/status |
 |---|---|---|
 | `DB` | D1 | Identity/session, campaign membership, Phase 2 force/catalogue/readiness reads, and exact-once rename/developer-purchase writes are active; round-effect finalisation remains open |
-| `CAMPAIGN` | Durable Object namespace | One named object per campaign; only `outpost-k17` can self-initialise in this foundation |
+| `CAMPAIGN` | Durable Object namespace | One named object per campaign; K-17 self-initialises and other authorised campaigns bootstrap only from committed D1 deployment snapshots |
 | `STRATEGIC_MAP` | Durable Object namespace | One named object per strategic map/theatre; order coordination is local-only and resolution persistence is deferred |
 | DO migration `v1` | `new_sqlite_classes: ["CampaignDurableObject"]` | Present |
 | DO migration `v2` | `new_sqlite_classes: ["StrategicMapDurableObject"]` | Local configuration present; not deployed |
@@ -99,7 +102,7 @@ Clock values change configuration only; manual/accelerated/production alarms cal
 
 The default Wrangler configuration deliberately enables the local demo. It must never be used for a remote deployment. Root production scripts always set/select the production environment. Operators must use those scripts and must not bypass them with a bare `wrangler deploy`.
 
-`ALLOW_DEMO_AUTH` is accepted only when its value is exactly `true` and `ENVIRONMENT` is exactly `development`. Production also returns 503 if configured with demo auth enabled. The explicit demo identity can access only `outpost-k17`.
+`ALLOW_DEMO_AUTH` is accepted only when its value is exactly `true` and `ENVIRONMENT` is exactly `development`. Production also returns 503 if configured with demo auth enabled. The explicit demo identity can access only the local fixtures `outpost-k17` and `operation-spearhead`.
 
 ## 6. Authentication and campaign-routing boundary
 
@@ -107,7 +110,7 @@ The default Wrangler configuration deliberately enables the local demo. It must 
 
 - Unsafe methods and WebSocket upgrades require a present, exactly matching same-origin `Origin`.
 - Explicitly cross-origin API requests are rejected, including safe requests carrying a foreign Origin or `Sec-Fetch-Site: cross-site`.
-- Demo headers/query identity work only under the explicit development flag and only for K-17.
+- Demo headers/query identity work only under the explicit development flag and only for K-17 or Operation Spearhead.
 - Cookie authentication accepts a 32–512 character `corinth_session`, URI-decodes it, hashes it with SHA-256, and queries an unexpired/unrevoked session joined to an `ACTIVE` user.
 - Session campaign access is loaded from D1 before `CAMPAIGN.getByName`. Only existing `ACTIVE`, `PAUSED`, `COMPLETE`, or `FAILED` campaigns route.
 - `PLAYER` and `BATTALION_COMMAND` retain their campaign side; campaign `GM` maps to internal `ADMIN`; `OBSERVER`, unknown roles, and unsafe neutral projections fail closed.
@@ -120,7 +123,7 @@ The default Wrangler configuration deliberately enables the local demo. It must 
 - No production identity provider/login, passwordless flow, session issuance/rotation/logout/recovery, or account-linking workflow exists. The code can validate a pre-existing D1 session row only.
 - There is no CSRF token mechanism; the current cookie-auth mitigation is strict same-origin Origin enforcement. Deployment/proxy policy must preserve the Origin signal, and a formal session/CSRF decision is required with the production provider.
 - `readJson` enforces size and parses JSON but does not require JSON content type or apply general runtime schemas.
-- A valid non-K-17 D1 campaign has no bootstrap/deployment-snapshot protocol; the DO fails `CAMPAIGN_NOT_INITIALISED` rather than inventing state.
+- A non-K-17 campaign bootstraps only when authorised D1 deployment snapshots exist; otherwise the DO fails `CAMPAIGN_NOT_INITIALISED` rather than inventing forces.
 - The compiled rules endpoint is separate from D1 seed rows; a campaign is not yet loaded from a D1 content hash.
 - Operator commands treat any viewer as an operator outside production for development convenience; production requires `ADMIN`.
 
@@ -182,13 +185,13 @@ Actual root scripts are:
 | Script | Behavior |
 |---|---|
 | `build:production` | Sets `CLOUDFLARE_ENV=production`, then typechecks and builds |
-| `check:production-config` | Exits non-zero for an invalid production D1 ID and, for this checkpoint, unless preview verification has been completed and `CORINTH_PHASE3_RELEASE_APPROVED=true` is explicitly supplied |
+| `check:production-config` | Exits non-zero for an invalid production D1 ID or unless `CORINTH_RELEASE_APPROVED=true` is explicitly supplied |
 | `db:migrate:remote` | Runs the guard, then applies migrations to `corinths-plight-production --remote --env production` |
-| `db:seed:remote` | Runs the guard, then executes the core and Phase 2 published catalogues against production with `--env production`; it never applies either development fixture |
+| `db:seed:remote` | Runs the guard, then executes the core, Phase 2, and equipment/deployment canonical catalogues against production with `--env production`; it never applies a development fixture |
 | `deploy:dry` | Runs guard + production build + `wrangler deploy --dry-run --env production` |
 | `deploy` | Runs guard + production build + `wrangler deploy --env production` |
 
-The production D1 resource is provisioned, but the guard intentionally remains closed for Phase 3 unless the release operator explicitly supplies `CORINTH_PHASE3_RELEASE_APPROVED=true`. The completed Phase 2 release sequence was: verify the authenticated account, create the isolated production database, apply the then-current migrations and published catalogues, run the validator/typecheck/lint/tests/production build, inspect `deploy:dry`, deploy, and perform read-only health and D1-count checks. Keep this sequence for later releases. Phase 3 requires a separate preview migration/seed/runtime verification before that approval is used for any production migration or deployment.
+The production D1 resource is provisioned, but the guard remains closed unless the release operator explicitly supplies `CORINTH_RELEASE_APPROVED=true`. Release sequence: verify the authenticated account, export D1, rehearse all migrations/seeds in an isolated local database, run validator/typecheck/lint/tests/production build, inspect `deploy:dry`, apply remote migrations and canonical seeds, deploy, and perform read-only health and D1 checks.
 
 Preview provisioning/deployment is also not scripted at the package level. It requires a real preview D1 ID and explicit `--env preview` on every Wrangler operation. Preview must complete before production.
 
@@ -200,8 +203,9 @@ Current behavior:
 
 ```text
 DO resolver -> pending-effect/{id} in DO
-            -> next round opens immediately
-            X no D1 applier/archive write
+            -> idempotent D1 batch + campaign_effect_receipts
+            -> pending record deleted after receipt verification
+            -> next round is already open (acknowledgement gate still missing)
 ```
 
 Target behavior:
@@ -252,16 +256,16 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 - [x] `CampaignDurableObject` is exported, bound as `CAMPAIGN`, and included in DO migration `v1`.
 - [~] `StrategicMapDurableObject` is locally exported, bound as `STRATEGIC_MAP`, and included in DO migration `v2`; it is not deployed and strategic resolution persistence remains blocked.
 - [x] No R2, Queue, or KV authority binding is present.
-- [x] Demo auth requires exact development opt-in and is limited to `outpost-k17`; production cannot enable it safely.
+- [x] Demo auth requires exact development opt-in and is limited to `outpost-k17` and `operation-spearhead`; production cannot enable it safely.
 - [x] Unsafe mutations/WebSocket upgrades require same origin; D1 membership is checked before DO lookup.
-- [x] Four additive D1 migrations, published/local seed separation, source-hash validator, TypeScript build, lint, and unit tests exist.
+- [x] Five additive D1 migrations, published/local seed separation, source-hash validator, TypeScript build, lint, and unit tests exist.
 - [~] Manual/accelerated/24h clocks and pause/resume are unit-tested; alarm crash/eviction integration is not.
 - [~] Snapshot/report projection exists; event-time payload and socket-audience leakage coverage is incomplete.
 - [ ] Implement production login/provider and session issuance/recovery/rotation/revocation flow.
-- [ ] Implement non-K-17 campaign bootstrap from D1-authorised deployment data.
+- [x] Implement fail-closed non-K-17 campaign bootstrap from committed D1 deployment snapshots.
 - [ ] Implement PREPARED journal, cryptographic input/output hashes, and protected deterministic seed.
 - [ ] Implement separate persisted schedule records and consumed/recovery semantics.
-- [ ] Implement the D1 persistent-effect/archive applier and acknowledgement-gated next round.
+- [~] D1 persistent-effect application uses idempotent receipts; acknowledgement-gated next-round transition and a cryptographic payload journal remain open.
 - [ ] Implement events-after-sequence reconnect and hibernation integration tests.
 - [ ] Provision the preview D1 resource and replace its placeholder ID; production D1 is already provisioned.
 - [ ] Complete and record a remote preview deployment/smoke test.
@@ -271,7 +275,7 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 
 ### ADR-C01: One Worker plus one named DO per campaign
 
-**Status:** Implemented for K-17; general campaign bootstrap open.
+**Status:** Implemented for K-17 and fail-closed committed-snapshot bootstrap.
 
 **Trade-off:** Active campaign scale is bounded by one DO, while Worker/client share a release.
 
@@ -279,7 +283,7 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 
 ### ADR-C02: D1 for global relational truth
 
-**Status:** Schema and auth reads implemented; domain services/effect application incomplete.
+**Status:** Schema, auth, force/loadout/deployment services, and the narrow campaign-effect application path are implemented; full cross-store journal/gating remains incomplete.
 
 **Trade-off:** D1/DO cannot share a transaction, requiring the explicit effect journal.
 
@@ -310,3 +314,18 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 **Revisit:** Add a binding only with an implemented feature, authorization/lifecycle plan, and idempotency/cost tests.
 
 Related boundaries: [ARCHITECTURE.md](./ARCHITECTURE.md), [DATA_MODEL.md](./DATA_MODEL.md), and [ROUND_RESOLUTION.md](./ROUND_RESOLUTION.md).
+
+## 14. Migration 0005 and release order
+
+The equipment/deployment release adds `0005_equipment_deployment_vertical_slice.sql` and the canonical `v5-equipment-deployment.sql` seed. `development-spearhead.sql` is local-only and must never be applied to production.
+
+Production release order is:
+
+1. export/backup the production D1 database;
+2. run a production Worker dry build;
+3. apply pending D1 migrations (including 0004 and 0005 where absent);
+4. apply canonical core, Phase 2, and equipment/deployment seeds only;
+5. deploy the Worker/client with the Phase 3 Strategic Map DO export;
+6. smoke-test health, anonymous authentication boundaries, the custom domain, and migration state.
+
+The release guard requires `CORINTH_RELEASE_APPROVED=true`; production demo auth remains false. Operation Spearhead and all development identities/fixtures remain local-only.

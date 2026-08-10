@@ -90,7 +90,7 @@ describe("campaign authorization", () => {
     ).toEqual({ allowed: false, reason: "ROLE_UNSUPPORTED" });
   });
 
-  it("allows a demo identity only into the explicit local demo campaign", async () => {
+  it("allows a demo identity only into the explicit local demo campaigns", async () => {
     const identity: AuthenticatedIdentity = {
       kind: "DEMO",
       viewer: { userId: "demo-user", side: "ALLIED", role: "PLAYER" },
@@ -102,6 +102,7 @@ describe("campaign authorization", () => {
     } satisfies Env;
 
     await expect(authorizeCampaign(identity, LOCAL_DEMO_CAMPAIGN_ID, env)).resolves.toMatchObject({ allowed: true });
+    await expect(authorizeCampaign(identity, "operation-spearhead", env)).resolves.toMatchObject({ allowed: true });
     await expect(authorizeCampaign(identity, "invented-campaign", env)).resolves.toEqual({
       allowed: false,
       reason: "NOT_FOUND",
