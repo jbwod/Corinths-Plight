@@ -358,6 +358,7 @@ describe("CampaignDurableObject campaign contracts", () => {
     database.linkedOperation = {
       id: "strategic-operation-k17-test",
       map_id: "strategic-map-corinth",
+      node_id: "node-outpost-k17",
       current_round: 28,
       battalion_id: "battalion-33rd-expeditionary",
       effect_rules_json: JSON.stringify([{
@@ -416,6 +417,11 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(database.appliedQueries.filter((query) => query.includes("INSERT INTO strategic_events"))).toHaveLength(2);
     expect(database.appliedQueries.some((query) => query.includes("UPDATE strategic_nodes SET control_status"))).toBe(true);
     expect(database.appliedQueries.some((query) => query.includes("UPDATE strategic_routes SET status='OPEN'"))).toBe(true);
+    expect(database.appliedQueries.some((query) => query.includes("location_kind='RESERVE'"))).toBe(true);
+    expect(database.appliedQueries.some((query) => query.includes("UPDATE player_unit_loadouts SET locked_at=NULL"))).toBe(true);
+    expect(database.appliedQueries.some((query) => query.includes("status='CANCELLED'"))).toBe(true);
+    expect(database.appliedQueries.some((query) => query.includes("status='DISEMBARKED'"))).toBe(true);
+    expect(database.appliedQueries.some((query) => query.includes("UPDATE battlegroups SET status='RECOVERING'"))).toBe(true);
     expect(storage.alarm).toBeNull();
 
     const pause = await campaign.fetch(request("/pause", { method: "POST" }));

@@ -88,6 +88,8 @@ The seeded operations are:
 
 Iron Rain contains an authored victory rule keyed to the tactical `objective-kestrel-airfield` result. When a terminal campaign result reports Allied control, the campaign effect batch changes Kestrel Ridge to `FRIENDLY`, opens `route-kestrel-outpost-k17`, increments the map, appends Battalion activity, and records both targets in `strategic_effect_receipts`. A failed or unmet objective applies neither consequence; unknown configured effect types fail closed.
 
+The same terminal effect batch now performs the first recovery handoff. It closes every active campaign deployment, leaves destroyed persistent units destroyed, returns survivors to `RESERVE` at the operation node with their resolved health, ammunition and tactical supplies intact, unlocks their campaign loadouts, closes any active carrier assignment, and marks participating Battlegroups `RECOVERING`. Survivors are deliberately not teleported back aboard CSV Resolute: re-embarkation, resupply and onward movement remain separate strategic actions.
+
 ## 7. Strategic clock, orders, and events
 
 `strategic_rounds` is separate from tactical `round_metadata`. It pins a ruleset and resolver version and records open/lock/resolve timestamps, hashes, a resolution key, lifecycle, and revision. A resolved or failed row cannot omit its journal hashes.

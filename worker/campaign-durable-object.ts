@@ -342,7 +342,12 @@ export class CampaignDurableObject extends DurableObject<Env> {
       payload: Record<string, unknown>;
     }>({ prefix: "pending-effect/" });
     let appliedCount = 0;
-    for (const [storageKey, effect] of pending) {
+    const orderedPending = [...pending.entries()].sort(([leftKey, left], [rightKey, right]) => {
+      if (left.type === "CAMPAIGN_RESULT" && right.type !== "CAMPAIGN_RESULT") return 1;
+      if (right.type === "CAMPAIGN_RESULT" && left.type !== "CAMPAIGN_RESULT") return -1;
+      return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+    });
+    for (const [storageKey, effect] of orderedPending) {
       if (this.effectRound(effect) !== targetRound) continue;
       const prior = await this.env.DB.prepare(`SELECT 1 FROM campaign_effect_receipts
         WHERE idempotency_key = ?1 LIMIT 1`).bind(effect.idempotencyKey).first();
@@ -374,7 +379,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
         }
         const campaignStatus = result === "VICTORY" ? "COMPLETE" : "FAILED";
         const strategicStatus = result === "VICTORY" ? "RESOLVED" : "FAILED";
-        const linkedOperation = await this.env.DB.prepare(`SELECT operations.id,operations.map_id,
+        const linkedOperation = await this.env.DB.prepare(`SELECT operations.id,operations.map_id,operations.node_id,
             operations.effect_rules_json,maps.current_round,
             (SELECT memberships.battalion_id FROM campaign_memberships AS memberships
               WHERE memberships.campaign_id=?1 AND memberships.side='ALLIED'
@@ -389,6 +394,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
             effect_rules_json: string;
             current_round: number;
             battalion_id: string | null;
+            node_id: string;
           }>();
         const consequences = linkedOperation
           ? configuredCampaignStrategicConsequences(
@@ -455,6 +461,56 @@ export class CampaignDurableObject extends DurableObject<Env> {
           strategicStatements.push(this.env.DB.prepare(`UPDATE strategic_maps SET revision=revision+1,
             updated_at=unixepoch() WHERE id=?1`).bind(linkedOperation!.map_id));
         }
+        const recoveryStatements: D1PreparedStatement[] = [
+          this.env.DB.prepare(`UPDATE deployments SET status='DESTROYED',withdrawn_at=COALESCE(withdrawn_at,unixepoch())
+            WHERE campaign_id=?1 AND status IN ('READY','ACTIVE','IMMOBILISED')
+              AND EXISTS (SELECT 1 FROM player_units AS units
+                WHERE units.id=deployments.player_unit_id AND units.status='DESTROYED')`).bind(campaignId),
+          this.env.DB.prepare(`UPDATE deployments SET status='WITHDRAWN',withdrawn_at=COALESCE(withdrawn_at,unixepoch())
+            WHERE campaign_id=?1 AND status IN ('READY','ACTIVE','IMMOBILISED')
+              AND EXISTS (SELECT 1 FROM player_units AS units
+                WHERE units.id=deployments.player_unit_id AND units.status<>'DESTROYED')`).bind(campaignId),
+          this.env.DB.prepare(`UPDATE player_units SET
+              status=CASE WHEN current_health < COALESCE((SELECT definitions.max_health
+                FROM unit_class_definitions AS definitions
+                WHERE definitions.id=player_units.definition_id AND definitions.ruleset_id=player_units.ruleset_id),current_health)
+                THEN 'DAMAGED' ELSE 'ACTIVE' END,
+              location_kind='RESERVE',location_state='RESERVE',location_id=?2,
+              version=version+1,updated_at=unixepoch()
+            WHERE status<>'DESTROYED' AND EXISTS (SELECT 1 FROM deployments
+              WHERE deployments.campaign_id=?1 AND deployments.player_unit_id=player_units.id)`)
+            .bind(campaignId, linkedOperation?.node_id ?? null),
+          this.env.DB.prepare(`UPDATE player_unit_loadouts SET locked_at=NULL,revision=revision+1,updated_at=unixepoch()
+            WHERE locked_at IS NOT NULL AND EXISTS (SELECT 1 FROM campaign_loadout_snapshots AS snapshots
+              WHERE snapshots.campaign_id=?1 AND snapshots.player_unit_id=player_unit_loadouts.player_unit_id)`)
+            .bind(campaignId),
+        ];
+        if (linkedOperation) {
+          recoveryStatements.push(
+            this.env.DB.prepare(`UPDATE task_force_battlegroups SET status='CANCELLED',
+                revision=revision+1,updated_at=unixepoch()
+              WHERE status='EMBARKING' AND battlegroup_id IN (
+                SELECT DISTINCT links.battlegroup_id FROM battlegroup_units AS links
+                JOIN deployments ON deployments.player_unit_id=links.player_unit_id
+                WHERE deployments.campaign_id=?1)`)
+              .bind(campaignId),
+            this.env.DB.prepare(`UPDATE task_force_battlegroups SET status='DISEMBARKED',
+                disembarked_at=COALESCE(disembarked_at,unixepoch()),revision=revision+1,updated_at=unixepoch()
+              WHERE status IN ('EMBARKED','DISEMBARKING') AND embarked_at IS NOT NULL
+                AND battlegroup_id IN (
+                SELECT DISTINCT links.battlegroup_id FROM battlegroup_units AS links
+                JOIN deployments ON deployments.player_unit_id=links.player_unit_id
+                WHERE deployments.campaign_id=?1)`)
+              .bind(campaignId),
+            this.env.DB.prepare(`UPDATE battlegroups SET status='RECOVERING',current_node_id=?2,
+                current_operation_id=NULL,current_carrier_task_force_id=NULL,
+                revision=revision+1,updated_at=unixepoch()
+              WHERE EXISTS (SELECT 1 FROM battlegroup_units AS links
+                JOIN deployments ON deployments.player_unit_id=links.player_unit_id
+                WHERE links.battlegroup_id=battlegroups.id AND deployments.campaign_id=?1)`)
+              .bind(campaignId, linkedOperation.node_id),
+          );
+        }
         await this.env.DB.batch([
           this.env.DB.prepare(`INSERT INTO campaign_results (
             campaign_id,round_number,scenario_id,scenario_version,result,reason,
@@ -473,6 +529,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
             idempotency_key,campaign_id,round_number,effect_type,player_unit_id,payload_json
           ) VALUES (?1,?2,?3,?4,NULL,?5)`)
             .bind(effect.idempotencyKey, campaignId, round, effect.type, JSON.stringify(effect.payload)),
+          ...recoveryStatements,
           ...strategicStatements,
         ]);
         const applied = await this.env.DB.prepare(`SELECT 1 FROM campaign_results
@@ -491,6 +548,10 @@ export class CampaignDurableObject extends DurableObject<Env> {
           current_health = 0, destroyed_at = unixepoch(), destroyed_campaign_id = ?1,
           destroyed_round = ?2, version = version + 1, updated_at = unixepoch()
           WHERE id = ?3 AND status <> 'DESTROYED'`).bind(campaignId, round, effect.unitId));
+        statements.push(this.env.DB.prepare(`UPDATE deployments SET status='DESTROYED',
+          withdrawn_at=COALESCE(withdrawn_at,unixepoch())
+          WHERE campaign_id=?1 AND player_unit_id=?2 AND status<>'DESTROYED'`)
+          .bind(campaignId, effect.unitId));
       } else if (effect.type === "UNIT_DAMAGED") {
         const health = Number(effect.payload.currentHealth);
         statements.push(this.env.DB.prepare(`UPDATE player_units SET current_health = ?1,
