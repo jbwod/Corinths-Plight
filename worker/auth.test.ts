@@ -18,7 +18,10 @@ function envWithRow(row: unknown): Env {
     ALLOW_DEMO_AUTH: "false",
     DEFAULT_ROUND_DURATION_MS: "86400000",
     ORDER_LOCK_LEAD_MS: "30000",
+    DEFAULT_STRATEGIC_ROUND_DURATION_MS: "86400000",
+    STRATEGIC_ORDER_LOCK_LEAD_MS: "30000",
     CAMPAIGN: {} as DurableObjectNamespace,
+    STRATEGIC_MAP: {} as DurableObjectNamespace,
     DB: {
       prepare: () => ({
         bind: () => ({ first: async () => row }),

@@ -956,3 +956,730 @@ export interface EnemyContactInspectionDto {
   knownTags: string[];
   confidence: "EXACT" | "ESTIMATED" | "UNKNOWN";
 }
+
+// ---------------------------------------------------------------------------
+// Phase 3: persistent organisations and the strategic layer
+// ---------------------------------------------------------------------------
+
+export type PlayerAccountStatus = "ACTIVE" | "SUSPENDED" | "DEACTIVATED";
+
+/** Public player identity. Authentication-provider identifiers never belong here. */
+export interface PlayerProfileDto {
+  userId: string;
+  displayName: string;
+  callsign: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
+  timezone?: string | null;
+  preferredBattalionId?: string | null;
+  createdAt: number;
+  lastActiveAt: number;
+  accountStatus: PlayerAccountStatus;
+}
+
+export type BattalionStatus = "ACTIVE" | "SUSPENDED" | "DISBANDED";
+export type BattalionMembershipStatus = "INVITED" | "ACTIVE" | "SUSPENDED" | "LEFT" | "REMOVED";
+
+export type BattalionPermission =
+  | "BATTALION_EDIT"
+  | "MEMBER_INVITE"
+  | "MEMBER_REMOVE"
+  | "RANK_MANAGE"
+  | "BATTLEGROUP_CREATE"
+  | "BATTLEGROUP_EDIT"
+  | "BATTLEGROUP_ASSIGN"
+  | "OPERATION_CREATE"
+  | "OPERATION_COMMAND"
+  | "SHIP_VIEW"
+  | "SHIP_CONFIGURE"
+  | "SHIP_UPGRADE"
+  | "SHIP_MOVE"
+  | "SUPPLY_VIEW"
+  | "SUPPLY_MANAGE"
+  | "UNIT_DEPLOY_SELF"
+  | "UNIT_DEPLOY_OTHERS"
+  | "STRATEGIC_ORDER_CREATE"
+  | "STRATEGIC_ORDER_APPROVE";
+
+export interface BattalionDto {
+  id: string;
+  name: string;
+  shortName: string;
+  description: string;
+  insigniaUrl?: string | null;
+  motto?: string | null;
+  createdAt: number;
+  createdBy: string;
+  status: BattalionStatus;
+  primaryShipId?: string | null;
+  version: number;
+}
+
+export interface BattalionSummaryDto {
+  id: string;
+  name: string;
+  shortName: string;
+  insigniaUrl?: string | null;
+  motto?: string | null;
+  status: BattalionStatus;
+  memberCount: number;
+  primaryShipId?: string | null;
+  version: number;
+}
+
+export interface BattalionRankDto {
+  id: string;
+  battalionId: string;
+  name: string;
+  sortOrder: number;
+  permissions: BattalionPermission[];
+  version: number;
+}
+
+export interface BattalionMemberDto {
+  membershipId: string;
+  battalionId: string;
+  userId: string;
+  displayName: string;
+  callsign: string;
+  rankId: string;
+  status: BattalionMembershipStatus;
+  joinedAt?: number | null;
+  leftAt?: number | null;
+}
+
+export type BattlegroupStatus =
+  | "FORMING"
+  | "READY"
+  | "EMBARKED"
+  | "DEPLOYING"
+  | "DEPLOYED"
+  | "IN_TRANSIT"
+  | "WITHDRAWING"
+  | "RECOVERING";
+
+export type StrategicCapability =
+  | "GROUND_COMBAT"
+  | "ARMOURED"
+  | "RECON"
+  | "ENGINEERING"
+  | "LOGISTICS"
+  | "ANTI_AIR"
+  | "ARTILLERY"
+  | "AIR_MOBILE"
+  | "ORBITAL_DROP"
+  | "CARRY_INFANTRY"
+  | "CARRY_LIGHT_VEHICLE"
+  | "CARRY_HEAVY_VEHICLE"
+  | "CARRY_MECH"
+  | "CARRY_VTOL"
+  | "CARRY_AEROSPACE"
+  | "LAND_VTOL"
+  | "LAND_AEROSPACE"
+  | "REPAIR_INFANTRY"
+  | "REPAIR_VEHICLE"
+  | "REPAIR_MECH"
+  | "REPAIR_AEROSPACE"
+  | "REARM_INFANTRY"
+  | "REARM_AEROSPACE"
+  | "CHANGE_INFANTRY_LOADOUT"
+  | "REFIT_MECH"
+  | "GENERATE_SMALL_SUPPLY"
+  | "GENERATE_MEDIUM_SUPPLY"
+  | "SURFACE_LANDING";
+
+export type StrategicCapabilitySourceKind = "UNIT" | "EQUIPMENT" | "SHIP_MODULE" | "ATTACHED_SUPPORT";
+
+export interface StrategicCapabilityGrant {
+  capability: StrategicCapability;
+  /** Non-negative data-driven strength/capacity; zero grants are ignored. */
+  value: number;
+}
+
+export interface StrategicCapabilitySource {
+  sourceId: string;
+  sourceKind: StrategicCapabilitySourceKind;
+  grants: StrategicCapabilityGrant[];
+}
+
+export interface StrategicCapabilitySummary {
+  capability: StrategicCapability;
+  value: number;
+  sourceIds: string[];
+}
+
+export interface BattlegroupUnitSummaryDto {
+  unitId: string;
+  ownerId: string;
+  definitionId: string;
+  callsign: string;
+  domain: "GROUND" | "AEROSPACE" | "ORBITAL";
+}
+
+export interface BattlegroupSummaryDto {
+  id: string;
+  battalionId: string;
+  name: string;
+  callsign: string;
+  commanderMembershipId?: string | null;
+  unitCount: number;
+  currentNodeId?: string | null;
+  currentOperationId?: string | null;
+  currentCarrierTaskForceId?: string | null;
+  status: BattlegroupStatus;
+  capabilities: StrategicCapabilitySummary[];
+  version: number;
+}
+
+export interface BattlegroupDto extends BattlegroupSummaryDto {
+  members: string[];
+  units: BattlegroupUnitSummaryDto[];
+}
+
+export type ShipStatus =
+  | "DOCKED"
+  | "ORBIT"
+  | "IN_TRANSIT"
+  | "ARRIVING"
+  | "DEPLOYING"
+  | "DAMAGED"
+  | "DESTROYED";
+export type ShipModuleStatus = "OPERATIONAL" | "DAMAGED" | "DISABLED";
+export type ShipModuleSlotType = "INTERNAL" | "EXTERNAL" | "EXTERNAL_INTERNAL";
+
+export interface ShipDamageDto {
+  currentHits: number;
+  maximumHits: number;
+  armour: number;
+  damagedSubsystemIds: string[];
+}
+
+export interface ShipSummaryDto {
+  id: string;
+  battalionId: string;
+  name: string;
+  classDefinitionId: string;
+  className: string;
+  registry: string;
+  currentNodeId?: string | null;
+  status: ShipStatus;
+  damage: ShipDamageDto;
+  largeSupply: number;
+  largeSupplyCapacity: number;
+  version: number;
+}
+
+export interface ShipDto extends ShipSummaryDto {
+  primary: boolean;
+  internalSlots: number;
+  externalSlots: number;
+  atmoFuel?: number | null;
+  atmoFuelCapacity?: number | null;
+}
+
+export interface ShipModuleDto {
+  id: string;
+  shipId: string;
+  definitionId: string;
+  name: string;
+  slotType: ShipModuleSlotType;
+  slotIndex: number;
+  status: ShipModuleStatus;
+  capabilities: StrategicCapabilityGrant[];
+  implementationStatus: ImplementationStatus;
+}
+
+export type SupplySize = "LARGE" | "MEDIUM" | "SMALL";
+export type StrategicSupplyLocationKind = "TASK_FORCE" | "SHIP" | "HQ" | "FOB" | "UNIT";
+
+export interface StrategicSupplyEndpointRef {
+  kind: StrategicSupplyLocationKind;
+  id: string;
+}
+
+export interface StrategicSupplyBalance {
+  size: SupplySize;
+  quantity: number;
+  capacity?: number | null;
+}
+
+export interface StrategicSupplyState {
+  location: StrategicSupplyEndpointRef;
+  balances: StrategicSupplyBalance[];
+  /** Inclusive round. Null means the location is not currently supplied. */
+  suppliedThroughRound: number | null;
+  facilities: StrategicCapability[];
+}
+
+export interface ShipCargoDto {
+  id: string;
+  shipId: string;
+  kind: "UNIT" | "SUPPLY" | "EQUIPMENT";
+  unitId?: string | null;
+  definitionId?: string | null;
+  supplySize?: SupplySize | null;
+  quantity: number;
+  capacityUsed: number;
+}
+
+export type TaskForceStatus =
+  | "FORMING"
+  | "READY"
+  | "IN_TRANSIT"
+  | "ARRIVING"
+  | "DEPLOYING"
+  | "DAMAGED"
+  | "DESTROYED";
+export type StrategicMovementProfile = "GROUND_BATTLEGROUP" | "AIR_MOBILE_BATTLEGROUP" | "TASK_FORCE";
+
+export interface StrategicTransitState {
+  routeNodeIds: string[];
+  routeIds: string[];
+  totalTravelCost: number;
+  progress: number;
+  startedRound: number;
+  etaRound: number;
+}
+
+export interface TaskForceSummaryDto {
+  id: string;
+  battalionId: string;
+  name: string;
+  commanderMembershipId?: string | null;
+  shipIds: string[];
+  embarkedBattlegroupIds: string[];
+  currentNodeId?: string | null;
+  transit?: StrategicTransitState | null;
+  status: TaskForceStatus;
+  supply: StrategicSupplyState;
+  capabilities: StrategicCapabilitySummary[];
+  version: number;
+}
+
+export type StrategicLocationType =
+  | "GALAXY"
+  | "STAR_SYSTEM"
+  | "PLANET"
+  | "MOON"
+  | "ORBIT"
+  | "STATION"
+  | "JUMP_POINT"
+  | "SURFACE_REGION"
+  | "CITY"
+  | "BASE"
+  | "JUNCTION"
+  | "OBJECTIVE"
+  | "CAMPAIGN";
+
+export interface StrategicLocationDto {
+  id: string;
+  type: StrategicLocationType;
+  parentLocationId?: string | null;
+  name: string;
+  description?: string | null;
+}
+
+export type StrategicMapScope = "GALAXY" | "SYSTEM" | "PLANET" | "THEATRE";
+export type StrategicNodeType =
+  | "PLANET"
+  | "MOON"
+  | "STATION"
+  | "JUMP_POINT"
+  | "ORBIT"
+  | "CITY"
+  | "BASE"
+  | "JUNCTION"
+  | "OBJECTIVE"
+  | "CAMPAIGN";
+export type StrategicNodeControl = "FRIENDLY" | "ENEMY" | "CONTESTED" | "NEUTRAL" | "UNKNOWN";
+export type StrategicRouteStatus = "OPEN" | "BLOCKED" | "LOCKED" | "DESTROYED";
+export type StrategicTravelCostStatus = "PUBLISHED" | "SCENARIO_CONFIG" | "BALANCE_REQUIRED";
+
+export interface StrategicMapDto {
+  id: string;
+  name: string;
+  scope: StrategicMapScope;
+  rootLocationId: string;
+  version: number;
+}
+
+export interface StrategicNodeDto {
+  id: string;
+  mapId: string;
+  locationId: string;
+  type: StrategicNodeType;
+  name: string;
+  control: StrategicNodeControl;
+  status: "OPEN" | "BLOCKED" | "LOCKED" | "DESTROYED";
+  position?: { x: number; y: number } | null;
+}
+
+export interface StrategicRouteDto {
+  id: string;
+  mapId: string;
+  fromNodeId: string;
+  toNodeId: string;
+  direction: "ONE_WAY" | "BIDIRECTIONAL";
+  /** Source/config-authored cost units. Null is unresolved and must never mean zero. */
+  baseTravelRounds: number | null;
+  travelCostStatus: StrategicTravelCostStatus;
+  allowedMovementProfiles: StrategicMovementProfile[];
+  status: StrategicRouteStatus;
+}
+
+export type OperationStatus = "ANNOUNCED" | "MUSTERING" | "ACTIVE" | "RESOLVED" | "FAILED" | "CANCELLED";
+export type ReinforcementStatus = "OPEN" | "CLOSED" | "CLOSES_AFTER_TACTICAL_ROUND";
+
+export interface OperationSummaryDto {
+  id: string;
+  mapId: string;
+  campaignId?: string | null;
+  strategicNodeId: string;
+  name: string;
+  role: string;
+  status: OperationStatus;
+  threat?: string | null;
+  objectiveSummaries: string[];
+  recommendedCapabilities: StrategicCapability[];
+  deployedBattlegroupIds: string[];
+  reinforcementStatus: ReinforcementStatus;
+  reinforcementClosesAfterRound?: number | null;
+  version: number;
+}
+
+export interface StrategicRoundDto {
+  mapId: string;
+  round: number;
+  phase: StrategicPhase;
+  version: number;
+}
+
+export interface StrategicClockDto {
+  mode: "SCHEDULED" | "ACCELERATED" | "MANUAL";
+  durationMs: number | null;
+  roundStartedAt: number;
+  locksAt: number | null;
+  resolvesAt: number | null;
+  pausedAt?: number | null;
+}
+
+export interface StrategicCommandSummaryDto {
+  mapId: string;
+  mapName: string;
+  currentNodeId?: string | null;
+  currentNodeName?: string | null;
+  round: number;
+  nextStrategicTick?: number | null;
+  activeOperationCount: number;
+  deployedBattlegroupCount: number;
+}
+
+export interface CommandProjectionDto {
+  profile: PlayerProfileDto;
+  battalion: BattalionSummaryDto | null;
+  primaryShip: ShipSummaryDto | null;
+  strategic: StrategicCommandSummaryDto | null;
+  operations: OperationSummaryDto[];
+}
+
+export interface BattalionProjectionDto {
+  battalion: BattalionDto;
+  ranks: BattalionRankDto[];
+  permissions: BattalionPermission[];
+  battlegroups: BattlegroupSummaryDto[];
+}
+
+export interface ShipProjectionDto {
+  ship: ShipDto;
+  modules: ShipModuleDto[];
+  capabilities: StrategicCapabilitySummary[];
+  cargo: ShipCargoDto[];
+  supply: StrategicSupplyState;
+  taskForce: TaskForceSummaryDto | null;
+}
+
+export interface StrategicMapProjectionDto {
+  map: StrategicMapDto;
+  round: StrategicRoundDto;
+  clock: StrategicClockDto;
+  nodes: StrategicNodeDto[];
+  routes: StrategicRouteDto[];
+  taskForces: TaskForceSummaryDto[];
+  battlegroups: BattlegroupSummaryDto[];
+  operations: OperationSummaryDto[];
+  viewerPermissions: BattalionPermission[];
+  serverTime: number;
+}
+
+export type StrategicDeploymentMethod =
+  | "STANDARD_LANDING"
+  | "VTOL_DEPLOYMENT"
+  | "AEROSPACE_TRANSPORT"
+  | "ORBITAL_DROP"
+  | "SHIP_SURFACE_LANDING";
+
+export type StrategicFormationRef =
+  | { kind: "TASK_FORCE"; id: string }
+  | { kind: "BATTLEGROUP"; id: string };
+
+export type StrategicOrderIntent =
+  | { type: "MOVE_TASK_FORCE" }
+  | { type: "MOVE_BATTLEGROUP" }
+  | { type: "EMBARK_BATTLEGROUP"; battlegroupId: string; carrierTaskForceId: string }
+  | { type: "DISEMBARK_BATTLEGROUP"; battlegroupId: string; carrierTaskForceId: string }
+  | {
+      type: "DEPLOY_TO_CAMPAIGN";
+      battlegroupId: string;
+      operationId: string;
+      deploymentMethod: StrategicDeploymentMethod;
+    }
+  | {
+      type: "WITHDRAW_FROM_CAMPAIGN";
+      battlegroupId: string;
+      operationId: string;
+      extractionNodeId?: string;
+    }
+  | {
+      type: "TRANSFER_SUPPLY";
+      supplySize: SupplySize;
+      amount: number;
+      source: StrategicSupplyEndpointRef;
+      destination: StrategicSupplyEndpointRef;
+    }
+  | { type: "RESUPPLY_TASK_FORCE"; taskForceId: string }
+  | { type: "SUPPORT_CAMPAIGN"; operationId: string; capability: StrategicCapability }
+  | { type: "ORBITAL_COMBAT"; opposingFormationId: string };
+
+export interface SubmitStrategicOrderCommand {
+  commandId: string;
+  expectedMapVersion: number;
+  expectedFormationVersion: number;
+  mapId: string;
+  formation: StrategicFormationRef;
+  /** Required only for movement intents; the server derives the route. */
+  destinationNodeId?: string;
+  intent: StrategicOrderIntent;
+}
+
+export interface StrategicOrderRecord extends SubmitStrategicOrderCommand {
+  id: string;
+  lifecycle: OrderLifecycle;
+  revision: number;
+  strategicRound: number;
+  submittedBy: string;
+  submittedAt: number;
+}
+
+export type StrategicUnitDomain = "GROUND" | "AEROSPACE" | "ORBITAL";
+
+export interface StrategicUnitComposition {
+  unitId: string;
+  ownerId: string;
+  definitionId: string;
+  domain: StrategicUnitDomain;
+  /** Explicit configured movement points. Null means unresolved; it never means zero. */
+  movementPointsPerRound: number | null;
+  capabilitySources: StrategicCapabilitySource[];
+  transportRequirements: StrategicCapabilityGrant[];
+}
+
+export interface StrategicFormationStateBase {
+  id: string;
+  battalionId: string;
+  name: string;
+  currentNodeId: string | null;
+  movementProfile: StrategicMovementProfile;
+  movementPointsPerRound: number | null;
+  transit: StrategicTransitState | null;
+  version: number;
+}
+
+export interface StrategicBattlegroupState extends StrategicFormationStateBase {
+  kind: "BATTLEGROUP";
+  status: BattlegroupStatus;
+  currentOperationId: string | null;
+  currentCarrierTaskForceId: string | null;
+  units: StrategicUnitComposition[];
+}
+
+export interface StrategicTaskForceState extends StrategicFormationStateBase {
+  kind: "TASK_FORCE";
+  status: TaskForceStatus;
+  shipIds: string[];
+  embarkedBattlegroupIds: string[];
+  capabilitySources: StrategicCapabilitySource[];
+  supply: StrategicSupplyState;
+}
+
+export interface StrategicShipState {
+  id: string;
+  battalionId: string;
+  currentNodeId: string | null;
+  moduleCapabilitySources: StrategicCapabilitySource[];
+  version: number;
+}
+
+export interface StrategicOperationState extends OperationSummaryDto {
+  controlEffectsApplied: boolean;
+}
+
+export type StrategicPhase = "PLANNING" | "LOCKED" | "RESOLVING" | "PAUSED" | "COMPLETE" | "FAILED";
+
+export type StrategicCampaignOutcome = "VICTORY" | "DEFEAT" | "WITHDRAWAL" | "PYRRHIC_VICTORY" | "OBJECTIVE_PARTIAL";
+
+export interface StrategicCampaignResult {
+  effectId: string;
+  campaignId: string;
+  resultVersion: number;
+  operationId: string;
+  outcome: StrategicCampaignOutcome;
+  nodeControl?: { nodeId: string; control: StrategicNodeControl };
+  routeChanges: Array<{ routeId: string; status: StrategicRouteStatus }>;
+  warVariableDeltas: Array<{ variableId: string; delta: number }>;
+}
+
+export interface StrategicResolutionRecord {
+  key: string;
+  mapId: string;
+  round: number;
+  retryInputHash: string;
+  inputHash: string;
+  resultHash: string;
+  eventIds: string[];
+}
+
+interface StrategicEventBase<TType extends string, TPayload> {
+  eventId: string;
+  mapId: string;
+  round: number;
+  sequence: number;
+  type: TType;
+  actorId?: string;
+  payload: TPayload;
+  timestamp: number;
+  visibility: "OWNER" | "BATTALION" | "PUBLIC" | "ADMIN";
+}
+
+export type StrategicEvent =
+  | StrategicEventBase<"STRATEGIC_ORDER_ACCEPTED", { orderId: string; commandId: string }>
+  | StrategicEventBase<
+      "STRATEGIC_ORDER_REJECTED",
+      { orderId: string; commandId: string; code: StrategicOrderRejectionCode; message: string }
+    >
+  | StrategicEventBase<
+      "FORMATION_MOVEMENT_STARTED",
+      { formation: StrategicFormationRef; routeNodeIds: string[]; routeIds: string[]; etaRound: number }
+    >
+  | StrategicEventBase<
+      "FORMATION_TRAVEL_PROGRESS",
+      { formation: StrategicFormationRef; progress: number; totalTravelCost: number }
+    >
+  | StrategicEventBase<
+      "FORMATION_ARRIVED",
+      { formation: StrategicFormationRef; nodeId: string }
+    >
+  | StrategicEventBase<
+      "BATTLEGROUP_EMBARKED",
+      { battlegroupId: string; taskForceId: string; nodeId: string }
+    >
+  | StrategicEventBase<
+      "BATTLEGROUP_DISEMBARKED",
+      { battlegroupId: string; taskForceId: string; nodeId: string }
+    >
+  | StrategicEventBase<"LARGE_SUPPLY_CONSUMED", { taskForceId: string; amount: 1; remaining: number }>
+  | StrategicEventBase<"TASK_FORCE_SUPPLIED", { taskForceId: string; suppliedThroughRound: number }>
+  | StrategicEventBase<
+      "SUPPLY_TRANSFERRED",
+      { size: SupplySize; amount: number; source: StrategicSupplyEndpointRef; destination: StrategicSupplyEndpointRef }
+    >
+  | StrategicEventBase<
+      "OPERATION_DEPLOYMENT_STARTED",
+      { operationId: string; battlegroupId: string; deploymentMethod: StrategicDeploymentMethod }
+    >
+  | StrategicEventBase<
+      "OPERATION_SUPPORT_ASSIGNED",
+      { operationId: string; formation: StrategicFormationRef; capability: StrategicCapability }
+    >
+  | StrategicEventBase<
+      "CAMPAIGN_OUTCOME_APPLIED",
+      { effectId: string; campaignId: string; operationId: string; outcome: StrategicCampaignOutcome }
+    >
+  | StrategicEventBase<"STRATEGIC_NODE_CONTROL_CHANGED", { nodeId: string; control: StrategicNodeControl }>
+  | StrategicEventBase<"STRATEGIC_ROUTE_STATUS_CHANGED", { routeId: string; status: StrategicRouteStatus }>
+  | StrategicEventBase<"ORBITAL_COMBAT_DEFERRED", { orderId: string; opposingFormationId: string }>
+  | StrategicEventBase<"STRATEGIC_ROUND_RESOLVED", { inputHash: string; resultHash: string; nextRound: number }>;
+
+export type StrategicOrderRejectionCode =
+  | "WRONG_MAP"
+  | "STALE_MAP_VERSION"
+  | "STALE_FORMATION_VERSION"
+  | "FORMATION_NOT_FOUND"
+  | "FORMATION_KIND_MISMATCH"
+  | "DUPLICATE_FORMATION_ORDER"
+  | "INVALID_DESTINATION"
+  | "ROUTE_NOT_FOUND"
+  | "ROUTE_BLOCKED"
+  | "ROUTE_TIMING_UNRESOLVED"
+  | "MOVEMENT_PROFILE_FORBIDDEN"
+  | "FORMATION_ALREADY_IN_TRANSIT"
+  | "BATTLEGROUP_INVALID_COMPOSITION"
+  | "BATTLEGROUP_EMBARKED"
+  | "NOT_COLOCATED"
+  | "INSUFFICIENT_CAPACITY"
+  | "INSUFFICIENT_SUPPLY"
+  | "SUPPLY_SOURCE_OFFLINE"
+  | "OPERATION_NOT_FOUND"
+  | "OPERATION_UNAVAILABLE"
+  | "DEPLOYMENT_CAPABILITY_MISSING"
+  | "TACTICAL_WITHDRAWAL_REQUIRED"
+  | "ORBITAL_COMBAT_DEFERRED"
+  | "UNSUPPORTED_INTENT";
+
+interface StrategicPersistentEffectBase<TType extends string, TPayload> {
+  idempotencyKey: string;
+  type: TType;
+  payload: TPayload;
+}
+
+export type StrategicPersistentEffect =
+  | StrategicPersistentEffectBase<"FORMATION_STATE", { formation: StrategicFormationRef; version: number }>
+  | StrategicPersistentEffectBase<"SUPPLY_STATE", { location: StrategicSupplyEndpointRef }>
+  | StrategicPersistentEffectBase<"OPERATION_STATE", { operationId: string; version: number }>
+  | StrategicPersistentEffectBase<"NODE_CONTROL", { nodeId: string; control: StrategicNodeControl }>
+  | StrategicPersistentEffectBase<"ROUTE_STATUS", { routeId: string; status: StrategicRouteStatus }>
+  | StrategicPersistentEffectBase<"WAR_VARIABLE_DELTA", { variableId: string; delta: number; sourceEffectId: string }>;
+
+export interface StrategicRuntimeState {
+  mapId: string;
+  rulesetVersion: string;
+  engineVersion: string;
+  round: number;
+  phase: StrategicPhase;
+  version: number;
+  nodes: StrategicNodeDto[];
+  routes: StrategicRouteDto[];
+  ships: StrategicShipState[];
+  taskForces: StrategicTaskForceState[];
+  battlegroups: StrategicBattlegroupState[];
+  operations: StrategicOperationState[];
+  orders: StrategicOrderRecord[];
+  events: StrategicEvent[];
+  resolutions: Record<string, StrategicResolutionRecord>;
+  appliedCampaignResultIds: string[];
+}
+
+export interface StrategicResolutionInput {
+  previousState: StrategicRuntimeState;
+  rulesetVersion: string;
+  lockedOrders: StrategicOrderRecord[];
+  campaignResults: StrategicCampaignResult[];
+  resolutionTime: number;
+}
+
+export interface StrategicResolutionOutput {
+  state: StrategicRuntimeState;
+  events: StrategicEvent[];
+  effects: StrategicPersistentEffect[];
+  inputHash: string;
+  resultHash: string;
+}

@@ -42,6 +42,8 @@ for (const [path, expected] of Object.entries(sourceHashes)) {
 
 const seedSql = await readFile("seeds/v5-core-curated.sql", "utf8");
 const phase2SeedSql = await readFile("seeds/v5-phase2-combined-arms.sql", "utf8");
+const phase3MigrationSql = await readFile("migrations/0004_phase3_strategic_layer.sql", "utf8");
+const phase3SeedSql = await readFile("seeds/development-strategic-world.sql", "utf8");
 const combinedSeedSql = `${seedSql}\n${phase2SeedSql}`;
 
 const definitionTables = new Set([
@@ -217,6 +219,71 @@ if (!activeRulesetPattern.test(seedSql)) {
 }
 if (!seedSql.includes("rule_conflicts")) failures.push("D1 seed does not preserve rule conflicts.");
 
+for (const requiredTable of [
+  "strategic_locations",
+  "strategic_maps",
+  "strategic_nodes",
+  "strategic_routes",
+  "strategic_operations",
+  "task_forces",
+  "task_force_ships",
+  "task_force_battlegroups",
+  "strategic_supply_stores",
+  "strategic_supply_balances",
+  "strategic_rounds",
+  "strategic_orders",
+  "strategic_events",
+  "strategic_effect_receipts",
+  "strategic_war_variables",
+]) {
+  if (!phase3MigrationSql.includes(`CREATE TABLE ${requiredTable}`)) {
+    failures.push(`Phase 3 migration does not create ${requiredTable}.`);
+  }
+}
+
+for (const requiredId of [
+  "strategic-map-corinth",
+  "task-force-resolute",
+  "ship-corinth-ward",
+  "strategic-operation-iron-rain",
+  "strategic-operation-night-glass",
+  "strategic-operation-broken-road",
+  "battlegroup-hammer",
+  "battlegroup-raven",
+]) {
+  if (!phase3SeedSql.includes(`'${requiredId}'`)) {
+    failures.push(`Phase 3 development seed is missing ${requiredId}.`);
+  }
+}
+
+if (!phase3SeedSql.includes("'CSV Resolute'")) {
+  failures.push("Phase 3 development seed does not name CSV Resolute.");
+}
+if (!phase3SeedSql.includes("'supply-store-csv-resolute', 'LARGE', 3, 4")) {
+  failures.push("Phase 3 development seed must preserve the explicit CSV Resolute Large Supply fixture of 3 / 4.");
+}
+if (!phase3SeedSql.includes("0ebe472aa5bc16e551e2fd5e2b3d16f78a4c4e016cbe954f8a4687f72c2b5b01")) {
+  failures.push("Phase 3 development seed is missing the supplied brief provenance hash.");
+}
+if (!phase3SeedSql.includes("ON CONFLICT")) {
+  failures.push("Phase 3 development seed is not repeat-idempotent.");
+}
+if (!phase3SeedSql.includes("NULL, 'BALANCE_REQUIRED'")) {
+  failures.push("Phase 3 routes must retain unresolved travel rounds as NULL / BALANCE_REQUIRED.");
+}
+if (phase3SeedSql.includes("'SCENARIO_CONFIG'")) {
+  failures.push("Phase 3 development seed invents scenario travel timing instead of retaining unresolved values.");
+}
+if (!phase3MigrationSql.includes("UNIQUE (actor_user_id, command_id)")) {
+  failures.push("Strategic-order idempotency must be scoped to the authenticated actor.");
+}
+if (phase3MigrationSql.includes("command_id TEXT NOT NULL UNIQUE")) {
+  failures.push("Phase 3 command IDs must not be globally unique across users.");
+}
+if (phase3MigrationSql.includes("ORBITAL_BOMBARDMENT")) {
+  failures.push("Full orbital combat orders are deferred and must fail closed in Phase 3.");
+}
+
 if (failures.length > 0) {
   console.error(failures.join("\n"));
   process.exitCode = 1;
@@ -231,6 +298,8 @@ if (failures.length > 0) {
         sqlDefinitions: seedTupleLines.size,
         phase2PlayerUnits: phase2PlayerUnits.length,
         phase2EnemyRoles: phase2Enemies.length,
+        phase3Map: "strategic-map-corinth",
+        phase3Operations: 3,
         sourceHashes: Object.keys(sourceHashes).length,
       },
       null,

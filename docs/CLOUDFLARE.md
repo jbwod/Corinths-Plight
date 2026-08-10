@@ -1,18 +1,18 @@
 # Corinth's Plight Cloudflare Architecture
 
-**Status:** Reconciled foundation runtime/deployment contract (2026-08-09)
+**Status:** Phase 2 production runtime plus local-only Phase 3 foundation (2026-08-10)
 
 **Configuration:** `vite.config.ts`, `wrangler.jsonc`, and root `package.json`
 
-**Runtime entry points:** `worker/index.ts` and `worker/campaign-durable-object.ts`
+**Runtime entry points:** `worker/index.ts`, `worker/campaign-durable-object.ts`, and `worker/strategic-map-durable-object.ts`
 
 **Compatibility date:** `2026-08-08` (the current workerd-supported limit used by this repository)
 
 ## 1. Current deployment status
 
-The repository builds a React/Vite client and one Cloudflare Worker containing the public API plus the exported `CampaignDurableObject`. D1 and a named Campaign DO namespace are configured. The V1 Flask application remains reference code and is not imported into the Worker.
+The repository builds a React/Vite client and one Cloudflare Worker containing the public API plus the exported Campaign and Strategic Map Durable Object classes. D1 and both named DO namespaces are configured. The V1 Flask application remains reference code and is not imported into the Worker.
 
-The local/typecheck/lint/test/build foundation is implemented and production was deployed on 2026-08-09. The primary custom domain is `https://corinthplight.qnetica.com.au`; `https://corinths-plight.cybercow-now.workers.dev` remains enabled as a fallback. Production version `dcf7463d-6176-4377-8f01-451d7e40e3e4` binds D1 database `corinths-plight-production` (`c75ca7bc-f10b-4987-853d-f387d377bdb9`). Both migrations and the curated seed were applied remotely, and the custom-domain `/api/health` endpoint returned HTTP 200 over TLS. Preview remains unprovisioned.
+The Phase 2 runtime was deployed on 2026-08-09. The primary custom domain is `https://corinthplight.qnetica.com.au`; `https://corinths-plight.cybercow-now.workers.dev` remains enabled as a fallback. Production version `dcf7463d-6176-4377-8f01-451d7e40e3e4` binds D1 database `corinths-plight-production` (`c75ca7bc-f10b-4987-853d-f387d377bdb9`). The production database has the previously released migrations and published catalogue. Migration `0004`, the strategic fixture, the `STRATEGIC_MAP` binding, and Phase 3 UI/API changes are local-only in this checkpoint and have not been deployed. Preview remains unprovisioned.
 
 ## 2. Current runtime topology
 
@@ -22,13 +22,16 @@ flowchart TD
     Entry --> Policy["Origin + auth + campaign policy"]
     Policy -->|session and membership reads| DB[("D1: DB")]
     Policy -->|CAMPAIGN.getByName campaignId| DO["Campaign Durable Object"]
-    DO --> Engine["Pure rules engine"]
+    Policy -->|STRATEGIC_MAP.getByName coordinatorKey| SDO["Strategic Map Durable Object"]
+    DO --> Engine["Pure tactical rules engine"]
+    SDO --> StrategicEngine["Pure strategic rules engine"]
     DO -->|hibernating WebSockets| Client
     DO -. "target only: persistent effects" .-> Applier["D1 effect applier"]
+    SDO -. "resolution persistence deferred" .-> DB
     Applier -. "not implemented" .-> DB
 ```
 
-All public campaign traffic passes through the Worker. The Worker resolves authentication and D1 campaign membership before looking up a named DO. The current DO does not call D1 to apply permanent effects.
+All public traffic passes through the Worker. Campaign traffic resolves D1 campaign membership before a named Campaign DO lookup. Strategic traffic resolves the caller's active Battalion, permissions, map, and stable `coordinator_key` before a named Strategic Map DO lookup. Strategic order submission is serialized by the map coordinator; development resolution remains fail-closed until its authoritative D1 journal/effect applier is implemented.
 
 `vite.config.ts` uses React and `@cloudflare/vite-plugin`. Wrangler's `assets.not_found_handling = "single-page-application"` supplies the SPA asset behavior. There is no separately named `ASSETS` binding in the current environment type/config.
 
@@ -43,19 +46,22 @@ All public campaign traffic passes through the Worker. The Worker resolves authe
 | `worker/http.ts` | JSON response/body-size/parse helpers |
 | `worker/campaign-clock.ts` | Pure clock, schedule, pause, and resume transitions |
 | `worker/campaign-durable-object.ts` | Exported DO class, K-17 state/orders, alarms, hibernating sockets, reports/resolution |
+| `worker/strategic-map-durable-object.ts` | Exported map-sharded Phase 3 coordinator; serialized order submission and fail-closed development resolution boundary |
 | `packages/domain/src/index.ts` | Shared compile-time contracts |
 | `packages/rules-engine/src/` | Pure deterministic engine/catalogue/demo fixture |
 | `migrations/0001_platform_and_rules.sql` | Identity, rules, source/conflict, and definition schema |
 | `migrations/0002_persistent_world.sql` | Persistent forces, Battalion/ship, campaign, archive/effect schema |
 | `migrations/0003_phase2_persistent_forces.sql` | Phase 2 force identity, profile, loadout, cargo, supply, status, service, and ship-capability schema |
+| `migrations/0004_phase3_strategic_layer.sql` | Phase 3 identity/org evolution, locations, maps/routes, operations, Task Forces, supply, rounds, orders, events, receipts, and war variables |
 | `seeds/v5-core-curated.sql` | Idempotent D1 SQL rules seed |
 | `seeds/v5-phase2-combined-arms.sql` | Provenance-bearing Phase 2 combined-arms catalogue |
 | `seeds/development-forces.sql` | Local-only Operation Iron Rain force fixture |
+| `seeds/development-strategic-world.sql` | Local-only Helion/Corinth, CSV Resolute, Task Force, operations, and strategic supply fixture |
 | `scripts/validate-seed.ts` | Source hash and runtime/SQL seed consistency checks |
 | `wrangler.jsonc` | compatibility date, variables, D1/DO bindings, DO migration, environments |
 | `vite.config.ts` | React and Cloudflare Vite plugins |
 
-There is no `worker/demo.ts` or `scripts/seed-ruleset.ts`. Demo authentication is a branch in `worker/auth.ts`. The `db:seed:*` scripts separate the core and Phase 2 catalogues from the local-only development roster; `seed:check` validates the published catalogue artifacts.
+There is no `worker/demo.ts` or `scripts/seed-ruleset.ts`. Demo authentication is a branch in `worker/auth.ts`. The `db:seed:*` scripts separate the core and Phase 2 catalogues from the local-only force and strategic fixtures; `seed:check` validates the published catalogue and Phase 3 provenance artifacts.
 
 ## 4. Binding contract
 
@@ -65,7 +71,9 @@ There is no `worker/demo.ts` or `scripts/seed-ruleset.ts`. Demo authentication i
 |---|---|---|
 | `DB` | D1 | Identity/session, campaign membership, Phase 2 force/catalogue/readiness reads, and exact-once rename/developer-purchase writes are active; round-effect finalisation remains open |
 | `CAMPAIGN` | Durable Object namespace | One named object per campaign; only `outpost-k17` can self-initialise in this foundation |
+| `STRATEGIC_MAP` | Durable Object namespace | One named object per strategic map/theatre; order coordination is local-only and resolution persistence is deferred |
 | DO migration `v1` | `new_sqlite_classes: ["CampaignDurableObject"]` | Present |
+| DO migration `v2` | `new_sqlite_classes: ["StrategicMapDurableObject"]` | Local configuration present; not deployed |
 | Observability | enabled, head sampling `1` | Present |
 | Static assets | SPA not-found handling | Present through Wrangler/Vite integration |
 
@@ -83,9 +91,9 @@ The values below are the actual `wrangler.jsonc` entries:
 
 | Wrangler selection | Worker name / environment variable | Demo auth | Round / lock lead | D1 name and current ID | Readiness |
 |---|---|---:|---:|---|---|
-| default (local development) | `corinths-plight` / `development` | `true` | 5m / 30s | `corinths-plight`, `...0001` placeholder | Local-only |
-| `--env preview` | `corinths-plight-preview` / `preview` | `false` | 30m / 30s | `corinths-plight-preview`, `...0002` placeholder | Not provisioned/deployed |
-| `--env production` | `corinths-plight` / `production` | `false` | 24h / 30s | `corinths-plight-production`, `c75ca7bc-f10b-4987-853d-f387d377bdb9` | Deployed; custom domain + `workers_dev` fallback |
+| default (local development) | `corinths-plight` / `development` | `true` | tactical 5m / 30s; strategic 5m / 30s | `corinths-plight`, `...0001` placeholder | Local-only |
+| `--env preview` | `corinths-plight-preview` / `preview` | `false` | tactical 30m / 30s; strategic 30m / 30s | `corinths-plight-preview`, `...0002` placeholder | Not provisioned/deployed |
+| `--env production` | `corinths-plight` / `production` | `false` | tactical 24h / 30s; strategic 24h / 30s | `corinths-plight-production`, `c75ca7bc-f10b-4987-853d-f387d377bdb9` | Phase 2 deployed; Phase 3 not deployed |
 
 Clock values change configuration only; manual/accelerated/production alarms call the same DO lock/resolve functions.
 
@@ -174,13 +182,13 @@ Actual root scripts are:
 | Script | Behavior |
 |---|---|
 | `build:production` | Sets `CLOUDFLARE_ENV=production`, then typechecks and builds |
-| `check:production-config` | Exits non-zero while the production placeholder D1 ID remains |
+| `check:production-config` | Exits non-zero for an invalid production D1 ID and, for this checkpoint, unless preview verification has been completed and `CORINTH_PHASE3_RELEASE_APPROVED=true` is explicitly supplied |
 | `db:migrate:remote` | Runs the guard, then applies migrations to `corinths-plight-production --remote --env production` |
-| `db:seed:remote` | Runs the guard, then executes the core and Phase 2 published catalogues against production with `--env production`; it never applies the development roster |
+| `db:seed:remote` | Runs the guard, then executes the core and Phase 2 published catalogues against production with `--env production`; it never applies either development fixture |
 | `deploy:dry` | Runs guard + production build + `wrangler deploy --dry-run --env production` |
 | `deploy` | Runs guard + production build + `wrangler deploy --env production` |
 
-The guard now passes because production has a provisioned D1 ID. The completed release sequence was: verify the authenticated account, create the isolated production database, apply both migrations and the curated seed, run the validator/typecheck/lint/tests/production build, inspect `deploy:dry`, deploy, and perform read-only health and D1-count checks. Keep this sequence for later releases.
+The production D1 resource is provisioned, but the guard intentionally remains closed for Phase 3 unless the release operator explicitly supplies `CORINTH_PHASE3_RELEASE_APPROVED=true`. The completed Phase 2 release sequence was: verify the authenticated account, create the isolated production database, apply the then-current migrations and published catalogues, run the validator/typecheck/lint/tests/production build, inspect `deploy:dry`, deploy, and perform read-only health and D1-count checks. Keep this sequence for later releases. Phase 3 requires a separate preview migration/seed/runtime verification before that approval is used for any production migration or deployment.
 
 Preview provisioning/deployment is also not scripted at the package level. It requires a real preview D1 ID and explicit `--env preview` on every Wrangler operation. Preview must complete before production.
 
@@ -242,10 +250,11 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 - [x] `vite.config.ts` uses React and the Cloudflare Vite plugin.
 - [x] `wrangler.jsonc` uses compatibility date `2026-08-08`.
 - [x] `CampaignDurableObject` is exported, bound as `CAMPAIGN`, and included in DO migration `v1`.
+- [~] `StrategicMapDurableObject` is locally exported, bound as `STRATEGIC_MAP`, and included in DO migration `v2`; it is not deployed and strategic resolution persistence remains blocked.
 - [x] No R2, Queue, or KV authority binding is present.
 - [x] Demo auth requires exact development opt-in and is limited to `outpost-k17`; production cannot enable it safely.
 - [x] Unsafe mutations/WebSocket upgrades require same origin; D1 membership is checked before DO lookup.
-- [x] Two D1 migrations, SQL seed, source-hash validator, TypeScript build, lint, and unit tests exist.
+- [x] Four additive D1 migrations, published/local seed separation, source-hash validator, TypeScript build, lint, and unit tests exist.
 - [~] Manual/accelerated/24h clocks and pause/resume are unit-tested; alarm crash/eviction integration is not.
 - [~] Snapshot/report projection exists; event-time payload and socket-audience leakage coverage is incomplete.
 - [ ] Implement production login/provider and session issuance/recovery/rotation/revocation flow.
@@ -254,7 +263,7 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 - [ ] Implement separate persisted schedule records and consumed/recovery semantics.
 - [ ] Implement the D1 persistent-effect/archive applier and acknowledgement-gated next round.
 - [ ] Implement events-after-sequence reconnect and hibernation integration tests.
-- [ ] Replace preview/production placeholder D1 IDs with provisioned resources.
+- [ ] Provision the preview D1 resource and replace its placeholder ID; production D1 is already provisioned.
 - [ ] Complete and record a remote preview deployment/smoke test.
 - [ ] Complete and record the production remote migration/seed/deployment.
 

@@ -22,6 +22,7 @@ import brandMark from "../app/static/img/brand-icon.gif";
 import { ForcesView } from "./components/ForcesView";
 import { Glyph } from "./components/Glyph";
 import { HexMap } from "./components/HexMap";
+import { StrategicWorkspace, type StrategicView } from "./components/StrategicWorkspace";
 
 const DEMO_USER = "demo-user";
 const CAMPAIGN_ID = "outpost-k17";
@@ -34,12 +35,23 @@ const viewer = {
 
 const navigation = [
   ["command", "Command"],
-  ["forces", "Forces"],
+  ["galaxy", "Galactic"],
   ["battalion", "Battalion"],
   ["ship", "Ship"],
-  ["galaxy", "Operations"],
+  ["forces", "Forces"],
+  ["target", "Campaigns"],
   ["reports", "Reports"],
 ] as const;
+
+type ActiveNav = Exclude<(typeof navigation)[number][1], "Reports">;
+
+const strategicViews = new Set<ActiveNav>(["Command", "Galactic", "Battalion", "Ship"]);
+
+function initialNavigation(): ActiveNav {
+  const requested = new URLSearchParams(window.location.search).get("view")?.toLowerCase();
+  const matched = navigation.find(([, label]) => label.toLowerCase() === requested)?.[1];
+  return matched && matched !== "Reports" ? matched : "Command";
+}
 
 type ConnectionState = "CONNECTING" | "LIVE" | "RECONNECTING" | "LOCAL";
 type Notice = { tone: "info" | "success" | "danger"; message: string };
@@ -113,7 +125,7 @@ export default function App() {
   const [notice, setNotice] = useState<Notice>();
   const [busy, setBusy] = useState(false);
   const [timelineMode, setTimelineMode] = useState<"ORDERS" | "EVENTS">("EVENTS");
-  const [activeNav, setActiveNav] = useState(() => new URLSearchParams(window.location.search).get("view") === "forces" ? "Forces" : "Operations");
+  const [activeNav, setActiveNav] = useState<ActiveNav>(initialNavigation);
 
   const loadCampaign = useCallback(async (quiet = false) => {
     try {
@@ -138,15 +150,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (activeNav !== "Campaigns") return;
     const initialLoad = window.setTimeout(() => void loadCampaign(), 0);
     const timer = window.setInterval(() => setNow(Date.now()), 1_000);
     return () => {
       window.clearTimeout(initialLoad);
       window.clearInterval(timer);
     };
-  }, [loadCampaign]);
+  }, [activeNav, loadCampaign]);
 
   useEffect(() => {
+    if (activeNav !== "Campaigns") return;
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     let reconnectTimer: number | undefined;
     let closed = false;
@@ -179,7 +193,7 @@ export default function App() {
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
       socket?.close();
     };
-  }, [loadCampaign]);
+  }, [activeNav, loadCampaign]);
 
   const ownUnits = useMemo(
     () => campaign.deployments.filter((deployment) => deployment.ownerId === campaign.viewer.userId),
@@ -358,6 +372,25 @@ export default function App() {
             visibility: "ALLIED",
           }));
 
+  const strategicView = strategicViews.has(activeNav) ? activeNav as StrategicView : undefined;
+  const topbarCopy: Record<ActiveNav, { eyebrow: string; title: string }> = {
+    Command: { eyebrow: "33RD EXPEDITIONARY // PERSISTENT WORLD", title: "Command Overview" },
+    Galactic: { eyebrow: "HELION SYSTEM // STRATEGIC THEATRE", title: "Galactic Operations" },
+    Battalion: { eyebrow: "COOPERATIVE ORGANISATION // ACTIVE MEMBERSHIP", title: "Battalion Command" },
+    Ship: { eyebrow: "PRIMARY ORBITAL // BATTALION HOME", title: "CSV Resolute" },
+    Forces: { eyebrow: "33RD EXPEDITIONARY BATTALION // MUSTER", title: "Persistent Force Registry" },
+    Campaigns: { eyebrow: `ACTIVE OPERATION // ${campaign.planetName.toUpperCase()}`, title: campaign.campaignName },
+  };
+
+  function navigate(next: ActiveNav) {
+    setActiveNav(next);
+    const url = new URL(window.location.href);
+    if (next === "Command") url.searchParams.delete("view");
+    else url.searchParams.set("view", next.toLowerCase());
+    window.history.replaceState({}, "", url);
+    setNotice(undefined);
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -369,16 +402,19 @@ export default function App() {
           </div>
         </div>
         <div className="campaign-title-block">
-          <span className="eyebrow">{activeNav === "Forces" ? "33RD EXPEDITIONARY BATTALION // MUSTER" : `ACTIVE OPERATION // ${campaign.planetName.toUpperCase()}`}</span>
-          <h1>{activeNav === "Forces" ? "Persistent Force Registry" : campaign.campaignName}</h1>
+          <span className="eyebrow">{topbarCopy[activeNav].eyebrow}</span>
+          <h1>{topbarCopy[activeNav].title}</h1>
         </div>
-        <div className="round-clock" aria-label={`Round ${campaign.round}, ${countdown} remaining`}>
+        <div className="round-clock" aria-label={activeNav === "Campaigns" ? `Round ${campaign.round}, ${countdown} remaining` : "Persistent strategic layer; open Command for the authoritative clock"}>
           <Glyph name="clock" size={17} />
-          <div><span>ROUND {campaign.round}</span><strong>{countdown}</strong></div>
-          <small>{manualClock ? "UNTIMED" : `LOCK ${lockCountdown}`}</small>
+          {activeNav === "Campaigns" ? (
+            <><div><span>ROUND {campaign.round}</span><strong>{countdown}</strong></div><small>{manualClock ? "UNTIMED" : `LOCK ${lockCountdown}`}</small></>
+          ) : (
+            <><div><span>STRATEGIC LAYER</span><strong>ASYNC</strong></div><small>SEE COMMAND<br />FOR CLOCK</small></>
+          )}
         </div>
-        <div className={`connection-pill ${connection.toLowerCase()}`}>
-          <i /> {connection === "LIVE" ? "CAMPAIGN LIVE" : connection}
+        <div className={`connection-pill ${activeNav === "Campaigns" ? connection.toLowerCase() : ""}`}>
+          <i /> {activeNav === "Campaigns" ? connection === "LIVE" ? "CAMPAIGN LIVE" : connection : "PERSISTENT WORLD"}
         </div>
       </header>
 
@@ -388,12 +424,11 @@ export default function App() {
             className={activeNav === label ? "active" : ""}
             key={label}
             onClick={() => {
-              setActiveNav(label);
-              const url = new URL(window.location.href);
-              if (label === "Forces") url.searchParams.set("view", "forces");
-              else url.searchParams.delete("view");
-              window.history.replaceState({}, "", url);
-              if (label !== "Operations" && label !== "Forces") setNotice({ tone: "info", message: `${label} is mapped in the foundation architecture; Operations and Forces are the active vertical slices.` });
+              if (label === "Reports") {
+                setNotice({ tone: "info", message: "Strategic reports remain deferred; use the Battalion activity feed and operation briefings in this checkpoint." });
+                return;
+              }
+              navigate(label);
             }}
           >
             <Glyph name={icon} />
@@ -406,7 +441,13 @@ export default function App() {
         </button>
       </nav>
 
-      {activeNav === "Forces" ? (
+      {strategicView ? (
+        <StrategicWorkspace
+          view={strategicView}
+          onNavigate={(view) => navigate(view)}
+          onNotice={setNotice}
+        />
+      ) : activeNav === "Forces" ? (
         <ForcesView onNotice={setNotice} />
       ) : (
       <main className="operations-layout">

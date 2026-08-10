@@ -1,8 +1,8 @@
 # Corinth's Plight Data Model
 
-**Status:** Reconciled implemented schema plus target deltas (2026-08-09)
+**Status:** Reconciled Phase 1–3 implemented schema plus target deltas (2026-08-10)
 
-**Scope:** `migrations/0001_platform_and_rules.sql`, `migrations/0002_persistent_world.sql`, `seeds/v5-core-curated.sql`, and current Campaign Durable Object storage
+**Scope:** D1 migrations `0001`–`0004`, core/Phase 2/development seeds, current Campaign Durable Object storage, and the Phase 3 Strategic Map coordination boundary
 
 ## 1. Authority and status
 
@@ -12,7 +12,7 @@
 | **Implemented use** | Current Worker/DO code reads or writes it now |
 | **Target** | Required by the accepted architecture but not yet implemented |
 
-D1 is intended to own global identity, ownership, economy, organisation, ship, campaign-registry, and archive truth. One named Durable Object owns the mutable state of one active campaign. In the current foundation, most D1 persistent-world tables are schema-first: the Worker actively uses `users`, `user_sessions`, `campaigns`, and `campaign_memberships` for access control, while purchase, deployment, archive, and persistent-effect services remain to be built.
+D1 owns global identity, ownership, economy, organisation, ship, strategic-world, campaign-registry, event, and archive truth. One named Campaign Durable Object owns the mutable tactical state of one active campaign. Phase 3 adds a separate sharded Strategic Map Durable Object boundary, one coordinator per strategic map/theatre. It is never a global-galaxy singleton.
 
 The current K-17 DO is authoritative only for its demo battlefield. It must not be mistaken for completed D1/DO reconciliation.
 
@@ -22,13 +22,13 @@ The current K-17 DO is authoritative only for its demo battlefield. It must not 
 - D1 timestamp columns are integers; defaulted `created_at`/similar fields use Unix seconds through `unixepoch()`. Explicit fields such as `lock_at`, `resolves_at`, and `occurred_at` do not encode a unit in SQL and are not written by the current runtime. DO/domain timestamps use JavaScript milliseconds through `Date.now()`, so adapters must define and convert units explicitly.
 - D1 rules movement/action values use integer quarter-points (`speed_quarters`, `movement_cost_quarters`, `speed_cost_quarters`). Current TypeScript domain/engine values use whole speed units and exact fractional numbers such as `0.5`; a D1 catalogue adapter is not implemented yet.
 - Hexes use integer axial coordinates `{q, r}` in JSON/domain state.
-- `json_valid(...)` checks JSON syntax in D1; it does not make the payload conform to a TypeScript interface. `packages/domain/src/index.ts` currently contains compile-time interfaces, not runtime validators.
+- Phase 3 JSON columns also check top-level object/array shape where applicable. This still does not prove conformance to a full TypeScript/runtime DTO schema.
 - Definition identity is the composite primary key `(id, ruleset_id)`. There is no separate `slug`, `schema_version`, or `definition_hash` column in the current migrations.
 - Archived event order is the unique tuple `(campaign_id, round_number, sequence)`, not timestamp order.
 
 ## 3. Implemented D1 schema
 
-The two migrations create the following exact table families. Field lists below reflect the landed SQL, not the richer target protocol.
+The four migrations create the following exact table families. Field lists below reflect landed SQL, not a claim that every service workflow is executable.
 
 ### 3.1 Identity and sessions
 
@@ -50,7 +50,7 @@ The two migrations create the following exact table families. Field lists below 
 
 The index named `idx_one_active_ruleset_version` is unique on `version` only when active. Because `rulesets.version` is already unique, it does **not** enforce a single active ruleset across all versions.
 
-The published catalogue is split between `seeds/v5-core-curated.sql` and `seeds/v5-phase2-combined-arms.sql`; `npm run db:seed:local` executes both with Wrangler. `seeds/development-forces.sql` is an explicit local-only roster fixture. `npm run seed:check` runs `scripts/validate-seed.ts`, which checks source hashes, duplicate/missing IDs, runtime-versus-SQL status, provenance, the active ruleset, and the Phase 2 player/enemy catalogue. It does not compare every definition field or generate the runtime catalogue.
+The published catalogue is split between `seeds/v5-core-curated.sql` and `seeds/v5-phase2-combined-arms.sql`; `npm run db:seed:local` executes both with Wrangler. `npm run db:seed:demo:local` then applies the explicit local-only force and strategic-world fixtures in order. `npm run seed:check` checks source hashes, duplicate/missing IDs, runtime-versus-SQL status, provenance, the active ruleset, Phase 2 catalogue coverage, and required Phase 3 schema/fixture boundaries. It does not compare every definition field or generate the runtime catalogue.
 
 The seed uses `ON CONFLICT ... DO UPDATE`. Therefore “published rules are immutable” is currently application/release policy, not an SQL guarantee: rerunning a changed seed can update selected published fields. A content hash and immutable-publication guard are target work.
 
@@ -91,7 +91,7 @@ These tables are not yet wired into purchase/equip/deploy or round-effect servic
 |---|---|
 | `battalions` | `id`, unique `name`, `description`, `insignia_key`, nullable `primary_ship_id`, `created_by`, timestamps. `primary_ship_id` currently has no FK or uniqueness constraint. |
 | `battalion_ranks` | `id`, `battalion_id`, `name`, `precedence`, `created_at`; unique name and precedence within a Battalion. |
-| `rank_permissions` | `rank_id`, `permission`; composite PK. Permission vocabulary is not SQL-constrained. |
+| `rank_permissions` | `rank_id`, `permission`; composite PK. Migration 0004 adds definition-table validation triggers for new writes. |
 | `battalion_memberships` | `battalion_id`, `user_id`, `rank_id`, `status`, `command_role`, `joined_at`; composite PK. Status: `INVITED`, `ACTIVE`, `SUSPENDED`, `LEFT`, `REMOVED`; command role: `PLAYER`, `BATTALION_COMMAND`, `ADMIN`. |
 | `battlegroups` | `id`, `battalion_id`, `name`, `objective`, nullable `leader_user_id`, boolean `persistent`, `created_at`; unique name within Battalion. |
 | `battlegroup_units` | `battlegroup_id`, `player_unit_id`, boolean `delegated_command`; composite PK. |
@@ -99,7 +99,7 @@ These tables are not yet wired into purchase/equip/deploy or round-effect servic
 | `ship_equipment` | `ship_id`, `equipment_definition_id`, `ruleset_id`, `slot_type`, `slot_index`, `state_json`; PK by ship/slot and composite definition FK. |
 | `ship_cargo` | `id`, `ship_id`, `resource_type`, `quantity`, `location_slot`, `source`, `state_json`; unique `(ship_id, resource_type, location_slot)`. |
 
-Ship status is exactly `DOCKED`, `ORBIT`, `IN_TRANSIT`, `ARRIVING`, `DEPLOYING`, `DAMAGED`, or `DESTROYED`. There is no implemented primary-ship partial unique index, soft Battalion lifecycle, cargo reservation model, or ship-travel service yet.
+Ship status is exactly `DOCKED`, `ORBIT`, `IN_TRANSIT`, `ARRIVING`, `DEPLOYING`, `DAMAGED`, or `DESTROYED`. Migration 0004 adds soft Battalion lifecycle and a same-Battalion primary-ship trigger, but there is still no primary-ship uniqueness index, complete cargo reservation model, or arbitrary ship-travel service.
 
 ### 3.6 Planets, campaigns, deployments, and archives
 
@@ -115,6 +115,56 @@ Ship status is exactly `DOCKED`, `ORBIT`, `IN_TRANSIT`, `ARRIVING`, `DEPLOYING`,
 | `persistent_effects` | PK `idempotency_key`, `campaign_id`, `round_number`, `effect_type`, nullable `entity_id`, `payload_json`, `status`, `attempt_count`, `last_error`, `created_at`, `applied_at`; status `PENDING`, `APPLIED`, or `FAILED`. There is no ordinal, payload hash, claim owner/time, or result field. |
 
 Archive/effect tables are not populated by the current Worker/DO. Their existence is not evidence that D1 effects or archival are implemented.
+
+### 3.7 Phase 3 identity and Battalion extensions
+
+Migration 0004 adds `users.last_active_at`, `profiles.timezone`, Battalion short name/motto/status/revision, rank and membership revisions/timestamps, Battlegroup strategic state, ship registry/location/revision, ship-module installation state, and campaign strategic-node/status/revision fields.
+
+| Table | Implemented fields and constraints |
+|---|---|
+| `auth_identities` | Provider-neutral identity link with hashed provider subject, private provider JSON, lifecycle, and unique provider/subject pair. No provider callback is implemented by schema alone. |
+| `account_recovery_challenges` | Hashed recovery token, expiry, lifecycle, and consumed time. Delivery/issuance is deferred. |
+| `battalion_permission_definitions` | Permission vocabulary plus `ACTIVE`, `SCHEMA_ONLY`, or `DEFERRED` implementation status. Triggers reject unknown new rank permissions. |
+| `battalion_invites` | Persistent invitation lifecycle, Battalion-local rank, inviter/invitee, expiry, revision, request hash, and inviter-scoped command ID. One pending invite per Battalion/User. |
+| `user_active_battalions` | One explicit operational Battalion per User; composite membership FK plus triggers requiring/retaining only an active membership. |
+| `unit_order_delegations` | Owner-preserving per-unit order authority scoped to Battlegroup, campaign, or time window; owner/member composite FKs, revision, request hash, and owner-scoped command ID. |
+
+### 3.8 Strategic world and operations
+
+| Table | Implemented fields and constraints |
+|---|---|
+| `strategic_content_sources` | Normalized source path/locator, optional SHA-256, source kind, and notes. |
+| `strategic_locations` | Typed hierarchy, status, metadata JSON, revision, timestamps; self-parent and recursive-cycle rejection. |
+| `strategic_maps` | Scope, root location, pinned ruleset, stable coordinator key, configurable clock, current round, pause/status, revision, source, and configuration JSON. |
+| `strategic_nodes` | One map projection per semantic location, typed/control/status state, presentation position, visibility/metadata JSON, revision, and source. Composite `(id,map_id)` supports same-map FKs; triggers require node/location type agreement. |
+| `strategic_routes` | Same-map endpoints, route type/direction, nullable positive travel rounds, explicit cost status, allowed-profile array, status, revision, source, and metadata. Self-edges, reverse duplicates of a bidirectional edge, and empty/non-array profiles are rejected. |
+| `strategic_operations` | Map/node, optional unique tactical campaign, pinned ruleset, code/name/role/status/threat, structured briefing/rule/effect/outcome JSON, revision, source, and schedule. |
+| `strategic_war_variables` | Revisioned JSON by map, semantic location, scope, and key, optionally linked to its last canonical event. |
+
+`campaigns.strategic_node_id` links tactical campaigns to the strategic graph without changing the existing tactical status check. `campaigns.strategic_status` is a separate product lifecycle projection.
+
+### 3.9 Task Forces, embarkation, and strategic supply
+
+| Table | Implemented fields and constraints |
+|---|---|
+| `task_forces` | Battalion/map, name/callsign, commander, current node, formation status, supplied state/end round, revision, and state JSON. Current node is constrained to the same map. |
+| `task_force_ships` | Battalion-consistent Task Force/ship relation, role, lifecycle, timestamps, and revision. A partial index permits one active Task Force per ship. |
+| `task_force_battlegroups` | Battalion-consistent embarkation lifecycle and timestamps. A partial index permits one active carrier per Battlegroup. |
+| `strategic_supply_stores` | Exactly one physical holder shape: ship, Task Force, HQ/FOB location, or Player Unit. |
+| `strategic_supply_balances` | Separate `LARGE`, `MEDIUM`, or `SMALL` quantity/capacity/revision; non-negative and bounded when capacity is known. |
+
+An embarked Battlegroup stores `current_carrier_task_force_id` and no independent node. Its semantic location derives through the Task Force. Player Unit ownership remains `player_units.owner_id`; neither assignment nor embarkation changes it.
+
+### 3.10 Strategic orders and journal
+
+| Table | Implemented fields and constraints |
+|---|---|
+| `strategic_rounds` | Map/round, lifecycle, pinned ruleset/resolver, schedule/actual timestamps, resolution key, input/result hashes, revision, and state JSON. Resolved/failed rows require complete hash journal fields. |
+| `strategic_orders` | Map round and Battalion actor, typed order/subject, exactly one Task Force or Battlegroup, destination/operation, lifecycle, route/intent JSON, request hash, expected subject revision, revision, and failure/timestamps. Command uniqueness is `(actor_user_id,command_id)`, not global. |
+| `strategic_events` | Optional map round/sequence, Battalion/audience/subject, summary, object payload, event hash, globally unique idempotency key, and time. Map event sequence is unique per round. |
+| `strategic_effect_receipts` | Source kind/ID/version, target, payload hash/data, lifecycle/attempts/result/error, timestamps, and idempotency key. Source/version/effect/target is also unique. |
+
+The development seed uses `strategic-map-corinth`, CSV Resolute, the Resolute Task Force, Hammer/Raven, three operations, strategic round 28, and Large Supply 3/4. All seeded route durations remain `NULL/BALANCE_REQUIRED`; unresolved travel is not free movement.
 
 ## 4. Current Campaign Durable Object records
 
@@ -170,6 +220,12 @@ The resolution seed is currently a predictable string derived from campaign, rou
 - one order archive revision per campaign/round/unit/revision;
 - one archive event per event ID and campaign/round/sequence;
 - one D1 effect row per idempotency key;
+- acyclic structured strategic-location hierarchy and same-map, non-self route edges;
+- one active operational Battalion selection backed by active membership;
+- Battalion-consistent ranks, Task Force ships, Battlegroup embarkations, and strategic-order subjects;
+- one active Task Force per ship and one active carrier per Battlegroup;
+- non-negative, capacity-bounded Large/Medium/Small strategic supply;
+- actor-scoped strategic command uniqueness and complete resolved-round hash journals;
 - foreign keys declared by the migrations, when foreign-key enforcement is active.
 
 ### 5.2 Enforced in the current Worker/DO/engine subset
@@ -194,7 +250,7 @@ The resolution seed is currently a predictable string derived from campaign, rou
 - cryptographic input/output/effect payload hashes;
 - exactly-once D1 damage, death, equipment loss, history, and requisition effects;
 - acknowledgement of all required D1 effects before opening the next round;
-- stable client command idempotency keys and optimistic expected revisions;
+- tactical command idempotency and service-level compare-and-set for recorded strategic expected revisions;
 - runtime validation of every bounded JSON/public DTO.
 
 ## 6. Target D1/DO effects protocol
@@ -207,16 +263,18 @@ This is the accepted design, **not current behavior**:
 4. A retry with the same ID/hash returns the existing applied result; a different hash fails closed.
 5. DO records acknowledgements and opens the next round only after every required effect is `APPLIED`.
 
-The current `persistent_effects` table needs a follow-up migration or a deliberately documented equivalent to support payload hashes, ordinals, claims/results, and strong collision detection. The current runtime must also stop advancing the round before effect acknowledgement. See [ROUND_RESOLUTION.md](./ROUND_RESOLUTION.md).
+The tactical `persistent_effects` table still needs a follow-up migration or deliberately documented equivalent to support payload hashes, ordinals, claims/results, and strong collision detection. Phase 3's separate `strategic_effect_receipts` covers strategic/campaign-result targets but does not retrofit the Campaign Durable Object handshake. The current tactical runtime must also stop advancing the round before effect acknowledgement. See [ROUND_RESOLUTION.md](./ROUND_RESOLUTION.md).
 
 ## 7. Model evolution priorities
 
 1. Add runtime schemas and explicit D1-to-domain adapters, including seconds/milliseconds and quarter-point conversion.
 2. Choose one generated/hashed source of rules truth and enforce published immutability.
-3. Implement campaign bootstrap from an authorised D1 deployment snapshot; keep the K-17 fixture local-only.
-4. Implement purchase/equip/deploy services against existing constraints before exposing those tables as complete features.
-5. Add the PREPARED/hash journal and D1 persistent-effect applier before claiming exact-once cross-store resolution.
-6. Add archival workers/effects and reconciliation tooling only after the primary result/effect handshake is proven.
-7. Evolve schedules into persisted status-bearing records if alarm crash/retry integration tests demonstrate the target protocol.
+3. Finish production identity-provider/session issuance, recovery delivery, and onboarding without exposing auth identities publicly.
+4. Implement campaign bootstrap from an authorised D1 strategic deployment snapshot; keep K-17 and the Corinth Expedition fixtures local-only.
+5. Implement purchase/equip/deploy/withdrawal services against existing constraints before exposing those tables as complete features.
+6. Add the tactical PREPARED/hash journal and D1 persistent-effect applier before claiming exact-once tactical-to-strategic resolution.
+7. Reconcile legacy Player Unit/ship compatibility locations with structured strategic location through one transactional service.
+8. Add archival workers/effects and reconciliation tooling only after the primary result/effect handshake is proven.
+9. Evolve schedules into persisted status-bearing records if alarm crash/retry integration tests demonstrate the target protocol.
 
-Related decisions: [ARCHITECTURE.md](./ARCHITECTURE.md), [ROUND_RESOLUTION.md](./ROUND_RESOLUTION.md), [CLOUDFLARE.md](./CLOUDFLARE.md), and the source dispositions in [RULE_CONFLICTS.md](./RULE_CONFLICTS.md).
+Related decisions: [ARCHITECTURE.md](./ARCHITECTURE.md), [STRATEGIC_LAYER.md](./STRATEGIC_LAYER.md), [BATTALION_MODEL.md](./BATTALION_MODEL.md), [SHIP_SYSTEM.md](./SHIP_SYSTEM.md), [STRATEGIC_RESOLUTION.md](./STRATEGIC_RESOLUTION.md), [ROUND_RESOLUTION.md](./ROUND_RESOLUTION.md), [CLOUDFLARE.md](./CLOUDFLARE.md), and the source dispositions in [RULE_CONFLICTS.md](./RULE_CONFLICTS.md).

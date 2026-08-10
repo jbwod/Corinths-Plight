@@ -7,4 +7,5 @@ export * from "./mechanics";
 export * from "./resolver";
 export * from "./rng";
 export * from "./specialists";
+export * from "./strategic";
 export * from "./visibility";

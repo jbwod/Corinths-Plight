@@ -12,8 +12,10 @@ import { CampaignDurableObject } from "./campaign-durable-object";
 import type { Env } from "./env";
 import { errorResponse, json } from "./http";
 import { routeForcesRequest } from "./routes/forces";
+import { routeStrategicRequest } from "./routes/strategic";
+import { StrategicMapDurableObject } from "./strategic-map-durable-object";
 
-export { CampaignDurableObject };
+export { CampaignDurableObject, StrategicMapDurableObject };
 
 const campaignPath = /^\/api\/campaigns\/([a-z0-9][a-z0-9-]{0,63})(\/.*)?$/;
 
@@ -70,6 +72,9 @@ async function route(request: Request, env: Env, requestId: string): Promise<Res
 
   const forcesResponse = await routeForcesRequest(request, env);
   if (forcesResponse) return forcesResponse;
+
+  const strategicResponse = await routeStrategicRequest(request, env);
+  if (strategicResponse) return strategicResponse;
 
   const match = url.pathname.match(campaignPath);
   if (match) {
