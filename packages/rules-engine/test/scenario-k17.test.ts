@@ -134,6 +134,12 @@ describe("declarative Outpost K-17 scenario policy", () => {
     expect(output.events.at(-1)?.payload).toEqual(output.state.outcome);
     expect(output.state.phase).toBe("COMPLETE");
     expect(output.state.outcome?.reason).toBe("FINAL_ROUND_PRIMARY_HELD");
+    expect(output.persistentEffects.filter((effect) => effect.type === "CAMPAIGN_HISTORY")).toHaveLength(5);
+    expect(output.persistentEffects.find((effect) => effect.type === "CAMPAIGN_HISTORY")?.payload).toMatchObject({
+      campaignCompleted: true,
+      result: "VICTORY",
+      reason: "FINAL_ROUND_PRIMARY_HELD",
+    });
 
     const replay = resolveRound({
       previousState: output.state,

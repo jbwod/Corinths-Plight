@@ -143,6 +143,16 @@ export function resolveRound(input: RoundInput): RoundOutput {
   }
 
   const state = structuredClone(input.previousState);
+  const participatingPersistentUnitIds = state.deployments
+    .filter((deployment) =>
+      deployment.side === "ALLIED" &&
+      deployment.persistentUnitId !== undefined &&
+      deployment.status !== "DESTROYED" &&
+      deployment.status !== "WITHDRAWN" &&
+      (deployment.locationState ?? "ON_MAP") === "ON_MAP"
+    )
+    .map((deployment) => deployment.persistentUnitId!)
+    .sort((left, right) => left.localeCompare(right));
   state.phase = "RESOLVING";
   state.engineVersion = ENGINE_VERSION;
   const allOrders = suppliedOrders
@@ -513,6 +523,23 @@ export function resolveRound(input: RoundInput): RoundOutput {
       undefined,
       { ...scenario.outcome },
     );
+  }
+  for (const persistentUnitId of participatingPersistentUnitIds) {
+    effects.push({
+      idempotencyKey: `${state.campaignId}:${state.round}:history:${persistentUnitId}`,
+      type: "CAMPAIGN_HISTORY",
+      unitId: persistentUnitId,
+      payload: {
+        campaignId: state.campaignId,
+        round: state.round,
+        campaignName: state.campaignName,
+        scenarioId: state.scenarioId,
+        result: scenario.outcome?.result,
+        reason: scenario.outcome?.reason,
+        campaignCompleted: scenario.outcome !== undefined,
+      },
+      status: "PENDING",
+    });
   }
   state.events = [...state.events, ...events].slice(-1000);
   state.pendingPersistentEffects = [...state.pendingPersistentEffects, ...effects];

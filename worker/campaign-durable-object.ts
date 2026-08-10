@@ -389,7 +389,32 @@ export class CampaignDurableObject extends DurableObject<Env> {
               item.quantity, typeof item.transportMode === "string" ? item.transportMode : "EMBARKED",
               typeof item.slotsQuarters === "number" ? item.slotsQuarters : 1));
         }
+      } else if (effect.type === "CAMPAIGN_HISTORY") {
+        const campaignCompleted = effect.payload.campaignCompleted === true ? 1 : 0;
+        statements.push(
+          this.env.DB.prepare(`INSERT INTO unit_service_summaries (
+            player_unit_id,campaigns_completed,rounds_served,last_campaign_id,last_round,revision,updated_at
+          ) SELECT id,?1,1,?2,?3,1,unixepoch() FROM player_units WHERE id = ?4
+          ON CONFLICT(player_unit_id) DO UPDATE SET
+            campaigns_completed = campaigns_completed + excluded.campaigns_completed,
+            rounds_served = rounds_served + 1,
+            last_campaign_id = excluded.last_campaign_id,
+            last_round = excluded.last_round,
+            revision = revision + 1,
+            updated_at = unixepoch()`).bind(campaignCompleted, campaignId, round, effect.unitId),
+          this.env.DB.prepare(`UPDATE player_units SET
+            service_campaigns = service_campaigns + ?1,
+            service_rounds = service_rounds + 1,
+            version = version + 1,
+            updated_at = unixepoch()
+            WHERE id = ?2`).bind(campaignCompleted, effect.unitId),
+        );
       }
+      const historySummary = effect.type === "CAMPAIGN_HISTORY"
+        ? effect.payload.campaignCompleted === true
+          ? `${String(effect.payload.campaignName ?? "Campaign")} completed: ${String(effect.payload.result ?? "COMPLETE")}.`
+          : `${String(effect.payload.campaignName ?? "Campaign")} round ${round} served.`
+        : `Campaign round ${round} persistent state applied.`;
       statements.push(
         this.env.DB.prepare(`INSERT INTO unit_history (
           id,player_unit_id,event_type,campaign_id,round_number,payload_json,
@@ -397,7 +422,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
         ) SELECT ?1,id,?2,?3,?4,?5,unixepoch(),?1,?6,'OWNER'
           FROM player_units WHERE id = ?7`)
           .bind(`effect:${effect.idempotencyKey}`, effect.type, campaignId, round,
-            JSON.stringify(effect.payload), `Campaign round ${round} persistent state applied.`, effect.unitId),
+            JSON.stringify(effect.payload), historySummary, effect.unitId),
         this.env.DB.prepare(`INSERT INTO campaign_effect_receipts (
           idempotency_key,campaign_id,round_number,effect_type,player_unit_id,payload_json
         ) SELECT ?1,?2,?3,?4,?5,?6 FROM player_units WHERE id = ?5`)

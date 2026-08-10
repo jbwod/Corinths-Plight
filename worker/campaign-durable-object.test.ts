@@ -85,6 +85,7 @@ class EffectStatement {
 class EffectDatabase {
   fail = true;
   readonly receipts = new Set<string>();
+  readonly appliedQueries: string[] = [];
 
   prepare(query: string): D1PreparedStatement {
     return new EffectStatement(this, query) as unknown as D1PreparedStatement;
@@ -94,6 +95,7 @@ class EffectDatabase {
     if (this.fail) throw new Error("D1_EFFECT_WRITE_FAILED");
     for (const raw of statements) {
       const statement = raw as unknown as EffectStatement;
+      this.appliedQueries.push(statement.query);
       if (statement.query.includes("INSERT INTO campaign_effect_receipts")) {
         this.receipts.add(String(statement.bindings[0]));
       }
@@ -415,6 +417,7 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(advanced.events.filter((event) => event.type === "ROUND_STARTED" && event.round === completedRound + 1)).toHaveLength(1);
     expect([...storage.values.keys()].filter((key) => key.startsWith("pending-effect/"))).toHaveLength(0);
     expect(database.receipts.size).toBe(firstBody.resolution.effectCount);
+    expect(database.appliedQueries.some((query) => query.includes("INSERT INTO unit_service_summaries"))).toBe(true);
     expect(storage.values.get(`resolution/${completedRound}`)).toMatchObject({
       status: "RESOLVED",
       effectCount: firstBody.resolution.effectCount,
