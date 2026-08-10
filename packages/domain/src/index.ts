@@ -1129,6 +1129,69 @@ export interface AuthLinkRequestedDto {
   developmentVerificationUrl?: string;
 }
 
+export type OnboardingStep = "BATTALION" | "UNIT" | "TOUR" | "COMPLETE";
+export type BattalionAccessPolicy = "PUBLIC" | "PRIVATE";
+
+export interface BattalionDirectoryEntryDto {
+  battalionId: string;
+  name: string;
+  shortName?: string | null;
+  description: string;
+  motto: string;
+  recruitmentKind: "NPC" | "PLAYER";
+  accessPolicy: BattalionAccessPolicy;
+  engagementSummary: string;
+  memberCount: number;
+  memberCapacity: number;
+  openSpots: number;
+}
+
+export interface BattalionInvitationDto {
+  invitationId: string;
+  battalionId: string;
+  battalionName: string;
+  invitedBy: string;
+  message: string;
+  expiresAt: number | null;
+  source: "ACCOUNT" | "EMAIL";
+}
+
+export interface StarterUnitOptionDto {
+  definitionId: string;
+  name: string;
+  category: string;
+  healthModel: HealthModel;
+  maximumHealth: number;
+  armor: number;
+  speed: number;
+  summary: string;
+}
+
+export interface ActiveOnboardingBattalionDto extends BattalionDirectoryEntryDto {
+  settingsRevision: number;
+  permissions: BattalionPermission[];
+  joinEnabled: boolean;
+}
+
+export interface OnboardingStatusDto {
+  required: boolean;
+  status: "NOT_ENROLLED" | "IN_PROGRESS" | "COMPLETE" | "SKIPPED";
+  step: OnboardingStep;
+  progressRevision?: number;
+  charter: {
+    balance: number;
+    grantAmount: number;
+    creationCost: number;
+    canCreate: boolean;
+    alreadyUsed: boolean;
+  };
+  activeBattalion: ActiveOnboardingBattalionDto | null;
+  publicBattalions: BattalionDirectoryEntryDto[];
+  invitations: BattalionInvitationDto[];
+  starterUnits: StarterUnitOptionDto[];
+  firstUnit: { unitId: string; name: string; callsign: string; definitionId: string } | null;
+}
+
 // ---------------------------------------------------------------------------
 // Phase 3: persistent organisations and the strategic layer
 // ---------------------------------------------------------------------------

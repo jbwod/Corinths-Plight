@@ -23,12 +23,13 @@ The public React gateway presents the home page while signed out and mounts the 
 
 - Access links use 32 random bytes, are stored only as SHA-256 hashes, expire after 15 minutes by default, and can be consumed once. Issuing a newer link revokes older pending links for the same HMAC-pseudonymized email identity. GET is non-destructive so mail-security prefetch cannot consume the link; confirmation requires the staged HttpOnly cookie and a browser POST.
 - Browser sessions use a separate 32-byte opaque token. D1 stores only its SHA-256 hash. The host-only cookie is `HttpOnly`, `SameSite=Lax`, `Secure` outside development, and expires after 30 days by default.
-- Registration is committed atomically only when the link is consumed. The User, Profile, identity link, session, and consumed challenge transition share one D1 batch.
+- Registration is committed atomically only when the link is consumed. The User, Profile, identity link, session, onboarding progress, one-time command-charter ledger grant, and consumed challenge transition share one D1 batch.
 - Email, IP address, and User-Agent rate/audit keys are HMAC-pseudonymized with `AUTH_HASH_KEY`. Tokens and raw email addresses are never written to application logs.
 - Authentication mutations remain protected by the Worker's exact same-origin policy. The only cross-site navigation exception is an exact top-level document `GET /api/auth/verify`, which stages but does not consume the token; confirmation still requires the same-origin POST. Verification responses use `Referrer-Policy: no-referrer` so the query token is not forwarded while redirecting.
 - Wrangler sets `assets.run_worker_first` for `/api/*`; otherwise SPA navigation fallback can serve `index.html` before an email verification GET reaches the Worker.
 - Five requests per email and per IP are accepted in each 15-minute window; further requests are blocked for the window.
 - Production fails email access closed unless the Resend key, HMAC key, HTTPS base URL, and sender are configured. Development without Resend returns the link in the JSON response for local testing only.
+- New registration also fails closed when the production onboarding policy is missing, preventing an account from being created without its one-time charter grant.
 
 Passwordless email access is the recovery path for this slice. Password storage, password reset, JWTs, and client-authored authorization roles are intentionally absent.
 
@@ -41,6 +42,8 @@ Migration `0006_production_identity.sql` adds email verification and session act
 - `auth_audit_events`: pseudonymized security outcomes without credentials.
 
 The existing `users`, `profiles`, `auth_identities`, and `user_sessions` tables remain the identity/session authority. `auth_identities.provider` is `resend_magic_link`; it describes the local verified-email identity mechanism, not an OAuth provider.
+
+After verification, `onboarding_progress` gates the game workspace until the account joins or creates a Battalion, receives its one starter unit, and explicitly completes the interface tour. This state is authorization-adjacent workflow state, not session authority; changing it never creates a new identity or role. See [ONBOARDING.md](./ONBOARDING.md).
 
 ## 4. Resend and Cloudflare production setup
 

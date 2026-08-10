@@ -15,6 +15,7 @@ import { errorResponse, json } from "./http";
 import { routeForcesRequest } from "./routes/forces";
 import { routeAuthRequest } from "./routes/auth";
 import { routeDeploymentRequest } from "./routes/deployment";
+import { routeOnboardingRequest } from "./routes/onboarding";
 import { routeStrategicRequest } from "./routes/strategic";
 import { StrategicMapDurableObject } from "./strategic-map-durable-object";
 
@@ -75,6 +76,9 @@ async function route(request: Request, env: Env, requestId: string): Promise<Res
 
   const authResponse = await routeAuthRequest(request, env);
   if (authResponse) return authResponse;
+
+  const onboardingResponse = await routeOnboardingRequest(request, env);
+  if (onboardingResponse) return onboardingResponse;
 
   const forcesResponse = await routeForcesRequest(request, env);
   if (forcesResponse) return forcesResponse;

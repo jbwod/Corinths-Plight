@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type R
 import type { AuthLinkRequestedDto, AuthSessionDto } from "../../packages/domain/src";
 import brandMark from "../../app/static/img/brand-icon.gif";
 import background from "../../app/static/img/background.png";
+import { GuidedOnboarding } from "./GuidedOnboarding";
 
 type AuthMode = "HOME" | "LOGIN" | "REGISTER" | "CHECK_EMAIL" | "VERIFY";
 
@@ -198,7 +199,7 @@ export function AuthGateway({ children }: { children: ReactNode }) {
   }
   return (
     <>
-      {children}
+      <GuidedOnboarding user={session.user} demo={session.demo}>{children}</GuidedOnboarding>
       <div className="account-session-chip">
         <span><small>{session.demo ? "LOCAL DEMO" : "SIGNED IN"}</small><strong>{session.user.callsign || session.user.displayName}</strong></span>
         <button onClick={() => void signOut()}>SIGN OUT</button>

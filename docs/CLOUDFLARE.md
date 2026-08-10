@@ -43,6 +43,7 @@ All public traffic passes through the Worker. Campaign traffic resolves D1 campa
 | `worker/index.ts` | Worker fetch handler, security headers, API routing, D1 policy lookup, named-DO proxy |
 | `worker/auth.ts` | Demo/session authentication, same-origin helpers, D1 campaign authorization, trusted viewer headers |
 | `worker/routes/auth.ts`, `worker/services/auth.ts` | Passwordless registration/login/session/logout boundary and Resend delivery adapter |
+| `worker/routes/onboarding.ts`, `worker/services/onboarding.ts` | Guided enlistment, Battalion recruitment/invitations, charter economy, and starter-unit grant |
 | `worker/env.ts` | Typed `DB`, `CAMPAIGN`, environment, auth, and clock bindings |
 | `worker/http.ts` | JSON response/body-size/parse helpers |
 | `worker/campaign-clock.ts` | Pure clock, schedule, pause, and resume transitions |
@@ -56,9 +57,11 @@ All public traffic passes through the Worker. Campaign traffic resolves D1 campa
 | `migrations/0004_phase3_strategic_layer.sql` | Phase 3 identity/org evolution, locations, maps/routes, operations, Task Forces, supply, rounds, orders, events, receipts, and war variables |
 | `migrations/0005_equipment_deployment_vertical_slice.sql` | Equipment effects/refits, owner inventory, loadout locks, deployment plans/transports/snapshots, campaign resource state, and effect receipts |
 | `migrations/0006_production_identity.sql` | Verified-email challenges, session activity, HMAC-keyed rate limits, and auth audit events |
+| `migrations/0007_guided_onboarding_and_battalions.sql` | Guided progress/receipts, Battalion recruitment/charters/email invites, and starter grants |
 | `seeds/v5-core-curated.sql` | Idempotent D1 SQL rules seed |
 | `seeds/v5-phase2-combined-arms.sql` | Provenance-bearing Phase 2 combined-arms catalogue |
 | `seeds/v5-equipment-deployment.sql` | Canonical executable equipment/action/deployment-method overlays for the narrow vertical slice |
+| `seeds/onboarding-foundation.sql` | Production-safe onboarding economy policy and three system recruitment Battalions |
 | `seeds/development-forces.sql` | Local-only Operation Iron Rain force fixture |
 | `seeds/development-strategic-world.sql` | Local-only Helion/Corinth, CSV Resolute, Task Force, operations, and strategic supply fixture |
 | `seeds/development-spearhead.sql` | Local-only Operation Spearhead loadout/deployment fixture |
@@ -189,7 +192,7 @@ Actual root scripts are:
 | `build:production` | Sets `CLOUDFLARE_ENV=production`, then typechecks and builds |
 | `check:production-config` | Exits non-zero for an invalid production D1 ID or unless `CORINTH_RELEASE_APPROVED=true` is explicitly supplied |
 | `db:migrate:remote` | Runs the guard, then applies migrations to `corinths-plight-production --remote --env production` |
-| `db:seed:remote` | Runs the guard, then executes the core, Phase 2, and equipment/deployment canonical catalogues against production with `--env production`; it never applies a development fixture |
+| `db:seed:remote` | Runs the guard, then executes the core, Phase 2, equipment/deployment, and production-safe onboarding seeds against production with `--env production`; it never applies a development fixture |
 | `deploy:dry` | Runs guard + production build + `wrangler deploy --dry-run --env production` |
 | `deploy` | Runs guard + production build + `wrangler deploy --env production` |
 
@@ -260,7 +263,8 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 - [x] No R2, Queue, or KV authority binding is present.
 - [x] Demo auth requires exact development opt-in and is limited to `outpost-k17` and `operation-spearhead`; production cannot enable it safely.
 - [x] Unsafe mutations/WebSocket upgrades require same origin; D1 membership is checked before DO lookup.
-- [x] Six additive D1 migrations, published/local seed separation, source-hash validator, TypeScript build, lint, and unit tests exist.
+- [x] Seven additive D1 migrations, published/local seed separation, source-hash validator, TypeScript build, lint, and unit tests exist.
+- [x] Guided enlistment and Battalion public/private/code/invitation recruitment are implemented with actor-scoped receipts, expected revisions, permission checks, and Resend delivery.
 - [~] Manual/accelerated/24h clocks and pause/resume are unit-tested; alarm crash/eviction integration is not.
 - [~] Snapshot/report projection exists; event-time payload and socket-audience leakage coverage is incomplete.
 - [x] Implement and deploy passwordless production registration/login, opaque session issuance, email-based recovery, and logout revocation.

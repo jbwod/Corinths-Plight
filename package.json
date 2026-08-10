@@ -21,7 +21,8 @@
     "db:seed:core:local": "wrangler d1 execute corinths-plight --local --file seeds/v5-core-curated.sql",
     "db:seed:phase2:local": "wrangler d1 execute corinths-plight --local --file seeds/v5-phase2-combined-arms.sql",
     "db:seed:equipment:local": "wrangler d1 execute corinths-plight --local --file seeds/v5-equipment-deployment.sql",
-    "db:seed:local": "npm run db:seed:core:local && npm run db:seed:phase2:local && npm run db:seed:equipment:local",
+    "db:seed:onboarding:local": "wrangler d1 execute corinths-plight --local --file seeds/onboarding-foundation.sql",
+    "db:seed:local": "npm run db:seed:core:local && npm run db:seed:phase2:local && npm run db:seed:equipment:local && npm run db:seed:onboarding:local",
     "db:seed:demo:forces:local": "wrangler d1 execute corinths-plight --local --file seeds/development-forces.sql",
     "db:seed:demo:strategic:local": "wrangler d1 execute corinths-plight --local --file seeds/development-strategic-world.sql",
     "db:seed:demo:spearhead:local": "wrangler d1 execute corinths-plight --local --file seeds/development-spearhead.sql",
@@ -29,7 +30,8 @@
     "db:seed:core:remote": "npm run check:production-config && wrangler d1 execute corinths-plight-production --remote --env production --file seeds/v5-core-curated.sql",
     "db:seed:phase2:remote": "npm run check:production-config && wrangler d1 execute corinths-plight-production --remote --env production --file seeds/v5-phase2-combined-arms.sql",
     "db:seed:equipment:remote": "npm run check:production-config && wrangler d1 execute corinths-plight-production --remote --env production --file seeds/v5-equipment-deployment.sql",
-    "db:seed:remote": "npm run db:seed:core:remote && npm run db:seed:phase2:remote && npm run db:seed:equipment:remote",
+    "db:seed:onboarding:remote": "npm run check:production-config && wrangler d1 execute corinths-plight-production --remote --env production --file seeds/onboarding-foundation.sql",
+    "db:seed:remote": "npm run db:seed:core:remote && npm run db:seed:phase2:remote && npm run db:seed:equipment:remote && npm run db:seed:onboarding:remote",
     "seed:check": "node --import tsx scripts/validate-seed.ts"
   },
   "dependencies": {

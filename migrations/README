@@ -1,1 +1,15 @@
-Single-database configuration for Flask.
+# D1 migrations
+
+The numbered SQL files are additive Cloudflare D1 migrations applied in order by Wrangler. They replace the legacy Flask `create_all`/Alembic path for the TypeScript runtime; do not run the legacy migration tooling against D1.
+
+Current sequence:
+
+- `0001` platform identity and rules;
+- `0002` persistent world;
+- `0003` persistent forces;
+- `0004` strategic layer;
+- `0005` equipment and deployment;
+- `0006` production passwordless identity;
+- `0007` guided onboarding and Battalion recruitment.
+
+Use the root `db:migrate:local` or guarded `db:migrate:remote` package scripts. Production-safe catalogue/onboarding seeds are separate from development fixtures.

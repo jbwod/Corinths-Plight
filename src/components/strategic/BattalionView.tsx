@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { StrategicDataMode, StrategicSnapshot } from "../../strategic/model";
+import { BattalionRecruitmentPanel } from "../BattalionRecruitmentPanel";
 
 interface BattalionViewProps {
   snapshot: StrategicSnapshot;
@@ -7,7 +8,7 @@ interface BattalionViewProps {
   onNotice: (notice: { tone: "info" | "success" | "danger"; message: string }) => void;
 }
 
-type BattalionTab = "ORGANISATION" | "MEMBERS" | "RANKS";
+type BattalionTab = "ORGANISATION" | "MEMBERS" | "RANKS" | "RECRUITMENT";
 
 function initials(value: string): string {
   return value.replaceAll(/[^A-Za-z0-9]/g, "").slice(0, 2).toUpperCase() || "--";
@@ -38,12 +39,8 @@ export function BattalionView({ snapshot, mode, onNotice }: BattalionViewProps) 
     );
   }, [memberFilter, snapshot.members]);
 
-  const explainDeferred = () => onNotice({
-    tone: "info",
-    message: mode === "SHOWCASE"
-      ? "Battalion changes are disabled in the local showcase."
-      : "Invite, rank, and Battalion configuration mutations remain deferred until the production identity workflow is complete.",
-  });
+  void mode;
+  void onNotice;
 
   return (
     <div className="battalion-workspace">
@@ -63,7 +60,7 @@ export function BattalionView({ snapshot, mode, onNotice }: BattalionViewProps) 
       </header>
 
       <div className="strategic-tabbar" role="tablist" aria-label="Battalion sections">
-        {(["ORGANISATION", "MEMBERS", "RANKS"] as const).map((value) => (
+        {(["ORGANISATION", "MEMBERS", "RANKS", "RECRUITMENT"] as const).map((value) => (
           <button
             type="button"
             role="tab"
@@ -73,7 +70,6 @@ export function BattalionView({ snapshot, mode, onNotice }: BattalionViewProps) 
             onClick={() => setTab(value)}
           >{value}</button>
         ))}
-        <button type="button" className="deferred-action" onClick={explainDeferred}>INVITES / CONFIGURATION · DEFERRED</button>
       </div>
 
       {tab === "ORGANISATION" && (
@@ -162,6 +158,8 @@ export function BattalionView({ snapshot, mode, onNotice }: BattalionViewProps) 
           <p className="boundary-note"><strong>Server authority:</strong> Rank names are presentation only. The Worker validates exact permission keys and explicit delegation for every protected action.</p>
         </section>
       )}
+
+      {tab === "RECRUITMENT" && <BattalionRecruitmentPanel />}
     </div>
   );
 }

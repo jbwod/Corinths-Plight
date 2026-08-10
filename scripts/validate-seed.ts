@@ -47,6 +47,8 @@ const phase3SeedSql = await readFile("seeds/development-strategic-world.sql", "u
 const equipmentMigrationSql = await readFile("migrations/0005_equipment_deployment_vertical_slice.sql", "utf8");
 const equipmentSeedSql = await readFile("seeds/v5-equipment-deployment.sql", "utf8");
 const spearheadSeedSql = await readFile("seeds/development-spearhead.sql", "utf8");
+const onboardingMigrationSql = await readFile("migrations/0007_guided_onboarding_and_battalions.sql", "utf8");
+const onboardingSeedSql = await readFile("seeds/onboarding-foundation.sql", "utf8");
 const combinedSeedSql = `${seedSql}\n${phase2SeedSql}\n${equipmentSeedSql}`;
 
 const definitionTables = new Set([
@@ -274,6 +276,32 @@ if (!phase3SeedSql.includes("0ebe472aa5bc16e551e2fd5e2b3d16f78a4c4e016cbe954f8a4
 if (!phase3SeedSql.includes("ON CONFLICT")) {
   failures.push("Phase 3 development seed is not repeat-idempotent.");
 }
+
+for (const requiredTable of [
+  "onboarding_economy_policies",
+  "onboarding_progress",
+  "onboarding_command_receipts",
+  "battalion_recruitment_settings",
+  "battalion_creation_charters",
+  "battalion_email_invites",
+  "onboarding_starter_unit_grants",
+]) {
+  if (!onboardingMigrationSql.includes(`CREATE TABLE ${requiredTable}`)) {
+    failures.push(`Onboarding migration does not create ${requiredTable}.`);
+  }
+}
+for (const requiredId of [
+  "production-onboarding-v1",
+  "battalion-npc-corinth-line",
+  "battalion-npc-expeditionary-support",
+  "battalion-npc-nightwatch",
+]) {
+  if (!onboardingSeedSql.includes(`'${requiredId}'`)) failures.push(`Onboarding seed is missing ${requiredId}.`);
+}
+if (!onboardingSeedSql.includes("'production-onboarding-v1', 100, 100, 1, 1")) {
+  failures.push("Onboarding charter policy must explicitly retain the audited 100 grant / 100 creation cost / one-charter limit.");
+}
+if (!onboardingSeedSql.includes("ON CONFLICT")) failures.push("Onboarding seed is not repeat-idempotent.");
 if (!phase3SeedSql.includes("NULL, 'BALANCE_REQUIRED'")) {
   failures.push("Phase 3 routes must retain unresolved travel rounds as NULL / BALANCE_REQUIRED.");
 }

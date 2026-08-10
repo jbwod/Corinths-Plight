@@ -2,7 +2,7 @@
 
 **Status:** Reconciled Phase 1–3 foundation decision record (2026-08-10)
 
-**Scope:** The original foundation milestone plus additive Phase 2 persistent forces, Phase 3 strategic war, and the equipment/deployment vertical slice; not the complete Phase 3 success scenario
+**Scope:** The original foundation milestone plus additive Phase 2 persistent forces, Phase 3 strategic war, the equipment/deployment slice, production identity, and guided enlistment; not the complete Phase 3 success scenario
 
 **V1 baseline:** commit `609ea9f50b4d595cfa07c2677d3eeb681d45d0ce`; see [V1_AUDIT.md](./V1_AUDIT.md)
 
@@ -16,7 +16,7 @@ This document distinguishes three states:
 | **Target** | An accepted architecture decision that still needs implementation before production |
 | **Deferred** | Outside the first foundation deliverable |
 
-The current repository is a deployed Phase 3/equipment foundation with local K-17, Corinth strategic, and Spearhead fixtures. It is **not** yet the complete production game: production login, production scenario bootstrap, tactical-to-strategic effect finalisation, complete retry journals, and full withdrawal/redeployment remain open.
+The current repository is a deployed Phase 3/equipment/identity foundation with local K-17, Corinth strategic, and Spearhead fixtures. Guided enlistment is implemented as the next release candidate. It is **not** yet the complete production game: production scenario bootstrap, tactical-to-strategic effect finalisation, complete retry journals, and full withdrawal/redeployment remain open.
 
 ## 2. Exact foundation milestone
 
@@ -25,7 +25,7 @@ The current repository is a deployed Phase 3/equipment foundation with local K-1
 | Deliverable | Repository evidence | Status |
 |---|---|---|
 | Foundation and Phase 3 design/audit documents | Original seven documents plus `STRATEGIC_LAYER.md`, `BATTALION_MODEL.md`, `SHIP_SYSTEM.md`, and `STRATEGIC_RESOLUTION.md` | Implemented |
-| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0006_production_identity.sql` | Implemented as additive schema artifacts and applied through `0006` in production |
+| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0007_guided_onboarding_and_battalions.sql` | Seven additive schema artifacts; applied through `0006` in production before the guided-enlistment release |
 | Ruleset seed | `seeds/v5-core-curated.sql`; consistency check in `scripts/validate-seed.ts` | Implemented as an idempotent SQL seed |
 | Domain contracts | `packages/domain/src/index.ts` | Implemented TypeScript interfaces; runtime schemas are not yet present |
 | Pure rules engine | `packages/rules-engine/src/` and `packages/rules-engine/test/` | Implemented foundation subset |
@@ -37,6 +37,7 @@ The current repository is a deployed Phase 3/equipment foundation with local K-1
 | Strategic resolver/API/UI | Domain, pure-engine, Worker, and responsive strategic workspace files | Checkpoint work; verify landed tests before release |
 | Equipment/loadout/deployment slice | `0005`, canonical equipment seed, pure engine, Worker services, planner/force UI, and Spearhead fixture | Implemented release candidate; broader Store content remains blocked |
 | Public home and production identity slice | Public React gateway, Resend passwordless services/routes, opaque sessions, and `0006` | Implemented and deployed; live Resend delivered-test passed |
+| Guided enlistment and Battalion recruitment | `0007`, `onboarding-foundation.sql`, typed Worker services, and responsive guided/recruitment UI | Implemented release candidate; remote migration/deployment pending |
 | Successful remote foundation deployment | Production D1 is migrated through `0006`; Phase 3/equipment/identity Worker and UI are available at `corinthplight.qnetica.com.au` | Implemented on 2026-08-10; production scenario data remains open |
 
 The full Phase 3 scenario—production account creation, invitation, purchase, ship travel, deployment into a tactical campaign, exact-once permanent strategic consequences, recovery, and redeployment—is the product definition of success, not a claim about this checkpoint.
@@ -97,14 +98,15 @@ There are no independently deployed microservices. The client, Worker entry poin
 | `packages/domain/src/` | Shared TypeScript interfaces and constants | Compile-time contracts only; not a runtime schema package yet |
 | `packages/rules-engine/src/` | Pure catalogue, hex, mechanics, visibility, RNG, enemy/demo fixtures, and resolver | No storage, network, wall-clock reads, or `Math.random()` |
 | `packages/rules-engine/test/` | Pure engine fixtures and regression tests | No live Cloudflare integration |
-| `migrations/` | Five ordered additive D1 SQL migrations | No new runtime uses the legacy Alembic files also retained in this directory |
+| `migrations/` | Seven ordered additive D1 SQL migrations | No new runtime uses the legacy Alembic files also retained in this directory |
 | `seeds/v5-core-curated.sql`, `seeds/v5-phase2-combined-arms.sql` | Versioned D1 rules/source/conflict catalogue | Definitions only; availability overlays distinguish executable/catalogue state |
+| `seeds/onboarding-foundation.sql` | Production-safe guided-enlistment policy and three NPC recruitment Battalions | Product fixture, not canonical V5 lore; no development User or campaign data |
 | `seeds/development-forces.sql`, `seeds/development-strategic-world.sql` | Explicit local-only Phase 2/3 fixtures | Never production data or automatically canonical lore |
 | `scripts/validate-seed.ts` | Source-digest, catalogue, Phase 2, and Phase 3 seed-presence checks | It is a validator, not a D1 importer or full content-hash proof |
 | `wrangler.jsonc`, `vite.config.ts` | Worker/DO/D1 environments and Vite/Cloudflare composition | Production D1 is provisioned; local/preview placeholder IDs are non-production bindings |
 | `app/`, `shipbuilder/`, `worldmap/` | V1 reference during strangler migration | Not imported into the Worker |
 
-Demo authentication lives in `worker/auth.ts`. Wrangler package scripts apply the core/Phase 2 catalogues separately from the two explicit development fixtures.
+Demo authentication lives in `worker/auth.ts`. Wrangler package scripts apply the core/Phase 2/equipment catalogues and production-safe onboarding foundation separately from explicit development fixtures.
 
 ### 4.2 Dependency direction
 
@@ -140,7 +142,7 @@ Still target rather than implemented:
 - general runtime request schemas and versioned public DTO schemas;
 - client command idempotency keys and expected-revision compare-and-set;
 - delegated Battalion command and production-grade admin audit;
-- production login/provider, session issuance/rotation/logout/recovery, and account migration;
+- session rotation/device management, operator account controls, and legacy account migration;
 - an events-after-sequence reconnect endpoint.
 
 ### 5.1 Phase 3 organisation and strategic request flow
@@ -148,6 +150,8 @@ Still target rather than implemented:
 Strategic requests use global session identity and explicit current-Battalion context. Read repositories include owner/Battalion predicates. Mutations additionally require exact rank permission, actor-scoped `commandId`, canonical request hash, expected revision, bounded/shape-validated JSON, and same-origin/CSRF protection. A client-supplied User, Battalion, rank, permission, route cost, capability, or supply result is never authority.
 
 `user_active_battalions` is navigation context, not an authorization cache: each request rechecks active membership. Where revealing an ID would leak another Battalion's assets, a failed owner predicate returns not found.
+
+Guided enlistment follows the same boundary. Verified accounts receive an actor-scoped onboarding aggregate, a one-time 100 Req command-charter grant, and server-derived public/invitation join choices. Battalion creation spends the full grant and is limited to one charter per creator. The starter unit is a one-time grant from a three-definition executable whitelist; its unpublished requisition value remains `BALANCE_REQUIRED`. Recruitment settings and invitations require active rank permissions and every committed organisation mutation writes both an idempotency receipt and a Battalion-audience strategic event. See [ONBOARDING.md](./ONBOARDING.md).
 
 The stable strategic coordinator name comes from `strategic_maps.coordinator_key`; the development value is `strategic-map-corinth`. No request may derive a singleton `GLOBAL_GAME_DURABLE_OBJECT` name.
 
@@ -157,7 +161,7 @@ The stable strategic coordinator name comes from `strategic_maps.coordinator_key
 |---|---|---|
 | Users, session validation, campaign registry/membership | D1, read by Worker | D1 |
 | Rules, source provenance, conflict and persistent-world table shapes | D1 migrations/seed exist; runtime rules are also compiled in `catalogue.ts` | D1-pinned immutable rules plus a verified compiled engine interpretation |
-| Player Units, requisition, Battalions, ships, deployments, archives | D1 tables exist; service workflows are mostly absent | D1 transactional global truth |
+| Player Units, requisition, Battalions, ships, deployments, archives | D1 plus implemented force/loadout/deployment/onboarding subsets; broader lifecycle workflows remain open | D1 transactional global truth |
 | Strategic locations/maps/nodes/routes, operations, formations, supply, rounds, orders, events, receipts, war variables | D1 migration and local fixture exist; checkpoint services use only their landed subset | D1 transactional strategic truth |
 | K-17 active battlefield, current orders, clock, event log | Campaign DO | One named DO per active campaign |
 | Strategic round/order coordination | Phase 3 map-sharded coordinator boundary | One named Strategic Map DO per tightly coordinated map/theatre |
@@ -272,7 +276,7 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 | Check | Status | Evidence or remaining work |
 |---|---|---|
 | Package skeleton, TypeScript, lint, unit tests, local production build | Complete | Root package scripts |
-| Migrations and idempotent seed artifacts | Complete locally and through `0006` in production | Six additive SQL migrations, three canonical seeds, three local fixtures, `seed:check` |
+| Migrations and idempotent seed artifacts | Complete locally through `0007` and through `0006` in production before this release | Seven additive SQL migrations, canonical seeds, production-safe onboarding seed, local fixtures, `seed:check` |
 | Deterministic resolver subset and regression coverage | Complete for the stated subset | Hold/Advance/Rush/Attack engine tests |
 | K-17 state, alarms, clock, pause/resume, sockets | Partial | Unit coverage exists; crash/alarm/WebSocket integration coverage does not |
 | Viewer projection | Partial | Basic state/report redaction exists; event-time and socket-field leakage tests remain |
@@ -280,6 +284,7 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 | PREPARED journal, cryptographic input/output hashes, secret seed commitment | Open | Current record is a committed snapshot with a predictable seed and 32-bit digest |
 | Separate persisted schedule records and reconnect catch-up | Open | Schedule lives inside current state; no events-after-sequence API |
 | Production passwordless identity/session issuance | Complete | Resend verified-email links, opaque sessions, logout, rate limits, and pseudonymized audit are deployed |
+| Guided enlistment and Battalion recruitment | Complete locally | Public/private/code/targeted joins, one-charter economy, starter grant, tour, recruitment settings, and Resend invitation tests |
 | Helion/Corinth strategic schema and fixture | Complete locally | Fresh 0001–0004, all seeds twice, integrity/FK and negative probes |
 | Strategic map sharding, pure resolver, permission-scoped APIs, responsive UI | Checkpoint verification required | Phase 3 domain/engine/Worker/UI lanes; release only after full tests/build and visual inspection |
 | Strategic-to-tactical deployment/result reconciliation | Partial | Loadout/deployment commit, campaign snapshot bootstrap, and narrow tactical writeback exist; withdrawal and the full acknowledgement-gated protocol remain deferred |

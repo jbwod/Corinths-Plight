@@ -41,11 +41,15 @@ The migration adds a trigger that rejects assigning a primary ship owned by anot
 
 `battalion_memberships` keeps the existing composite identity `(battalion_id, user_id)` and states `INVITED`, `ACTIVE`, `SUSPENDED`, `LEFT`, and `REMOVED`. Phase 3 adds status-change time, leave time, update time, and revision. The current schema preserves one lifetime relationship row per User/Battalion; detailed transitions belong in the append-only strategic event history.
 
-`battalion_invites` is a persistent invitation record with invitee, inviter, initial rank, lifecycle, optional expiry, response time, request hash, command ID, and revision. Only one pending invitation can exist for the same User/Battalion. A trigger rejects a rank from another Battalion.
+`battalion_invites` is a persistent invitation record with invitee, inviter, initial rank, lifecycle, optional expiry, response time, request hash, command ID, delivery status, optional Resend ID, and revision. Only one pending invitation can exist for the same User/Battalion. A trigger rejects a rank from another Battalion.
+
+Migration 0007 adds `battalion_email_invites` for a normalized email that does not yet resolve to a User. The raw destination remains private operational data; the join link carries a single-use code while D1 stores only its SHA-256 hash. After registration, acceptance requires the authenticated User email to match. Username and already-registered email targets use `battalion_invites`, so no public endpoint discloses whether an unrelated email has an account.
+
+`battalion_recruitment_settings` owns NPC/player recruitment kind, public/private policy, join gate, engagement summary, capacity, a same-Battalion recruitment rank, and the hash of a general invite code. Public directory rows require an active Battalion, open capacity, enabled joining, and a non-empty engagement. Private Battalions are joinable only by a valid targeted invitation or code.
 
 Invite command idempotency is scoped to the authenticated inviter by `UNIQUE(invited_by_user_id, command_id)`. A repeat with the same command must compare `request_hash`; a changed hash is a collision, not a retry.
 
-The schema supports invite/accept/decline/leave/remove, but this checkpoint does not claim every mutation route is implemented.
+Invite/send/accept/decline, public/code joins, and recruitment settings are implemented. Leave/remove, rank editing, ownership transfer, and invite revocation remain deferred.
 
 ## 5. Configurable ranks and permissions
 
@@ -59,7 +63,7 @@ battalion_ranks
 
 The Phase 3 permission vocabulary includes Battalion editing, membership, rank, Battlegroup, operation, ship, supply, deployment, and strategic-order permissions. `battalion_permission_definitions.implementation_status` distinguishes executable permissions from schema-only/deferred product surface.
 
-The development fixture marks the landed read/order authority (`SHIP_VIEW`, `SUPPLY_VIEW`, `SHIP_MOVE`, `STRATEGIC_ORDER_CREATE`, and environment-gated `STRATEGIC_ORDER_APPROVE`) as active. Other mutation permissions remain schema-only or deferred until their server workflows are verified.
+The development fixture marks the landed read/order authority (`SHIP_VIEW`, `SUPPLY_VIEW`, `SHIP_MOVE`, `STRATEGIC_ORDER_CREATE`, and environment-gated `STRATEGIC_ORDER_APPROVE`) as active. The production-safe onboarding seed also activates `BATTALION_EDIT` and `MEMBER_INVITE` for the implemented recruitment services. Other mutation permissions remain schema-only or deferred until their server workflows are verified.
 
 The 33rd Expeditionary fixture has configurable Commander, Operations Officer, and Trooper ranks. The Commander receives the full defined vocabulary for permission-check exercises; that fixture does not bypass implementation-status or environment gates.
 
@@ -118,4 +122,4 @@ The schema prevents cross-Battalion ranks, current selection without active memb
 
 ## 11. Development fixture
 
-The local seed creates the 33rd Expeditionary Battalion, selects it for `demo-user`, configures three ranks, assigns data-driven permissions, and preserves the existing Phase 2 Battalion and ship identities. This data is explicitly local and is not production identity or canonical lore.
+The local seed creates the 33rd Expeditionary Battalion, selects it for `demo-user`, configures three ranks, assigns data-driven permissions, and preserves the existing Phase 2 Battalion and ship identities. Separately, the production-safe onboarding seed creates three system-owned open recruitment Battalions so an empty player directory cannot strand a new account. Neither fixture is canonical V5 lore.

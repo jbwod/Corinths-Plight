@@ -127,11 +127,27 @@ Migration 0004 adds `users.last_active_at`, `profiles.timezone`, Battalion short
 | `auth_identities` | Provider-neutral identity link with hashed provider subject, private provider JSON, lifecycle, and unique provider/subject pair. The passwordless service writes `resend_magic_link` identities after verified link consumption. |
 | `account_recovery_challenges` | Hashed recovery token, expiry, lifecycle, and consumed time. Delivery/issuance is deferred. |
 | `battalion_permission_definitions` | Permission vocabulary plus `ACTIVE`, `SCHEMA_ONLY`, or `DEFERRED` implementation status. Triggers reject unknown new rank permissions. |
-| `battalion_invites` | Persistent invitation lifecycle, Battalion-local rank, inviter/invitee, expiry, revision, request hash, and inviter-scoped command ID. One pending invite per Battalion/User. |
+| `battalion_invites` | Persistent invitation lifecycle, Battalion-local rank, inviter/invitee, expiry, revision, request hash, inviter-scoped command ID, Resend delivery ID, and delivery status. One pending invite per Battalion/User. |
 | `user_active_battalions` | One explicit operational Battalion per User; composite membership FK plus triggers requiring/retaining only an active membership. |
 | `unit_order_delegations` | Owner-preserving per-unit order authority scoped to Battlegroup, campaign, or time window; owner/member composite FKs, revision, request hash, and owner-scoped command ID. |
 
-### 3.8 Strategic world and operations
+### 3.8 Guided enlistment and recruitment
+
+Migration 0007 adds the server-authoritative post-verification onboarding aggregate and Battalion recruitment configuration. It does not alter canonical V5 prices: the command-charter amount is product anti-spam policy, while the starter unit remains explicitly `BALANCE_REQUIRED`.
+
+| Table | Implemented fields and constraints |
+|---|---|
+| `onboarding_economy_policies` | Positive one-time charter grant, positive Battalion creation cost, creator charter limit, revision, and update time. The production policy is 100 Req grant / 100 Req cost / one charter. |
+| `onboarding_progress` | One row per User with `BATTALION`, `UNIT`, `TOUR`, or `COMPLETE` step, lifecycle, completion time, and revision. Complete rows must carry a completion time. |
+| `onboarding_command_receipts` | Actor-scoped command ID, operation, canonical request hash, object response JSON, and creation time. Changed-payload reuse conflicts. |
+| `battalion_recruitment_settings` | NPC/player kind, public/private policy, join gate, required public engagement summary, same-Battalion recruitment rank, hashed general invite code, capacity, creation cost, and revision. |
+| `battalion_creation_charters` | One charter per creator, one Battalion per charter, exact Req cost, and immutable ledger transaction reference. |
+| `battalion_email_invites` | Unregistered-email invitation, same-Battalion rank, single-use token hash, seven-day lifecycle, inviter-scoped command, Resend delivery state/ID, and revision. One pending invite per Battalion/email. |
+| `onboarding_starter_unit_grants` | One User-to-Player-Unit grant and pinned class/ruleset identity. Both User and unit are unique. |
+
+The production-safe onboarding seed creates three open NPC Battalions and the system recruitment authority. These are product fixtures, not canonical lore. Existing verified human accounts are enrolled and credited once on rollout; reserved `.invalid` development/system identities are excluded.
+
+### 3.9 Strategic world and operations
 
 | Table | Implemented fields and constraints |
 |---|---|
@@ -145,7 +161,7 @@ Migration 0004 adds `users.last_active_at`, `profiles.timezone`, Battalion short
 
 `campaigns.strategic_node_id` links tactical campaigns to the strategic graph without changing the existing tactical status check. `campaigns.strategic_status` is a separate product lifecycle projection.
 
-### 3.9 Task Forces, embarkation, and strategic supply
+### 3.10 Task Forces, embarkation, and strategic supply
 
 | Table | Implemented fields and constraints |
 |---|---|
@@ -157,7 +173,7 @@ Migration 0004 adds `users.last_active_at`, `profiles.timezone`, Battalion short
 
 An embarked Battlegroup stores `current_carrier_task_force_id` and no independent node. Its semantic location derives through the Task Force. Player Unit ownership remains `player_units.owner_id`; neither assignment nor embarkation changes it.
 
-### 3.10 Strategic orders and journal
+### 3.11 Strategic orders and journal
 
 | Table | Implemented fields and constraints |
 |---|---|
@@ -271,7 +287,7 @@ The tactical `persistent_effects` table still needs a follow-up migration or del
 
 1. Add runtime schemas and explicit D1-to-domain adapters, including seconds/milliseconds and quarter-point conversion.
 2. Choose one generated/hashed source of rules truth and enforce published immutability.
-3. Finish production identity-provider/session issuance, recovery delivery, and onboarding without exposing auth identities publicly.
+3. Extend the deployed passwordless identity/onboarding boundary with operator account controls and session/device management without exposing auth identities publicly.
 4. Implement campaign bootstrap from an authorised D1 strategic deployment snapshot; keep K-17 and the Corinth Expedition fixtures local-only.
 5. Implement purchase/equip/deploy/withdrawal services against existing constraints before exposing those tables as complete features.
 6. Add the tactical PREPARED/hash journal and D1 persistent-effect applier before claiming exact-once tactical-to-strategic resolution.

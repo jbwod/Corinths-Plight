@@ -344,6 +344,11 @@ export async function consumeAuthChallenge(request: Request, env: Env, token: st
   let userId = challenge.proposed_user_id;
   if (challenge.purpose === "REGISTER") {
     if (!userId) throw new AuthServiceError(400, "AUTH_LINK_INVALID", "This access link is invalid or has expired.");
+    const onboardingPolicy = await env.DB.prepare(`SELECT 1 FROM onboarding_economy_policies
+      WHERE id='production-onboarding-v1' LIMIT 1`).first();
+    if (!onboardingPolicy) {
+      throw new AuthServiceError(503, "ONBOARDING_NOT_CONFIGURED", "Account enlistment is temporarily unavailable.");
+    }
     statements.push(
       env.DB.prepare(`INSERT INTO users (id,email,username,status,email_verified_at)
         SELECT proposed_user_id,email,proposed_username,'ACTIVE',?1 FROM auth_email_challenges
@@ -351,6 +356,24 @@ export async function consumeAuthChallenge(request: Request, env: Env, token: st
       env.DB.prepare(`INSERT INTO profiles (user_id,display_name)
         SELECT proposed_user_id,proposed_display_name FROM auth_email_challenges
         WHERE id=?1 AND status IN ('PENDING','SENT') AND expires_at>?2`).bind(challenge.id, now),
+      env.DB.prepare(`INSERT INTO onboarding_progress (user_id,status,current_step)
+        SELECT proposed_user_id,'IN_PROGRESS','BATTALION' FROM auth_email_challenges
+        WHERE id=?1 AND status IN ('PENDING','SENT') AND expires_at>?2
+        ON CONFLICT(user_id) DO NOTHING`).bind(challenge.id, now),
+      env.DB.prepare(`INSERT INTO requisition_transactions (
+          id,user_id,amount,reason_code,description,
+          related_entity_type,related_entity_id,idempotency_key
+        ) SELECT 'req:onboarding-charter:' || challenges.proposed_user_id,
+                 challenges.proposed_user_id,policies.starter_charter_grant,
+                 'ONBOARDING_CHARTER_GRANT','One-time command charter grant.',
+                 'ONBOARDING',challenges.proposed_user_id,
+                 'onboarding-charter-grant:' || challenges.proposed_user_id
+            FROM auth_email_challenges AS challenges
+            JOIN onboarding_economy_policies AS policies
+              ON policies.id='production-onboarding-v1'
+           WHERE challenges.id=?1 AND challenges.status IN ('PENDING','SENT')
+             AND challenges.expires_at>?2
+        ON CONFLICT(idempotency_key) DO NOTHING`).bind(challenge.id, now),
     );
   } else {
     const existingUser = await env.DB.prepare(`SELECT id FROM users
