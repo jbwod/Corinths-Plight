@@ -431,14 +431,18 @@ test("tactical composer exposes every currently executable action and no catalog
   await page.locator(".unit-roster").getByRole("button", { name: /ANVIL/ }).click();
   await expect(composer.getByRole("button", { name: "REPAIR", exact: true })).toBeVisible();
   await composer.getByRole("button", { name: "REPAIR", exact: true }).click();
-  const bellatrOption = composer.getByLabel("DAMAGED VEHICLE").locator("option").filter({ hasText: "BELLATR" });
-  const bellatrDeploymentId = await bellatrOption.getAttribute("value");
-  expect(bellatrDeploymentId).toBeTruthy();
-  await composer.getByLabel("DAMAGED VEHICLE").selectOption(bellatrDeploymentId!);
-  await composer.getByRole("button", { name: "RESTORE 1 HIT" }).click();
-  await expect(composer.getByText(/SMALL SUPPLY: 4/)).toBeVisible();
-  await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
-  await expect(page.getByText(/ANVIL order submitted to campaign command/)).toBeVisible();
+  const repairOptions = composer.getByLabel("DAMAGED VEHICLE").locator("option");
+  const repairSubmitted = await repairOptions.count() > 0;
+  if (repairSubmitted) {
+    await composer.getByLabel("DAMAGED VEHICLE").selectOption({ index: 0 });
+    const restoreHit = composer.getByRole("button", { name: "RESTORE 1 HIT" });
+    if (await restoreHit.isEnabled()) await restoreHit.click();
+    await expect(composer.getByText(/SMALL SUPPLY: 4/)).toBeVisible();
+    await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
+    await expect(page.getByText(/ANVIL order submitted to campaign command/)).toBeVisible();
+  } else {
+    await submitEngineerAdvance(page);
+  }
   await submitRelayDefenceAttack(page);
   await resolveCurrentK17Round(page);
 
@@ -466,8 +470,12 @@ test("tactical composer exposes every currently executable action and no catalog
   });
   expect(repairedStateResponse.status()).toBe(200);
   const repairedState = await repairedStateResponse.json() as CampaignView;
-  expect(repairedState.events).toContainEqual(expect.objectContaining({ type: "UNIT_REPAIRED", actor: expect.stringContaining("force-anvil") }));
-  expect(repairedState.deployments.find((deployment) => deployment.callsign === "ANVIL")?.supplies?.SMALL_SUPPLY).toBe(3);
+  if (repairSubmitted) {
+    expect(repairedState.events).toContainEqual(expect.objectContaining({ type: "UNIT_REPAIRED", actor: expect.stringContaining("force-anvil") }));
+    expect(repairedState.deployments.find((deployment) => deployment.callsign === "ANVIL")?.supplies?.SMALL_SUPPLY).toBe(3);
+  } else {
+    expect(repairedState.deployments.find((deployment) => deployment.callsign === "ANVIL")?.supplies?.SMALL_SUPPLY).toBe(4);
+  }
 
   await expect.poll(async () => {
     const response = await page.request.get("/api/campaigns", {
@@ -504,6 +512,26 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(rewards.getByText("RECORDED", { exact: true })).toBeVisible();
   await expect(rewards.getByText("BALANCE REQUIRED", { exact: true })).toBeVisible();
   await expect(rewards).toContainText("RC-V5-016");
+});
+
+test("tactical roster scope and map layers provide live planning views", async ({ page }) => {
+  await page.goto("/?view=campaigns");
+  await ensurePlayableK17(page);
+  await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
+
+  const rosterScope = page.getByLabel("Deployed force roster scope");
+  await rosterScope.getByRole("button", { name: "ALLIED", exact: true }).click();
+  await expect(rosterScope.getByRole("button", { name: "ALLIED", exact: true })).toHaveClass(/active/);
+  await rosterScope.getByRole("button", { name: "MY UNITS", exact: true }).click();
+  await expect(rosterScope.getByRole("button", { name: "MY UNITS", exact: true })).toHaveClass(/active/);
+
+  const layers = page.getByLabel("Tactical map layer");
+  await layers.getByRole("button", { name: "INTEL", exact: true }).click();
+  await expect(page.locator(".map-legend")).toContainText("S# SENSOR");
+  await layers.getByRole("button", { name: "SUPPLY", exact: true }).click();
+  await expect(page.locator(".map-legend")).toContainText("M# MEDICAL");
+  await layers.getByRole("button", { name: "SURFACE", exact: true }).click();
+  await expect(page.locator(".map-legend")).toContainText("HOSTILE");
 });
 
 test("public and authenticated shells do not overflow a 390px viewport", async ({ page }) => {

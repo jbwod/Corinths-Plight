@@ -181,7 +181,7 @@ No public campaign directory/create/join/leave, profile/settings/session-managem
 | Tactical campaign selection | missing | App always uses `outpost-k17`. |
 | Tactical unit/route/facing/order/actions | partial/playable | Campaign-selected composer exposes the exact generated executable orders and Attack/Reload/Load/Unload; paired cargo remains a two-order coordination flow and advanced rules are deferred. |
 | Tactical order cancel | missing UI | Backend exists. |
-| Tactical `MY UNITS/ALLIED`, `SURFACE/INTEL/SUPPLY` | inert prototype | Buttons have no handlers. |
+| Tactical `MY UNITS/ALLIED`, `SURFACE/INTEL/SUPPLY` | implemented foundation | Roster scope now distinguishes owned orderable units from inspect-only Allied formations. Surface, Intel and Supply layers change battlefield rendering, legends and hover detail without inventing hidden data. |
 | Tactical non-foundation order types | catalogue-only | Disabled and marked soon. |
 | Tactical operator clock/pause/resume/resolve | misleading | Rendered to normal players; backend correctly requires admin. Hide/role-gate and add audited operator workflow. |
 | Tactical Reports | partial | Reports navigation opens a live round archive/detail view; current-state fog, missing index API/playback/export and no browser evidence keep CP-700 open. |

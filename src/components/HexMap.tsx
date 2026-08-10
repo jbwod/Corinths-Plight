@@ -4,6 +4,7 @@ import { coordKey, FACING_LABELS, getUnitClass } from "../../packages/rules-engi
 
 interface HexMapProps {
   campaign: CampaignView;
+  layer: TacticalMapLayer;
   selectedUnitId?: string;
   draftedRoute: AxialCoord[];
   draftedFacing: number;
@@ -12,6 +13,8 @@ interface HexMapProps {
   onMapClick: (coord: AxialCoord, unit?: CampaignDeployment) => void;
   onHover: (coord?: AxialCoord, unit?: CampaignDeployment) => void;
 }
+
+export type TacticalMapLayer = "SURFACE" | "INTEL" | "SUPPLY";
 
 interface Viewport {
   x: number;
@@ -120,6 +123,7 @@ function drawArrow(
 
 export function HexMap({
   campaign,
+  layer,
   selectedUnitId,
   draftedRoute,
   draftedFacing,
@@ -185,12 +189,18 @@ export function HexMap({
     for (const hex of campaign.map) {
       const point = axialToWorld(hex.coord);
       polygon(ctx, point, 1.2);
-      ctx.fillStyle = terrainFill[hex.terrainId] ?? "#1d282b";
+      ctx.fillStyle = layer === "INTEL"
+        ? hex.visibility === "VISIBLE" ? "#164049" : hex.visibility === "OBSERVED" ? "#29383c" : "#11191b"
+        : layer === "SUPPLY"
+          ? hex.edges.roads.length > 0 ? "#343326" : "#182622"
+          : terrainFill[hex.terrainId] ?? "#1d282b";
       ctx.globalAlpha = hex.visibility === "UNKNOWN" ? 0.19 : hex.visibility === "OBSERVED" ? 0.54 : 1;
       ctx.fill();
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = hex.visibility === "VISIBLE" ? "rgba(105,151,153,.38)" : "rgba(60,82,84,.24)";
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = layer === "INTEL" && hex.visibility === "VISIBLE"
+        ? "rgba(105,235,225,.72)"
+        : hex.visibility === "VISIBLE" ? "rgba(105,151,153,.38)" : "rgba(60,82,84,.24)";
+      ctx.lineWidth = layer === "INTEL" && hex.visibility === "VISIBLE" ? 2 : 1;
       ctx.stroke();
 
       if (hex.terrainId === "terrain-forest" && hex.visibility !== "UNKNOWN") {
@@ -343,6 +353,20 @@ export function HexMap({
         ctx.fillStyle = healthRatio > 0.5 ? "#77d4ad" : healthRatio > 0.25 ? "#d9b85d" : "#e16a51";
         ctx.fillRect(point.x - 13, point.y + 7, 26 * healthRatio, 3);
 
+        if (layer === "INTEL" && allied) {
+          ctx.fillStyle = "rgba(121,235,221,.86)";
+          ctx.font = "bold 7px ui-monospace, SFMono-Regular, monospace";
+          ctx.fillText(`S${deployment.stats.sensors}`, point.x, point.y + 20);
+        }
+        if (layer === "SUPPLY" && allied) {
+          const supplies = deployment.supplies ?? {};
+          const small = supplies.SMALL_SUPPLY ?? 0;
+          const medical = supplies.MEDICAL_SUPPLY ?? 0;
+          ctx.fillStyle = small + medical > 0 ? "#e2c978" : "#8a7770";
+          ctx.font = "bold 7px ui-monospace, SFMono-Regular, monospace";
+          ctx.fillText(`S${small} M${medical}`, point.x, point.y + 20);
+        }
+
         const facing = deployment.id === selectedUnitId ? draftedFacing : deployment.facing;
         const angle = -Math.PI / 2 + (Math.PI / 3) * facing;
         ctx.strokeStyle = allied ? "#9ef7eb" : "#ff9e82";
@@ -368,7 +392,7 @@ export function HexMap({
     vignette.addColorStop(1, "rgba(0,0,0,.48)");
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, size.width, size.height);
-  }, [campaign, draftedFacing, draftedRoute, hovered, mapIndex, selectedUnitId, size, targetHex, targetUnitId, unitIndex, viewport]);
+  }, [campaign, draftedFacing, draftedRoute, hovered, layer, mapIndex, selectedUnitId, size, targetHex, targetUnitId, unitIndex, viewport]);
 
   const screenToCoord = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -446,7 +470,7 @@ export function HexMap({
         }}
       />
       <div className="map-coordinates" aria-hidden="true">
-        {hovered ? `HEX ${hovered.q}.${hovered.r}` : "TACTICAL GRID // K-17"}
+        {hovered ? `HEX ${hovered.q}.${hovered.r}` : `${layer} GRID // K-17`}
       </div>
       <div className="map-zoom-controls">
         <button onClick={() => setViewport((current) => ({ ...current, zoom: Math.min(2.2, current.zoom * 1.15) }))} aria-label="Zoom in">+</button>
@@ -455,9 +479,13 @@ export function HexMap({
       </div>
       <div className="map-facing-readout">FACING {FACING_LABELS[draftedFacing] ?? "N"}</div>
       <div className="map-legend">
-        <span><i className="legend-chip allied" /> ALLIED</span>
-        <span><i className="legend-chip enemy" /> HOSTILE</span>
-        <span><i className="legend-chip intent" /> INTENT</span>
+        {layer === "INTEL" ? (
+          <><span><i className="legend-chip allied" /> VISIBLE</span><span><i className="legend-chip intent" /> OBSERVED</span><span>S# SENSOR</span></>
+        ) : layer === "SUPPLY" ? (
+          <><span><i className="legend-chip intent" /> SUPPLY ROUTE</span><span>S# SMALL</span><span>M# MEDICAL</span></>
+        ) : (
+          <><span><i className="legend-chip allied" /> ALLIED</span><span><i className="legend-chip enemy" /> HOSTILE</span><span><i className="legend-chip intent" /> INTENT</span></>
+        )}
       </div>
     </div>
   );

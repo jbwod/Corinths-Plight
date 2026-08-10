@@ -1085,6 +1085,15 @@ summary:focus-visible {
   box-shadow: 0 0 10px var(--teal);
 }
 
+.unit-card.inspect-only {
+  border-style: dashed;
+}
+
+.unit-card.inspect-only .unit-monogram {
+  border-color: rgba(218, 185, 104, 0.38);
+  color: #dabb73;
+}
+
 .unit-monogram {
   width: 36px;
   height: 36px;
@@ -1973,7 +1982,17 @@ summary:focus-visible {
   .left-panel { grid-column: 1; grid-row: 2; max-height: none; border-right: 0; border-top: 1px solid var(--line-strong); }
   .right-panel { grid-column: 1; grid-row: 3; display: block; }
   .timeline { grid-column: 1; grid-row: 4; grid-template-columns: 108px minmax(0, 1fr); }
-  .map-tools { display: none; }
+  .map-tools {
+    position: absolute;
+    top: 52px;
+    right: 0;
+    left: 0;
+    height: 34px;
+    justify-content: center;
+    border-bottom: 1px solid var(--line);
+    background: rgba(7, 18, 20, 0.88);
+  }
+  .map-tools button { min-width: 92px; }
   .map-facing-readout { bottom: 78px; }
   .map-legend { right: auto; left: 14px; bottom: 47px; }
   .hover-inspector { bottom: 12px; }

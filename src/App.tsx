@@ -25,7 +25,7 @@ import brandMark from "../app/static/img/brand-icon.gif";
 import { ForcesView } from "./components/ForcesView";
 import { DeploymentPlanner } from "./components/DeploymentPlanner";
 import { Glyph } from "./components/Glyph";
-import { HexMap } from "./components/HexMap";
+import { HexMap, type TacticalMapLayer } from "./components/HexMap";
 import { StrategicWorkspace, type StrategicView } from "./components/StrategicWorkspace";
 import { AuthGateway } from "./components/AuthGateway";
 import { CampaignReports } from "./components/CampaignReports";
@@ -193,6 +193,8 @@ function GameApp() {
   const [notice, setNotice] = useState<Notice>();
   const [busy, setBusy] = useState(false);
   const [timelineMode, setTimelineMode] = useState<"ORDERS" | "EVENTS">("EVENTS");
+  const [rosterScope, setRosterScope] = useState<"MY_UNITS" | "ALLIED">("MY_UNITS");
+  const [mapLayer, setMapLayer] = useState<TacticalMapLayer>("SURFACE");
   const [activeNav, setActiveNav] = useState<ActiveNav>(initialNavigation);
   const [campaignId, setCampaignId] = useState<string | undefined>(
     import.meta.env.DEV ? DEFAULT_DEVELOPMENT_CAMPAIGN_ID : undefined,
@@ -295,6 +297,11 @@ function GameApp() {
     () => campaign.deployments.filter((deployment) => deployment.ownerId === campaign.viewer.userId),
     [campaign.deployments, campaign.viewer.userId],
   );
+  const alliedUnits = useMemo(
+    () => campaign.deployments.filter((deployment) => deployment.side === "ALLIED"),
+    [campaign.deployments],
+  );
+  const rosterUnits = rosterScope === "MY_UNITS" ? ownUnits : alliedUnits;
   const selectedUnit =
     ownUnits.find((deployment) => deployment.id === selectedUnitId) ?? ownUnits.find((unit) => unit.status !== "DESTROYED");
   const selectedDefinition = selectedUnit ? getUnitClass(selectedUnit.definitionId) : undefined;
@@ -858,13 +865,24 @@ function GameApp() {
             <span className="readiness-count">{ownSubmitted}/{ownUnits.length}</span>
           </div>
           <div className="readiness-bar"><i style={{ width: `${ownUnits.length ? ownSubmitted / ownUnits.length * 100 : 0}%` }} /></div>
-          <div className="panel-filter-row"><button className="active">MY UNITS</button><button>ALLIED</button></div>
+          <div className="panel-filter-row" aria-label="Deployed force roster scope">
+            <button className={rosterScope === "MY_UNITS" ? "active" : ""} onClick={() => setRosterScope("MY_UNITS")}>MY UNITS</button>
+            <button className={rosterScope === "ALLIED" ? "active" : ""} onClick={() => setRosterScope("ALLIED")}>ALLIED</button>
+          </div>
           <div className="unit-roster">
-            {ownUnits.map((unit) => {
+            {rosterUnits.map((unit) => {
               const order = ordersForRound.find((candidate) => candidate.unitId === unit.id);
               const selected = unit.id === selectedUnit?.id;
+              const inspectOnly = unit.ownerId !== campaign.viewer.userId;
               return (
-                <button className={`unit-card ${selected ? "selected" : ""}`} key={unit.id} onClick={() => selectUnit(unit)}>
+                <button
+                  className={`unit-card ${selected ? "selected" : ""} ${inspectOnly ? "inspect-only" : ""}`}
+                  key={unit.id}
+                  onClick={() => inspectOnly
+                    ? setHovered({ coord: unit.position, unit })
+                    : selectUnit(unit)}
+                  title={inspectOnly ? "Allied formation: shared intention and status inspection only" : "Compose this unit's order"}
+                >
                   <span className="unit-monogram">{unit.callsign.slice(0, 2)}</span>
                   <span className="unit-card-body">
                     <strong>{unit.callsign}</strong>
@@ -875,7 +893,7 @@ function GameApp() {
                     <i className="health-track"><b style={{ width: `${unit.currentHealth / unit.stats.maxHealth * 100}%` }} /></i>
                   </span>
                   <span className={`order-state ${order ? order.lifecycle.toLowerCase() : "awaiting"}`}>
-                    {order ? order.orderType : "AWAITING"}
+                    {order ? order.orderType : inspectOnly ? "ALLY" : "AWAITING"}
                   </span>
                 </button>
               );
@@ -903,7 +921,11 @@ function GameApp() {
         <section className="map-panel" aria-label="Tactical operations map">
           <div className="map-toolbar">
             <div><span className="eyebrow">TACTICAL FEED</span><strong>SECTOR K-17 // GRID 04</strong></div>
-            <div className="map-tools"><button className="active">SURFACE</button><button>INTEL</button><button>SUPPLY</button></div>
+            <div className="map-tools" aria-label="Tactical map layer">
+              {(["SURFACE", "INTEL", "SUPPLY"] as TacticalMapLayer[]).map((layer) => (
+                <button className={mapLayer === layer ? "active" : ""} key={layer} onClick={() => setMapLayer(layer)}>{layer}</button>
+              ))}
+            </div>
             <span className="map-version">STATE v{campaign.version}</span>
           </div>
           {campaign.outcome && (
@@ -917,6 +939,7 @@ function GameApp() {
           )}
           <HexMap
             campaign={campaign}
+            layer={mapLayer}
             selectedUnitId={selectedUnit?.id}
             draftedRoute={draftedRoute}
             draftedFacing={draftedFacing}
@@ -928,7 +951,15 @@ function GameApp() {
           <div className="hover-inspector">
             <span>{hovered.coord ? `${hovered.coord.q}.${hovered.coord.r}` : "--.--"}</span>
             <strong>{hovered.unit?.callsign ?? campaign.map.find((hex) => hovered.coord && coordinatesEqual(hex.coord, hovered.coord))?.terrainId.replace("terrain-", "").toUpperCase() ?? "NO CONTACT"}</strong>
-            <small>{hovered.unit ? definitionLabel(hovered.unit) : "SELECT A HEX FOR INTEL"}</small>
+            <small>{hovered.unit
+              ? mapLayer === "SUPPLY"
+                ? `SMALL ${hovered.unit.supplies?.SMALL_SUPPLY ?? 0} · MEDICAL ${hovered.unit.supplies?.MEDICAL_SUPPLY ?? 0}`
+                : mapLayer === "INTEL"
+                  ? `${definitionLabel(hovered.unit)} · SENSOR ${hovered.unit.stats.sensors}`
+                  : definitionLabel(hovered.unit)
+              : mapLayer === "INTEL"
+                ? `VISIBILITY ${campaign.map.find((hex) => hovered.coord && coordinatesEqual(hex.coord, hovered.coord))?.visibility ?? "UNKNOWN"}`
+                : mapLayer === "SUPPLY" ? "HOVER AN ALLIED UNIT FOR SUPPLY" : "SELECT A HEX FOR INTEL"}</small>
           </div>
         </section>
 
