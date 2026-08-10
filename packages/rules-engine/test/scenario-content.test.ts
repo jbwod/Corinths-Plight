@@ -4,6 +4,8 @@ import { createDemoCampaignState } from "../src/demo";
 import {
   BROKEN_ROAD_SCENARIO_ID,
   BROKEN_ROAD_SCENARIO_VERSION,
+  COLD_HORIZON_SCENARIO_ID,
+  COLD_HORIZON_SCENARIO_VERSION,
   createScenarioCampaignState,
   IRON_RAIN_SCENARIO_ID,
   IRON_RAIN_SCENARIO_VERSION,
@@ -186,6 +188,48 @@ describe("authored scenario content", () => {
     expect(state.reinforcementWaves).toEqual([
       expect.objectContaining({ id: "night-glass-wave-2", arrivesAfterRound: 1 }),
       expect.objectContaining({ id: "night-glass-wave-3", arrivesAfterRound: 2 }),
+    ]);
+  });
+
+  it("builds the authored Corinth II Cold Horizon battlefield", () => {
+    const allied = createDemoCampaignState(1_000).deployments
+      .filter((deployment) => deployment.side === "ALLIED")
+      .slice(0, 3)
+      .map((deployment) => ({
+        ...deployment,
+        id: `cold-horizon:${deployment.id}`,
+        campaignId: "operation-cold-horizon",
+        ownerId: "player-live",
+        position: { q: -5, r: 2 },
+      }));
+    const state = createScenarioCampaignState({
+      mapSourceKey: "fixture/operation-cold-horizon",
+      campaignId: "operation-cold-horizon",
+      campaignName: "Operation Cold Horizon",
+      planetName: "Corinth II",
+      now: 50_000,
+      durationMs: 300_000,
+      alliedDeployments: allied,
+    });
+
+    expect(state).toMatchObject({
+      planetName: "Corinth II",
+      scenarioId: COLD_HORIZON_SCENARIO_ID,
+      scenarioVersion: COLD_HORIZON_SCENARIO_VERSION,
+      scenarioPolicy: {
+        startRound: 1,
+        maxRounds: 5,
+        primaryObjectiveId: "objective-cold-horizon-beacon",
+      },
+    });
+    expect(state.map).toHaveLength(127);
+    expect(state.map.find((hex) => hex.coord.q === -5 && hex.coord.r === 2)?.capacity).toBe(8);
+    expect(state.objectives.map((objective) => objective.name)).toEqual(["Hold Colony Beacon", "Secure Landing Field"]);
+    expect(state.deployments.filter((deployment) => deployment.side === "ENEMY" && deployment.status === "ACTIVE")).toHaveLength(3);
+    expect(state.deployments.filter((deployment) => deployment.locationState === "RESERVE")).toHaveLength(4);
+    expect(state.reinforcementWaves).toEqual([
+      expect.objectContaining({ id: "cold-horizon-wave-2", arrivesAfterRound: 1 }),
+      expect.objectContaining({ id: "cold-horizon-wave-3", arrivesAfterRound: 3 }),
     ]);
   });
 });

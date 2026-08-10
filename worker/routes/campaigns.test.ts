@@ -194,4 +194,44 @@ describe("campaign directory", () => {
       availableCampaigns: [],
     });
   });
+
+  it("advertises the authored Corinth II operation briefing", async () => {
+    const response = await routeCampaignDirectoryRequest(new Request("https://game.test/api/campaigns", {
+      headers: { "x-demo-user": "demo-user" },
+    }), env([{
+      campaign_id: "operation-cold-horizon",
+      name: "Operation Cold Horizon",
+      status: "RECRUITING",
+      planet_name: "Corinth II",
+      map_source_key: "fixture/operation-cold-horizon",
+      side: "ALLIED",
+      role: "PLAYER",
+      joined_at: 1,
+      minimum_players: 1,
+      maximum_players: 6,
+      member_count: 1,
+      deployment_count: 0,
+      result: null,
+      outcome_reason: null,
+      result_round: null,
+      rewards_json: null,
+      resolved_at: null,
+    }]));
+
+    expect(response?.status).toBe(200);
+    expect(await response?.json()).toEqual({
+      campaigns: [expect.objectContaining({
+        campaignId: "operation-cold-horizon",
+        planetName: "Corinth II",
+        scenarioAvailable: true,
+        briefing: {
+          threat: "HIGH",
+          objectives: ["Hold Colony Beacon", "Secure Landing Field"],
+          durationRounds: 5,
+          recommendedCapabilities: ["GROUND_COMBAT", "RECON", "ARMOURED", "ARTILLERY"],
+        },
+      })],
+      availableCampaigns: [],
+    });
+  });
 });

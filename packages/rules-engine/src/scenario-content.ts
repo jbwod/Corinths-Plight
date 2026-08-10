@@ -19,12 +19,15 @@ export const BROKEN_ROAD_SCENARIO_ID = "scenario-operation-broken-road" as const
 export const BROKEN_ROAD_SCENARIO_VERSION = 1 as const;
 export const NIGHT_GLASS_SCENARIO_ID = "scenario-operation-night-glass" as const;
 export const NIGHT_GLASS_SCENARIO_VERSION = 1 as const;
+export const COLD_HORIZON_SCENARIO_ID = "scenario-operation-cold-horizon" as const;
+export const COLD_HORIZON_SCENARIO_VERSION = 1 as const;
 
 export const AUTHORED_SCENARIO_MAP_SOURCES = [
   "fixture/outpost-k17",
   "fixture/operation-iron-rain",
   "fixture/operation-broken-road",
   "fixture/operation-night-glass",
+  "fixture/operation-cold-horizon",
 ] as const;
 
 export function isAuthoredScenarioMapSourceKey(value: string): boolean {
@@ -229,6 +232,58 @@ export function createNightGlassMap(radius = 5): BattlefieldHex[] {
     const minimumR = Math.max(-radius, -q - radius);
     const maximumR = Math.min(radius, -q + radius);
     for (let r = minimumR; r <= maximumR; r += 1) hexes.push(nightGlassHex(q, r));
+  }
+  return hexes;
+}
+
+const coldHorizonObjectiveCoordinates = new Map([
+  ["0,0", "objective-cold-horizon-beacon"],
+  ["4,-2", "objective-cold-horizon-landing-field"],
+]);
+
+function coldHorizonHex(q: number, r: number): BattlefieldHex {
+  const key = `${q},${r}`;
+  const pattern = Math.abs(q * 29 + r * 17);
+  const isBeacon = key === "0,0";
+  const isLandingField = key === "4,-2";
+  const isInsertion = key === "-5,2";
+  const frozenRidge = q >= 1 && q <= 3 && r >= -3 && r <= 0;
+  const terrainId = isBeacon || isLandingField
+    ? "terrain-open"
+    : frozenRidge
+      ? "terrain-ridge"
+      : pattern % 8 === 0
+        ? "terrain-forest"
+        : pattern % 13 === 0
+          ? "terrain-marsh"
+          : "terrain-open";
+  return {
+    coord: { q, r },
+    terrainId,
+    elevation: terrainId === "terrain-ridge" ? 1 : 0,
+    movementCost: terrainId === "terrain-marsh" ? 1.5 : 1,
+    blocksLineOfSight: terrainId === "terrain-forest",
+    lineOfSightModifier: terrainId === "terrain-forest" ? -1 : 0,
+    capacity: isInsertion ? 8 : isBeacon ? 6 : isLandingField ? 5 : terrainId === "terrain-forest" ? 2 : 3,
+    edges: { rivers: [], roads: r === 1 || (q >= 0 && q <= 4 && r === -2) ? [0, 3] : [] },
+    structureIds: isBeacon
+      ? ["structure-cold-horizon-colony-beacon"]
+      : isLandingField
+        ? ["structure-cold-horizon-landing-field"]
+        : [],
+    objectiveId: coldHorizonObjectiveCoordinates.get(key),
+    control: q < 0 ? "ALLIED" : q > 2 ? "ENEMY" : "NEUTRAL",
+    environment: isBeacon ? [INFANTRY_COVER_ARMOR_1, "COLD", "COLONY_BEACON"] : ["COLD"],
+    visibility: q <= 0 ? "OBSERVED" : "UNKNOWN",
+  };
+}
+
+export function createColdHorizonMap(radius = 6): BattlefieldHex[] {
+  const hexes: BattlefieldHex[] = [];
+  for (let q = -radius; q <= radius; q += 1) {
+    const minimumR = Math.max(-radius, -q - radius);
+    const maximumR = Math.min(radius, -q + radius);
+    for (let r = minimumR; r <= maximumR; r += 1) hexes.push(coldHorizonHex(q, r));
   }
   return hexes;
 }
@@ -502,6 +557,116 @@ function createNightGlassCampaignState(input: ScenarioCampaignInput): CampaignRu
   };
 }
 
+function coldHorizonObjectives(): ObjectiveState[] {
+  return [
+    {
+      id: "objective-cold-horizon-beacon",
+      name: "Hold Colony Beacon",
+      coord: { q: 0, r: 0 },
+      owner: "ALLIED",
+      status: "ACTIVE",
+      description: "Keep the Corinth II colony beacon online until the landing zone is secured.",
+    },
+    {
+      id: "objective-cold-horizon-landing-field",
+      name: "Secure Landing Field",
+      coord: { q: 4, r: -2 },
+      owner: "ENEMY",
+      status: "ACTIVE",
+      description: "Clear the eastern landing field for follow-on relief flights.",
+    },
+  ];
+}
+
+function createColdHorizonCampaignState(input: ScenarioCampaignInput): CampaignRuntimeState {
+  const round = input.round ?? 1;
+  const lockLeadMs = Math.min(30_000, Math.floor(input.durationMs / 5));
+  const resolvesAt = input.now + input.durationMs;
+  const lockAt = resolvesAt - lockLeadMs;
+  const coldHorizonEnemy = (
+    id: string,
+    definitionId: string,
+    callsign: string,
+    position: { q: number; r: number },
+    facing: Facing,
+    reserve = false,
+  ) => enemy(input.campaignId, id, definitionId, callsign, position, facing, reserve, "cold-horizon");
+  return {
+    campaignId: input.campaignId,
+    campaignName: input.campaignName,
+    planetName: input.planetName,
+    scenarioId: COLD_HORIZON_SCENARIO_ID,
+    scenarioVersion: COLD_HORIZON_SCENARIO_VERSION,
+    rulesetVersion: RULESET_VERSION,
+    engineVersion: ENGINE_VERSION,
+    round,
+    phase: "PLANNING",
+    clock: {
+      durationMs: input.durationMs,
+      lockLeadMs,
+      roundStartedAt: input.now,
+      lockAt,
+      resolvesAt,
+      schedule: [
+        { id: `${input.campaignId}:${round}:lock`, type: "ORDER_LOCK", round, runAt: lockAt },
+        { id: `${input.campaignId}:${round}:resolve`, type: "ROUND_RESOLVE", round, runAt: resolvesAt },
+      ],
+    },
+    map: createColdHorizonMap(),
+    deployments: [
+      ...input.alliedDeployments.map((deployment) => structuredClone(deployment)),
+      coldHorizonEnemy("horizon-drone", "enemy-bug-drone", "FROST-3", { q: 2, r: -1 }, 5),
+      coldHorizonEnemy("horizon-warrior", "enemy-bug-warrior", "RIME-12", { q: 3, r: -1 }, 5),
+      coldHorizonEnemy("field-heavy", "enemy-bug-heavy", "WHITEWALL", { q: 4, r: -2 }, 5),
+      coldHorizonEnemy("wave-2-drone", "enemy-bug-drone", "FROST-8", { q: 6, r: -3 }, 4, true),
+      coldHorizonEnemy("wave-2-warrior", "enemy-bug-warrior", "RIME-19", { q: 6, r: -2 }, 4, true),
+      coldHorizonEnemy("wave-3-warrior", "enemy-bug-warrior", "CHITIN-52", { q: 5, r: -1 }, 4, true),
+      coldHorizonEnemy("wave-3-heavy", "enemy-bug-heavy", "WHITEWALL-2", { q: 4, r: 1 }, 4, true),
+    ],
+    orders: [],
+    objectives: coldHorizonObjectives(),
+    scenarioPolicy: {
+      policyId: "HOLD_PRIMARY_OBJECTIVE",
+      version: 1,
+      startRound: round,
+      maxRounds: 5,
+      primaryObjectiveId: "objective-cold-horizon-beacon",
+      capturableObjectiveIds: ["objective-cold-horizon-beacon", "objective-cold-horizon-landing-field"],
+    },
+    reinforcementWaves: [
+      {
+        id: "cold-horizon-wave-2",
+        arrivesAfterRound: round,
+        deploymentIds: [`${input.campaignId}:wave-2-drone`, `${input.campaignId}:wave-2-warrior`],
+        status: "PENDING",
+      },
+      {
+        id: "cold-horizon-wave-3",
+        arrivesAfterRound: round + 2,
+        deploymentIds: [`${input.campaignId}:wave-3-warrior`, `${input.campaignId}:wave-3-heavy`],
+        status: "PENDING",
+      },
+    ],
+    events: [{
+      eventId: `${input.campaignId}:${round}:0001:ROUND_STARTED`,
+      campaignId: input.campaignId,
+      round,
+      sequence: 1,
+      type: "ROUND_STARTED",
+      payload: {
+        deadline: resolvesAt,
+        scenarioId: COLD_HORIZON_SCENARIO_ID,
+        scenarioVersion: COLD_HORIZON_SCENARIO_VERSION,
+      },
+      timestamp: input.now,
+      visibility: "PUBLIC",
+    }],
+    resolutions: {},
+    pendingPersistentEffects: [],
+    version: 1,
+  };
+}
+
 function createIronRainCampaignState(input: ScenarioCampaignInput): CampaignRuntimeState {
   const round = input.round ?? 1;
   const lockLeadMs = Math.min(30_000, Math.floor(input.durationMs / 5));
@@ -609,6 +774,9 @@ export function createScenarioCampaignState(input: ScenarioCampaignInput): Campa
   }
   if (input.mapSourceKey === "fixture/operation-night-glass") {
     return createNightGlassCampaignState(input);
+  }
+  if (input.mapSourceKey === "fixture/operation-cold-horizon") {
+    return createColdHorizonCampaignState(input);
   }
   if (input.mapSourceKey !== "fixture/outpost-k17") {
     throw new Error(`CAMPAIGN_SCENARIO_NOT_AVAILABLE:${input.mapSourceKey}`);

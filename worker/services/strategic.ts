@@ -1430,6 +1430,28 @@ export async function resolveStrategicMapRound(
         force.battalionId,
         map.id,
       ));
+    const previous = hydrated.state.taskForces.find((candidate) => candidate.id === force.id);
+    if (force.currentNodeId && previous?.currentNodeId !== force.currentNodeId) {
+      statements.push(env.DB.prepare(`WITH RECURSIVE location_tree(id,parent_location_id,location_type) AS (
+          SELECT locations.id,locations.parent_location_id,locations.location_type
+          FROM strategic_nodes AS nodes
+          JOIN strategic_locations AS locations ON locations.id=nodes.location_id
+          WHERE nodes.id=?2 AND nodes.map_id=?4
+          UNION ALL
+          SELECT parent.id,parent.parent_location_id,parent.location_type
+          FROM strategic_locations AS parent
+          JOIN location_tree AS child ON child.parent_location_id=parent.id
+        )
+        UPDATE ships SET
+          current_location_id=(SELECT location_id FROM strategic_nodes WHERE id=?2 AND map_id=?4),
+          location_planet_id=(SELECT planets.id FROM planets
+            JOIN location_tree ON location_tree.id=planets.strategic_location_id
+            WHERE location_tree.location_type='PLANET' LIMIT 1),
+          revision=revision+1,updated_at=?3
+        WHERE battalion_id=?5 AND id IN (
+          SELECT ship_id FROM task_force_ships WHERE task_force_id=?1 AND status='ACTIVE')`)
+        .bind(force.id, force.currentNodeId, now, map.id, force.battalionId));
+    }
   }
   for (const group of output.state.battlegroups) {
     statements.push(env.DB.prepare(`UPDATE battlegroups

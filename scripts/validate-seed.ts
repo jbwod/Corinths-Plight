@@ -256,6 +256,7 @@ for (const requiredId of [
   "strategic-operation-iron-rain",
   "strategic-operation-night-glass",
   "strategic-operation-broken-road",
+  "strategic-operation-cold-horizon",
   "battlegroup-hammer",
   "battlegroup-raven",
 ]) {
@@ -375,7 +376,7 @@ if (failures.length > 0) {
         phase2PlayerUnits: phase2PlayerUnits.length,
         phase2EnemyRoles: phase2Enemies.length,
         phase3Map: "strategic-map-corinth",
-        phase3Operations: 3,
+        phase3Operations: 4,
         equipmentEffects: 9,
         deploymentMethods: 6,
         developmentCampaign: "operation-spearhead",

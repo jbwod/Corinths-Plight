@@ -34,12 +34,6 @@ ON CONFLICT(id) DO UPDATE SET
   allowed_methods_json = excluded.allowed_methods_json,
   status = excluded.status, environment_json = excluded.environment_json;
 
-INSERT INTO battlegroup_units (battlegroup_id,player_unit_id,delegated_command)
-SELECT 'battlegroup-hammer','force-atlas',0
-WHERE EXISTS (SELECT 1 FROM battlegroups WHERE id = 'battlegroup-hammer')
-  AND EXISTS (SELECT 1 FROM player_units WHERE id = 'force-atlas')
-ON CONFLICT(battlegroup_id,player_unit_id) DO UPDATE SET delegated_command = excluded.delegated_command;
-
 INSERT INTO player_unit_loadouts (
   id,player_unit_id,name,loadout_kind,status,revision
 )

@@ -18,6 +18,7 @@ import {
   getDeploymentPlan,
   getDeploymentReceipt,
   getDeploymentUnit,
+  getStrategicNodePlanetLocation,
   listDeploymentPlans,
   listDeploymentPlanUnits,
   listDeploymentTransports,
@@ -35,6 +36,29 @@ function parseJson<T>(value: string | null | undefined, fallback: T): T {
 function canCommand(role: string, campaignRole: string): boolean {
   return role === "ADMIN" || role === "BATTALION_COMMAND" ||
     campaignRole === "GM" || campaignRole === "BATTALION_COMMAND" || campaignRole === "PLAYER";
+}
+
+async function requireFormationAtOperation(
+  db: D1Database,
+  formation: Awaited<ReturnType<typeof getDeploymentFormation>>,
+  operationNodeId: string | null,
+): Promise<void> {
+  if (!formation || !operationNodeId) return;
+  let available = formation.current_node_id === operationNodeId;
+  if (formation.status === "EMBARKED" && formation.carrier_node_id) {
+    const [carrierPlanet, operationPlanet] = await Promise.all([
+      getStrategicNodePlanetLocation(db, formation.carrier_node_id),
+      getStrategicNodePlanetLocation(db, operationNodeId),
+    ]);
+    available = carrierPlanet !== null && carrierPlanet === operationPlanet;
+  }
+  if (!available) {
+    throw new ForceServiceError(
+      409,
+      "BATTLEGROUP_OPERATION_LOCATION_MISMATCH",
+      "The Battlegroup must reach the operation node, or its carrier must reach that operation's planet, before deployment.",
+    );
+  }
 }
 
 function receiptReplay(
@@ -177,6 +201,7 @@ async function materialize(
         (formation.carrier_link_status !== "EMBARKED" || !formation.current_carrier_task_force_id || !formation.carrier_node_id)) {
       throw new ForceServiceError(409, "BATTLEGROUP_LOCATION_INVALID", "The embarked Battlegroup has no active carrier location.");
     }
+    await requireFormationAtOperation(env.DB, formation, authority.operation_node_id);
   }
   const selected: MaterializedPlan["selected"] = [];
   for (const requested of command.units) {
@@ -393,6 +418,7 @@ export async function commitPlan(
   if (formation && !["READY", "EMBARKED", "RECOVERING"].includes(formation.status)) {
     throw new ForceServiceError(409, "BATTLEGROUP_UNAVAILABLE", `Battlegroup ${formation.id} is no longer available for deployment.`);
   }
+  await requireFormationAtOperation(env.DB, formation, authority.operation_node_id);
   const units = await listDeploymentPlanUnits(env.DB, planId);
   if (units.some((unit) => unit.owner_approval !== "APPROVED" || unit.command_approval !== "APPROVED")) {
     throw new ForceServiceError(409, "DEPLOYMENT_APPROVAL_REQUIRED", "Every unit requires owner and command approval.");

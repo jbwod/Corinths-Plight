@@ -362,6 +362,25 @@ export async function getDeploymentFormation(
     .bind(battlegroupId, battalionId).first<DeploymentFormationRow>();
 }
 
+export async function getStrategicNodePlanetLocation(
+  db: D1Database,
+  nodeId: string,
+): Promise<string | null> {
+  const row = await db.prepare(`WITH RECURSIVE location_tree(id,parent_location_id,location_type) AS (
+      SELECT locations.id,locations.parent_location_id,locations.location_type
+      FROM strategic_nodes AS nodes
+      JOIN strategic_locations AS locations ON locations.id=nodes.location_id
+      WHERE nodes.id=?1
+      UNION ALL
+      SELECT parent.id,parent.parent_location_id,parent.location_type
+      FROM strategic_locations AS parent
+      JOIN location_tree AS child ON child.parent_location_id=parent.id
+    )
+    SELECT id FROM location_tree WHERE location_type='PLANET' LIMIT 1`)
+    .bind(nodeId).first<{ id: string }>();
+  return row?.id ?? null;
+}
+
 export interface InsertionZoneRow {
   id: string; campaign_id: string; hex_q: number; hex_r: number;
   allowed_methods_json: string; status: string; environment_json: string;

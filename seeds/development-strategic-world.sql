@@ -333,6 +333,36 @@ INSERT INTO campaigns (
   map_source_key, minimum_players, maximum_players, created_by,
   force_policy_json, strategic_node_id, strategic_status, strategic_revision
 ) VALUES (
+  'operation-cold-horizon', 'planet-corinth-ii', 'ruleset-v5-core-curated-1',
+  'Operation Cold Horizon', 'RECRUITING', 300000,
+  'fixture/operation-cold-horizon', 1, 6, 'demo-user',
+  '{"allowedCategories":["INFANTRY","SUPPORT","ENGINEER","ARTILLERY","ARMOUR","MECH"],"requiresShip":true}',
+  'node-corinth-ii', 'MUSTERING', 1
+)
+ON CONFLICT(id) DO UPDATE SET
+  strategic_node_id = excluded.strategic_node_id,
+  strategic_status = excluded.strategic_status,
+  force_policy_json = excluded.force_policy_json;
+
+INSERT INTO campaign_insertion_zones (
+  id, campaign_id, hex_q, hex_r, allowed_methods_json, status, environment_json
+) VALUES (
+  'cold-horizon-western-landing', 'operation-cold-horizon', -5, 2,
+  '["STANDARD_GROUND","VEHICLE_TRANSPORT","VTOL_INSERTION","HEAVY_AIR_TRANSPORT"]',
+  'OPEN', '["COLD","CLEAR_APPROACH","OFFWORLD_LANDING"]'
+)
+ON CONFLICT(id) DO UPDATE SET
+  hex_q = excluded.hex_q,
+  hex_r = excluded.hex_r,
+  allowed_methods_json = excluded.allowed_methods_json,
+  status = excluded.status,
+  environment_json = excluded.environment_json;
+
+INSERT INTO campaigns (
+  id, planet_id, ruleset_id, name, status, round_duration_ms,
+  map_source_key, minimum_players, maximum_players, created_by,
+  force_policy_json, strategic_node_id, strategic_status, strategic_revision
+) VALUES (
   'operation-night-glass', 'planet-corinth', 'ruleset-v5-core-curated-1',
   'Operation Night Glass', 'DRAFT', 300000,
   'fixture/operation-night-glass', 1, 6, 'demo-user',
@@ -408,6 +438,18 @@ INSERT INTO strategic_operations (
     '[{"when":{"objectiveId":"objective-junction-7","owner":"ALLIED"},"effects":[{"type":"STRATEGIC_NODE_CAPTURED","nodeId":"node-junction-7","control":"FRIENDLY"},{"type":"OPERATION_ACTIVATED","operationId":"strategic-operation-night-glass"}]}]',
     NULL, 1, 'source-phase3-brief-2026-08-09',
     'Initial Strategic Scenario: OPERATION BROKEN ROAD'
+  ),
+  (
+    'strategic-operation-cold-horizon', 'strategic-map-corinth', 'node-corinth-ii',
+    'operation-cold-horizon', 'ruleset-v5-core-curated-1', 'COLD_HORIZON',
+    'Operation Cold Horizon', 'Interplanetary relief', 'MUSTERING', 'HIGH',
+    '[{"key":"HOLD_COLONY_BEACON","label":"Hold Colony Beacon"},{"key":"SECURE_LANDING_FIELD","label":"Secure Landing Field"}]',
+    '["GROUND_COMBAT","RECON","ARMOURED","ARTILLERY"]',
+    '{"methods":["STANDARD_LANDING","VTOL_DEPLOYMENT","AEROSPACE_TRANSPORT"],"methodAvailability":"CAPABILITY_DERIVED"}',
+    '{"mode":"CAMPAIGN_CONFIGURED","status":"OPEN"}',
+    '{"faction":"BUG_SWARM","detail":"KNOWN_ONLY"}', '[]',
+    NULL, 1, 'source-phase3-brief-2026-08-09',
+    'Application-authored development scenario: OPERATION COLD HORIZON on CORINTH II'
   )
 ON CONFLICT(id) DO UPDATE SET
   map_id = excluded.map_id,
@@ -499,10 +541,161 @@ ON CONFLICT(id) DO UPDATE SET
   persistent = excluded.persistent,
   updated_at = excluded.updated_at;
 
+-- Field-ready loaners issued for the authored Corinth II vertical. These are
+-- application fixtures using executable definitions, not new canonical classes
+-- or free production requisition grants.
+WITH loaners(id,definition_id,callsign,name,description) AS (
+  VALUES
+    ('force-polar-1','unit-infantry-squad','POLAR-1','Polar Colony Relief Section',
+     'Development-only infantry loaner assigned to Operation Cold Horizon.'),
+    ('force-aurora-4','unit-light-vehicle','AURORA-4','Aurora Recon Vehicle',
+     'Development-only reconnaissance loaner assigned to Operation Cold Horizon.')
+)
+INSERT INTO player_units (
+  id, owner_id, ruleset_id, definition_id, callsign, name, description,
+  status, current_health, base_stats_json, requisition_value,
+  requisition_value_status, location_kind, location_id, location_state,
+  service_campaigns, service_rounds, version
+)
+SELECT
+  loaners.id, 'demo-user', definitions.ruleset_id, definitions.id,
+  loaners.callsign, loaners.name, loaners.description,
+  'ACTIVE', definitions.max_health,
+  json_object(
+    'healthModel', definitions.health_model,
+    'maxHealth', definitions.max_health,
+    'armor', definitions.armor,
+    'defense', definitions.defense,
+    'speed', definitions.speed_quarters / 4.0,
+    'sensors', definitions.sensor_range,
+    'capacity', 0
+  ),
+  0, 'DEV_OVERRIDE', 'SHIP', 'ship-corinth-ward', 'ON_SHIP', 0, 0, 1
+FROM loaners
+JOIN unit_class_definitions AS definitions
+  ON definitions.id=loaners.definition_id
+ AND definitions.ruleset_id='ruleset-v5-core-curated-1'
+ON CONFLICT(id) DO UPDATE SET
+  owner_id=excluded.owner_id,
+  ruleset_id=excluded.ruleset_id,
+  definition_id=excluded.definition_id,
+  callsign=excluded.callsign,
+  name=excluded.name,
+  description=excluded.description,
+  status=excluded.status,
+  current_health=excluded.current_health,
+  base_stats_json=excluded.base_stats_json,
+  location_kind=excluded.location_kind,
+  location_id=excluded.location_id,
+  location_state=excluded.location_state,
+  version=excluded.version;
+
+INSERT INTO player_unit_weapon_mounts (
+  id, player_unit_id, ruleset_id, weapon_definition_id,
+  source_kind, mount_role, mount_index, current_ammo
+)
+SELECT 'force-polar-1:weapon:' || links.mount_role || ':' || links.mount_index,
+       'force-polar-1', links.ruleset_id, links.weapon_definition_id,
+       'BASE', links.mount_role, links.mount_index, weapons.ammo_capacity
+FROM unit_definition_weapons AS links
+JOIN weapon_definitions AS weapons
+  ON weapons.id=links.weapon_definition_id AND weapons.ruleset_id=links.ruleset_id
+WHERE links.unit_definition_id='unit-infantry-squad'
+  AND links.ruleset_id='ruleset-v5-core-curated-1'
+ON CONFLICT(id) DO UPDATE SET
+  weapon_definition_id=excluded.weapon_definition_id,
+  current_ammo=excluded.current_ammo,
+  cooldown_remaining=0,
+  state='OPERATIONAL';
+
+INSERT INTO player_unit_subsystems (player_unit_id, subsystem_type, state)
+SELECT 'force-aurora-4', subsystem_type, 'OPERATIONAL'
+FROM (
+  SELECT 'WEAPONS' AS subsystem_type
+  UNION ALL SELECT 'MOBILITY'
+)
+WHERE 1
+ON CONFLICT(player_unit_id, subsystem_type) DO UPDATE SET
+  state=excluded.state,
+  revision=1;
+
+INSERT INTO unit_cargo_manifests (carrier_unit_id, ruleset_id, cargo_profile_id)
+SELECT 'force-aurora-4', profiles.ruleset_id, profiles.cargo_profile_id
+FROM unit_definition_profiles AS profiles
+WHERE profiles.unit_definition_id='unit-light-vehicle'
+  AND profiles.ruleset_id='ruleset-v5-core-curated-1'
+  AND profiles.cargo_profile_id IS NOT NULL
+ON CONFLICT(carrier_unit_id) DO UPDATE SET
+  cargo_profile_id=excluded.cargo_profile_id,
+  revision=1;
+
+INSERT INTO player_unit_weapon_mounts (
+  id, player_unit_id, ruleset_id, weapon_definition_id,
+  source_kind, mount_role, mount_index, current_ammo
+)
+SELECT 'force-aurora-4:weapon:' || links.mount_role || ':' || links.mount_index,
+       'force-aurora-4', links.ruleset_id, links.weapon_definition_id,
+       'BASE', links.mount_role, links.mount_index, weapons.ammo_capacity
+FROM unit_definition_weapons AS links
+JOIN weapon_definitions AS weapons
+  ON weapons.id=links.weapon_definition_id AND weapons.ruleset_id=links.ruleset_id
+WHERE links.unit_definition_id='unit-light-vehicle'
+  AND links.ruleset_id='ruleset-v5-core-curated-1'
+ON CONFLICT(id) DO UPDATE SET
+  weapon_definition_id=excluded.weapon_definition_id,
+  current_ammo=excluded.current_ammo,
+  cooldown_remaining=0,
+  state='OPERATIONAL';
+
+INSERT INTO unit_service_summaries (
+  player_unit_id, campaigns_completed, rounds_served,
+  objectives_completed, units_destroyed
+) VALUES
+  ('force-polar-1', 0, 0, 0, 0),
+  ('force-aurora-4', 0, 0, 0, 0)
+ON CONFLICT(player_unit_id) DO UPDATE SET
+  campaigns_completed=excluded.campaigns_completed,
+  rounds_served=excluded.rounds_served,
+  objectives_completed=excluded.objectives_completed,
+  units_destroyed=excluded.units_destroyed,
+  revision=1;
+
+INSERT INTO unit_history (
+  id, player_unit_id, event_type, summary, payload_json,
+  occurred_at, idempotency_key, actor_user_id, visibility
+)
+SELECT 'history:' || units.id || ':muster', units.id, 'PURCHASED',
+       units.callsign || ' issued to Raven for the Corinth II relief operation.',
+       '{"fixture":"OPERATION_COLD_HORIZON","developmentLoaner":true}',
+       1786270000,
+       'demo:history:' || units.id || ':muster',
+       'demo-user', 'OWNER'
+FROM player_units AS units
+WHERE units.id IN ('force-polar-1','force-aurora-4')
+ON CONFLICT(id) DO UPDATE SET
+  campaign_id=excluded.campaign_id,
+  round_number=excluded.round_number,
+  summary=excluded.summary,
+  payload_json=excluded.payload_json,
+  occurred_at=excluded.occurred_at;
+
+-- The strategic fixture owns the exact playable rosters. Development-forces.sql
+-- initially groups the showcase collection under Hammer; split the executable
+-- foundation units here so Raven remains a distinct deployable formation while
+-- catalogue-only Special Forces, VTOL, Medic, and IFV records stay non-playable.
+DELETE FROM battlegroup_units
+ WHERE battlegroup_id IN ('battlegroup-hammer', 'battlegroup-raven');
+
+INSERT INTO battlegroup_units (battlegroup_id, player_unit_id, delegated_command)
+SELECT 'battlegroup-hammer', id, 0
+  FROM player_units
+ WHERE id IN ('force-raven-2', 'force-doc-7', 'force-anvil', 'force-longbow', 'force-nomad', 'force-carrier-6', 'force-bellator')
+ON CONFLICT(battlegroup_id, player_unit_id) DO UPDATE SET delegated_command = 0;
+
 INSERT INTO battlegroup_units (battlegroup_id, player_unit_id, delegated_command)
 SELECT 'battlegroup-raven', id, 0
   FROM player_units
- WHERE id IN ('force-spectre', 'force-nomad', 'force-kestrel')
+ WHERE id IN ('force-polar-1', 'force-aurora-4')
 ON CONFLICT(battlegroup_id, player_unit_id) DO UPDATE SET delegated_command = 0;
 
 INSERT INTO task_forces (
