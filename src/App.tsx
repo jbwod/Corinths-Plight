@@ -28,7 +28,8 @@ import { AuthGateway } from "./components/AuthGateway";
 import { CampaignReports } from "./components/CampaignReports";
 
 const DEMO_USER = "demo-user";
-const CAMPAIGN_ID = "outpost-k17";
+const DEFAULT_DEVELOPMENT_CAMPAIGN_ID = "outpost-k17";
+const DEMO_HEADERS = import.meta.env.DEV ? { "x-demo-user": DEMO_USER } : undefined;
 const viewer = {
   userId: DEMO_USER,
   side: "ALLIED" as const,
@@ -58,6 +59,15 @@ function initialNavigation(): ActiveNav {
 }
 
 type ConnectionState = "CONNECTING" | "LIVE" | "RECONNECTING" | "LOCAL";
+interface CampaignDirectoryEntry {
+  campaignId: string;
+  name: string;
+  planetName: string;
+  status: string;
+  role: string;
+  scenarioAvailable: boolean;
+  canEnter: boolean;
+}
 type Notice = { tone: "info" | "success" | "danger"; message: string };
 
 function initialCampaign(): CampaignView {
@@ -140,12 +150,27 @@ function GameApp() {
   const [busy, setBusy] = useState(false);
   const [timelineMode, setTimelineMode] = useState<"ORDERS" | "EVENTS">("EVENTS");
   const [activeNav, setActiveNav] = useState<ActiveNav>(initialNavigation);
+  const [campaignId, setCampaignId] = useState<string | undefined>(
+    import.meta.env.DEV ? DEFAULT_DEVELOPMENT_CAMPAIGN_ID : undefined,
+  );
+  const [campaignDirectory, setCampaignDirectory] = useState<CampaignDirectoryEntry[]>([]);
 
-  const loadCampaign = useCallback(async (quiet = false) => {
+  const loadCampaignDirectory = useCallback(async (): Promise<string | undefined> => {
+    const response = await fetch("/api/campaigns", { headers: DEMO_HEADERS });
+    if (!response.ok) throw new Error(await errorMessage(response));
+    const body = await response.json() as { campaigns?: CampaignDirectoryEntry[] };
+    const entries = Array.isArray(body.campaigns) ? body.campaigns : [];
+    setCampaignDirectory(entries);
+    const selected = entries.find((entry) => entry.campaignId === campaignId && entry.canEnter)
+      ?? entries.find((entry) => entry.canEnter);
+    setCampaignId(selected?.campaignId);
+    return selected?.campaignId;
+  }, [campaignId]);
+
+  const loadCampaign = useCallback(async (quiet = false, requestedCampaignId = campaignId) => {
+    if (!requestedCampaignId) return undefined;
     try {
-      const response = await fetch(`/api/campaigns/${CAMPAIGN_ID}/state`, {
-        headers: { "x-demo-user": DEMO_USER },
-      });
+      const response = await fetch(`/api/campaigns/${requestedCampaignId}/state`, { headers: DEMO_HEADERS });
       if (!response.ok) throw new Error(await errorMessage(response));
       const next = (await response.json()) as CampaignView;
       setCampaign(next);
@@ -161,20 +186,27 @@ function GameApp() {
       }
       return undefined;
     }
-  }, []);
+  }, [campaignId]);
 
   useEffect(() => {
     if (activeNav !== "Campaigns" && activeNav !== "Reports") return;
-    const initialLoad = window.setTimeout(() => void loadCampaign(), 0);
+    const initialLoad = window.setTimeout(() => {
+      void loadCampaignDirectory()
+        .then((selected) => selected ? loadCampaign(false, selected) : undefined)
+        .catch((error: unknown) => {
+          setConnection("LOCAL");
+          setNotice({ tone: "info", message: error instanceof Error ? error.message : "Campaign directory is unavailable." });
+        });
+    }, 0);
     const timer = window.setInterval(() => setNow(Date.now()), 1_000);
     return () => {
       window.clearTimeout(initialLoad);
       window.clearInterval(timer);
     };
-  }, [activeNav, loadCampaign]);
+  }, [activeNav, loadCampaign, loadCampaignDirectory]);
 
   useEffect(() => {
-    if (activeNav !== "Campaigns") return;
+    if (activeNav !== "Campaigns" || !campaignId) return;
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     let reconnectTimer: number | undefined;
     let closed = false;
@@ -184,12 +216,12 @@ function GameApp() {
       if (closed) return;
       try {
         socket = new WebSocket(
-          `${protocol}//${window.location.host}/api/campaigns/${CAMPAIGN_ID}/ws?demo_user=${encodeURIComponent(DEMO_USER)}`,
+          `${protocol}//${window.location.host}/api/campaigns/${campaignId}/ws${import.meta.env.DEV ? `?demo_user=${encodeURIComponent(DEMO_USER)}` : ""}`,
         );
         socket.addEventListener("open", () => setConnection("LIVE"));
         socket.addEventListener("message", (event) => {
           const message = JSON.parse(String(event.data)) as { type?: string };
-          if (message.type !== "connected" && message.type !== "pong") void loadCampaign(true);
+          if (message.type !== "connected" && message.type !== "pong") void loadCampaign(true, campaignId);
         });
         socket.addEventListener("close", () => {
           if (closed) return;
@@ -207,7 +239,7 @@ function GameApp() {
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
       socket?.close();
     };
-  }, [activeNav, loadCampaign]);
+  }, [activeNav, campaignId, loadCampaign]);
 
   const ownUnits = useMemo(
     () => campaign.deployments.filter((deployment) => deployment.ownerId === campaign.viewer.userId),
@@ -317,7 +349,7 @@ function GameApp() {
   }
 
   async function submitOrder(lifecycle: "DRAFT" | "SUBMITTED" = "SUBMITTED") {
-    if (!selectedUnit || (lifecycle === "SUBMITTED" && !canSubmit)) return;
+    if (!campaignId || !selectedUnit || (lifecycle === "SUBMITTED" && !canSubmit)) return;
     if (targetUnit && !selectedWeapon) return;
     const actions: Array<Partial<StructuredAction>> = [];
     if (targetUnit && orderType !== "RUSH") {
@@ -331,9 +363,9 @@ function GameApp() {
     }
     setBusy(true);
     try {
-      const response = await fetch(`/api/campaigns/${CAMPAIGN_ID}/orders`, {
+      const response = await fetch(`/api/campaigns/${campaignId}/orders`, {
         method: "POST",
-        headers: { "content-type": "application/json", "x-demo-user": DEMO_USER },
+        headers: { "content-type": "application/json", ...(DEMO_HEADERS ?? {}) },
         body: JSON.stringify({
           commandId: `order-${crypto.randomUUID()}`,
           expectedCampaignVersion: campaign.version,
@@ -349,7 +381,7 @@ function GameApp() {
         }),
       });
       if (!response.ok) throw new Error(await errorMessage(response));
-      await loadCampaign(true);
+      await loadCampaign(true, campaignId);
       setNotice({
         tone: "success",
         message: `${selectedUnit.callsign} order ${lifecycle === "DRAFT" ? "saved as draft" : "submitted to campaign command"}.`,
@@ -363,14 +395,15 @@ function GameApp() {
   }
 
   async function runCommand(path: string, init: RequestInit, success: string) {
+    if (!campaignId) return;
     setBusy(true);
     try {
-      const response = await fetch(`/api/campaigns/${CAMPAIGN_ID}${path}`, {
+      const response = await fetch(`/api/campaigns/${campaignId}${path}`, {
         ...init,
-        headers: { "content-type": "application/json", "x-demo-user": DEMO_USER, ...init.headers },
+        headers: { "content-type": "application/json", ...(DEMO_HEADERS ?? {}), ...init.headers },
       });
       if (!response.ok) throw new Error(await errorMessage(response));
-      await loadCampaign(true);
+      await loadCampaign(true, campaignId);
       setNotice({ tone: "success", message: success });
     } catch (error) {
       setNotice({ tone: "danger", message: error instanceof Error ? error.message : "Campaign command failed." });
@@ -432,6 +465,19 @@ function GameApp() {
         <div className="campaign-title-block">
           <span className="eyebrow">{topbarCopy[activeNav].eyebrow}</span>
           <h1>{topbarCopy[activeNav].title}</h1>
+          {tacticalContext && campaignDirectory.length > 1 ? (
+            <select
+              aria-label="Active campaign"
+              value={campaignId ?? ""}
+              onChange={(event) => setCampaignId(event.target.value || undefined)}
+            >
+              {campaignDirectory.filter((entry) => entry.canEnter).map((entry) => (
+                <option key={entry.campaignId} value={entry.campaignId}>
+                  {entry.name} · {entry.status}
+                </option>
+              ))}
+            </select>
+          ) : null}
         </div>
         <div className="round-clock" aria-label={tacticalContext ? `Round ${campaign.round}, campaign ${countdown}` : "Persistent strategic layer; open Command for the authoritative clock"}>
           <Glyph name="clock" size={17} />
@@ -476,10 +522,19 @@ function GameApp() {
       ) : activeNav === "Reports" ? (
         <CampaignReports
           campaign={campaign}
-          campaignId={CAMPAIGN_ID}
+          campaignId={campaignId ?? campaign.campaignId}
           demoUser={DEMO_USER}
           onReturnToCampaign={() => navigate("Campaigns")}
         />
+      ) : activeNav === "Campaigns" && !campaignId ? (
+        <main className="operations-layout">
+          <section className="panel" style={{ gridColumn: "1 / -1", padding: "2rem" }}>
+            <span className="eyebrow">CAMPAIGN DIRECTORY</span>
+            <h2>No playable campaign assigned</h2>
+            <p>Your account is signed in, but none of your campaign memberships currently has authored tactical content.</p>
+            <p>Join an active operation from Battalion or return after command opens a deployment.</p>
+          </section>
+        </main>
       ) : (
       <main className="operations-layout">
         <aside className="left-panel panel">

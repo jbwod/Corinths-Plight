@@ -122,6 +122,7 @@ All routes are Worker same-origin routes. `Implemented` here means the route has
 | `POST /api/forces/:id/rename` | Versioned rename | implemented route; missing UI |
 | `POST /api/forces/:id/loadout-changes` | Versioned exact-once loadout mutation | partial item breadth |
 | `GET /api/catalogue/units` | D1 unit catalogue | partial/split truth |
+| `GET /api/campaigns` | Authenticated membership-scoped campaign directory with authored-content availability | partial; discovery/join/withdraw/reinforce deferred |
 | `GET /api/requisition` | Owner balance/ledger | partial economy |
 | `POST /api/requisition/purchases` | Exact-once unit purchase | blocked for unknown prices outside dev policy |
 | `POST /api/requisition/equipment-purchases` | Exact-once equipment inventory purchase | partial item breadth |

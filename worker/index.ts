@@ -14,6 +14,7 @@ import { errorResponse, json } from "./http";
 import { routeForcesRequest } from "./routes/forces";
 import { routeAuthRequest } from "./routes/auth";
 import { routeDeploymentRequest } from "./routes/deployment";
+import { routeCampaignDirectoryRequest } from "./routes/campaigns";
 import { routeOnboardingRequest } from "./routes/onboarding";
 import { routeStrategicRequest } from "./routes/strategic";
 import { rulesCatalogueResponse } from "./rules-catalogue";
@@ -76,6 +77,9 @@ async function route(request: Request, env: Env, requestId: string, context: Exe
 
   const deploymentResponse = await routeDeploymentRequest(request, env);
   if (deploymentResponse) return deploymentResponse;
+
+  const campaignDirectoryResponse = await routeCampaignDirectoryRequest(request, env);
+  if (campaignDirectoryResponse) return campaignDirectoryResponse;
 
   const strategicResponse = await routeStrategicRequest(request, env);
   if (strategicResponse) return strategicResponse;
