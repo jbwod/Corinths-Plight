@@ -9,6 +9,7 @@ import type {
 } from "../../domain/src";
 import { RULESET_VERSION } from "../../domain/src";
 import { getTacticalActionRule, getTacticalOrderRule } from "./tactical-grammar";
+import { getTacticalUnitClass } from "./tactical-unit-catalogue";
 
 const v5 = (section: string) => `Meta - Core Rules (V5).md — ${section}`;
 const slots = (primary = 0, secondary = 0, internal = 0) => ({ primary, secondary, internal });
@@ -389,9 +390,9 @@ export const allDefinitions: GameDefinition[] = [
 ];
 
 export function getUnitClass(id: string): UnitClassDefinition {
-  const definition = unitClasses.find((candidate) => candidate.id === id);
-  if (!definition) throw new Error(`Unknown unit class: ${id}`);
-  return definition;
+  const enemy = unitClasses.find((candidate) => candidate.id === id && candidate.kind === "enemy");
+  if (enemy) return enemy;
+  return getTacticalUnitClass(id);
 }
 
 export function getOrderTypeDefinition(orderType: OrderType): OrderTypeRuleDefinition {

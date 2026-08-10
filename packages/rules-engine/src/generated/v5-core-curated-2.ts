@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "b963499d13b40aee0d1c04bf2d10ac0e6ae1636757734d779f9fec675f6e1c8e",
+  "contentHash": "02ba324ccc4445c7577845fa198563a1db9d26c09f6286742f02b57c9a76e66b",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1148,6 +1148,7 @@ const snapshot = {
               "weapon-bomber-ordnance"
             ]
           },
+          "execution": null,
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -1215,6 +1216,7 @@ const snapshot = {
               "weapon-fighter-snub-hmg"
             ]
           },
+          "execution": null,
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -1271,6 +1273,24 @@ const snapshot = {
             ],
             "weaponIds": [
               "weapon-artillery-barrage"
+            ]
+          },
+          "execution": {
+            "allowedActions": [
+              "ATTACK",
+              "RELOAD"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "PERSONNEL",
+              "ARTILLERY",
+              "INDIRECT",
+              "DEPLOYABLE"
             ]
           },
           "healthModel": "FORCE_STRENGTH",
@@ -1338,6 +1358,7 @@ const snapshot = {
             "role": "MEDICAL_SUPPORT",
             "sensorRange": "SCENARIO_DEFINED"
           },
+          "execution": null,
           "healthModel": "FORCE_STRENGTH",
           "legacyProjectionSensorRange": 0
         }
@@ -1388,6 +1409,25 @@ const snapshot = {
             ],
             "supplyCapacity": "CURRENT_FS",
             "weaponIds": []
+          },
+          "execution": {
+            "allowedActions": [
+              "LOAD",
+              "UNLOAD"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "RUSH"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "PERSONNEL",
+              "ENGINEER",
+              "BUILDER",
+              "REPAIR"
+            ]
           },
           "healthModel": "FORCE_STRENGTH",
           "legacyProjectionSensorRange": 4
@@ -1449,6 +1489,7 @@ const snapshot = {
             ],
             "weaponIds": []
           },
+          "execution": null,
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -1514,6 +1555,7 @@ const snapshot = {
               "weapon-ifv-snub-autocannon"
             ]
           },
+          "execution": null,
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -1575,6 +1617,25 @@ const snapshot = {
             },
             "weaponIds": [
               "weapon-infantry-rifle"
+            ]
+          },
+          "execution": {
+            "allowedActions": [
+              "ATTACK",
+              "LOAD",
+              "UNLOAD"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "RUSH"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "PERSONNEL",
+              "INFANTRY",
+              "DIG_IN"
             ]
           },
           "healthModel": "FORCE_STRENGTH",
@@ -1639,6 +1700,7 @@ const snapshot = {
             "role": "IRREGULAR_MANPOWER",
             "sensorRange": "SCENARIO_DEFINED"
           },
+          "execution": null,
           "healthModel": "FORCE_STRENGTH",
           "legacyProjectionSensorRange": 0
         }
@@ -1705,6 +1767,7 @@ const snapshot = {
               "weapon-light-mech-laser"
             ]
           },
+          "execution": null,
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -1759,6 +1822,25 @@ const snapshot = {
             ],
             "weaponIds": [
               "weapon-light-hmg"
+            ]
+          },
+          "execution": {
+            "allowedActions": [
+              "ATTACK",
+              "LOAD",
+              "UNLOAD"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "RUSH"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "VEHICLE",
+              "SUB_SYSTEM",
+              "EVASIVE"
             ]
           },
           "healthModel": "HITS",
@@ -1823,6 +1905,7 @@ const snapshot = {
             ],
             "weaponIds": []
           },
+          "execution": null,
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -1877,6 +1960,23 @@ const snapshot = {
             ],
             "weaponIds": [
               "weapon-mbt-cannon"
+            ]
+          },
+          "execution": {
+            "allowedActions": [
+              "ATTACK"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "RUSH"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "VEHICLE",
+              "SUB_SYSTEM",
+              "REAR_WEAK_SPOT"
             ]
           },
           "healthModel": "HITS",
@@ -1944,6 +2044,7 @@ const snapshot = {
               "ORBITAL"
             ]
           },
+          "execution": null,
           "healthModel": "FORCE_STRENGTH",
           "legacyProjectionSensorRange": 0
         }
@@ -2008,6 +2109,7 @@ const snapshot = {
               "INFANTRY_STEALTH"
             ]
           },
+          "execution": null,
           "healthModel": "FORCE_STRENGTH",
           "legacyProjectionSensorRange": 0
         }
@@ -2069,6 +2171,7 @@ const snapshot = {
               "weapon-vtol-nose-gun"
             ]
           },
+          "execution": null,
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -7339,7 +7442,7 @@ const snapshot = {
     ],
     "handlers": [
       {
-        "id": "foundation-compiled-unit-class",
+        "id": "foundation-generated-unit-class",
         "kind": "UNIT",
         "evidence": {
           "definitionIds": [
@@ -7350,7 +7453,7 @@ const snapshot = {
             "unit-main-battle-tank"
           ],
           "resolverPath": "packages/rules-engine/src/resolver.ts",
-          "sourcePath": "packages/rules-engine/src/catalogue.ts"
+          "sourcePath": "packages/rules-engine/src/tactical-unit-catalogue.ts"
         }
       },
       {
@@ -7968,7 +8071,7 @@ const snapshot = {
         "availabilityStatus": "DEV_ONLY",
         "executable": true,
         "purchasable": false,
-        "handlerId": "foundation-compiled-unit-class",
+        "handlerId": "foundation-generated-unit-class",
         "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
@@ -8009,7 +8112,7 @@ const snapshot = {
         "availabilityStatus": "DEV_ONLY",
         "executable": true,
         "purchasable": false,
-        "handlerId": "foundation-compiled-unit-class",
+        "handlerId": "foundation-generated-unit-class",
         "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
@@ -8096,7 +8199,7 @@ const snapshot = {
         "availabilityStatus": "DEV_ONLY",
         "executable": true,
         "purchasable": false,
-        "handlerId": "foundation-compiled-unit-class",
+        "handlerId": "foundation-generated-unit-class",
         "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
@@ -8160,7 +8263,7 @@ const snapshot = {
         "availabilityStatus": "DEV_ONLY",
         "executable": true,
         "purchasable": false,
-        "handlerId": "foundation-compiled-unit-class",
+        "handlerId": "foundation-generated-unit-class",
         "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
@@ -8217,7 +8320,7 @@ const snapshot = {
         "availabilityStatus": "DEV_ONLY",
         "executable": true,
         "purchasable": false,
-        "handlerId": "foundation-compiled-unit-class",
+        "handlerId": "foundation-generated-unit-class",
         "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
@@ -13620,5 +13723,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "b963499d13b40aee0d1c04bf2d10ac0e6ae1636757734d779f9fec675f6e1c8e" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "02ba324ccc4445c7577845fa198563a1db9d26c09f6286742f02b57c9a76e66b" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "b963499d13b40aee0d1c04bf2d10ac0e6ae1636757734d779f9fec675f6e1c8e",
+  "contentHash": "02ba324ccc4445c7577845fa198563a1db9d26c09f6286742f02b57c9a76e66b",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1131,6 +1131,7 @@
               "weapon-bomber-ordnance"
             ]
           },
+          "execution": null,
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -1198,6 +1199,7 @@
               "weapon-fighter-snub-hmg"
             ]
           },
+          "execution": null,
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -1254,6 +1256,24 @@
             ],
             "weaponIds": [
               "weapon-artillery-barrage"
+            ]
+          },
+          "execution": {
+            "allowedActions": [
+              "ATTACK",
+              "RELOAD"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "PERSONNEL",
+              "ARTILLERY",
+              "INDIRECT",
+              "DEPLOYABLE"
             ]
           },
           "healthModel": "FORCE_STRENGTH",
@@ -1321,6 +1341,7 @@
             "role": "MEDICAL_SUPPORT",
             "sensorRange": "SCENARIO_DEFINED"
           },
+          "execution": null,
           "healthModel": "FORCE_STRENGTH",
           "legacyProjectionSensorRange": 0
         }
@@ -1371,6 +1392,25 @@
             ],
             "supplyCapacity": "CURRENT_FS",
             "weaponIds": []
+          },
+          "execution": {
+            "allowedActions": [
+              "LOAD",
+              "UNLOAD"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "RUSH"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "PERSONNEL",
+              "ENGINEER",
+              "BUILDER",
+              "REPAIR"
+            ]
           },
           "healthModel": "FORCE_STRENGTH",
           "legacyProjectionSensorRange": 4
@@ -1432,6 +1472,7 @@
             ],
             "weaponIds": []
           },
+          "execution": null,
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -1497,6 +1538,7 @@
               "weapon-ifv-snub-autocannon"
             ]
           },
+          "execution": null,
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -1558,6 +1600,25 @@
             },
             "weaponIds": [
               "weapon-infantry-rifle"
+            ]
+          },
+          "execution": {
+            "allowedActions": [
+              "ATTACK",
+              "LOAD",
+              "UNLOAD"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "RUSH"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "PERSONNEL",
+              "INFANTRY",
+              "DIG_IN"
             ]
           },
           "healthModel": "FORCE_STRENGTH",
@@ -1622,6 +1683,7 @@
             "role": "IRREGULAR_MANPOWER",
             "sensorRange": "SCENARIO_DEFINED"
           },
+          "execution": null,
           "healthModel": "FORCE_STRENGTH",
           "legacyProjectionSensorRange": 0
         }
@@ -1688,6 +1750,7 @@
               "weapon-light-mech-laser"
             ]
           },
+          "execution": null,
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -1742,6 +1805,25 @@
             ],
             "weaponIds": [
               "weapon-light-hmg"
+            ]
+          },
+          "execution": {
+            "allowedActions": [
+              "ATTACK",
+              "LOAD",
+              "UNLOAD"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "RUSH"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "VEHICLE",
+              "SUB_SYSTEM",
+              "EVASIVE"
             ]
           },
           "healthModel": "HITS",
@@ -1806,6 +1888,7 @@
             ],
             "weaponIds": []
           },
+          "execution": null,
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -1860,6 +1943,23 @@
             ],
             "weaponIds": [
               "weapon-mbt-cannon"
+            ]
+          },
+          "execution": {
+            "allowedActions": [
+              "ATTACK"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "RUSH"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "VEHICLE",
+              "SUB_SYSTEM",
+              "REAR_WEAK_SPOT"
             ]
           },
           "healthModel": "HITS",
@@ -1927,6 +2027,7 @@
               "ORBITAL"
             ]
           },
+          "execution": null,
           "healthModel": "FORCE_STRENGTH",
           "legacyProjectionSensorRange": 0
         }
@@ -1991,6 +2092,7 @@
               "INFANTRY_STEALTH"
             ]
           },
+          "execution": null,
           "healthModel": "FORCE_STRENGTH",
           "legacyProjectionSensorRange": 0
         }
@@ -2052,6 +2154,7 @@
               "weapon-vtol-nose-gun"
             ]
           },
+          "execution": null,
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -7322,7 +7425,7 @@
     ],
     "handlers": [
       {
-        "id": "foundation-compiled-unit-class",
+        "id": "foundation-generated-unit-class",
         "kind": "UNIT",
         "evidence": {
           "definitionIds": [
@@ -7333,7 +7436,7 @@
             "unit-main-battle-tank"
           ],
           "resolverPath": "packages/rules-engine/src/resolver.ts",
-          "sourcePath": "packages/rules-engine/src/catalogue.ts"
+          "sourcePath": "packages/rules-engine/src/tactical-unit-catalogue.ts"
         }
       },
       {
@@ -7951,7 +8054,7 @@
         "availabilityStatus": "DEV_ONLY",
         "executable": true,
         "purchasable": false,
-        "handlerId": "foundation-compiled-unit-class",
+        "handlerId": "foundation-generated-unit-class",
         "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
@@ -7992,7 +8095,7 @@
         "availabilityStatus": "DEV_ONLY",
         "executable": true,
         "purchasable": false,
-        "handlerId": "foundation-compiled-unit-class",
+        "handlerId": "foundation-generated-unit-class",
         "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
@@ -8079,7 +8182,7 @@
         "availabilityStatus": "DEV_ONLY",
         "executable": true,
         "purchasable": false,
-        "handlerId": "foundation-compiled-unit-class",
+        "handlerId": "foundation-generated-unit-class",
         "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
@@ -8143,7 +8246,7 @@
         "availabilityStatus": "DEV_ONLY",
         "executable": true,
         "purchasable": false,
-        "handlerId": "foundation-compiled-unit-class",
+        "handlerId": "foundation-generated-unit-class",
         "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
@@ -8200,7 +8303,7 @@
         "availabilityStatus": "DEV_ONLY",
         "executable": true,
         "purchasable": false,
-        "handlerId": "foundation-compiled-unit-class",
+        "handlerId": "foundation-generated-unit-class",
         "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",

@@ -455,6 +455,39 @@ function supportingDefinition(
   );
 }
 
+const foundationUnitExecution: Record<string, JsonObject> = {
+  "unit-artillery": {
+    capacity: 1,
+    tags: ["GROUND", "PERSONNEL", "ARTILLERY", "INDIRECT", "DEPLOYABLE"],
+    allowedOrders: ["HOLD", "ADVANCE"],
+    allowedActions: ["ATTACK", "RELOAD"],
+  },
+  "unit-engineers": {
+    capacity: 1,
+    tags: ["GROUND", "PERSONNEL", "ENGINEER", "BUILDER", "REPAIR"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+    allowedActions: ["LOAD", "UNLOAD"],
+  },
+  "unit-infantry-squad": {
+    capacity: 1,
+    tags: ["GROUND", "PERSONNEL", "INFANTRY", "DIG_IN"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+    allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+  },
+  "unit-light-vehicle": {
+    capacity: 1,
+    tags: ["GROUND", "VEHICLE", "SUB_SYSTEM", "EVASIVE"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+    allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+  },
+  "unit-main-battle-tank": {
+    capacity: 1,
+    tags: ["GROUND", "VEHICLE", "SUB_SYSTEM", "REAR_WEAK_SPOT"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+    allowedActions: ["ATTACK"],
+  },
+};
+
 function buildDefinitionGroups(snapshot: LegacyCatalogueSnapshot): Record<string, RuleDefinitionRecordV1[]> {
   const units = snapshot.tables.unit_class_definitions.map((row) => {
     const definition = jsonObject(row, "definition_json");
@@ -469,6 +502,7 @@ function buildDefinitionGroups(snapshot: LegacyCatalogueSnapshot): Record<string
       category: requiredString(row, "category"),
       healthModel: requiredString(row, "health_model"),
       legacyProjectionSensorRange: requiredNumber(row, "sensor_range"),
+      execution: foundationUnitExecution[requiredString(row, "id")] ?? null,
       definition,
     });
   });
@@ -770,10 +804,10 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
 function buildHandlers(): RuleEngineHandlerV1[] {
   return [
     {
-      id: "foundation-compiled-unit-class",
+      id: "foundation-generated-unit-class",
       kind: "UNIT",
       evidence: {
-        sourcePath: "packages/rules-engine/src/catalogue.ts",
+        sourcePath: "packages/rules-engine/src/tactical-unit-catalogue.ts",
         resolverPath: "packages/rules-engine/src/resolver.ts",
         definitionIds: [...foundationUnitIds],
       },
@@ -818,7 +852,7 @@ function buildHandlers(): RuleEngineHandlerV1[] {
 }
 
 function handlerForOverlay(kind: string, id: string): string | null {
-  if (kind === "UNIT" && foundationUnitIds.includes(id as (typeof foundationUnitIds)[number])) return "foundation-compiled-unit-class";
+  if (kind === "UNIT" && foundationUnitIds.includes(id as (typeof foundationUnitIds)[number])) return "foundation-generated-unit-class";
   if (kind === "EQUIPMENT" && id === "equipment-flak-vests") return "equipment-effect-flak-vests";
   if (kind === "EQUIPMENT" && id === "equipment-light-at") return "equipment-effect-light-at";
   return null;

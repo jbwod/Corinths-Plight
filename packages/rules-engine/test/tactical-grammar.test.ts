@@ -4,6 +4,7 @@ import {
   getTacticalActionRule,
   getTacticalOrderRule,
 } from "../src/tactical-grammar";
+import { getTacticalUnitClass } from "../src/tactical-unit-catalogue";
 import { V5_CORE_CURATED_2_CONTENT_HASH } from "../src/generated/v5-core-curated-2";
 
 describe("generated tactical grammar", () => {
@@ -32,5 +33,24 @@ describe("generated tactical grammar", () => {
     expect(getTacticalActionRule("HEAL").executable).toBe(false);
     expect(getTacticalActionRule("BOMBARDMENT").executable).toBe(false);
     expect(() => getTacticalActionRule("AIR_SUPPORT")).toThrow("Unknown action type: AIR_SUPPORT");
+  });
+
+  it("materializes the playable foundation units without the handwritten catalogue", () => {
+    const infantry = getTacticalUnitClass("unit-infantry-squad");
+    expect(infantry).toMatchObject({
+      rulesetVersion: "v5-core-curated@2",
+      category: "INFANTRY",
+      stats: { maxHealth: 6, speed: 1, sensors: 4, capacity: 1 },
+      allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+      allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+    });
+    expect(infantry.weapons).toEqual([
+      expect.objectContaining({ id: "weapon-infantry-rifle", range: 1, armorPiercing: 0 }),
+    ]);
+    expect(getTacticalUnitClass("unit-main-battle-tank")).toMatchObject({
+      stats: { maxHealth: 3, armor: 3, speed: 2 },
+      allowedActions: ["ATTACK"],
+    });
+    expect(() => getTacticalUnitClass("unit-logi-truck")).toThrow("Unit class is not executable");
   });
 });

@@ -82,7 +82,7 @@ describe("server rules hydration", () => {
       requisitionStatus: "BALANCE_REQUIRED",
       availabilityStatus: "DEV_ONLY",
       executable: true,
-      handlerId: "foundation-compiled-unit-class",
+      handlerId: "foundation-generated-unit-class",
     });
     expect(result.authority.links.actionDefinitionIds).toEqual(expect.arrayContaining([
       "action-attack",

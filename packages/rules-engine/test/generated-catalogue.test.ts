@@ -139,7 +139,7 @@ describe("rules catalogue bootstrap", () => {
       "UNIT:unit-main-battle-tank",
     ]);
     expect(content.handlers.map((handler) => handler.id)).toEqual([
-      "foundation-compiled-unit-class",
+      "foundation-generated-unit-class",
       "foundation-order-handler",
       "foundation-action-handler",
       "equipment-effect-flak-vests",

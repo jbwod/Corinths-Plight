@@ -1,0 +1,164 @@
+import type {
+  ActionType,
+  DefinitionStatus,
+  OrderType,
+  UnitClassDefinition,
+  WeaponProfile,
+} from "../../domain/src";
+import type { RuleDefinitionRecordV1, RuleNullableNumberV1 } from "../../domain/src/rules-catalogue-contract";
+import { V5_CORE_CURATED_2_RULESET_VERSION } from "./generated/v5-core-curated-2";
+import { getTacticalActionRule, getTacticalOrderRule, tacticalRulesCatalogueRuntime } from "./tactical-grammar";
+
+interface FoundationExecutionProjection {
+  capacity: number;
+  tags: string[];
+  allowedOrders: OrderType[];
+  allowedActions: ActionType[];
+}
+
+function record(value: unknown, path: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`TACTICAL_UNIT_CATALOGUE_INVALID:${path}`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function stringArray(value: unknown, path: string): string[] {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+    throw new Error(`TACTICAL_UNIT_CATALOGUE_INVALID:${path}`);
+  }
+  return [...value];
+}
+
+function publishedNumber(
+  numbers: Readonly<Record<string, Readonly<RuleNullableNumberV1>>>,
+  key: string,
+  id: string,
+): number {
+  const value = numbers[key];
+  if (!value || value.status !== "PUBLISHED" || value.value === null || !Number.isFinite(value.value)) {
+    throw new Error(`TACTICAL_UNIT_CATALOGUE_NUMBER_UNAVAILABLE:${id}:${key}`);
+  }
+  return value.value;
+}
+
+function optionalPublishedNumber(value: Readonly<RuleNullableNumberV1> | undefined): number | undefined {
+  return value?.status === "PUBLISHED" && value.value !== null ? value.value : undefined;
+}
+
+function executionProjection(definition: RuleDefinitionRecordV1): FoundationExecutionProjection {
+  const parameters = record(definition.parameters, `${definition.id}:parameters`);
+  const execution = record(parameters.execution, `${definition.id}:execution`);
+  const capacity = execution.capacity;
+  if (!Number.isInteger(capacity) || (capacity as number) < 1) {
+    throw new Error(`TACTICAL_UNIT_CATALOGUE_INVALID:${definition.id}:execution.capacity`);
+  }
+  return {
+    capacity: capacity as number,
+    tags: stringArray(execution.tags, `${definition.id}:execution.tags`),
+    allowedOrders: stringArray(execution.allowedOrders, `${definition.id}:execution.allowedOrders`) as OrderType[],
+    allowedActions: stringArray(execution.allowedActions, `${definition.id}:execution.allowedActions`) as ActionType[],
+  };
+}
+
+function weaponProfile(id: string): WeaponProfile {
+  const lookup = tacticalRulesCatalogueRuntime.lookupDefinition("WEAPON", id);
+  if (!lookup.found) throw new Error(`TACTICAL_UNIT_WEAPON_MISSING:${id}`);
+  const definition = lookup.value;
+  const parameters = record(definition.parameters, `${id}:parameters`);
+  const details = record(parameters.definition, `${id}:definition`);
+  return {
+    id,
+    name: definition.name,
+    damage: {
+      count: publishedNumber(definition.sourcedNumbers, "damageDiceCount", id),
+      sides: publishedNumber(definition.sourcedNumbers, "damageDieSides", id),
+      modifier: publishedNumber(definition.sourcedNumbers, "damageModifier", id),
+    },
+    range: publishedNumber(definition.sourcedNumbers, "rangeHexes", id),
+    armorPiercing: publishedNumber(definition.sourcedNumbers, "armorPiercing", id),
+    indirect: parameters.indirect === true,
+    ammoCapacity: optionalPublishedNumber(definition.sourcedNumbers.ammoCapacity),
+    cooldownRounds: optionalPublishedNumber(definition.sourcedNumbers.cooldownRounds),
+    tags: stringArray(details.tags ?? [], `${id}:definition.tags`),
+  };
+}
+
+function sourceLabel(definition: RuleDefinitionRecordV1): string {
+  return [definition.sourcePath ?? definition.sourceId, definition.sourceLocator]
+    .filter((part): part is string => typeof part === "string" && part.length > 0)
+    .join(" — ");
+}
+
+export function getTacticalUnitClass(
+  id: string,
+  options: { scenarioSensorRange?: number } = {},
+): UnitClassDefinition {
+  const lookup = tacticalRulesCatalogueRuntime.lookupDefinition("UNIT", id);
+  if (!lookup.found) throw new Error(`Unknown unit class: ${id}`);
+  const definition = lookup.value as RuleDefinitionRecordV1;
+  const decision = tacticalRulesCatalogueRuntime.decide("UNIT", id, "PRODUCTION");
+  if (
+    decision.overlay?.implementationStatus === "CATALOGUE_ONLY" ||
+    decision.overlay?.executable !== true ||
+    decision.overlay.handlerId !== "foundation-generated-unit-class"
+  ) {
+    throw new Error(`Unit class is not executable: ${id}`);
+  }
+  const parameters = record(definition.parameters, `${id}:parameters`);
+  const execution = executionProjection(definition);
+  const healthModel = parameters.healthModel;
+  if (healthModel !== "FORCE_STRENGTH" && healthModel !== "HITS") {
+    throw new Error(`TACTICAL_UNIT_CATALOGUE_INVALID:${id}:healthModel`);
+  }
+  const category = parameters.category;
+  if (!["INFANTRY", "ARMOUR", "ARTILLERY", "ENGINEER", "AEROSPACE", "MECH", "SUPPORT", "ENEMY"].includes(String(category))) {
+    throw new Error(`TACTICAL_UNIT_CATALOGUE_INVALID:${id}:category`);
+  }
+  const legacySensor = parameters.legacyProjectionSensorRange;
+  const sensors = options.scenarioSensorRange ?? legacySensor;
+  if (!Number.isInteger(sensors) || (sensors as number) < 0) {
+    throw new Error(`TACTICAL_UNIT_CATALOGUE_SENSOR_REQUIRED:${id}`);
+  }
+  const weaponIds = tacticalRulesCatalogueRuntime
+    .relationsFrom({ definitionKind: "UNIT", definitionId: id })
+    .filter((relation) => relation.kind === "UNIT_WEAPON" && relation.to?.definitionKind === "WEAPON")
+    .sort((left, right) => (left.ordinal ?? 0) - (right.ordinal ?? 0))
+    .map((relation) => relation.to!.definitionId);
+  const slots = Object.fromEntries(tacticalRulesCatalogueRuntime
+    .relationsFrom({ definitionKind: "UNIT", definitionId: id })
+    .filter((relation) => relation.kind === "UNIT_EQUIPMENT_SLOT")
+    .map((relation) => {
+      const slotType = record(relation.parameters, `${relation.id}:parameters`).slotType;
+      if (typeof slotType !== "string") throw new Error(`TACTICAL_UNIT_CATALOGUE_INVALID:${relation.id}:slotType`);
+      return [slotType.toLowerCase(), publishedNumber(relation.sourcedNumbers, "slotCount", relation.id)];
+    }));
+  const allowedOrders = execution.allowedOrders.filter((type) => getTacticalOrderRule(type).executable);
+  const allowedActions = execution.allowedActions.filter((type) => getTacticalActionRule(type).executable);
+  return {
+    id,
+    kind: "unit-class",
+    name: definition.name,
+    description: definition.notes || definition.name,
+    category: category as UnitClassDefinition["category"],
+    tags: [...execution.tags],
+    stats: {
+      healthModel,
+      maxHealth: publishedNumber(definition.sourcedNumbers, "maxHealth", id),
+      armor: publishedNumber(definition.sourcedNumbers, "armor", id),
+      defense: publishedNumber(definition.sourcedNumbers, "defense", id),
+      speed: publishedNumber(definition.sourcedNumbers, "speedQuarters", id) / 4,
+      sensors: sensors as number,
+      capacity: execution.capacity,
+    },
+    weapons: weaponIds.map(weaponProfile),
+    requisitionCost: optionalPublishedNumber(definition.sourcedNumbers.requisitionCost) ?? null,
+    slots,
+    allowedOrders,
+    allowedActions,
+    rulesetVersion: V5_CORE_CURATED_2_RULESET_VERSION,
+    source: sourceLabel(definition),
+    status: definition.definitionStatus as DefinitionStatus,
+    notes: definition.notes,
+  };
+}

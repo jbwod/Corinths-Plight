@@ -11,8 +11,14 @@ import type {
   RequisitionValueStatus,
   SubsystemOperationalState,
   UnitLocationState,
+  UnitClassDefinition,
   UnitStatus,
 } from "../../packages/domain/src";
+import { getTacticalUnitClass } from "../../packages/rules-engine/src";
+import {
+  V5_CORE_CURATED_2_CONTENT_HASH,
+  V5_CORE_CURATED_2_RULESET_VERSION,
+} from "../../packages/rules-engine/src/generated/v5-core-curated-2";
 import type { AuthenticatedIdentity } from "../auth";
 import type { Env } from "../env";
 import type { PurchaseForceCommand, ReadinessCheckCommand, RenameForceCommand } from "../forces-validation";
@@ -862,6 +868,12 @@ function catalogueItem(
   const definition = parseJson<Record<string, unknown>>(row.definition_json, {});
   const movementRules = parseJson<Record<string, unknown>>(row.movement_definition_json, {});
   const durabilityRules = parseJson<Record<string, unknown>>(row.durability_definition_json, {});
+  let governed: UnitClassDefinition | null = null;
+  try {
+    governed = getTacticalUnitClass(row.id);
+  } catch {
+    // Non-executable catalogue rows remain visible as D1-backed reference data.
+  }
   return {
     definitionId: row.id,
     name: row.name,
@@ -871,7 +883,7 @@ function catalogueItem(
     implementationStatus: row.implementation_status ?? "CATALOGUE_ONLY",
     requisitionStatus: row.requisition_status ?? "NOT_APPLICABLE",
     availabilityStatus: row.availability_status ?? "HIDDEN",
-    executable: row.executable === 1,
+    executable: row.executable === 1 && governed !== null,
     purchasable: row.purchasable === 1,
     developerOverrideAllowed: developerOverrideAllowed(includeDevelopment, row),
     reasonCode: row.reason_code,
@@ -907,17 +919,23 @@ function catalogueItem(
       rules: movementRules,
     },
     stats: {
-      healthModel: row.health_model,
-      maxHealth: row.max_health,
-      armor: row.armor,
-      defense: row.defense,
-      speed: row.speed_quarters / 4,
-      sensors: row.sensor_range,
+      healthModel: governed?.stats.healthModel ?? row.health_model,
+      maxHealth: governed?.stats.maxHealth ?? row.max_health,
+      armor: governed?.stats.armor ?? row.armor,
+      defense: governed?.stats.defense ?? row.defense,
+      speed: governed?.stats.speed ?? row.speed_quarters / 4,
+      sensors: governed?.stats.sensors ?? row.sensor_range,
+      capacity: governed?.stats.capacity,
     },
-    sensors: row.sensor_range,
-    tags,
-    weaponIds: weapons.map((weapon) => weapon.id),
-    weapons: weapons.map((weapon) => ({
+    sensorStatus: governed ? "SCENARIO_DEFINED" : undefined,
+    sensors: governed?.stats.sensors ?? row.sensor_range,
+    tags: governed?.tags ?? tags,
+    allowedActions: governed?.allowedActions ?? [],
+    allowedOrders: governed?.allowedOrders ?? [],
+    catalogueRulesetVersion: V5_CORE_CURATED_2_RULESET_VERSION,
+    catalogueContentHash: V5_CORE_CURATED_2_CONTENT_HASH,
+    weaponIds: governed?.weapons.map((weapon) => weapon.id) ?? weapons.map((weapon) => weapon.id),
+    weapons: governed?.weapons ?? weapons.map((weapon) => ({
       id: weapon.id,
       name: weapon.name,
       damage: {
@@ -934,7 +952,7 @@ function catalogueItem(
       mountRole: weapon.mount_role,
       mountIndex: weapon.mount_index,
     })),
-    slots: Object.fromEntries(slots.map((slot) => [slot.slot_type, slot.slot_count])),
+    slots: governed?.slots ?? Object.fromEntries(slots.map((slot) => [slot.slot_type, slot.slot_count])),
     slotRules: Object.fromEntries(slots.map((slot) => [slot.slot_type, parseJson(slot.eligibility_json, {})])),
     abilities: abilities.map((ability) => ({
       abilityId: ability.ability_id,

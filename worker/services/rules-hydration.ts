@@ -12,7 +12,7 @@ import {
   createRulesCatalogueRuntime,
   getTacticalActionRule,
   getTacticalOrderRule,
-  getUnitClass,
+  getTacticalUnitClass,
   hydrateGovernedCargoProfile,
   hydrateGovernedSupplyProfile,
   type CatalogueRuntimeModeV1,
@@ -28,7 +28,7 @@ export const RULES_AUTHORITY_SNAPSHOT_VERSION = 1 as const;
 export const LEGACY_RULESET_ID = "ruleset-v5-core-curated-1" as const;
 
 const callerHandlerIds = new Set([
-  "foundation-compiled-unit-class",
+  "foundation-generated-unit-class",
   "foundation-action-handler",
   "foundation-order-handler",
   "equipment-effect-flak-vests",
@@ -164,7 +164,7 @@ export type EquipmentRulesHydrationResult =
 type UnitHandlerAdapter = (definitionId: string) => UnitClassDefinition;
 
 const unitHandlerAdapters = new Map<string, UnitHandlerAdapter>([
-  ["foundation-compiled-unit-class", getUnitClass],
+  ["foundation-generated-unit-class", getTacticalUnitClass],
 ]);
 
 export type UnitExecutionAdapterResult =

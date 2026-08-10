@@ -14,7 +14,7 @@ This is the live release checklist. A checked local build item is not permission
 
 | Blocker | Status | Evidence / exit condition |
 |---|---:|---|
-| Split D1/compiled/adaptor rules truth | partial P0 | CP-200 supplies a generated `@2` catalogue/public projection and now governs tactical action/order submission and resolution; CP-201 governs D1 profile/status/link hydration and fails closed before unsupported classes reach the `@1` unit handler. D1 catalogue publication and complete removal of the unit/weapon/Force/UI compatibility bridge remain open. |
+| Split D1/compiled/adaptor rules truth | partial P0 | CP-200's generated `@2` catalogue now materializes playable starter/Force/unit/weapon/action/order data through tactical resolution; CP-201 preserves D1 profile/status/link data and fails closed before unsupported classes execute. D1 still carries legacy `@1` relational/FK identity and lacks immutable `@2` publication. |
 | Conflict provenance mismatch | open P0 | D1 has 12 obsolete conflict IDs instead of the 72-record canonical register. |
 | No production world/campaign content | open P0 | Production seeds create zero campaigns, insertion zones, strategic maps/nodes and ships. |
 | Demo/showcase/hard-coded production client paths | open P0 | App, Forces, Deployment and Strategic surfaces use fixed IDs or local fallback data. |

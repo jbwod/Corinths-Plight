@@ -8,7 +8,7 @@ import {
 } from "./generated/v5-core-curated-2";
 
 const registeredHandlerIds = new Set([
-  "foundation-compiled-unit-class",
+  "foundation-generated-unit-class",
   "foundation-action-handler",
   "foundation-order-handler",
   "equipment-effect-flak-vests",
@@ -26,7 +26,7 @@ if (!runtimeBuild.ok) {
   );
 }
 
-const runtime = runtimeBuild.runtime;
+export const tacticalRulesCatalogueRuntime = runtimeBuild.runtime;
 
 const actionIds: Partial<Record<ActionType, string>> = {
   ATTACK: "action-attack",
@@ -93,7 +93,7 @@ export function getTacticalActionRule(
 ): TacticalActionRule {
   const id = actionIds[actionType];
   if (!id) throw new Error(`Unknown action type: ${actionType}`);
-  const lookup = runtime.lookupDefinition("ACTION", id);
+  const lookup = tacticalRulesCatalogueRuntime.lookupDefinition("ACTION", id);
   if (!lookup.found) throw new Error(`TACTICAL_GRAMMAR_DEFINITION_MISSING:${id}`);
   const parameters = objectValue(lookup.value.parameters, `${id}:parameters`);
   const definition = objectValue(parameters.definition, `${id}:definition`);
@@ -101,7 +101,7 @@ export function getTacticalActionRule(
   if (!speed || speed.status !== "PUBLISHED" || speed.value === null || !Number.isInteger(speed.value)) {
     throw new Error(`TACTICAL_GRAMMAR_INVALID:${id}:speedCostQuarters`);
   }
-  const decision = runtime.decide("ACTION", id, mode);
+  const decision = tacticalRulesCatalogueRuntime.decide("ACTION", id, mode);
   return {
     id,
     actionType,
@@ -120,9 +120,9 @@ export function getTacticalOrderRule(
   mode: CatalogueRuntimeModeV1 = "PRODUCTION",
 ): TacticalOrderRule {
   const id = orderIds[orderType];
-  const lookup = runtime.lookupDefinition("ORDER", id);
+  const lookup = tacticalRulesCatalogueRuntime.lookupDefinition("ORDER", id);
   if (!lookup.found) throw new Error(`TACTICAL_GRAMMAR_DEFINITION_MISSING:${id}`);
-  const decision = runtime.decide("ORDER", id, mode);
+  const decision = tacticalRulesCatalogueRuntime.decide("ORDER", id, mode);
   return {
     id,
     orderType,
