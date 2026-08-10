@@ -60,6 +60,13 @@ export function GalacticOperationsView({
     : [];
   const selectedFormation = formationsAtSelectedNode.find((formation) => formation.id === selectedFormationId)
     ?? formationsAtSelectedNode[0];
+  const embarkCarrier = selectedFormation?.kind === "BATTLEGROUP" && !selectedFormation.carrierTaskForceId
+    ? formationsAtSelectedNode.find((formation) =>
+        formation.kind === "TASK_FORCE" &&
+        formation.routeNodeIds.length === 0 &&
+        ["READY", "RECOVERING"].includes(formation.status)
+      )
+    : undefined;
   const supportCapability = selectedOperation?.recommendedCapabilities.find((capability) =>
     selectedFormation?.capabilities.includes(capability),
   );
@@ -302,6 +309,13 @@ export function GalacticOperationsView({
                     </select>
                   </label>
                   <div className="strategic-order-actions">
+                    {selectedFormation?.kind === "BATTLEGROUP" && embarkCarrier && ["READY", "RECOVERING", "FORMING"].includes(selectedFormation.status) && (
+                      <button type="button" disabled={!canCreateOrders || submitting} onClick={() => void submitOrder({
+                        type: "EMBARK_BATTLEGROUP",
+                        battlegroupId: selectedFormation.id,
+                        carrierTaskForceId: embarkCarrier.id,
+                      })}>EMBARK {embarkCarrier.name.toUpperCase()}</button>
+                    )}
                     {selectedFormation?.kind === "BATTLEGROUP" && selectedFormation.status === "EMBARKED" && selectedFormation.carrierTaskForceId && (
                       <button type="button" disabled={!canCreateOrders || submitting} onClick={() => void submitOrder({
                         type: "DISEMBARK_BATTLEGROUP",

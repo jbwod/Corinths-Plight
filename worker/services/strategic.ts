@@ -1464,8 +1464,10 @@ export async function resolveStrategicMapRound(
         group.currentCarrierTaskForceId, group.version, now, group.battalionId));
     const previous = hydrated.state.battlegroups.find((candidate) => candidate.id === group.id);
     if (group.currentNodeId && previous?.currentNodeId !== group.currentNodeId) {
-      statements.push(env.DB.prepare(`UPDATE player_units SET location_id=?2,version=version+1,updated_at=?3
-        WHERE status IN ('ACTIVE','DAMAGED') AND location_kind='RESERVE' AND location_state='RESERVE'
+      statements.push(env.DB.prepare(`UPDATE player_units SET
+          location_kind='RESERVE',location_state='RESERVE',location_id=?2,
+          version=version+1,updated_at=?3
+        WHERE status IN ('ACTIVE','DAMAGED') AND location_state IN ('RESERVE','ON_SHIP')
           AND EXISTS (SELECT 1 FROM battlegroup_units AS links
             WHERE links.battlegroup_id=?1 AND links.player_unit_id=player_units.id)`)
         .bind(group.id, group.currentNodeId, now));
@@ -1480,6 +1482,18 @@ export async function resolveStrategicMapRound(
                                         disembarked_at = NULL, revision = revision + 1, updated_at = excluded.updated_at`)
         .bind(`strategic-link:${group.currentCarrierTaskForceId}:${group.id}`, group.currentCarrierTaskForceId,
           group.battalionId, group.id, now));
+      statements.push(env.DB.prepare(`UPDATE player_units SET
+          location_kind='SHIP',location_state='ON_SHIP',
+          location_id=(SELECT links.ship_id FROM task_force_ships AS links
+            WHERE links.task_force_id=?2 AND links.status='ACTIVE'
+            ORDER BY CASE links.role WHEN 'PRIMARY' THEN 0 ELSE 1 END,links.ship_id LIMIT 1),
+          version=version+1,updated_at=?3
+        WHERE status IN ('ACTIVE','DAMAGED') AND location_state IN ('RESERVE','ON_SHIP')
+          AND EXISTS (SELECT 1 FROM battlegroup_units AS links
+            WHERE links.battlegroup_id=?1 AND links.player_unit_id=player_units.id)
+          AND EXISTS (SELECT 1 FROM task_force_ships AS links
+            WHERE links.task_force_id=?2 AND links.status='ACTIVE')`)
+        .bind(group.id, group.currentCarrierTaskForceId, now));
     } else if (previous?.currentCarrierTaskForceId) {
       statements.push(env.DB.prepare(`UPDATE task_force_battlegroups
                                         SET status = 'DISEMBARKED', disembarked_at = ?3,
