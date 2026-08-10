@@ -99,7 +99,7 @@ export const unitClasses: UnitClassDefinition[] = [
     requisitionCost: null,
     slots: { primary: 0, secondary: 2, internal: 0, engineer: 3 },
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-    allowedActions: ["DIG_IN", "REPAIR", "CONSTRUCT", "LOAD", "UNLOAD"],
+    allowedActions: ["DIG_IN", "ARTILLERY_DIG_IN", "REPAIR", "CONSTRUCT", "LOAD", "UNLOAD"],
     rulesetVersion: RULESET_VERSION,
     source: v5("Starting Unit Classes / Engineers"),
     status: "active",
@@ -315,11 +315,12 @@ export const orderTypeDefinitions: OrderTypeRuleDefinition[] = (
   }));
 
 const actionProfiles: Record<
-  "ATTACK" | "DIG_IN" | "DEPLOY" | "PACK_UP" | "REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "BOMBARDMENT" | "RELOAD" | "LOAD" | "UNLOAD" | "SCAN" | "DEPLOY_DRONE",
+  "ATTACK" | "DIG_IN" | "ARTILLERY_DIG_IN" | "DEPLOY" | "PACK_UP" | "REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "BOMBARDMENT" | "RELOAD" | "LOAD" | "UNLOAD" | "SCAN" | "DEPLOY_DRONE",
   { economy: ActionEconomy; speedCost: number; usesAttack: boolean; executable: boolean }
 > = {
   ATTACK: { economy: "STANDARD", speedCost: 0, usesAttack: true, executable: true },
   DIG_IN: { economy: "STANDARD", speedCost: 1, usesAttack: false, executable: true },
+  ARTILLERY_DIG_IN: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
   DEPLOY: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
   PACK_UP: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
   REPAIR: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
@@ -334,7 +335,7 @@ const actionProfiles: Record<
 };
 
 export const actionDefinitions: ActionRuleDefinition[] = (
-  ["ATTACK", "DIG_IN", "DEPLOY", "PACK_UP", "REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "BOMBARDMENT", "RELOAD", "LOAD", "UNLOAD", "SCAN", "DEPLOY_DRONE"] as const
+  ["ATTACK", "DIG_IN", "ARTILLERY_DIG_IN", "DEPLOY", "PACK_UP", "REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "BOMBARDMENT", "RELOAD", "LOAD", "UNLOAD", "SCAN", "DEPLOY_DRONE"] as const
 ).map((name) => ({
     id: name === "LOAD"
       ? "action-load-cargo"

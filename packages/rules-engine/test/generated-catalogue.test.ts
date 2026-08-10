@@ -28,14 +28,14 @@ describe("rules catalogue bootstrap", () => {
       units: 16,
       weapons: 12,
       equipment: 22,
-      actions: 23,
+      actions: 24,
       orders: 6,
       structures: 6,
       terrain: 4,
       ships: 4,
       enemies: 7,
     });
-    expect(legacyTopLevelDefinitionCount(snapshot)).toBe(100);
+    expect(legacyTopLevelDefinitionCount(snapshot)).toBe(101);
     expect(await legacySourceHashMismatches(snapshot)).toEqual([]);
     expect(legacyUnitPublicationSplit(snapshot)).toEqual({
       canonicalUnitIds: [
@@ -93,7 +93,7 @@ describe("rules catalogue bootstrap", () => {
     expect([
       ...content.units, ...content.weapons, ...content.equipment, ...content.actions,
       ...content.orders, ...content.structures, ...content.terrain, ...content.ships, ...content.enemies,
-    ]).toHaveLength(100);
+    ]).toHaveLength(101);
     expect(content.conflicts).toHaveLength(84);
 
     const medic = content.units.find((unit) => unit.id === "unit-combat-medic")!;
@@ -123,6 +123,7 @@ describe("rules catalogue bootstrap", () => {
       });
     }
     expect(content.overlays.filter((overlay) => overlay.executable).map((overlay) => `${overlay.definitionKind}:${overlay.definitionId}`)).toEqual([
+      "ACTION:action-artillery-dig-in",
       "ACTION:action-attack",
       "ACTION:action-bombardment",
       "ACTION:action-construct",

@@ -85,9 +85,9 @@ interface CampaignDirectoryEntry {
 }
 const campaignCanOpen = (entry: CampaignDirectoryEntry): boolean => entry.canEnter || entry.outcome !== undefined;
 type Notice = { tone: "info" | "success" | "danger"; message: string };
-type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
+type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "ARTILLERY_DIG_IN" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
 type RepairKind = "HIT" | "SUBSYSTEM";
-const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "RELOAD", "LOAD", "UNLOAD", "HEAL", "REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
+const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "ARTILLERY_DIG_IN", "RELOAD", "LOAD", "UNLOAD", "HEAL", "REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
 const constructibleFieldworks = CONSTRUCTIBLE_FIELDWORK_IDS.map(getFieldworkDefinition);
 
 function initialCampaign(): CampaignView {
@@ -125,7 +125,9 @@ function formatEvent(event: CampaignEvent): string {
         ? `${event.actor ?? "Unit"} halted before a hostile formation${increment}.`
         : `${event.actor ?? "Unit"} was blocked${increment}.`;
   }
-  if (event.type === "UNIT_DUG_IN") return `${event.actor ?? "Unit"} dug in for +2 Defense.`;
+  if (event.type === "UNIT_DUG_IN") return payload.method === "ENGINEER_ARTILLERY_POSITION"
+    ? `${event.actor ?? "Engineer"} dug in ${String(payload.targetId ?? "Artillery")} for +2 Defense.`
+    : `${event.actor ?? "Unit"} dug in for +2 Defense.`;
   if (event.type === "UNIT_DUG_OUT") return `${event.actor ?? "Unit"} left its prepared position and lost Dig In Defense.`;
   if (event.type === "EVASIVE_MANEUVER") return payload.active === true
     ? `${event.actor ?? "Unit"} completed an Evasive maneuver for +3 Defense and −2 outgoing attacks.`
@@ -448,6 +450,15 @@ function GameApp() {
     ) &&
     coordinatesEqual(deployment.position, draftedRoute.at(-1) ?? selectedUnit.position)
   ) : [];
+  const artilleryDigInTargets = selectedUnit ? campaign.deployments.filter((deployment) =>
+    deployment.id !== selectedUnit.id &&
+    deployment.side === selectedUnit.side &&
+    deployment.status !== "DESTROYED" &&
+    deployment.tags?.includes("ARTILLERY") === true &&
+    (deployment.artilleryDeployment === "DEPLOYED" || deployment.statuses.includes("DEPLOYED")) &&
+    !deployment.statuses.includes("DUG_IN") &&
+    hexDistance(deployment.position, draftedRoute.at(-1) ?? selectedUnit.position) <= 1
+  ) : [];
   const supportTargets = actionMode === "LOAD"
     ? loadTargets
     : actionMode === "UNLOAD"
@@ -456,6 +467,8 @@ function GameApp() {
         ? healTargets
         : actionMode === "REPAIR"
           ? repairTargets
+        : actionMode === "ARTILLERY_DIG_IN"
+          ? artilleryDigInTargets
         : [];
   const supportTarget = supportTargets.find((deployment) => deployment.id === supportTargetUnitId) ?? supportTargets[0];
   const repairableSubsystems = supportTarget?.subsystems?.filter((subsystem) => subsystem.state !== "OPERATIONAL") ?? [];
@@ -552,6 +565,7 @@ function GameApp() {
       (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0 &&
       (repairKind === "HIT" ? supportTarget.currentHealth < supportTarget.stats.maxHealth : selectedRepairSubsystem),
     )) ||
+    (actionMode === "ARTILLERY_DIG_IN" && Boolean(isEngineerUnit && supportTarget)) ||
     (actionMode === "CONSTRUCT" && Boolean(
       isEngineerUnit && selectedConstructionHex &&
       (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) >= selectedConstructionFieldwork.smallSupplyCost
@@ -593,6 +607,8 @@ function GameApp() {
             ? repairKind === "HIT"
               ? `restore one Hit to ${supportTarget.callsign}`
               : `repair ${selectedRepairSubsystem?.subsystemId ?? "a subsystem"} on ${supportTarget.callsign}`
+          : actionMode === "ARTILLERY_DIG_IN" && supportTarget
+            ? `dig in deployed artillery ${supportTarget.callsign} for +2 Defense`
           : actionMode === "CONSTRUCT" && selectedConstructionHex
             ? `build ${selectedConstructionFieldwork.name} at ${selectedConstructionHex.q}.${selectedConstructionHex.r}`
           : actionMode === "TRENCH_UPGRADE" && plannedEndHex
@@ -627,7 +643,7 @@ function GameApp() {
     setActionMode(storedMode);
     setTargetUnitId(storedAction?.type === "ATTACK" ? storedAction.targetDeploymentId : undefined);
     setSupportTargetUnitId(
-      storedAction?.type === "LOAD" || storedAction?.type === "UNLOAD" || storedAction?.type === "HEAL" || storedAction?.type === "REPAIR"
+      storedAction?.type === "LOAD" || storedAction?.type === "UNLOAD" || storedAction?.type === "HEAL" || storedAction?.type === "REPAIR" || storedAction?.type === "ARTILLERY_DIG_IN"
         ? storedAction.targetDeploymentId ?? (typeof storedAction.payload?.cargoDeploymentId === "string" ? storedAction.payload.cargoDeploymentId : undefined)
         : undefined,
     );
@@ -739,6 +755,8 @@ function GameApp() {
           ? { repairKind: "HIT" }
           : { repairKind: "SUBSYSTEM", subsystemId: selectedRepairSubsystem?.subsystemId },
       });
+    } else if (actionMode === "ARTILLERY_DIG_IN" && supportTarget) {
+      actions.push({ type: "ARTILLERY_DIG_IN", targetDeploymentId: supportTarget.id, equipmentIds: [] });
     } else if (actionMode === "CONSTRUCT" && selectedConstructionHex) {
       actions.push({
         type: "CONSTRUCT",
@@ -1188,6 +1206,8 @@ function GameApp() {
                                 ? healTargets[0]?.id
                                 : type === "REPAIR"
                                   ? repairTargets[0]?.id
+                                : type === "ARTILLERY_DIG_IN"
+                                  ? artilleryDigInTargets[0]?.id
                                 : undefined,
                         );
                         if (type === "REPAIR") {
@@ -1199,7 +1219,7 @@ function GameApp() {
                         if (type === "CONSTRUCT") setConstructionTargetHex(constructionHexes[0]?.coord);
                         if (type === "BOMBARDMENT") setBombardmentTargetHex(bombardmentHexes[0]?.coord);
                       }}
-                    >{type}</button>
+                    >{type === "ARTILLERY_DIG_IN" ? "DIG IN ARTILLERY" : type}</button>
                   ))}
                 </div>
                 {actionMode === "ATTACK" && selectedUnit.weapons.length > 0 ? (
@@ -1337,6 +1357,24 @@ function GameApp() {
                     </p>
                     <p className="validation">Restore one vehicle Hit or one damaged subsystem to a friendly vehicle in base contact.</p>
                     {repairTargets.length === 0 && <p className="validation danger">No damaged friendly vehicle is in base contact at the planned destination.</p>}
+                  </>
+                ) : actionMode === "ARTILLERY_DIG_IN" ? (
+                  <>
+                    <label className="field-label" htmlFor="artillery-dig-in-target">DEPLOYED ARTILLERY</label>
+                    <select
+                      id="artillery-dig-in-target"
+                      aria-label="DEPLOYED ARTILLERY"
+                      value={supportTarget?.id ?? ""}
+                      onChange={(event) => setSupportTargetUnitId(event.target.value)}
+                      disabled={artilleryDigInTargets.length === 0}
+                    >
+                      {artilleryDigInTargets.map((deployment) => (
+                        <option value={deployment.id} key={deployment.id}>{deployment.callsign} · DEPLOYED</option>
+                      ))}
+                    </select>
+                    <p className="validation">STANDARD ACTION · 0.5 SPEED · no Supply cost · target gains +2 Defense.</p>
+                    <p className="validation">The Engineer must finish adjacent; the Artillery unit must remain deployed and stationary this round.</p>
+                    {artilleryDigInTargets.length === 0 && <p className="validation danger">No eligible deployed friendly Artillery unit is adjacent to the planned destination.</p>}
                   </>
                 ) : actionMode === "CONSTRUCT" ? (
                   <>

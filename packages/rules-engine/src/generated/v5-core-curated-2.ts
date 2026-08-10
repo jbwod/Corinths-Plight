@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "c703aad796a5ee516394548721eaec3dca77ea6f4ea6292f536769d5871750f2",
+  "contentHash": "7d2ccf940c95e1738704b1f1a54a6477aa8137df52f5eee4f36e4bdcd0519947",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1428,7 +1428,8 @@ const snapshot = {
             "allowedActions": [
               "REPAIR",
               "CONSTRUCT",
-              "DIG_IN"
+              "DIG_IN",
+              "ARTILLERY_DIG_IN"
             ],
             "supplyCapacity": "CURRENT_FS",
             "weaponIds": []
@@ -1436,6 +1437,7 @@ const snapshot = {
           "execution": {
             "allowedActions": [
               "DIG_IN",
+              "ARTILLERY_DIG_IN",
               "REPAIR",
               "CONSTRUCT",
               "LOAD",
@@ -3597,6 +3599,34 @@ const snapshot = {
             "costPerCargoSlotQuarters": 2,
             "requiredAbility": "AIRDROP",
             "targetMustLieOnRoute": true
+          },
+          "economy": "STANDARD"
+        }
+      },
+      {
+        "id": "action-artillery-dig-in",
+        "kind": "ACTION",
+        "name": "Dig In Artillery",
+        "definitionStatus": "active",
+        "sourceId": "source-v5-core",
+        "sourcePath": null,
+        "sourceLocator": "V5 / Artillery",
+        "notes": "RC-V5-025: an adjacent Engineer spends one Standard Action; the deployed artillery remains stationary.",
+        "sourcedNumbers": {
+          "speedCostQuarters": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "actorTag": "ENGINEER",
+            "defenseModifier": 2,
+            "maximumRange": 1,
+            "requiresTargetState": "DEPLOYED",
+            "smallSupplyCost": 0,
+            "targetTag": "ARTILLERY"
           },
           "economy": "STANDARD"
         }
@@ -7641,6 +7671,7 @@ const snapshot = {
         "evidence": {
           "definitionIds": [
             "action-attack",
+            "action-artillery-dig-in",
             "action-bombardment",
             "action-construct",
             "action-deploy-platform",
@@ -7696,6 +7727,22 @@ const snapshot = {
       }
     ],
     "overlays": [
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-artillery-dig-in",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
       {
         "definitionKind": "ACTION",
         "definitionId": "action-attack",
@@ -8535,6 +8582,7 @@ const snapshot = {
             "FS",
             "MOVEMENT",
             "REPAIR_ACTION",
+            "ARTILLERY_DIG_IN",
             "SANDBAG_LINE_CONSTRUCTION",
             "RAZOR_WIRE",
             "TANK_TRAPS"
@@ -8543,7 +8591,7 @@ const snapshot = {
             "BRIDGES"
           ],
           "publicationCorrection": {
-            "reason": "Engineer Repair and the source-complete V5 Sandbag, Razor Wire, and Tank Trap fieldworks execute end to end; Bridge remains gated.",
+            "reason": "Engineer Repair, adjacent deployed-Artillery Dig In, and the source-complete V5 Sandbag, Razor Wire, and Tank Trap fieldworks execute end to end; Bridge remains gated.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": true,
@@ -14186,5 +14234,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "c703aad796a5ee516394548721eaec3dca77ea6f4ea6292f536769d5871750f2" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "7d2ccf940c95e1738704b1f1a54a6477aa8137df52f5eee4f36e4bdcd0519947" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

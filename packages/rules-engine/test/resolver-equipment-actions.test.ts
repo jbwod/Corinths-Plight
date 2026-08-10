@@ -3,11 +3,13 @@ import type { CampaignDeployment, RoundInput, StructuredAction, UnitOrder } from
 import {
   calculateRouteCost,
   createDemoCampaignState,
+  createSeededRandom,
   getActionDefinition,
   getTacticalActionRule,
   getTacticalUnitClass,
   hexDistance,
   resolveTacticalCover,
+  resolveAttackRoll,
   resolveRound,
   validateOrder,
 } from "../src";
@@ -77,6 +79,58 @@ describe("equipment and transport actions", () => {
       actor: deployedArtillery.id,
       payload: expect.objectContaining({ speedCost: packRule.speedCost, toStatus: "PACKED" }),
     }));
+  });
+
+  it("lets an adjacent Engineer dig in deployed stationary Artillery for +2 Defense", () => {
+    const base = createDemoCampaignState(1_000);
+    const engineer = base.deployments.find((deployment) => deployment.definitionId === "unit-engineers")!;
+    const artillery = base.deployments.find((deployment) => deployment.definitionId === "unit-artillery")!;
+    const hostile = base.deployments.find((deployment) => deployment.side === "ENEMY")!;
+    artillery.statuses = ["DEPLOYED"];
+    artillery.artilleryDeployment = "DEPLOYED";
+    const supplyBefore = engineer.supplies?.SMALL_SUPPLY;
+    const fortify = order(base, engineer, [action("dig-in-artillery", "ARTILLERY_DIG_IN", {
+      targetDeploymentId: artillery.id,
+    })]);
+    base.orders = [fortify];
+
+    const output = resolveRound({ ...input([fortify]), previousState: base });
+    const resolvedArtillery = output.state.deployments.find((deployment) => deployment.id === artillery.id)!;
+    const resolvedEngineer = output.state.deployments.find((deployment) => deployment.id === engineer.id)!;
+    expect(resolvedArtillery.statuses).toContain("DUG_IN");
+    expect(resolvedEngineer.supplies?.SMALL_SUPPLY).toBe(supplyBefore);
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "UNIT_DUG_IN",
+      actor: engineer.id,
+      payload: expect.objectContaining({
+        targetId: artillery.id,
+        defenseModifier: 2,
+        speedCost: 0.5,
+        method: "ENGINEER_ARTILLERY_POSITION",
+        conflictId: "RC-V5-025",
+      }),
+    }));
+
+    hostile.position = { q: -4, r: 2 };
+    const calculation = resolveAttackRoll(
+      hostile,
+      resolvedArtillery,
+      hostile.weapons[0]!,
+      output.state.map,
+      createSeededRandom("artillery-dig-in-defense"),
+    );
+    expect(calculation.digInDefense).toBe(2);
+
+    const packed = createDemoCampaignState(1_000);
+    const packedEngineer = packed.deployments.find((deployment) => deployment.definitionId === "unit-engineers")!;
+    const packedArtillery = packed.deployments.find((deployment) => deployment.definitionId === "unit-artillery")!;
+    const invalid = order(packed, packedEngineer, [action("dig-in-packed-artillery", "ARTILLERY_DIG_IN", {
+      targetDeploymentId: packedArtillery.id,
+    })]);
+    expect(validateOrder(invalid, packedEngineer, {
+      ...input([invalid]),
+      previousState: packed,
+    })).toMatchObject({ legal: false, reasons: expect.arrayContaining(["The Artillery unit must already be deployed."]) });
   });
 
   it("bombards a spotted radius, spends Small Supply, and recovers suppression after fire stops", () => {

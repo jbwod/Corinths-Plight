@@ -472,7 +472,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     capacity: 1,
     tags: ["GROUND", "PERSONNEL", "ENGINEER", "BUILDER", "REPAIR"],
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-    allowedActions: ["DIG_IN", "REPAIR", "CONSTRUCT", "LOAD", "UNLOAD"],
+    allowedActions: ["DIG_IN", "ARTILLERY_DIG_IN", "REPAIR", "CONSTRUCT", "LOAD", "UNLOAD"],
   },
   "unit-infantry-squad": {
     capacity: 1,
@@ -771,6 +771,7 @@ const foundationOrderIds = [
 
 const foundationActionIds = [
   "action-attack",
+  "action-artillery-dig-in",
   "action-bombardment",
   "action-construct",
   "action-deploy-platform",
@@ -807,10 +808,10 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["FS", "MOVEMENT", "REPAIR_ACTION", "SANDBAG_LINE_CONSTRUCTION", "RAZOR_WIRE", "TANK_TRAPS"],
+      implementedSubset: ["FS", "MOVEMENT", "REPAIR_ACTION", "ARTILLERY_DIG_IN", "SANDBAG_LINE_CONSTRUCTION", "RAZOR_WIRE", "TANK_TRAPS"],
       missing: ["BRIDGES"],
     },
-    explanation: "Engineer Repair and the source-complete V5 Sandbag, Razor Wire, and Tank Trap fieldworks execute end to end; Bridge remains gated.",
+    explanation: "Engineer Repair, adjacent deployed-Artillery Dig In, and the source-complete V5 Sandbag, Razor Wire, and Tank Trap fieldworks execute end to end; Bridge remains gated.",
   },
   "UNIT:unit-heavy-air-transport": {
     implementationStatus: "PARTIAL", executable: false, handlerId: null,
@@ -1141,7 +1142,7 @@ export async function buildCanonicalCatalogueEnvelope(root = repositoryRoot): Pr
     readLegacyCatalogueSnapshot(root),
     readCanonicalConflictRegister(root),
   ]);
-  if (legacyTopLevelDefinitionCount(snapshot) !== 100) throw new Error("The final seed snapshot must contain exactly 100 top-level definitions.");
+  if (legacyTopLevelDefinitionCount(snapshot) !== 101) throw new Error("The final seed snapshot must contain exactly 101 top-level definitions.");
   if (canonicalConflicts.length !== 72) throw new Error("The canonical conflict register must contain exactly 72 records.");
   const sourceMismatches = await legacySourceHashMismatches(snapshot, root);
   if (sourceMismatches.length > 0) throw new Error(`Rules source hashes drifted: ${canonicalJson(sourceMismatches)}`);
@@ -1195,8 +1196,8 @@ export async function buildCanonicalCatalogueEnvelope(root = repositoryRoot): Pr
 async function bootstrapLegacySnapshot(destination: string): Promise<void> {
   const snapshot = await readLegacyCatalogueSnapshot();
   const topLevelDefinitions = legacyTopLevelDefinitionCount(snapshot);
-  if (topLevelDefinitions !== 100) {
-    throw new Error(`Expected 100 final seeded top-level definitions; received ${topLevelDefinitions}.`);
+  if (topLevelDefinitions !== 101) {
+    throw new Error(`Expected 101 final seeded top-level definitions; received ${topLevelDefinitions}.`);
   }
   await writeFile(destination, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
   console.log(`Bootstrapped ${topLevelDefinitions} definitions to ${relative(repositoryRoot, destination)}.`);

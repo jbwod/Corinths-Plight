@@ -99,6 +99,23 @@ describe("campaign order request contracts", () => {
     }]);
   });
 
+  it("requires an exact target for Engineer-assisted Artillery Dig In", () => {
+    expect(parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-allied-engineers",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{ type: "ARTILLERY_DIG_IN", targetDeploymentId: "deployment-allied-artillery" }],
+    }).actions).toEqual([{ type: "ARTILLERY_DIG_IN", targetDeploymentId: "deployment-allied-artillery" }]);
+    expect(() => parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-allied-engineers",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{ type: "ARTILLERY_DIG_IN" }],
+    })).toThrow(CampaignRequestContractError);
+  });
+
   it("requires an exact structure and hex for Engineer construction", () => {
     expect(parseCampaignOrderIntent({
       ...ORDER_COMMAND,

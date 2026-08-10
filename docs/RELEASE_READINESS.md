@@ -34,17 +34,17 @@ This is the live release checklist. A checked local build item is not permission
 
 | Command | Environment | Outcome | Notes |
 |---|---|---:|---|
-| `npm run seed:check` | macOS local, Node project toolchain | PASS | 40 definitions; 35 active; 99 SQL definitions; 16 allied classes; 7 enemy roles; 4 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
+| `npm run seed:check` | macOS local, Node project toolchain | PASS | 41 definitions; 36 active; 100 SQL definitions; 16 allied classes; 7 enemy roles; 4 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
 | `npm run typecheck` | local | PASS | TypeScript 6.0.3. |
 | `npm run lint` | local | PASS | ESLint 10.8.1. |
-| `npm test` | local | PASS | Vitest 4.1.10; 59 files / 439 tests. |
-| `npm run build` | local development config | PASS | Worker 1,247.92 kB; client JS 774.37 kB; CSS 136.50 kB; Wrangler emitted only its known sandboxed debug-log warning. |
+| `npm test` | local | PASS | Vitest 4.1.10; 59 files / 441 tests. |
+| `npm run build` | local development config | PASS | Worker 1,254.61 kB; client JS 777.40 kB; CSS 136.50 kB; Wrangler emitted only its known sandboxed debug-log warning. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
 | Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0010 applied. |
 | Seven seeds, twice | same isolated D1 | PASS | Core, Phase 2, equipment, onboarding and three development fixtures replayed twice. |
 | SQLite integrity | isolated D1 database | PASS | `integrity_check=ok`; `foreign_key_check` empty. |
 | `npm run ci:verify:d1` | isolated local D1 | PASS | Ten migrations; seven seeds twice; stable table fingerprints/counts; 117 checked application tables. |
-| `CI=1 npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 4/4 canaries; local demo identity/fixtures only, not production E2E evidence. |
+| `CI=1 npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 7/7 canaries, including live four-round K-17 support/combat/victory resolution; local demo identity/fixtures only, not production E2E evidence. |
 | `git diff --check` | local Phase-1 tree | PASS | No whitespace errors at final gate. |
 | `npm audit --audit-level=high` | npm advisory service | PASS | Zero known vulnerabilities at assessment time; the result is time-sensitive. |
 

@@ -58,6 +58,7 @@ const allowedActionTypes = new Set([
   "ATTACK",
   "ASSAULT",
   "DIG_IN",
+  "ARTILLERY_DIG_IN",
   "BREAK_OUT",
   "DEPLOY",
   "PACK_UP",
@@ -939,6 +940,38 @@ export class CampaignDurableObject extends DurableObject<Env> {
     }
     if (digInActions.length > 0 && deployment.statuses.includes("DUG_IN")) {
       return errorResponse(409, "ALREADY_DUG_IN", "This unit is already dug in.");
+    }
+    for (const action of actions.filter((candidate) => candidate.type === "ARTILLERY_DIG_IN")) {
+      const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+      const targetOrder = target && state.orders.find((candidate) =>
+        candidate.unitId === target.id && candidate.round === state.round && candidate.lifecycle !== "CANCELLED"
+      );
+      const targetRules = target && resolveUnitExecutionAdapter(LEGACY_RULESET_ID, target.definitionId, this.env.ENVIRONMENT);
+      if (!execution.legacyDefinition.tags.includes("ENGINEER")) {
+        return errorResponse(422, "ARTILLERY_DIG_IN_INELIGIBLE", "Dig In Artillery requires an Engineer unit.");
+      }
+      if (
+        !target ||
+        target.side !== deployment.side ||
+        target.status === "DESTROYED" ||
+        !targetRules?.ok ||
+        !targetRules.legacyDefinition.tags.includes("ARTILLERY")
+      ) {
+        return errorResponse(422, "ARTILLERY_DIG_IN_TARGET_INVALID", "Dig In Artillery requires a friendly operational Artillery unit.");
+      }
+      const targetDeployed = target.artilleryDeployment === "DEPLOYED" || target.statuses.includes("DEPLOYED");
+      if (!targetDeployed) {
+        return errorResponse(422, "ARTILLERY_NOT_DEPLOYED", "The Artillery unit must already be deployed.");
+      }
+      if (target.statuses.includes("DUG_IN")) {
+        return errorResponse(409, "ARTILLERY_ALREADY_DUG_IN", "The Artillery unit is already dug in.");
+      }
+      if (hexDistance(route.at(-1)!, target.position) > 1) {
+        return errorResponse(422, "ARTILLERY_DIG_IN_RANGE", "The Engineer must finish adjacent to the Artillery unit.");
+      }
+      if (targetOrder && (targetOrder.route.length > 1 || targetOrder.actions.some((candidate) => candidate.type === "PACK_UP"))) {
+        return errorResponse(409, "ARTILLERY_MUST_REMAIN_STATIONARY", "The Artillery unit must remain deployed and stationary this round.");
+      }
     }
     if (platformActions.length > 1) {
       return errorResponse(422, "ARTILLERY_STATE_CONFLICT", "Artillery may change platform state once per round.");

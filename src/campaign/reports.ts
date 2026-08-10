@@ -156,7 +156,9 @@ export function describeCampaignReportEvent(
       return `${actor} was blocked${where}${increment}.`;
     }
     case "UNIT_DUG_IN":
-      return `${actor} dug in at hex ${coordLabel(payload.position) ?? "unknown"} for +2 Defense.`;
+      return payload.method === "ENGINEER_ARTILLERY_POSITION"
+        ? `${actor} dug in ${target} at hex ${coordLabel(payload.position) ?? "unknown"} for +2 Defense (${String(payload.conflictId ?? "RC-V5-025")}).`
+        : `${actor} dug in at hex ${coordLabel(payload.position) ?? "unknown"} for +2 Defense.`;
     case "UNIT_DUG_OUT":
       return `${actor} left its prepared position and lost Dig In Defense.`;
     case "EVASIVE_MANEUVER":

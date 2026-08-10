@@ -14,6 +14,7 @@ const actionTypes = new Set<ActionType>([
   "ATTACK",
   "ASSAULT",
   "DIG_IN",
+  "ARTILLERY_DIG_IN",
   "BREAK_OUT",
   "DEPLOY",
   "PACK_UP",
@@ -196,6 +197,7 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     ATTACK: ["targetDeploymentId", "targetHex", "weaponId"],
     ASSAULT: ["targetDeploymentId", "targetHex", "weaponId"],
     DIG_IN: [],
+    ARTILLERY_DIG_IN: ["targetDeploymentId"],
     BREAK_OUT: ["targetHex"],
     DEPLOY: [],
     PACK_UP: [],
@@ -221,6 +223,9 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
   }
   if (type === "HEAL" && parsed.targetDeploymentId === undefined) {
     requestFail(`${path}.targetDeploymentId`, "First Aid requires a target deployment.");
+  }
+  if (type === "ARTILLERY_DIG_IN" && parsed.targetDeploymentId === undefined) {
+    requestFail(`${path}.targetDeploymentId`, "Dig In Artillery requires a target deployment.");
   }
   if (type === "REPAIR" && parsed.targetDeploymentId === undefined) {
     requestFail(`${path}.targetDeploymentId`, "Engineer Repair requires a target deployment.");

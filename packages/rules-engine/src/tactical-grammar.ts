@@ -31,6 +31,7 @@ export const tacticalRulesCatalogueRuntime = runtimeBuild.runtime;
 
 const actionIds: Partial<Record<ActionType, string>> = {
   ATTACK: "action-attack",
+  ARTILLERY_DIG_IN: "action-artillery-dig-in",
   DIG_IN: "action-dig-in",
   DEPLOY: "action-deploy-platform",
   PACK_UP: "action-pack-platform",

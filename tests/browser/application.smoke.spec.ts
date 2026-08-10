@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { CampaignView } from "../../packages/domain/src";
-import { calculateRouteCost, canTarget, shortestPath } from "../../packages/rules-engine/src";
+import { calculateRouteCost, canTarget, hexDistance, shortestPath } from "../../packages/rules-engine/src";
 
 async function expectNoDocumentOverflow(page: Page): Promise<void> {
   const dimensions = await page.evaluate(() => ({
@@ -235,6 +235,47 @@ async function submitEngineerAdvance(page: Page): Promise<void> {
   expect(result, result.body).toMatchObject({ status: 201 });
 }
 
+async function submitInfantryRelayAdvance(page: Page): Promise<void> {
+  const response = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(response.status()).toBe(200);
+  const state = await response.json() as CampaignView;
+  const infantry = state.deployments.find((deployment) => deployment.callsign === "RAVEN-2")!;
+  if (infantry.status === "DESTROYED") return;
+  const relay = state.objectives.find((objective) => objective.id === "objective-outpost")!;
+  const route = affordableRoute(
+    shortestPath(infantry.position, relay.coord, state.map),
+    state.map,
+    infantry.stats.speed,
+    true,
+  );
+  const orderRevision = state.orders.find((order) => order.unitId === infantry.id && order.round === state.round)?.revision ?? 0;
+  const result = await page.evaluate(async ({ command }) => {
+    const order = await fetch("/api/campaigns/campaign-k17-relay/orders", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-demo-user": "demo-user" },
+      body: JSON.stringify(command),
+    });
+    return { status: order.status, body: await order.text() };
+  }, {
+    command: {
+      commandId: `browser-infantry-relay-${state.round}`,
+      expectedCampaignVersion: state.version,
+      expectedOrderRevision: orderRevision,
+      unitId: infantry.id,
+      round: state.round,
+      orderType: route.length > 1 ? "RUSH" : "HOLD",
+      lifecycle: "SUBMITTED",
+      route,
+      facing: infantry.facing,
+      actions: [],
+      incidentalActions: [],
+    },
+  });
+  expect(result, result.body).toMatchObject({ status: 201 });
+}
+
 async function submitEngineerRazorWire(page: Page): Promise<void> {
   const response = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
     headers: { "x-demo-user": "demo-user" },
@@ -266,6 +307,45 @@ async function submitEngineerRazorWire(page: Page): Promise<void> {
         targetHex: engineer.position,
         structureDefinitionId: "structure-razor-wire",
       }],
+      incidentalActions: [],
+    },
+  });
+  expect(result, result.body).toMatchObject({ status: 201 });
+}
+
+async function submitEngineerArtilleryDigIn(page: Page): Promise<void> {
+  const response = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(response.status()).toBe(200);
+  const state = await response.json() as CampaignView;
+  const engineer = state.deployments.find((deployment) => deployment.callsign === "ANVIL")!;
+  const artillery = state.deployments.find((deployment) => deployment.callsign === "LONGBOW")!;
+  const relay = state.objectives.find((objective) => objective.id === "objective-outpost")!;
+  const route = shortestPath(engineer.position, relay.coord, state.map).slice(0, 2);
+  expect(route).toHaveLength(2);
+  expect(hexDistance(route.at(-1)!, artillery.position)).toBeLessThanOrEqual(1);
+  expect(calculateRouteCost(route, state.map, { rush: true, unitTags: engineer.tags }).total + 0.5).toBeLessThanOrEqual(engineer.stats.speed);
+  const orderRevision = state.orders.find((order) => order.unitId === engineer.id && order.round === state.round)?.revision ?? 0;
+  const result = await page.evaluate(async ({ command }) => {
+    const order = await fetch("/api/campaigns/campaign-k17-relay/orders", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-demo-user": "demo-user" },
+      body: JSON.stringify(command),
+    });
+    return { status: order.status, body: await order.text() };
+  }, {
+    command: {
+      commandId: `browser-engineer-artillery-dig-in-${state.round}`,
+      expectedCampaignVersion: state.version,
+      expectedOrderRevision: orderRevision,
+      unitId: engineer.id,
+      round: state.round,
+      orderType: "RUSH",
+      lifecycle: "SUBMITTED",
+      route,
+      facing: engineer.facing,
+      actions: [{ type: "ARTILLERY_DIG_IN", targetDeploymentId: artillery.id }],
       incidentalActions: [],
     },
   });
@@ -465,7 +545,13 @@ test("tactical composer exposes every currently executable action and no catalog
   await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
   await expect(page.getByText(/LONGBOW order submitted to campaign command/)).toBeVisible();
   await submitRelayDefenceAttack(page);
-  await submitEngineerAdvance(page);
+  await page.locator(".unit-roster").getByRole("button", { name: /ANVIL/ }).click();
+  await expect(composer.getByRole("button", { name: "DIG IN ARTILLERY", exact: true })).toBeVisible();
+  await composer.getByRole("button", { name: "DIG IN ARTILLERY", exact: true }).click();
+  await expect(composer.getByLabel("DEPLOYED ARTILLERY")).toContainText("LONGBOW");
+  await expect(composer.getByText(/no Supply cost/)).toBeVisible();
+  await submitEngineerArtilleryDigIn(page);
+  await submitInfantryRelayAdvance(page);
   await resolveCurrentK17Round(page);
 
   await expect.poll(async () => {
@@ -474,15 +560,17 @@ test("tactical composer exposes every currently executable action and no catalog
     });
     if (!response.ok()) return false;
     const state = await response.json() as {
-      deployments?: Array<{ callsign: string; supplies?: Record<string, number> }>;
-      events?: Array<{ type: string }>;
+      deployments?: Array<{ callsign: string; supplies?: Record<string, number>; statuses?: string[] }>;
+      events?: Array<{ type: string; payload?: Record<string, unknown> }>;
     };
     const medic = state.deployments?.find((deployment) => deployment.callsign === "DOC-7");
     const artillery = state.deployments?.find((deployment) => deployment.callsign === "LONGBOW");
     return medic?.supplies?.MEDICAL_SUPPLY === 4 && medic.supplies.SMALL_SUPPLY === 0 &&
       artillery?.supplies?.SMALL_SUPPLY === 1 &&
+      artillery.statuses?.includes("DUG_IN") === true &&
       state.events?.some((event) => event.type === "MEDICAL_SUPPLY_RELOADED") === true &&
-      state.events.some((event) => event.type === "ARTILLERY_BOMBARDED") === true;
+      state.events.some((event) => event.type === "ARTILLERY_BOMBARDED") === true &&
+      state.events.some((event) => event.type === "UNIT_DUG_IN" && event.payload?.method === "ENGINEER_ARTILLERY_POSITION") === true;
   }).toBe(true);
 
   const roundThree = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
@@ -502,6 +590,7 @@ test("tactical composer exposes every currently executable action and no catalog
 
   await submitRelayDefenceAttack(page);
   await submitEngineerAdvance(page);
+  await submitInfantryRelayAdvance(page);
   await resolveCurrentK17Round(page);
 
   await page.reload();
@@ -527,6 +616,7 @@ test("tactical composer exposes every currently executable action and no catalog
     await submitEngineerAdvance(page);
   }
   await submitRelayDefenceAttack(page);
+  await submitInfantryRelayAdvance(page);
   await resolveCurrentK17Round(page);
 
   await expect.poll(async () => {

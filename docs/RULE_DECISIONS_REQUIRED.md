@@ -326,18 +326,18 @@ These already have recorded provisional dispositions. Confirming them does not m
 | RC-V5-002 | Rush doubles post-mitigation FS/Hits | resolver uses it; ground-only guard missing |
 | RC-V5-003 | One activation, one roll per eligible weapon | runtime supports only one weapon |
 | RC-V5-004 | Evasive `-2` is outgoing damage | not executable |
-| RC-V5-005 | Cover grants non-stacking `+1 Armor` | not implemented |
+| RC-V5-005 | Cover grants non-stacking `+1 Armor` | implemented for generated terrain/structure cover; directional edges remain open |
 | RC-V5-006 | Subsystem trigger requires penetration and natural 5/6 | helper/data only |
 | RC-V5-011 | Artillery control/direct fire spends one Small Supply | not end to end |
 | RC-V5-012 | Bombardment Defense floor/recovery | not end to end |
 | RC-V5-017 | VTOL modes are mutually exclusive infantry or Supply | adapter cannot represent them |
-| RC-V5-019 | Dig In duration/preservation/stacking | not implemented |
+| RC-V5-019 | Dig In duration/preservation/stacking | implemented for Infantry/Medic/Engineer and connected Trenches |
 | RC-V5-020 | Enemy split-fire, round-robin and ties | AI incomplete |
-| RC-V5-021 | High-ground `+1 attack` modifies Damage | not implemented |
+| RC-V5-021 | High-ground `+1 attack` modifies Damage | implemented in governed ground attack calculations |
 | RC-V5-022 | Any Infantry upgrades trench at no extra Supply | active end to end |
 | RC-V5-023 | Aerospace reload at scenario airfield without crate quantity | not implemented |
-| RC-V5-025 | Adjacent Engineer pays Standard Action to Dig In Artillery | not implemented |
-| RC-V5-027 | Rapid Fire doubles pre-mitigation Damage | not implemented |
+| RC-V5-025 | Adjacent Engineer pays Standard Action to Dig In deployed stationary Artillery | implemented end to end; no Supply inferred |
+| RC-V5-027 | Rapid Fire doubles pre-mitigation Damage | implemented for governed Rapid Fire versus Horde tags |
 | RC-V5-028 | Interceptor declaration/timing/multiple interceptors | not implemented |
 | RC-V5-029 | Retain excess FS-linked Supply and block further loading | incomplete |
 | RC-V5-031 | Distance-increment simultaneous hostile movement | endpoint-only resolver differs |

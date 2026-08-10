@@ -182,9 +182,32 @@ export function validateOrder(
   const deployActions = order.actions.filter((action) => action.type === "DEPLOY");
   const packActions = order.actions.filter((action) => action.type === "PACK_UP");
   const digInActions = order.actions.filter((action) => action.type === "DIG_IN");
+  const artilleryDigInActions = order.actions.filter((action) => action.type === "ARTILLERY_DIG_IN");
   if (digInActions.length > 1) reasons.push("A unit may Dig In once per round.");
   if (digInActions.length > 0 && order.route.length > 1) reasons.push("Dig In consumes all movement and requires the unit to hold position.");
   if (digInActions.length > 0 && deployment.statuses.includes("DUG_IN")) reasons.push("The unit is already dug in.");
+  for (const action of artilleryDigInActions) {
+    const target = input.previousState.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+    const targetOrder = [...input.playerOrders, ...input.enemyOrders].find((candidate) => candidate.unitId === target?.id);
+    if (!deploymentTags(deployment).includes("ENGINEER")) {
+      reasons.push("Dig In Artillery requires an Engineer unit.");
+    } else if (
+      !target ||
+      target.side !== deployment.side ||
+      target.status === "DESTROYED" ||
+      !deploymentTags(target).includes("ARTILLERY")
+    ) {
+      reasons.push("Dig In Artillery requires a friendly operational Artillery unit.");
+    } else if (artilleryState(target) !== "DEPLOYED") {
+      reasons.push("The Artillery unit must already be deployed.");
+    } else if (target.statuses.includes("DUG_IN")) {
+      reasons.push("The Artillery unit is already dug in.");
+    } else if (hexDistance(order.endHex, target.position) > 1) {
+      reasons.push("The Engineer must finish adjacent to the Artillery unit.");
+    } else if (targetOrder && (targetOrder.route.length > 1 || targetOrder.actions.some((candidate) => candidate.type === "PACK_UP"))) {
+      reasons.push("The Artillery unit must remain deployed and stationary this round.");
+    }
+  }
   if (deployActions.length + packActions.length > 1) reasons.push("Artillery may change platform state once per round.");
   if ((deployActions.length > 0 || packActions.length > 0) && !artillery) {
     reasons.push("Deploy and Pack Up require an Artillery unit.");
@@ -433,6 +456,53 @@ export function resolveRound(input: RoundInput): RoundOutput {
           position: actor.position,
           defenseModifier: 2,
           speedCost: action.speedCost,
+        }, actorVisibility);
+      }
+      if (action.type === "ARTILLERY_DIG_IN") {
+        const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+        const targetOrder = target && validOrders.get(target.id);
+        const targetRemainsStationary = !targetOrder || (
+          targetOrder.route.length === 1 && !targetOrder.actions.some((candidate) => candidate.type === "PACK_UP")
+        );
+        if (
+          !deploymentTags(actor).includes("ENGINEER") ||
+          !target ||
+          target.side !== actor.side ||
+          target.status === "DESTROYED" ||
+          !deploymentTags(target).includes("ARTILLERY") ||
+          artilleryState(target) !== "DEPLOYED" ||
+          target.statuses.includes("DUG_IN") ||
+          hexDistance(actor.position, target.position) > 1 ||
+          !targetRemainsStationary
+        ) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [
+              !deploymentTags(actor).includes("ENGINEER")
+                ? "Dig In Artillery requires an Engineer unit."
+                : !target || target.side !== actor.side || !deploymentTags(target).includes("ARTILLERY")
+                  ? "Dig In Artillery requires a friendly operational Artillery unit."
+                  : artilleryState(target) !== "DEPLOYED"
+                    ? "The Artillery unit must already be deployed."
+                    : target.statuses.includes("DUG_IN")
+                      ? "The Artillery unit is already dug in."
+                      : !targetRemainsStationary
+                        ? "The Artillery unit must remain deployed and stationary this round."
+                        : "The Engineer must finish adjacent to the Artillery unit.",
+            ],
+          }, actorVisibility);
+          continue;
+        }
+        target.statuses.push("DUG_IN");
+        event("UNIT_DUG_IN", actor.id, {
+          actionId: action.id,
+          targetId: target.id,
+          position: target.position,
+          defenseModifier: 2,
+          speedCost: action.speedCost,
+          method: "ENGINEER_ARTILLERY_POSITION",
+          conflictId: "RC-V5-025",
         }, actorVisibility);
       }
       if (action.type === "CONSTRUCT") {

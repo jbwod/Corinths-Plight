@@ -740,6 +740,7 @@ export type ActionType =
   | "ATTACK"
   | "ASSAULT"
   | "DIG_IN"
+  | "ARTILLERY_DIG_IN"
   | "BREAK_OUT"
   | "DEPLOY"
   | "PACK_UP"
