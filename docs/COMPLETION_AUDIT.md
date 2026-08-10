@@ -8,7 +8,7 @@
 
 **Verdict:** **Not release ready**
 
-The repository is a healthy Cloudflare-native foundation with production passwordless identity, guided onboarding, persistent force/loadout services, deployment-plan commits, useful strategic read models, and a deterministic tactical core. It is not yet the advertised living cooperative war. Production-facing clients still contain hard-coded demo identities and scenarios, local showcase fallbacks, inert/deferred controls, and two explicit strategic `501` paths. Tactical campaigns other than K-17 clone the K-17 demo map. The rules truth is split across V5, D1, the compiled engine catalogue, adapters, and React fixtures.
+The repository is a healthy Cloudflare-native foundation with production passwordless identity, guided onboarding, persistent force/loadout services, deployment-plan commits, useful strategic read models, and a deterministic tactical core. It is not yet the advertised living cooperative war. Production-facing clients still contain hard-coded demo identities and local showcase fallbacks, inert/deferred controls, and two explicit strategic `501` paths. Persistent tactical campaigns now require an authored map-source loader instead of cloning K-17, but only the first K-17 scenario content exists. Rules instance storage and D1 publication still retain legacy identity alongside the generated runtime catalogue.
 
 This document reports evidence, not intent. A capability is `implemented` only when all applicable source/data/schema/engine/auth/persistence/event/UI/test/operations layers exist. The audit uses:
 

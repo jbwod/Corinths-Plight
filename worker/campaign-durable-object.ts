@@ -11,6 +11,7 @@ import type {
 import {
   createDemoCampaignState,
   canTarget,
+  createScenarioCampaignState,
   getTacticalActionRule,
   getTacticalOrderRule,
   projectCampaignState,
@@ -168,7 +169,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (parsed.legacy) await this.ctx.storage.put(STATE_KEY, encodeCampaignStoredState(parsed.state));
       return parsed.state;
     }
-    const created = this.campaignId() === FOUNDATION_CAMPAIGN_ID
+    const created = this.campaignId() === FOUNDATION_CAMPAIGN_ID && this.env.ENVIRONMENT === "development"
       ? createDemoCampaignState(Date.now(), this.configuredDuration(), this.campaignId())
       : await this.createPersistentCampaignState();
     created.clock = makeRoundClock(
@@ -198,11 +199,15 @@ export class CampaignDurableObject extends DurableObject<Env> {
 
   private async createPersistentCampaignState(): Promise<CampaignRuntimeState> {
     const campaign = await this.env.DB.prepare(`SELECT campaigns.id, campaigns.status,
-        campaigns.name, planets.name AS planet_name
+        campaigns.name, campaigns.map_source_key, campaigns.round_duration_ms,
+        planets.name AS planet_name
       FROM campaigns
       JOIN planets ON planets.id = campaigns.planet_id
       WHERE campaigns.id = ?1 AND campaigns.status IN ('ACTIVE','DRAFT','RECRUITING') LIMIT 1`)
-      .bind(this.campaignId()).first<{ id: string; status: string; name: string; planet_name: string }>();
+      .bind(this.campaignId()).first<{
+        id: string; status: string; name: string; map_source_key: string;
+        round_duration_ms: number; planet_name: string;
+      }>();
     if (!campaign) throw new Error("CAMPAIGN_NOT_INITIALISED");
     const rows = await this.env.DB.prepare(`SELECT deployments.id, deployments.owner_id,
         deployments.side, deployments.status, deployments.snapshot_json,
@@ -215,16 +220,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
         persistent_unit_id: string; ruleset_id: string; definition_id: string; callsign: string;
       }>();
     if (rows.results.length === 0) throw new Error("CAMPAIGN_NOT_INITIALISED");
-    const created = createDemoCampaignState(Date.now(), this.configuredDuration(), campaign.id);
-    created.campaignName = campaign.name;
-    created.planetName = campaign.planet_name;
-    created.round = 1;
-    created.phase = "PLANNING";
-    created.orders = [];
-    created.events = [];
-    created.objectives = [];
-    created.pendingPersistentEffects = [];
-    created.deployments = rows.results.map((row): CampaignDeployment => {
+    const alliedDeployments = rows.results.map((row): CampaignDeployment => {
       const snapshot = JSON.parse(row.snapshot_json) as Record<string, unknown>;
       const execution = resolveUnitExecutionAdapter(row.ruleset_id, row.definition_id, this.env.ENVIRONMENT);
       if (!execution.ok) throw new Error(`CAMPAIGN_UNIT_DEFINITION_NOT_EXECUTABLE:${row.definition_id}:${execution.code}`);
@@ -274,8 +270,8 @@ export class CampaignDurableObject extends DurableObject<Env> {
     for (const row of rows.results) {
       const snapshot = JSON.parse(row.snapshot_json) as Record<string, unknown>;
       if (typeof snapshot.carrierUnitId !== "string") continue;
-      const carrier = created.deployments.find((deployment) => deployment.persistentUnitId === snapshot.carrierUnitId);
-      const cargo = created.deployments.find((deployment) => deployment.persistentUnitId === row.persistent_unit_id);
+      const carrier = alliedDeployments.find((deployment) => deployment.persistentUnitId === snapshot.carrierUnitId);
+      const cargo = alliedDeployments.find((deployment) => deployment.persistentUnitId === row.persistent_unit_id);
       if (!carrier || !cargo) continue;
       cargo.position = { ...carrier.position };
       carrier.cargo = [...(carrier.cargo ?? []), {
@@ -287,7 +283,16 @@ export class CampaignDurableObject extends DurableObject<Env> {
         unitId: cargo.id,
       }];
     }
-    return created;
+    return createScenarioCampaignState({
+      mapSourceKey: campaign.map_source_key,
+      campaignId: campaign.id,
+      campaignName: campaign.name,
+      planetName: campaign.planet_name,
+      now: Date.now(),
+      durationMs: campaign.round_duration_ms,
+      round: 1,
+      alliedDeployments,
+    });
   }
 
   private async scheduleNextAlarm(state: CampaignRuntimeState): Promise<void> {

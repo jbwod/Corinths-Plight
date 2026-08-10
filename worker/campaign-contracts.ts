@@ -449,6 +449,8 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     "campaignId",
     "campaignName",
     "planetName",
+    "scenarioId",
+    "scenarioVersion",
     "rulesetVersion",
     "engineVersion",
     "round",
@@ -470,6 +472,8 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
   if (stateString(state.campaignId, "$.campaignId") !== campaignId) stateFail("$.campaignId", "does not match the Durable Object identity");
   stateString(state.campaignName, "$.campaignName");
   stateString(state.planetName, "$.planetName");
+  if (state.scenarioId !== undefined) stateString(state.scenarioId, "$.scenarioId");
+  if (state.scenarioVersion !== undefined) stateInteger(state.scenarioVersion, "$.scenarioVersion", 1);
   stateString(state.rulesetVersion, "$.rulesetVersion");
   stateString(state.engineVersion, "$.engineVersion");
   stateInteger(state.round, "$.round", 1);

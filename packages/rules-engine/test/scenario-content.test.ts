@@ -1,0 +1,53 @@
+import { describe, expect, it } from "vitest";
+
+import { createDemoCampaignState } from "../src/demo";
+import {
+  createScenarioCampaignState,
+  OUTPOST_K17_SCENARIO_ID,
+} from "../src/scenario-content";
+
+describe("authored scenario content", () => {
+  it("builds a campaign instance from its map source and persistent allied force", () => {
+    const allied = createDemoCampaignState(1_000).deployments
+      .filter((deployment) => deployment.side === "ALLIED")
+      .slice(0, 2)
+      .map((deployment) => ({ ...deployment, campaignId: "campaign-live", ownerId: "player-live" }));
+    const state = createScenarioCampaignState({
+      mapSourceKey: "fixture/outpost-k17",
+      campaignId: "campaign-live",
+      campaignName: "Hold the Relay",
+      planetName: "Corinth",
+      now: 10_000,
+      durationMs: 300_000,
+      alliedDeployments: allied,
+    });
+
+    expect(state).toMatchObject({
+      campaignId: "campaign-live",
+      scenarioId: OUTPOST_K17_SCENARIO_ID,
+      scenarioVersion: 1,
+      round: 1,
+      phase: "PLANNING",
+      scenarioPolicy: { startRound: 1, maxRounds: 4, primaryObjectiveId: "objective-outpost" },
+    });
+    expect(state.deployments.filter((deployment) => deployment.side === "ALLIED")).toHaveLength(2);
+    expect(state.deployments.filter((deployment) => deployment.side === "ENEMY")).toHaveLength(3);
+    expect(state.objectives).toHaveLength(3);
+    expect(state.events[0]).toMatchObject({
+      type: "ROUND_STARTED",
+      payload: { scenarioId: OUTPOST_K17_SCENARIO_ID, scenarioVersion: 1 },
+    });
+  });
+
+  it("fails closed when a campaign names content that is not authored", () => {
+    expect(() => createScenarioCampaignState({
+      mapSourceKey: "fixture/operation-unknown",
+      campaignId: "unknown",
+      campaignName: "Unknown",
+      planetName: "Corinth",
+      now: 10_000,
+      durationMs: 300_000,
+      alliedDeployments: [],
+    })).toThrow("CAMPAIGN_SCENARIO_NOT_AVAILABLE");
+  });
+});

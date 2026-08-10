@@ -879,6 +879,8 @@ export interface CampaignRuntimeState {
   campaignId: string;
   campaignName: string;
   planetName: string;
+  scenarioId?: string;
+  scenarioVersion?: number;
   rulesetVersion: string;
   engineVersion: string;
   round: number;

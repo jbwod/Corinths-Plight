@@ -102,6 +102,8 @@ function stableDigest(value: unknown): string {
 function campaignStateDigest(state: RoundOutput["state"]): string {
   return stableDigest({
     campaignId: state.campaignId,
+    scenarioId: state.scenarioId,
+    scenarioVersion: state.scenarioVersion,
     round: state.round,
     phase: state.phase,
     deployments: state.deployments,

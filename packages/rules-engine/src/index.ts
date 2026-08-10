@@ -11,6 +11,7 @@ export * from "./mechanics";
 export * from "./resolver";
 export * from "./rng";
 export * from "./scenario";
+export * from "./scenario-content";
 export * from "./specialists";
 export * from "./strategic";
 export * from "./supply-profile-hydration";
