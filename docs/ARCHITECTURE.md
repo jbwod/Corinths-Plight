@@ -16,7 +16,7 @@ This document distinguishes three states:
 | **Target** | An accepted architecture decision that still needs implementation before production |
 | **Deferred** | Outside the first foundation deliverable |
 
-The current repository is a deployed Phase 3/equipment/identity foundation with local K-17, Corinth strategic, and Spearhead fixtures. Guided enlistment is implemented as the next release candidate. It is **not** yet the complete production game: production scenario bootstrap, tactical-to-strategic effect finalisation, complete retry journals, and full withdrawal/redeployment remain open.
+The current repository is a deployed Phase 3/equipment/identity/guided-enlistment foundation with local K-17, Corinth strategic, and Spearhead fixtures. It is **not** yet the complete production game: production scenario bootstrap, tactical-to-strategic effect finalisation, complete retry journals, and full withdrawal/redeployment remain open.
 
 ## 2. Exact foundation milestone
 
@@ -25,7 +25,7 @@ The current repository is a deployed Phase 3/equipment/identity foundation with 
 | Deliverable | Repository evidence | Status |
 |---|---|---|
 | Foundation and Phase 3 design/audit documents | Original seven documents plus `STRATEGIC_LAYER.md`, `BATTALION_MODEL.md`, `SHIP_SYSTEM.md`, and `STRATEGIC_RESOLUTION.md` | Implemented |
-| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0007_guided_onboarding_and_battalions.sql` | Seven additive schema artifacts; applied through `0006` in production before the guided-enlistment release |
+| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0007_guided_onboarding_and_battalions.sql` | Seven additive schema artifacts; applied through `0007` in production |
 | Ruleset seed | `seeds/v5-core-curated.sql`; consistency check in `scripts/validate-seed.ts` | Implemented as an idempotent SQL seed |
 | Domain contracts | `packages/domain/src/index.ts` | Implemented TypeScript interfaces; runtime schemas are not yet present |
 | Pure rules engine | `packages/rules-engine/src/` and `packages/rules-engine/test/` | Implemented foundation subset |
@@ -37,8 +37,8 @@ The current repository is a deployed Phase 3/equipment/identity foundation with 
 | Strategic resolver/API/UI | Domain, pure-engine, Worker, and responsive strategic workspace files | Checkpoint work; verify landed tests before release |
 | Equipment/loadout/deployment slice | `0005`, canonical equipment seed, pure engine, Worker services, planner/force UI, and Spearhead fixture | Implemented release candidate; broader Store content remains blocked |
 | Public home and production identity slice | Public React gateway, Resend passwordless services/routes, opaque sessions, and `0006` | Implemented and deployed; live Resend delivered-test passed |
-| Guided enlistment and Battalion recruitment | `0007`, `onboarding-foundation.sql`, typed Worker services, and responsive guided/recruitment UI | Implemented release candidate; remote migration/deployment pending |
-| Successful remote foundation deployment | Production D1 is migrated through `0006`; Phase 3/equipment/identity Worker and UI are available at `corinthplight.qnetica.com.au` | Implemented on 2026-08-10; production scenario data remains open |
+| Guided enlistment and Battalion recruitment | `0007`, `onboarding-foundation.sql`, typed Worker services, and responsive guided/recruitment UI | Implemented and deployed |
+| Successful remote foundation deployment | Production D1 is migrated through `0007`; Phase 3/equipment/identity/onboarding Worker and UI are available at `corinthplight.qnetica.com.au` | Implemented on 2026-08-10; production scenario data remains open |
 
 The full Phase 3 scenario—production account creation, invitation, purchase, ship travel, deployment into a tactical campaign, exact-once permanent strategic consequences, recovery, and redeployment—is the product definition of success, not a claim about this checkpoint.
 
@@ -276,7 +276,7 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 | Check | Status | Evidence or remaining work |
 |---|---|---|
 | Package skeleton, TypeScript, lint, unit tests, local production build | Complete | Root package scripts |
-| Migrations and idempotent seed artifacts | Complete locally through `0007` and through `0006` in production before this release | Seven additive SQL migrations, canonical seeds, production-safe onboarding seed, local fixtures, `seed:check` |
+| Migrations and idempotent seed artifacts | Complete locally and in production through `0007` | Seven additive SQL migrations, canonical seeds, production-safe onboarding seed, local fixtures, `seed:check` |
 | Deterministic resolver subset and regression coverage | Complete for the stated subset | Hold/Advance/Rush/Attack engine tests |
 | K-17 state, alarms, clock, pause/resume, sockets | Partial | Unit coverage exists; crash/alarm/WebSocket integration coverage does not |
 | Viewer projection | Partial | Basic state/report redaction exists; event-time and socket-field leakage tests remain |
@@ -284,12 +284,12 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 | PREPARED journal, cryptographic input/output hashes, secret seed commitment | Open | Current record is a committed snapshot with a predictable seed and 32-bit digest |
 | Separate persisted schedule records and reconnect catch-up | Open | Schedule lives inside current state; no events-after-sequence API |
 | Production passwordless identity/session issuance | Complete | Resend verified-email links, opaque sessions, logout, rate limits, and pseudonymized audit are deployed |
-| Guided enlistment and Battalion recruitment | Complete locally | Public/private/code/targeted joins, one-charter economy, starter grant, tour, recruitment settings, and Resend invitation tests |
+| Guided enlistment and Battalion recruitment | Complete and deployed | Public/private/code/targeted joins, one-charter economy, starter grant, tour, recruitment settings, and Resend invitation tests |
 | Helion/Corinth strategic schema and fixture | Complete locally | Fresh 0001–0004, all seeds twice, integrity/FK and negative probes |
 | Strategic map sharding, pure resolver, permission-scoped APIs, responsive UI | Checkpoint verification required | Phase 3 domain/engine/Worker/UI lanes; release only after full tests/build and visual inspection |
 | Strategic-to-tactical deployment/result reconciliation | Partial | Loadout/deployment commit, campaign snapshot bootstrap, and narrow tactical writeback exist; withdrawal and the full acknowledgement-gated protocol remain deferred |
-| Production D1 and custom-domain foundation | Complete for the earlier release | Production binding is provisioned; `corinthplight.qnetica.com.au` serves the pre-Phase-3 foundation |
-| Phase 3/identity remote deployment | Complete | Cloudflare version `241d0fac-60ea-47b0-a022-c57b210a1a67`; custom-domain health/UI/auth/Resend and API-navigation smoke tests passed |
+| Production D1 and custom-domain foundation | Complete | Production binding is migrated through `0007`; `corinthplight.qnetica.com.au` serves the current Worker/UI |
+| Phase 3/identity/onboarding remote deployment | Complete | Cloudflare version `f34fa674-b242-4bda-9a7d-dd06cddc7363`; custom-domain health/UI/auth/origin-policy smoke tests passed |
 
 Phase 3 should not be described as complete until the open deployment/result, correctness, scenario, and release gates above are closed. See [STRATEGIC_LAYER.md](./STRATEGIC_LAYER.md), [BATTALION_MODEL.md](./BATTALION_MODEL.md), [SHIP_SYSTEM.md](./SHIP_SYSTEM.md), and [STRATEGIC_RESOLUTION.md](./STRATEGIC_RESOLUTION.md).
 

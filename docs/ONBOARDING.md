@@ -1,6 +1,6 @@
 # Corinth's Plight Guided Enlistment
 
-**Status:** implementation target for migration `0007`
+**Status:** deployed to production with migration `0007` on 2026-08-10
 
 ## Product outcome
 
@@ -61,4 +61,8 @@ Each has an explicit engagement summary, open recruitment rank, high onboarding 
 2. apply `seeds/onboarding-foundation.sql` and verify three public NPC Battalions plus one policy row;
 3. deploy Worker/UI code;
 4. smoke test a real verified account through public join, starter grant, tour completion, and returning-session bypass;
-5. verify private/code and invitation controls through automated D1 integration tests before enabling general promotion.
+5. verify private/code and invitation controls through service tests plus an isolated local D1/HTTP replay before enabling general promotion.
+
+## Production verification
+
+Cloudflare Worker version `f34fa674-b242-4bda-9a7d-dd06cddc7363` serves the guided flow at `https://corinthplight.qnetica.com.au`. Production D1 has no pending migrations, three open NPC recruitment Battalions, the exact 100 Req grant / 100 Req cost / one-charter policy, one onboarding/grant row for the one verified human account present at rollout, and zero foreign-key violations. Live smoke checks passed for health, signed-out auth availability, unauthenticated onboarding rejection, cross-origin mutation rejection, and SPA/security-header delivery. No live account or invitation was created for the smoke test.
