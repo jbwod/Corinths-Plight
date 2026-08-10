@@ -284,7 +284,7 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 | Strategic map sharding, pure resolver, permission-scoped APIs, responsive UI | Checkpoint verification required | Phase 3 domain/engine/Worker/UI lanes; release only after full tests/build and visual inspection |
 | Strategic-to-tactical deployment/result reconciliation | Partial | Loadout/deployment commit, campaign snapshot bootstrap, and narrow tactical writeback exist; withdrawal and the full acknowledgement-gated protocol remain deferred |
 | Production D1 and custom-domain foundation | Complete for the earlier release | Production binding is provisioned; `corinthplight.qnetica.com.au` serves the pre-Phase-3 foundation |
-| Phase 3/identity remote deployment | Complete | Cloudflare version `5ea08f5b-340c-4acf-ae0d-7679b3077317`; custom-domain health/UI/auth/Resend smoke tests passed |
+| Phase 3/identity remote deployment | Complete | Cloudflare version `241d0fac-60ea-47b0-a022-c57b210a1a67`; custom-domain health/UI/auth/Resend and API-navigation smoke tests passed |
 
 Phase 3 should not be described as complete until the open deployment/result, correctness, scenario, and release gates above are closed. See [STRATEGIC_LAYER.md](./STRATEGIC_LAYER.md), [BATTALION_MODEL.md](./BATTALION_MODEL.md), [SHIP_SYSTEM.md](./SHIP_SYSTEM.md), and [STRATEGIC_RESOLUTION.md](./STRATEGIC_RESOLUTION.md).
 

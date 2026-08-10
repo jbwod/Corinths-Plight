@@ -12,7 +12,7 @@
 
 The repository builds a React/Vite client and one Cloudflare Worker containing the public API plus the exported Campaign and Strategic Map Durable Object classes. D1 and both named DO namespaces are configured. The V1 Flask application remains reference code and is not imported into the Worker.
 
-The Phase 3, equipment/deployment, and passwordless identity runtime was deployed on 2026-08-10. The primary custom domain is `https://corinthplight.qnetica.com.au`; `https://corinths-plight.cybercow-now.workers.dev` remains enabled as a fallback. Production version `5ea08f5b-340c-4acf-ae0d-7679b3077317` binds D1 database `corinths-plight-production` (`c75ca7bc-f10b-4987-853d-f387d377bdb9`) and both Durable Object namespaces. Production is migrated through `0006` and contains the canonical catalogues plus verified-email challenge/session support. Development fixtures were deliberately not applied; preview remains unprovisioned.
+The Phase 3, equipment/deployment, and passwordless identity runtime was deployed on 2026-08-10. The primary custom domain is `https://corinthplight.qnetica.com.au`; `https://corinths-plight.cybercow-now.workers.dev` remains enabled as a fallback. Production version `241d0fac-60ea-47b0-a022-c57b210a1a67` binds D1 database `corinths-plight-production` (`c75ca7bc-f10b-4987-853d-f387d377bdb9`) and both Durable Object namespaces. Production is migrated through `0006` and contains the canonical catalogues plus verified-email challenge/session support. Development fixtures were deliberately not applied; preview remains unprovisioned.
 
 ## 2. Current runtime topology
 
@@ -271,7 +271,7 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 - [ ] Implement events-after-sequence reconnect and hibernation integration tests.
 - [ ] Provision the preview D1 resource and replace its placeholder ID; production D1 is already provisioned.
 - [ ] Complete and record a remote preview deployment/smoke test.
-- [x] Complete and record production migration/deployment through `0006`, version `5ea08f5b-340c-4acf-ae0d-7679b3077317`.
+- [x] Complete and record production migration/deployment through `0006`, version `241d0fac-60ea-47b0-a022-c57b210a1a67`.
 
 ## 13. Cloudflare decisions
 
