@@ -102,8 +102,8 @@ export function authorizeStrategicIntent(
 }
 
 export function mayResolveStrategicRound(
-  environment: "development" | "preview" | "production",
+  _environment: "development" | "preview" | "production",
   permissions: ReadonlySet<BattalionPermission>,
 ): boolean {
-  return environment === "development" && permissions.has("STRATEGIC_ORDER_APPROVE");
+  return permissions.has("STRATEGIC_ORDER_APPROVE");
 }

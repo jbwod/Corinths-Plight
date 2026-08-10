@@ -148,6 +148,14 @@ export interface SupplyBalanceRow {
   supply_size: string;
   quantity: number;
   capacity: number | null;
+  revision: number;
+}
+
+export interface StrategicShipStateRow {
+  id: string;
+  battalion_id: string;
+  current_node_id: string | null;
+  revision: number;
 }
 
 export interface TaskForceRow {
@@ -304,6 +312,71 @@ export interface StrategicOrderRow {
   revision: number;
   submitted_at: number | null;
   failure_code: string | null;
+}
+
+
+export async function listStrategicOrders(
+  db: Env["DB"],
+  mapId: string,
+  round: number,
+): Promise<StrategicOrderRow[]> {
+  const result = await db
+    .prepare(`SELECT id, map_id, round_number, battalion_id, actor_user_id,
+                    order_type, subject_type, task_force_id, battlegroup_id,
+                    destination_node_id, operation_id, lifecycle, route_json,
+                    intent_json, command_id, request_hash,
+                    expected_subject_revision, revision, submitted_at, failure_code
+               FROM strategic_orders
+              WHERE map_id = ?1 AND round_number = ?2
+              ORDER BY id`)
+    .bind(mapId, round)
+    .all<StrategicOrderRow>();
+  return result.results;
+}
+
+export async function listStrategicRoundEvents(
+  db: Env["DB"],
+  mapId: string,
+  round: number,
+): Promise<StrategicEventRow[]> {
+  const result = await db
+    .prepare(`SELECT event_id, map_id, round_number, sequence, event_type,
+                    battalion_id, actor_user_id, audience, subject_type, subject_id,
+                    summary, payload_json, occurred_at
+               FROM strategic_events
+              WHERE map_id = ?1 AND round_number = ?2
+              ORDER BY sequence, event_id`)
+    .bind(mapId, round)
+    .all<StrategicEventRow>();
+  return result.results;
+}
+
+export async function listStrategicShipStates(
+  db: Env["DB"],
+  userId: string,
+  battalionId: string,
+  mapId: string,
+): Promise<StrategicShipStateRow[]> {
+  const result = await db
+    .prepare(`SELECT ships.id, ships.battalion_id, forces.current_node_id, ships.revision
+               FROM task_force_ships AS links
+               JOIN task_forces AS forces
+                 ON forces.id = links.task_force_id
+                AND forces.battalion_id = links.battalion_id
+               JOIN ships
+                 ON ships.id = links.ship_id
+                AND ships.battalion_id = links.battalion_id
+              WHERE forces.map_id = ?3
+                AND links.status = 'ACTIVE'
+                AND forces.battalion_id = ?2
+                AND EXISTS (SELECT 1 FROM battalion_memberships AS viewer
+                             WHERE viewer.user_id = ?1
+                               AND viewer.battalion_id = forces.battalion_id
+                               AND viewer.status = 'ACTIVE')
+              ORDER BY ships.id`)
+    .bind(userId, battalionId, mapId)
+    .all<StrategicShipStateRow>();
+  return result.results;
 }
 
 export async function getCommandContext(db: Env["DB"], userId: string): Promise<CommandContextRow | null> {
@@ -630,7 +703,8 @@ export async function listSupplyBalances(
   const result = await db
     .prepare(`SELECT stores.id AS store_id, stores.holder_type, stores.ship_id,
                     stores.task_force_id, stores.location_id, stores.player_unit_id,
-                    stores.status, balances.supply_size, balances.quantity, balances.capacity
+                    stores.status, balances.supply_size, balances.quantity, balances.capacity,
+                    balances.revision
                FROM strategic_supply_stores AS stores
                JOIN strategic_supply_balances AS balances ON balances.store_id = stores.id
               WHERE stores.battalion_id = ?2

@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => {
   }
   return {
     commitStrategicOrder: vi.fn(),
+    resolveStrategicMapRound: vi.fn(),
     StrategicServiceError: MockStrategicServiceError,
   };
 });
@@ -31,6 +32,7 @@ vi.mock("cloudflare:workers", () => ({
 
 vi.mock("./services/strategic", () => ({
   commitStrategicOrder: mocks.commitStrategicOrder,
+  resolveStrategicMapRound: mocks.resolveStrategicMapRound,
   StrategicServiceError: mocks.StrategicServiceError,
 }));
 
@@ -94,6 +96,8 @@ function request(
 beforeEach(() => {
   mocks.commitStrategicOrder.mockReset();
   mocks.commitStrategicOrder.mockResolvedValue({ orderId: "strategic-order-1", lifecycle: "SUBMITTED" });
+  mocks.resolveStrategicMapRound.mockReset();
+  mocks.resolveStrategicMapRound.mockResolvedValue({ round: 28, nextRound: 29, lifecycle: "RESOLVED" });
 });
 
 describe("StrategicMapDurableObject", () => {
@@ -173,7 +177,7 @@ describe("StrategicMapDurableObject", () => {
     });
   });
 
-  it("fails closed on development resolve without scheduling an alarm", async () => {
+  it("resolves a validated round through the authoritative service", async () => {
     const { coordinator, storage } = object();
     const response = await coordinator.fetch(
       request("/resolve", {
@@ -183,15 +187,21 @@ describe("StrategicMapDurableObject", () => {
       }),
     );
 
-    expect(response.status).toBe(501);
-    expect(await response.json()).toMatchObject({ error: { code: "STRATEGIC_RESOLUTION_NOT_IMPLEMENTED" } });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ round: 28, nextRound: 29, lifecycle: "RESOLVED" });
     expect(storage.setAlarm).not.toHaveBeenCalled();
     expect(mocks.commitStrategicOrder).not.toHaveBeenCalled();
+    expect(mocks.resolveStrategicMapRound).toHaveBeenCalledWith(
+      expect.anything(),
+      "user-commander",
+      movement.mapId,
+      { commandId: "strategic-resolve-0001", expectedMapVersion: 4, expectedRound: 28 },
+    );
   });
 
-  it("hides resolve outside development and rejects unknown routes and methods", async () => {
+  it("validates resolve in production and rejects unknown routes and methods", async () => {
     const production = object(new MemoryStorage(), environment("production"));
-    expect((await production.coordinator.fetch(request("/resolve", {}))).status).toBe(404);
+    expect((await production.coordinator.fetch(request("/resolve", {}))).status).toBe(400);
 
     const { coordinator } = object();
     const methodResponse = await coordinator.fetch(request("/orders", undefined, movement.mapId, "GET"));

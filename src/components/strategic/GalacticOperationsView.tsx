@@ -5,6 +5,7 @@ import type {
   StrategicNodeView,
   StrategicSnapshot,
 } from "../../strategic/model";
+import { resolveStrategicMap, submitStrategicOrder } from "../../strategic/api";
 import type { StrategicView } from "../StrategicWorkspace";
 
 interface GalacticOperationsViewProps {
@@ -13,6 +14,7 @@ interface GalacticOperationsViewProps {
   onNavigate: (view: StrategicView | "Forces" | "Campaigns") => void;
   onNotice: (notice: { tone: "info" | "success" | "danger"; message: string }) => void;
   onRequestOperationDetail: (operationId: string) => Promise<void>;
+  onStrategicChanged: () => Promise<void>;
 }
 
 type OperationsTab = "MAP" | "BOARD";
@@ -35,12 +37,15 @@ export function GalacticOperationsView({
   onNavigate,
   onNotice,
   onRequestOperationDetail,
+  onStrategicChanged,
 }: GalacticOperationsViewProps) {
   const [tab, setTab] = useState<OperationsTab>("MAP");
   const [presentation, setPresentation] = useState<MapPresentation>("VISUAL");
   const [selectedNodeId, setSelectedNodeId] = useState(snapshot.map.nodes[0]?.id ?? "");
   const [selectedOperationId, setSelectedOperationId] = useState(snapshot.operations[0]?.id ?? "");
   const [filters, setFilters] = useState<Set<MapFilter>>(new Set(["OPERATIONS", "FRIENDLY_FORCES", "SUPPLY", "ROUTES"]));
+  const [selectedFormationId, setSelectedFormationId] = useState(snapshot.map.formations[0]?.id ?? "");
+  const [submitting, setSubmitting] = useState(false);
 
   const nodeById = useMemo(() => new Map(snapshot.map.nodes.map((node) => [node.id, node])), [snapshot.map.nodes]);
   const selectedNode = nodeById.get(selectedNodeId) ?? snapshot.map.nodes[0];
@@ -53,6 +58,13 @@ export function GalacticOperationsView({
   const formationsAtSelectedNode = selectedNode
     ? snapshot.map.formations.filter((formation) => formation.nodeId === selectedNode.id)
     : [];
+  const selectedFormation = formationsAtSelectedNode.find((formation) => formation.id === selectedFormationId)
+    ?? formationsAtSelectedNode[0];
+  const supportCapability = selectedOperation?.recommendedCapabilities.find((capability) =>
+    selectedFormation?.capabilities.includes(capability),
+  );
+  const canCreateOrders = mode === "LIVE" && snapshot.map.viewerPermissions.includes("STRATEGIC_ORDER_CREATE");
+  const canApproveOrders = mode === "LIVE" && snapshot.map.viewerPermissions.includes("STRATEGIC_ORDER_APPROVE");
 
   useEffect(() => {
     if (selectedOperationId) void onRequestOperationDetail(selectedOperationId);
@@ -60,6 +72,8 @@ export function GalacticOperationsView({
 
   function selectNode(node: StrategicNodeView) {
     setSelectedNodeId(node.id);
+    const formation = snapshot.map.formations.find((candidate) => candidate.nodeId === node.id);
+    if (formation) setSelectedFormationId(formation.id);
     const operation = operationAtNode(snapshot.operations, node)[0];
     if (operation) setSelectedOperationId(operation.id);
   }
@@ -89,6 +103,41 @@ export function GalacticOperationsView({
           ? "No strategic order can be submitted while the selected route has a balance-required travel duration."
           : "Strategic order submission remains disabled until the live permission, map-version, and idempotency contract passes end-to-end verification.";
     onNotice({ tone: "info", message: reason });
+  }
+
+  async function submitOrder(intent: Record<string, unknown>) {
+    if (!selectedFormation || !canCreateOrders || submitting) return;
+    setSubmitting(true);
+    const result = await submitStrategicOrder({
+      commandId: crypto.randomUUID(),
+      expectedMapVersion: snapshot.map.version,
+      expectedFormationVersion: selectedFormation.version,
+      mapId: snapshot.map.id,
+      formation: { kind: selectedFormation.kind, id: selectedFormation.id },
+      intent,
+    });
+    onNotice({
+      tone: result.ok ? "success" : "danger",
+      message: result.ok ? `${selectedFormation.name}: order submitted for strategic round ${snapshot.clock.round}.` : result.message,
+    });
+    if (result.ok) await onStrategicChanged();
+    setSubmitting(false);
+  }
+
+  async function resolveRound() {
+    if (!canApproveOrders || submitting) return;
+    setSubmitting(true);
+    const result = await resolveStrategicMap(snapshot.map.id, {
+      commandId: crypto.randomUUID(),
+      expectedMapVersion: snapshot.map.version,
+      expectedRound: snapshot.clock.round,
+    });
+    onNotice({
+      tone: result.ok ? "success" : "danger",
+      message: result.ok ? `Strategic round ${snapshot.clock.round} resolved. The theatre has advanced.` : result.message,
+    });
+    if (result.ok) await onStrategicChanged();
+    setSubmitting(false);
   }
 
   return (
@@ -237,8 +286,45 @@ export function GalacticOperationsView({
                   </div>
                 </section>
                 <div className="strategic-order-block">
-                  <button type="button" onClick={explainOrderBlocker}>STRATEGIC ORDER · BLOCKED</button>
-                  <p>Route, movement profile, transport, capacity, supply, permission, and map version must all pass on the server.</p>
+                  <label>
+                    <span>ORDERED FORMATION</span>
+                    <select
+                      value={selectedFormation?.id ?? ""}
+                      onChange={(event) => setSelectedFormationId(event.target.value)}
+                      disabled={!canCreateOrders || submitting}
+                    >
+                      {formationsAtSelectedNode.map((formation) => (
+                        <option key={formation.id} value={formation.id}>{formation.name} · {formation.status}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="strategic-order-actions">
+                    {selectedFormation?.kind === "BATTLEGROUP" && selectedFormation.status === "EMBARKED" && selectedFormation.carrierTaskForceId && (
+                      <button type="button" disabled={!canCreateOrders || submitting} onClick={() => void submitOrder({
+                        type: "DISEMBARK_BATTLEGROUP",
+                        battlegroupId: selectedFormation.id,
+                        carrierTaskForceId: selectedFormation.carrierTaskForceId,
+                      })}>DISEMBARK</button>
+                    )}
+                    {selectedFormation?.kind === "TASK_FORCE" && (
+                      <button type="button" disabled={!canCreateOrders || submitting} onClick={() => void submitOrder({
+                        type: "RESUPPLY_TASK_FORCE",
+                        taskForceId: selectedFormation.id,
+                      })}>CONSUME LARGE SUPPLY</button>
+                    )}
+                    {selectedOperation && supportCapability && ["ACTIVE", "MUSTERING"].includes(selectedOperation.status) && (
+                      <button type="button" disabled={!canCreateOrders || submitting} onClick={() => void submitOrder({
+                        type: "SUPPORT_CAMPAIGN",
+                        operationId: selectedOperation.id,
+                        capability: supportCapability,
+                      })}>SUPPORT {selectedOperation.name.toUpperCase()}</button>
+                    )}
+                    <button type="button" disabled={!canApproveOrders || submitting} onClick={() => void resolveRound()}>
+                      RESOLVE ROUND {snapshot.clock.round}
+                    </button>
+                  </div>
+                  {!canCreateOrders && <button type="button" onClick={explainOrderBlocker}>WHY ORDERS ARE UNAVAILABLE</button>}
+                  <p>Orders use current map and formation versions. Unpublished route timing still blocks movement without guessing a travel value.</p>
                 </div>
               </>
             ) : <p className="strategic-empty-copy">No strategic node is visible.</p>}

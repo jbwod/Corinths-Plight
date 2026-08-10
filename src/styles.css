@@ -3395,6 +3395,11 @@ summary:focus-visible {
 .strategic-order-block { padding: 12px; }
 .strategic-order-block button { width: 100%; min-height: 36px; border-color: rgba(210, 182, 111, 0.37); color: var(--gold); }
 .strategic-order-block p { margin: 7px 0 0; color: var(--dim); font-size: 7px; line-height: 1.4; }
+.strategic-order-block label { display: grid; gap: 5px; margin-bottom: 8px; color: var(--dim); font-size: 7px; letter-spacing: .12em; }
+.strategic-order-block select { width: 100%; min-height: 36px; border: 1px solid rgba(210, 182, 111, .28); background: rgba(5, 10, 12, .92); color: var(--paper); padding: 0 9px; font: inherit; letter-spacing: .04em; }
+.strategic-order-actions { display: grid; gap: 6px; }
+.strategic-order-actions button:last-child { border-color: rgba(100, 190, 156, .42); color: var(--mint); }
+.strategic-order-block button:disabled, .strategic-order-block select:disabled { opacity: .42; cursor: not-allowed; }
 
 .operations-board-layout { min-height: 650px; display: grid; grid-template-columns: minmax(540px, 1.3fr) 410px; gap: 10px; padding: 10px; }
 .operations-board > section { margin-bottom: 10px; border: 1px solid var(--line-strong); background: rgba(9, 21, 23, 0.86); }

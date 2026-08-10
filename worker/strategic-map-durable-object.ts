@@ -2,7 +2,11 @@ import { DurableObject } from "cloudflare:workers";
 import type { Env } from "./env";
 import { requestHasJsonContentType } from "./forces-validation";
 import { errorResponse, json, readJson } from "./http";
-import { commitStrategicOrder, StrategicServiceError } from "./services/strategic";
+import {
+  commitStrategicOrder,
+  resolveStrategicMapRound,
+  StrategicServiceError,
+} from "./services/strategic";
 import {
   validateResolveStrategicMap,
   validateSubmitStrategicOrder,
@@ -122,21 +126,14 @@ export class StrategicMapDurableObject extends DurableObject<Env> {
   }
 
   private async handleResolve(request: Request): Promise<Response> {
-    if (this.env.ENVIRONMENT !== "development") {
-      return errorResponse(404, "NOT_FOUND", "Strategic coordinator endpoint not found.");
-    }
-    await this.verifiedMapId(request);
-    internalId(
+    const coordinatorMapId = await this.verifiedMapId(request);
+    const actorUserId = internalId(
       request,
       "x-corinth-strategic-user",
       "STRATEGIC_USER_HEADER_INVALID",
       "Strategic user",
     );
-    valid(validateResolveStrategicMap(await commandBody(request)));
-    return errorResponse(
-      501,
-      "STRATEGIC_RESOLUTION_NOT_IMPLEMENTED",
-      "Authoritative D1 strategic round resolution is not implemented; no state was changed.",
-    );
+    const command = valid(validateResolveStrategicMap(await commandBody(request)));
+    return json(await resolveStrategicMapRound(this.env, actorUserId, coordinatorMapId, command));
   }
 }

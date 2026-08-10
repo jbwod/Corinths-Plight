@@ -138,20 +138,13 @@ export async function routeStrategicRequest(request: Request, env: Env): Promise
     }
     if (url.pathname === "/api/strategic/orders") {
       if (request.method !== "POST") return methodNotAllowed(["POST"]);
-      valid(validateSubmitStrategicOrder(await body(request)));
-      return errorResponse(
-        501,
-        "STRATEGIC_ORDER_EXECUTION_DEFERRED",
-        "Strategic order execution remains unavailable until the authoritative D1 resolution journal is implemented.",
-      );
+      const command = valid(validateSubmitStrategicOrder(await body(request)));
+      return forwardToCoordinator(env, actorUserId, command.mapId, "/orders", command);
     }
 
     const resolveMatch = url.pathname.match(strategicResolvePath);
     if (resolveMatch) {
       if (request.method !== "POST") return methodNotAllowed(["POST"]);
-      if (env.ENVIRONMENT !== "development") {
-        return errorResponse(404, "NOT_FOUND", "Strategic resolve endpoint not found.");
-      }
       const command = valid(validateResolveStrategicMap(await body(request)));
       if (!(await mayManuallyResolveStrategicMap(env, actorUserId, resolveMatch[1]))) {
         return errorResponse(403, "STRATEGIC_APPROVAL_REQUIRED", "Strategic round approval is required.");

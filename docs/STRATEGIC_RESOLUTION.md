@@ -127,7 +127,7 @@ The pure runtime also stores a retry-input fingerprint over the map/round identi
 
 The Durable Object may keep active coordination state, but D1 remains the relational system of record for resolved orders, canonical events, receipts, formations, supply, and world variables.
 
-**Current checkpoint boundary:** the pure resolver and persistence schema are implemented, but the authoritative D1 snapshot/journal/effect applier is not. Both public strategic-order execution and the development resolve control therefore return explicit `501` responses without mutation. The internal coordinator and compare-and-set submission service are scaffolded and tested, but are not a claim that end-to-end resolution is active.
+**Current checkpoint boundary:** public strategic orders now reach the map-sharded coordinator. An actor with the required Battalion and formation authority can submit an idempotent order, and `STRATEGIC_ORDER_APPROVE` can resolve the round in every environment. The coordinator hydrates the current D1 map state, invokes the pure resolver, then uses one D1 batch to apply formation/supply/operation state, audience events, applied-effect receipts, the resolved journal row, the next open round and map revision. Repeating an already-resolved expected round returns its stored hashes. Route movement remains fail-closed while authored travel cost or formation speed is unresolved. The deeper PREPARED-before-compute protocol, cryptographic result hashes, alarm scheduling, multi-Battalion map aggregation and forced-crash recovery remain CP-302 work.
 
 ## 9. Events and effects
 

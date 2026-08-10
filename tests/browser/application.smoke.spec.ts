@@ -281,6 +281,41 @@ test("local demo navigation reaches live strategic and tactical services", async
   await expect(page.getByText(/Local tactical projection active/)).toHaveCount(0);
 });
 
+test("strategic UI submits and resolves a Battlegroup disembark order", async ({ page }) => {
+  await page.goto("/?view=galactic");
+  await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "The Corinth Expedition" })).toBeVisible();
+
+  const formation = page.getByLabel("ORDERED FORMATION");
+  await formation.selectOption("battlegroup-hammer");
+  await page.getByRole("button", { name: "DISEMBARK", exact: true }).click();
+  await expect(page.getByText(/Hammer: order submitted for strategic round/i)).toBeVisible();
+
+  const before = await page.request.get("/api/strategic/maps/strategic-map-corinth", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(before.status()).toBe(200);
+  const current = await before.json() as { map: { version: number }; round: { round: number } };
+  await page.getByRole("button", { name: `RESOLVE ROUND ${current.round.round}` }).click();
+  await expect(page.getByText(new RegExp(`Strategic round ${current.round.round} resolved`))).toBeVisible();
+
+  await expect.poll(async () => {
+    const response = await page.request.get("/api/strategic/maps/strategic-map-corinth", {
+      headers: { "x-demo-user": "demo-user" },
+    });
+    const projection = await response.json() as {
+      map: { version: number };
+      round: { round: number };
+      battlegroups: Array<{ id: string; status: string; currentNodeId: string | null }>;
+    };
+    const hammer = projection.battlegroups.find((group) => group.id === "battlegroup-hammer");
+    return projection.map.version === current.map.version + 1
+      && projection.round.round === current.round.round + 1
+      && hammer?.status === "READY"
+      && hammer.currentNodeId === "node-corinth-high-orbit";
+  }).toBe(true);
+});
+
 test("tactical API rejects client-authored action economy", async ({ page }) => {
   await page.goto("/?view=campaigns");
   await ensurePlayableK17(page);

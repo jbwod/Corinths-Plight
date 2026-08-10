@@ -200,6 +200,9 @@ export interface MapFormationView {
   nodeId: string;
   intention?: string;
   routeNodeIds: string[];
+  version: number;
+  carrierTaskForceId?: string;
+  capabilities: string[];
 }
 
 export interface StrategicMapView {
@@ -440,9 +443,9 @@ export const SHOWCASE_STRATEGIC_SNAPSHOT: StrategicSnapshot = {
       { id: "route-junction-7-hive-basin", fromNodeId: "node-junction-7", toNodeId: "node-hive-basin", status: "OPEN", movementProfiles: ["GROUND_BATTLEGROUP", "AIR_MOBILE_BATTLEGROUP"], travelRounds: null },
     ],
     formations: [
-      { id: "task-force-resolute", kind: "TASK_FORCE", name: "Resolute Task Force", status: "READY", nodeId: "node-corinth-high-orbit", intention: "Support the Corinth Expedition", routeNodeIds: [] },
-      { id: "battlegroup-hammer", kind: "BATTLEGROUP", name: "Battlegroup Hammer", status: "EMBARKED", nodeId: "node-corinth-high-orbit", intention: "Combined-arms reserve", routeNodeIds: [] },
-      { id: "battlegroup-raven", kind: "BATTLEGROUP", name: "Battlegroup Raven", status: "EMBARKED", nodeId: "node-corinth-high-orbit", intention: "Rapid-response reserve", routeNodeIds: [] },
+      { id: "task-force-resolute", kind: "TASK_FORCE", name: "Resolute Task Force", status: "READY", nodeId: "node-corinth-high-orbit", intention: "Support the Corinth Expedition", routeNodeIds: [], version: 1, capabilities: ["GROUND_COMBAT", "LOGISTICS"] },
+      { id: "battlegroup-hammer", kind: "BATTLEGROUP", name: "Battlegroup Hammer", status: "EMBARKED", nodeId: "node-corinth-high-orbit", intention: "Combined-arms reserve", routeNodeIds: [], version: 1, carrierTaskForceId: "task-force-resolute", capabilities: ["GROUND_COMBAT", "ARMOURED", "ENGINEERING", "ARTILLERY"] },
+      { id: "battlegroup-raven", kind: "BATTLEGROUP", name: "Battlegroup Raven", status: "EMBARKED", nodeId: "node-corinth-high-orbit", intention: "Rapid-response reserve", routeNodeIds: [], version: 1, carrierTaskForceId: "task-force-resolute", capabilities: ["GROUND_COMBAT", "RECON", "AIR_MOBILE"] },
     ],
   },
 };

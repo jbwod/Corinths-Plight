@@ -1,11 +1,32 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Env } from "../env";
 import { routeStrategicRequest } from "./strategic";
+
+const coordinatorFetch = vi.fn(async () => new Response(JSON.stringify({ orderId: "order-1", lifecycle: "SUBMITTED" }), {
+  status: 200,
+  headers: { "content-type": "application/json" },
+}));
 
 const developmentEnv = {
   ENVIRONMENT: "development",
   ALLOW_DEMO_AUTH: "true",
-} as Env;
+  DB: {
+    prepare: () => ({
+      bind: () => ({
+        first: async () => ({
+          user_id: "demo-user", username: "demo-user", user_status: "ACTIVE", user_created_at: 1,
+          last_active_at: 1, display_name: "Demo", profile_callsign: "DEMO", image_key: null,
+          biography: null, timezone: null, battalion_id: "battalion-demo", battalion_name: "Demo Battalion",
+          short_name: "DEMO", battalion_description: "", insignia_key: null, motto: null,
+          battalion_status: "ACTIVE", primary_ship_id: null, battalion_created_by: "demo-user",
+          battalion_created_at: 1, battalion_revision: 1, rank_id: "rank-demo", rank_name: "Commander", member_count: 1,
+        }),
+        all: async () => ({ results: [{ permission: "STRATEGIC_ORDER_CREATE" }] }),
+      }),
+    }),
+  },
+  STRATEGIC_MAP: { getByName: () => ({ fetch: coordinatorFetch }) },
+} as unknown as Env;
 
 function demoRequest(path: string, init: RequestInit = {}): Request {
   const headers = new Headers(init.headers);
@@ -61,7 +82,7 @@ describe("strategic routes", () => {
     expect(await response?.json()).toMatchObject({ error: { code: "STRATEGIC_COMMAND_INVALID" } });
   });
 
-  it("does not persist a valid order while strategic resolution persistence is deferred", async () => {
+  it("forwards a valid order to the map coordinator", async () => {
     const response = await routeStrategicRequest(
       demoRequest("/api/strategic/orders", {
         method: "POST",
@@ -78,10 +99,9 @@ describe("strategic routes", () => {
       }),
       developmentEnv,
     );
-    expect(response?.status).toBe(501);
-    expect(await response?.json()).toMatchObject({
-      error: { code: "STRATEGIC_ORDER_EXECUTION_DEFERRED" },
-    });
+    expect(response?.status).toBe(200);
+    expect(await response?.json()).toMatchObject({ orderId: "order-1", lifecycle: "SUBMITTED" });
+    expect(coordinatorFetch).toHaveBeenCalled();
   });
 
   it("hides manual resolve outside development", async () => {

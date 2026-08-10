@@ -91,9 +91,10 @@ describe("strategic authority policy", () => {
     ).toMatchObject({ allowed: false, code: "TACTICAL_DEPLOYMENT_DEFERRED" });
   });
 
-  it("never enables manual strategic resolution outside development", () => {
+  it("requires explicit approval to resolve in every environment", () => {
     expect(mayResolveStrategicRound("development", allPermissions)).toBe(true);
-    expect(mayResolveStrategicRound("preview", allPermissions)).toBe(false);
-    expect(mayResolveStrategicRound("production", allPermissions)).toBe(false);
+    expect(mayResolveStrategicRound("preview", allPermissions)).toBe(true);
+    expect(mayResolveStrategicRound("production", allPermissions)).toBe(true);
+    expect(mayResolveStrategicRound("production", new Set())).toBe(false);
   });
 });

@@ -384,6 +384,9 @@ function normalizeFormation(value: unknown, kind: MapFormationView["kind"], inde
     nodeId: identifier(record, "currentNodeId", "nodeId") || identifier(location, "id", "nodeId"),
     intention: asString(record.intention, asString(record.currentIntention)) || undefined,
     routeNodeIds: stringValues(record.routeNodeIds ?? record.currentRoute ?? transit.routeNodeIds),
+    version: asNumber(record.version, 1),
+    carrierTaskForceId: identifier(record, "currentCarrierTaskForceId", "carrierTaskForceId") || undefined,
+    capabilities: stringValues(record.capabilities),
   };
 }
 
@@ -718,4 +721,45 @@ export async function loadOperationDetail(operationId: string): Promise<Operatio
     }],
   });
   return normalized[0];
+}
+
+export interface StrategicMutationResult {
+  ok: boolean;
+  status: number;
+  payload?: JsonRecord;
+  message: string;
+}
+
+async function strategicMutation(path: string, value: unknown): Promise<StrategicMutationResult> {
+  try {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-demo-user": DEMO_USER },
+      body: JSON.stringify(value),
+    });
+    const payload = asRecord(await response.json().catch(() => ({}))) ?? {};
+    const error = asRecord(payload.error);
+    return {
+      ok: response.ok,
+      status: response.status,
+      payload,
+      message: response.ok
+        ? asString(payload.message, "Strategic command accepted.")
+        : asString(error?.message, `Strategic command failed (${response.status}).`),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      message: error instanceof Error ? error.message : "Strategic command service is unavailable.",
+    };
+  }
+}
+
+export function submitStrategicOrder(value: unknown): Promise<StrategicMutationResult> {
+  return strategicMutation("/api/strategic/orders", value);
+}
+
+export function resolveStrategicMap(mapId: string, value: unknown): Promise<StrategicMutationResult> {
+  return strategicMutation(`/api/strategic/maps/${encodeURIComponent(mapId)}/resolve`, value);
 }

@@ -136,6 +136,7 @@ export function StrategicWorkspace({ view, onNavigate, onNotice }: StrategicWork
           onNavigate={onNavigate}
           onNotice={onNotice}
           onRequestOperationDetail={requestOperationDetail}
+          onStrategicChanged={refresh}
         />
       )}
     </main>

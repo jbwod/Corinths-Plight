@@ -8,7 +8,7 @@
 
 **Verdict:** **Not release ready**
 
-The repository is a healthy Cloudflare-native foundation with production passwordless identity, guided onboarding, persistent force/loadout services, deployment-plan commits, useful strategic read models, and a deterministic tactical core. It is not yet the advertised living cooperative war. Production-facing clients still contain hard-coded demo identities and local showcase fallbacks, inert/deferred controls, and two explicit strategic `501` paths. Persistent tactical campaigns now require an authored map-source loader instead of cloning K-17, but only the first K-17 scenario content exists. Rules instance storage and D1 publication still retain legacy identity alongside the generated runtime catalogue.
+The repository is a healthy Cloudflare-native foundation with production passwordless identity, guided onboarding, persistent force/loadout services, deployment-plan commits, usable strategic commands, and a deterministic tactical core. It is not yet the advertised living cooperative war. Production-facing clients still contain local showcase fallbacks and several deferred systems. Strategic submission and approved resolution no longer return `501`: supported formation, supply and operation orders now advance D1 state and the round. Persistent tactical campaigns now require an authored map-source loader instead of cloning K-17, but only the first K-17 scenario content exists. Rules instance storage and D1 publication still retain legacy identity alongside the generated runtime catalogue.
 
 This document reports evidence, not intent. A capability is `implemented` only when all applicable source/data/schema/engine/auth/persistence/event/UI/test/operations layers exist. The audit uses:
 
@@ -37,7 +37,7 @@ The audit began with only two unrelated untracked user paths, which were preserv
 | Repeat seed replay | Pass | All seven seeds applied twice. |
 | D1 integrity | Pass | SQLite `integrity_check=ok`; `foreign_key_check` empty; 10 migration records and 117 application tables. |
 | Application CI | Local baseline implemented; remote proof pending | The application workflow now runs locked install, advisory audit, seed validation, typecheck, lint, Vitest, empty-D1 replay, production build and Playwright, then retains bundle/browser evidence. It has not run on GitHub or been made a protected required check. See CP-001. |
-| Browser/a11y/performance tests | Browser baseline partial | `npm run test:browser`: 5/5 pass for the signed-out auth/enlist shell, authenticated live local strategic/tactical reads without showcase fallback, forged tactical economy rejection, executable-action composer coverage, and 390px document overflow. Full onboarding/game E2E, Axe/manual accessibility, performance and load remain CP-800/CP-702/CP-802. |
+| Browser/a11y/performance tests | Browser baseline partial | `npm run test:browser`: 7/7 pass for the signed-out auth/enlist shell, authenticated live local strategic/tactical reads without showcase fallback, strategic Disembark submission/resolution, forged tactical economy rejection, executable-action composer and planning-layer coverage, and 390px document overflow. Full onboarding/game E2E, Axe/manual accessibility, performance and load remain CP-800/CP-702/CP-802. |
 
 The passing unit suite proves the tested helpers and contracts only. It does not activate catalogue-only content, validate real D1/DO crash boundaries, or prove a production browser workflow.
 
@@ -54,12 +54,12 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 | Tactical persistent effects | partial/gated | High | `worker/campaign-durable-object.ts` effect applier and round finaliser | Supported D1 consequences now acknowledge before the next round opens and retry safely; PREPARED/crypto/collision/attempt coverage remains CP-402. |
 | Tactical realtime/report API | partial/unsafe | High | Campaign DO report endpoint; `src/components/CampaignReports.tsx` | Round detail is now visible and grouped, but broadcasts still leak identifiers, there is no catch-up/index/playback/export, and reports use current-state redaction: CP-403/CP-700. |
 | Strategic command/Battalion/ship/map/operation reads | implemented read model | High | `worker/routes/strategic.ts:114-138,162-170` | UI can fabricate showcase/default state; no mutations: CP-305. |
-| Strategic order submission | blocked | High | `worker/routes/strategic.ts:139-146` | Always `501 STRATEGIC_ORDER_EXECUTION_DEFERRED`: CP-302/CP-303. |
-| Strategic resolution | blocked | High | `worker/strategic-map-durable-object.ts:124-140` | Always `501 STRATEGIC_RESOLUTION_NOT_IMPLEMENTED`; no alarm/journal runtime: CP-302. |
+| Strategic order submission | implemented for supported intents | High | `worker/routes/strategic.ts`; `worker/services/strategic.ts`; Strategic Map DO | Strict validation, Battalion/formation authority, actor-scoped replay and server-derived route checks commit orders. Movement still fails closed on unresolved timing and deployment/withdrawal/orbital intents remain deferred: CP-301–CP-303. |
+| Strategic resolution | implemented foundation | High | `worker/strategic-map-durable-object.ts`; `resolveStrategicMapRound` | Approval-gated resolution hydrates D1, runs the pure engine and atomically applies formation/supply/operation updates, events, receipts and the next round. PREPARED/crypto/alarm/failure-injection work remains: CP-302. |
 | Ship identity/modules/cargo/supply | partial/read-only | High | D1 schema and `GET /api/ships/primary`; `ShipView.tsx` | Acquisition/configuration/movement/transfers/combat deferred: CP-300/CP-301/CP-305. |
 | Campaign discovery/join | implemented foundation | High | `GET /api/campaigns` and idempotent `POST /api/campaigns/:id/join` drive the authenticated K-17 entry and deployment flow. Withdrawal, reinforcement administration and general authoring remain open. | CP-401/CP-405. |
 | Reports library/replay | partial UI and API | High | Report-by-round DO endpoint; `src/components/CampaignReports.tsx`; `src/campaign/reports.ts` | Local report selection/detail and terminal results work; index API, event-time redaction, playback/export and strategic consequences remain CP-403/CP-700. |
-| Multi-planet living war | missing end to end | High | One development strategic fixture; public mutations blocked | CP-302–CP-305/CP-600–CP-604. |
+| Multi-planet living war | missing end to end | High | One development strategic fixture and a supported manual-resolution slice; production content, movement, deployment/result reconciliation and additional worlds remain open | CP-302–CP-305/CP-600–CP-604. |
 | CI, preview, recovery, SLOs, legal/a11y/performance | missing release evidence | High | Config/docs/workflow inventory | CP-001–CP-107/CP-702/CP-800–CP-805. |
 
 ## Critical findings register
@@ -76,7 +76,7 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 | AUD-SCEN-002 — production has only one authored operation | P0 | partial | High | `onboarding-foundation.sql` now creates the K-17 recruiting campaign and insertion zone, so a new commander can join, deploy and complete one server-backed operation. The production seed still has no wider strategic map/ships or second scenario; those remain DEC-020/CP-304/CP-400 work. | DEC-020/CP-304/CP-400/CP-404 |
 | AUD-JOURNAL-001 — next round precedes durable acknowledgement | P0 | partial | High | The DO now commits `EFFECTS_PENDING`, retries stable receipt-backed effects, and finalises one next round only after all pending keys acknowledge. Resolution/effect records still lack PREPARED input, protected seed, cryptographic output/payload collision checks and complete attempt diagnostics. | CP-402 |
 | AUD-RT-001 — cross-audience socket invalidation | P0 security | open | High | Socket attachments store viewer data, but `broadcast()` sends one payload to every socket (`worker/campaign-durable-object.ts:341-357`); order messages include unit/order IDs. No sequence catch-up exists; reports use current visibility. | CP-403 |
-| AUD-STRAT-001 — internal service unreachable from public order route | P0 when advertised | open | High | `commitStrategicOrder` exists at `worker/services/strategic.ts:874-1060`, but public POST validates then returns 501. The DO resolver also returns 501 and has no alarm. | CP-302/CP-303/CP-305 |
+| AUD-STRAT-001 — internal service unreachable from public order route | P0 when advertised | resolved for supported manual resolution | High | Public POST now forwards to the map coordinator, and approval-gated resolution applies supported pure-engine results to D1 and advances the round. Scheduled alarms, PREPARED/crypto crash recovery, wider map aggregation and still-deferred intent families remain CP-302/CP-303 work. | CP-302/CP-303/CP-305 |
 | AUD-DETERMINISM-001 — noncanonical tactical ordering/hash | P0 before durable replay | open | High | Tactical stable digest/order sorts use `localeCompare` and 32-bit FNV (`resolver.ts:91-99,132-135,403`; `rng.ts:8-15`) despite the recorded Unicode code-point rule. Strategic code-point ordering is corrected, but its hash remains noncryptographic. | CP-200/CP-302/CP-402 |
 | AUD-RULE-005 — unactivated terrain defaults execute | P1 | open | High | `packages/rules-engine/src/hex.ts:113-146` applies road/elevation/river values that docs say require a scenario profile. Move them into pinned scenario/rules data and test inactive behavior. | CP-400/CP-500 |
 | AUD-RULE-006 — rear attack applies outside V5 domain | P1 | closed locally | High | Governed campaign tags now restrict rear Armor bypass to ground vehicles, restrict dug-in Defense loss to ground infantry, and explicitly exclude aerospace/VTOL/orbital targets. | CP-501 |
@@ -141,8 +141,8 @@ All routes are Worker same-origin routes. `Implemented` here means the route has
 | `GET /api/operations` | Visible operations | implemented read model |
 | `GET /api/operations/:id` | Operation detail | implemented read model |
 | `GET /api/strategic/maps/:id` | Audience-filtered map projection | implemented read model |
-| `POST /api/strategic/orders` | Always returns strategic-execution deferred | **blocked / 501** |
-| `POST /api/strategic/maps/:id/resolve` | Development-only forward; production 404 | blocked |
+| `POST /api/strategic/orders` | Strictly validates and commits an authorized, replay-safe strategic order through the map coordinator | implemented for supported intents |
+| `POST /api/strategic/maps/:id/resolve` | Approval-gated deterministic resolution and atomic D1 projection | implemented foundation |
 | `GET/PATCH/POST/DELETE /api/campaigns/:id/*` | Authz proxy to Campaign DO paths below | partial/demo-bound |
 
 No public campaign directory/create/join/leave, profile/settings/session-management, rank/member/Battlegroup administration, ship mutation, refit/construction, notification, report-index, rules publication, recovery, or operator diagnostics route exists.
@@ -169,7 +169,7 @@ No public campaign directory/create/join/leave, profile/settings/session-managem
 | Command | Runtime | Status/gap |
 |---|---|---|
 | `POST /orders` | Internal caller can invoke `commitStrategicOrder` | unreachable from public route |
-| `POST /resolve` | Returns `STRATEGIC_RESOLUTION_NOT_IMPLEMENTED` | **blocked / 501** |
+| `POST /resolve` | Runs the pure strategic resolver and atomically advances D1 state/round | implemented foundation |
 | alarm | None | missing |
 
 ## UI action and false-front inventory
@@ -194,7 +194,7 @@ No public campaign directory/create/join/leave, profile/settings/session-managem
 | Command/Battalion/ship/operation/map navigation | implemented read UX | Strategic fallback can replace failure with local fixture. |
 | Battalion rank/member/Battlegroup administration | missing/read-only | Organisation UI projects data only. |
 | Ship configure/upgrade/movement/transfer/consumption/combat | blocked/notice-only | Explicit deferred controls. |
-| Strategic order | blocked/notice-only | UI explains 501. |
+| Strategic order | functional supported slice | UI submits Disembark, Task Force resupply and campaign Support, and exposes approval-gated round resolution; unresolved movement remains unavailable. |
 | Strategic-to-tactical deploy/result reconciliation | blocked/notice-only | No bootstrap/effect flow. |
 | Unit/planet/ship imagery | prototype | React uses text markers; supplied unit/sprite library is not integrated or licensed in a manifest. |
 
@@ -247,8 +247,8 @@ Fresh replay produced 117 application tables, excluding SQLite/Cloudflare intern
 | Tactical world | `planets`, `campaigns`, `campaign_memberships`, `deployments`, `round_metadata`, `order_archive`, `campaign_event_archive`, `persistent_effects` | campaigns/deployments partial; four journal tables dormant |
 | Deployment/equipment state | `deployment_method_definitions`, `campaign_insertion_zones`, `deployment_plans`, `deployment_plan_units`, `deployment_transport_assignments`, `campaign_loadout_snapshots`, `campaign_weapon_states`, `campaign_ability_states`, `deployment_mutation_receipts`, `campaign_effect_receipts` | plan/commit partial; Campaign DO ignores weapon/ability states |
 | Strategic content/world | `strategic_content_sources`, `strategic_locations`, `strategic_maps`, `strategic_nodes`, `strategic_routes`, `strategic_operations`, `strategic_war_variables` | read fixtures; content/variables no live workflow |
-| Strategic formations/supply | `task_forces`, `task_force_ships`, `task_force_battlegroups`, `strategic_supply_stores`, `strategic_supply_balances` | read-only/partial |
-| Strategic journal | `strategic_rounds`, `strategic_orders`, `strategic_events`, `strategic_effect_receipts` | schema/internal commit only; public execution blocked |
+| Strategic formations/supply | `task_forces`, `task_force_ships`, `task_force_battlegroups`, `strategic_supply_stores`, `strategic_supply_balances` | supported resolver mutations plus broader incomplete systems |
+| Strategic journal | `strategic_rounds`, `strategic_orders`, `strategic_events`, `strategic_effect_receipts` | active manual-resolution foundation; PREPARED/crypto/alarm recovery open |
 
 Twenty-one tables fall into groups with no direct non-test runtime reference or no production mutation workflow: rules/content provenance surfaces, the four tactical archive/effect tables, recovery, strategic content/locations/effects/variables, refits, construction, ship overrides, and related admin surfaces. Presence is not implementation.
 
