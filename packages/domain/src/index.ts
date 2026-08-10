@@ -810,6 +810,7 @@ export type CampaignEventType =
   | "UNIT_MOVED"
   | "UNIT_BLOCKED"
   | "UNIT_ATTACKED"
+  | "SUBSYSTEM_MALFUNCTIONED"
   | "CARGO_LOADED"
   | "CARGO_UNLOADED"
   | "AIR_DROP_COMPLETED"

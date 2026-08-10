@@ -284,6 +284,9 @@ function GameApp() {
   const isMedicalUnit = selectedDefinition?.tags.includes("MEDICAL") ?? false;
   const isEngineerUnit = selectedDefinition?.tags.includes("ENGINEER") ?? false;
   const isArtilleryUnit = selectedDefinition?.tags.includes("ARTILLERY") ?? false;
+  const disabledSubsystems = selectedUnit?.subsystems?.filter((subsystem) => subsystem.state === "DISABLED") ?? [];
+  const weaponSystemsDisabled = disabledSubsystems.some((subsystem) => subsystem.subsystemId.toUpperCase() === "WEAPONS");
+  const mobilityDisabled = disabledSubsystems.some((subsystem) => subsystem.subsystemId.toUpperCase() === "MOBILITY");
   const artilleryDeployed = selectedUnit?.artilleryDeployment === "DEPLOYED" || selectedUnit?.statuses.includes("DEPLOYED") === true;
   const artilleryWeapon = selectedUnit?.weapons.find((weapon) => weapon.indirect) ?? selectedUnit?.weapons[0];
   const medicalSupplyCapacity = selectedUnit ? Math.max(0, Math.floor(selectedUnit.currentHealth)) : 0;
@@ -410,7 +413,7 @@ function GameApp() {
   );
   const actionReady =
     actionMode === "NONE" ||
-    (actionMode === "ATTACK" && Boolean(targetUnit && selectedWeapon && orderType !== "RUSH" && !targetOutOfRange)) ||
+    (actionMode === "ATTACK" && Boolean(targetUnit && selectedWeapon && orderType !== "RUSH" && !targetOutOfRange && !weaponSystemsDisabled)) ||
     (actionMode === "RELOAD" && Boolean(
       (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0 &&
       (isMedicalUnit
@@ -435,6 +438,7 @@ function GameApp() {
       selectedDefinition &&
       routeResult.legal &&
       !routeOverBudget &&
+      !(mobilityDisabled && draftedRoute.length > 1) &&
       !deployedArtilleryMoving &&
       !locked &&
       actionReady,
@@ -807,6 +811,9 @@ function GameApp() {
                   <span className="unit-card-body">
                     <strong>{unit.callsign}</strong>
                     <small>{definitionLabel(unit)}</small>
+                    {unit.subsystems?.some((subsystem) => subsystem.state === "DISABLED") && (
+                      <small className="subsystem-alert">SYSTEM MALFUNCTION</small>
+                    )}
                     <i className="health-track"><b style={{ width: `${unit.currentHealth / unit.stats.maxHealth * 100}%` }} /></i>
                   </span>
                   <span className={`order-state ${order ? order.lifecycle.toLowerCase() : "awaiting"}`}>
@@ -876,6 +883,13 @@ function GameApp() {
             <>
               <div className="unit-summary">
                 <div className="summary-identity"><span>{selectedUnit.callsign.slice(0, 3)}</span><div><strong>{definitionLabel(selectedUnit)}</strong><small>{selectedUnit.status} · {selectedUnit.currentHealth}/{selectedUnit.stats.maxHealth} {selectedUnit.stats.healthModel === "HITS" ? "HITS" : "FS"}</small></div></div>
+                {disabledSubsystems.length > 0 && (
+                  <div className="subsystem-alert-strip" role="status">
+                    {disabledSubsystems.map((subsystem) => (
+                      <span key={subsystem.subsystemId}>{subsystem.subsystemId.replaceAll("_", " ")} OFFLINE</span>
+                    ))}
+                  </div>
+                )}
                 <div className="stat-grid">
                   <span><small>SPEED</small><b>{selectedUnit.stats.speed}</b></span>
                   <span><small>ARMOUR</small><b>{selectedUnit.stats.armor}</b></span>
@@ -898,7 +912,7 @@ function GameApp() {
                     <button
                       className={orderType === type ? "active" : ""}
                       key={type}
-                      disabled={!definition.executable}
+                      disabled={!definition.executable || (mobilityDisabled && type !== "HOLD")}
                       title={definition.executable ? undefined : "Catalogued for a later deterministic resolver phase"}
                       onClick={() => {
                         setOrderType(type as OrderType);
@@ -922,6 +936,7 @@ function GameApp() {
                   <button onClick={() => setDraftedRoute([{ ...selectedUnit.position }])}>RESET</button>
                 </div>
                 {routeOverBudget && <p className="validation danger">Route exceeds this unit's speed budget.</p>}
+                {mobilityDisabled && draftedRoute.length > 1 && <p className="validation danger">Mobility subsystem offline. Repair this unit before moving.</p>}
                 {!routeResult.legal && <p className="validation danger">{routeResult.reason}</p>}
                 <div className="facing-control" aria-label="Final facing">
                   {FACING_LABELS.map((facing, index) => (
@@ -945,7 +960,7 @@ function GameApp() {
                     <button
                       className={actionMode === type ? "active" : ""}
                       key={type}
-                      disabled={type === "ATTACK" && orderType === "RUSH"}
+                      disabled={type === "ATTACK" && (orderType === "RUSH" || weaponSystemsDisabled)}
                       onClick={() => {
                         setActionMode(type);
                         if (type !== "ATTACK") setTargetUnitId(undefined);
@@ -984,6 +999,7 @@ function GameApp() {
                       {targetUnit && <button onClick={() => setTargetUnitId(undefined)}>CLEAR</button>}
                     </div>
                     {targetOutOfRange && <p className="validation danger">Target is beyond the selected weapon's range.</p>}
+                    {weaponSystemsDisabled && <p className="validation danger">Weapon systems offline. An Engineer must repair this unit before it can fire.</p>}
                     {orderType === "RUSH" && <p className="validation">Rush doubles received damage and forbids attacks.</p>}
                   </>
                 ) : actionMode === "ATTACK" ? (

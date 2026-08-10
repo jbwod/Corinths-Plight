@@ -22,7 +22,7 @@ export const CAMPAIGN_REPORT_GROUPS: CampaignReportGroup[] = [
 ];
 
 const movementEvents = new Set(["UNIT_MOVED", "UNIT_BLOCKED"]);
-const combatEvents = new Set(["DICE_ROLLED", "UNIT_ATTACKED", "DAMAGE_APPLIED", "UNIT_DESTROYED"]);
+const combatEvents = new Set(["DICE_ROLLED", "UNIT_ATTACKED", "SUBSYSTEM_MALFUNCTIONED", "DAMAGE_APPLIED", "UNIT_DESTROYED"]);
 const supportEvents = new Set([
   "CARGO_LOADED",
   "CARGO_UNLOADED",
@@ -146,6 +146,12 @@ export function describeCampaignReportEvent(
     }
     case "UNIT_ATTACKED":
       return `${actor} attacked ${target}: ${numberValue(payload.healthLoss)} damage${payload.penetrated === true ? ", armour penetrated" : ""}.`;
+    case "SUBSYSTEM_MALFUNCTIONED": {
+      const affected = Array.isArray(payload.affectedSubsystemIds)
+        ? payload.affectedSubsystemIds.map(String).join(" and ")
+        : "a subsystem";
+      return `${target}'s ${affected} malfunctioned after ${actor}'s natural ${numberValue(payload.naturalRoll)}.`;
+    }
     case "DAMAGE_APPLIED":
       return `${actor} lost ${numberValue(payload.loss)} strength (${numberValue(payload.before)} → ${numberValue(payload.after)}).`;
     case "UNIT_DESTROYED":

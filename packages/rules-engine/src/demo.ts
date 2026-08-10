@@ -87,6 +87,12 @@ function deployment(
     ),
     cooldowns: {},
     statuses: definitionId === "unit-artillery" ? ["PACKED"] : [],
+    subsystems: definition.tags.includes("SUBSYSTEMS")
+      ? [
+          { subsystemId: "WEAPONS", state: "OPERATIONAL" },
+          { subsystemId: "MOBILITY", state: "OPERATIONAL" },
+        ]
+      : undefined,
     artilleryDeployment: definitionId === "unit-artillery" ? "PACKED" : undefined,
     equipmentIds: [],
     battlegroupId: side === "ALLIED" ? "hammer" : undefined,

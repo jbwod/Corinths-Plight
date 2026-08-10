@@ -2,6 +2,8 @@ import type {
   ActionType,
   DefinitionStatus,
   OrderType,
+  SubsystemDamageProfile,
+  SubsystemDefinition,
   UnitClassDefinition,
   WeaponProfile,
 } from "../../domain/src";
@@ -14,6 +16,11 @@ interface FoundationExecutionProjection {
   tags: string[];
   allowedOrders: OrderType[];
   allowedActions: ActionType[];
+}
+
+export interface TacticalSubsystemRules {
+  profile: SubsystemDamageProfile;
+  definitions: SubsystemDefinition[];
 }
 
 function record(value: unknown, path: string): Record<string, unknown> {
@@ -160,5 +167,59 @@ export function getTacticalUnitClass(
     source: sourceLabel(definition),
     status: definition.definitionStatus as DefinitionStatus,
     notes: definition.notes,
+  };
+}
+
+export function getTacticalSubsystemRules(unitId: string): TacticalSubsystemRules | undefined {
+  const durabilityRelation = tacticalRulesCatalogueRuntime
+    .relationsFrom({ definitionKind: "UNIT", definitionId: unitId })
+    .find((relation) => {
+      if (relation.kind !== "UNIT_PROFILE" || relation.to?.definitionKind !== "DURABILITY_PROFILE") return false;
+      return record(relation.parameters, `${relation.id}:parameters`).profileRole === "durability";
+    });
+  if (!durabilityRelation?.to) return undefined;
+  const lookup = tacticalRulesCatalogueRuntime.lookupDefinition(
+    "DURABILITY_PROFILE",
+    durabilityRelation.to.definitionId,
+  );
+  if (!lookup.found) throw new Error(`TACTICAL_DURABILITY_PROFILE_MISSING:${unitId}`);
+  const parameters = record(lookup.value.parameters, `${lookup.value.id}:parameters`);
+  if (parameters.supportsSubsystems !== true) return undefined;
+  const definition = record(parameters.definition, `${lookup.value.id}:parameters.definition`);
+  const naturalRolls = record(
+    definition.subsystemNaturalRolls,
+    `${lookup.value.id}:parameters.definition.subsystemNaturalRolls`,
+  );
+  const configured = Object.entries(naturalRolls)
+    .map(([naturalRoll, target]) => ({ naturalRoll: Number(naturalRoll), target }))
+    .sort((left, right) => left.naturalRoll - right.naturalRoll);
+  if (
+    configured.length === 0 ||
+    configured.some(({ naturalRoll, target }) =>
+      !Number.isInteger(naturalRoll) || naturalRoll < 2 || (target !== "WEAPONS" && target !== "MOBILITY")
+    )
+  ) {
+    throw new Error(`TACTICAL_SUBSYSTEM_PROFILE_INVALID:${lookup.value.id}`);
+  }
+  const definitions = [...new Set(configured.map(({ target }) => target as "WEAPONS" | "MOBILITY"))]
+    .map((target): SubsystemDefinition => ({
+      id: target,
+      name: target === "WEAPONS" ? "Weapon systems" : "Mobility",
+      kind: target === "WEAPONS" ? "WEAPON" : "MOBILITY",
+      tags: [],
+    }));
+  return {
+    profile: {
+      id: lookup.value.id,
+      requiresPenetration: true,
+      triggers: configured.map(({ naturalRoll, target }) => ({
+        naturalRolls: [naturalRoll],
+        targetKind: target === "WEAPONS" ? "WEAPON" : "MOBILITY",
+        resultingState: "DISABLED",
+        selection: "ALL",
+        requiresAttackerHealthAtLeastRoll: true,
+      })),
+    },
+    definitions,
   };
 }

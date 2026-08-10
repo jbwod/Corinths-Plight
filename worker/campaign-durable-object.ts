@@ -692,6 +692,12 @@ export class CampaignDurableObject extends DurableObject<Env> {
       }
       route.unshift(deployment.position);
     }
+    if (
+      route.length > 1 &&
+      deployment.subsystems?.some((subsystem) => subsystem.subsystemId.toUpperCase() === "MOBILITY" && subsystem.state === "DISABLED")
+    ) {
+      return errorResponse(422, "MOBILITY_SUBSYSTEM_DISABLED", "This unit cannot move until its mobility subsystem is repaired.");
+    }
     const weaponIds = new Set(deployment.weapons.map((weapon) => weapon.id));
     const equipmentIds = new Set(deployment.equipmentIds);
     const allowedActions = new Set(

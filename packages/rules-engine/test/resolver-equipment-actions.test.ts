@@ -6,6 +6,7 @@ import {
   getTacticalActionRule,
   getTacticalUnitClass,
   resolveRound,
+  validateOrder,
 } from "../src";
 
 function action(id: string, type: StructuredAction["type"], fields: Partial<StructuredAction> = {}): StructuredAction {
@@ -361,6 +362,113 @@ describe("equipment and transport actions", () => {
         payload: expect.objectContaining({ supplies: { SMALL_SUPPLY: 3 } }),
       }),
     ]));
+  });
+
+  it("queues weapon malfunctions without cancelling the target's simultaneous attack", () => {
+    const base = createDemoCampaignState(1_000);
+    const attacker = structuredClone(base.deployments.find((unit) => unit.definitionId === "unit-infantry-squad")!);
+    const target = structuredClone(base.deployments.find((unit) => unit.definitionId === "unit-main-battle-tank")!);
+    attacker.id = "a-infantry";
+    attacker.position = { q: -3, r: 1 };
+    attacker.currentHealth = 6;
+    target.id = "z-tank";
+    target.side = "ENEMY";
+    target.ownerId = "enemy-doctrine";
+    target.position = { q: -2, r: 1 };
+    target.stats = { ...target.stats, armor: 0, defense: 0 };
+    target.subsystems = [
+      { subsystemId: "WEAPONS", state: "OPERATIONAL" },
+      { subsystemId: "MOBILITY", state: "OPERATIONAL" },
+    ];
+    base.deployments = [attacker, target];
+    const attackerOrder = order(base, attacker, [action("attack-tank", "ATTACK", {
+      targetDeploymentId: target.id,
+      weaponId: attacker.weapons[0].id,
+    })]);
+    const targetOrder = order(base, target, [action("return-fire", "ATTACK", {
+      targetDeploymentId: attacker.id,
+      weaponId: target.weapons[0].id,
+    })]);
+    base.orders = [attackerOrder, targetOrder];
+
+    const output = resolveRound({
+      previousState: base,
+      rulesetVersion: base.rulesetVersion,
+      playerOrders: [attackerOrder],
+      enemyOrders: [targetOrder],
+      seed: "subsystem-10",
+      resolutionTime: 2_000,
+    });
+    const resolvedTarget = output.state.deployments.find((unit) => unit.id === target.id)!;
+
+    expect(resolvedTarget.subsystems).toEqual([
+      expect.objectContaining({ subsystemId: "MOBILITY", state: "OPERATIONAL" }),
+      expect.objectContaining({ subsystemId: "WEAPONS", state: "DISABLED", damageSourceId: attacker.id }),
+    ]);
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "SUBSYSTEM_MALFUNCTIONED",
+      actor: attacker.id,
+      payload: expect.objectContaining({
+        targetId: target.id,
+        naturalRoll: 5,
+        affectedSubsystemIds: ["WEAPONS"],
+      }),
+    }));
+    expect(output.events).toContainEqual(expect.objectContaining({ type: "UNIT_ATTACKED", actor: target.id }));
+  });
+
+  it("makes a natural-six mobility malfunction block later movement", () => {
+    const base = createDemoCampaignState(1_000);
+    const attacker = structuredClone(base.deployments.find((unit) => unit.definitionId === "unit-infantry-squad")!);
+    const target = structuredClone(base.deployments.find((unit) => unit.definitionId === "unit-main-battle-tank")!);
+    attacker.id = "a-infantry";
+    attacker.position = { q: -3, r: 1 };
+    attacker.currentHealth = 6;
+    target.id = "z-tank";
+    target.side = "ENEMY";
+    target.position = { q: -2, r: 1 };
+    target.stats = { ...target.stats, armor: 0, defense: 0 };
+    target.subsystems = [
+      { subsystemId: "WEAPONS", state: "OPERATIONAL" },
+      { subsystemId: "MOBILITY", state: "OPERATIONAL" },
+    ];
+    base.deployments = [attacker, target];
+    const attackOrder = order(base, attacker, [action("attack-tank", "ATTACK", {
+      targetDeploymentId: target.id,
+      weaponId: attacker.weapons[0].id,
+    })]);
+    base.orders = [attackOrder];
+    const output = resolveRound({
+      previousState: base,
+      rulesetVersion: base.rulesetVersion,
+      playerOrders: [attackOrder],
+      enemyOrders: [],
+      seed: "subsystem-4",
+      resolutionTime: 2_000,
+    });
+    const immobilisedTarget = output.state.deployments.find((unit) => unit.id === target.id)!;
+    expect(immobilisedTarget.subsystems).toContainEqual(expect.objectContaining({
+      subsystemId: "MOBILITY",
+      state: "DISABLED",
+    }));
+
+    const nextState = structuredClone(output.state);
+    nextState.round += 1;
+    nextState.phase = "PLANNING";
+    nextState.outcome = undefined;
+    const moveOrder = order(nextState, immobilisedTarget, []);
+    moveOrder.round = nextState.round;
+    moveOrder.orderType = "ADVANCE";
+    moveOrder.route = [{ ...immobilisedTarget.position }, { q: -1, r: 1 }];
+    moveOrder.endHex = { q: -1, r: 1 };
+    expect(validateOrder(moveOrder, immobilisedTarget, {
+      previousState: nextState,
+      rulesetVersion: nextState.rulesetVersion,
+      playerOrders: [],
+      enemyOrders: [],
+      seed: "next-round",
+      resolutionTime: 3_000,
+    })).toMatchObject({ legal: false, reasons: expect.arrayContaining(["The unit's mobility subsystem is disabled."]) });
   });
 
   it("rejects Drone until its visibility state effect is implemented", () => {

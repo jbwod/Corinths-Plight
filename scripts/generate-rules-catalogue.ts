@@ -814,6 +814,24 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     reasonCode: "CP_201_CATALOGUE_HANDLER_CUTOVER_PENDING",
     explanation: "The final seed claimed transport execution before a generated-catalogue campaign handler existed.",
   },
+  "UNIT:unit-light-vehicle": {
+    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: "MISSING_CANONICAL_PRICE",
+    parameters: {
+      implementedSubset: ["HITS", "ATTACK", "MOVEMENT", "SUBSYSTEMS"],
+      missing: ["EVASIVE", "CARGO"],
+    },
+    explanation: "The V5 natural-5/6 subsystem malfunction rule now persists and gates later weapon and mobility use.",
+  },
+  "UNIT:unit-main-battle-tank": {
+    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: "MISSING_CANONICAL_PRICE",
+    parameters: {
+      implementedSubset: ["HITS", "ARMOUR", "AP", "FACING", "REAR_ATTACK", "SUBSYSTEMS"],
+      missing: ["CREW_REPAIR"],
+    },
+    explanation: "The V5 natural-5/6 subsystem malfunction rule now persists and gates later weapon and mobility use.",
+  },
   "UNIT:unit-vtol": {
     implementationStatus: "PARTIAL", executable: false, handlerId: null,
     reasonCode: "CP_201_CATALOGUE_HANDLER_CUTOVER_PENDING",

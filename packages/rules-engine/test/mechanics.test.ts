@@ -102,6 +102,17 @@ describe("target legality", () => {
     });
   });
 
+  it("rejects fire while the weapon subsystem is disabled", () => {
+    const attacker = makeDeployment("attacker", { q: 0, r: 0 });
+    attacker.subsystems = [{ subsystemId: "WEAPONS", state: "DISABLED" }];
+    const target = makeDeployment("target", { q: 1, r: 0 }, "ENEMY");
+
+    expect(canTarget(attacker, target, baseWeapon, openMap)).toEqual({
+      legal: false,
+      reason: "The unit's weapon systems are disabled.",
+    });
+  });
+
   it("blocks direct fire through terrain while allowing an indirect profile", () => {
     const map = [
       makeHex(0, 0),

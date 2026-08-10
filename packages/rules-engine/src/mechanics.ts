@@ -34,6 +34,15 @@ export interface AttackCalculation {
   cooldownAfter?: number;
 }
 
+export function hasDisabledSubsystem(
+  deployment: Pick<CampaignDeployment, "subsystems">,
+  subsystemId: "WEAPONS" | "MOBILITY",
+): boolean {
+  return deployment.subsystems?.some((subsystem) =>
+    subsystem.subsystemId.toUpperCase() === subsystemId && subsystem.state === "DISABLED"
+  ) === true;
+}
+
 export function validateSpeedBudget(
   stats: UnitStats,
   movementCost: number,
@@ -63,6 +72,9 @@ export function canTarget(
   spotters: CampaignDeployment[] = [],
 ): { legal: boolean; reason?: string } {
   if (attacker.status === "DESTROYED") return { legal: false, reason: "Attacker is destroyed." };
+  if (hasDisabledSubsystem(attacker, "WEAPONS")) {
+    return { legal: false, reason: "The unit's weapon systems are disabled." };
+  }
   if (target.status === "DESTROYED") return { legal: false, reason: "Target is destroyed." };
   if (attacker.side === target.side) return { legal: false, reason: "Friendly fire is not enabled." };
   if (hexDistance(attacker.position, target.position) > weapon.range) {

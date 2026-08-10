@@ -1134,6 +1134,12 @@ summary:focus-visible {
   background: var(--success);
 }
 
+.unit-card-body .subsystem-alert {
+  color: #ff967f;
+  font: 600 7px/1.2 var(--mono);
+  letter-spacing: 0.07em;
+}
+
 .order-state {
   max-width: 56px;
   padding: 5px 4px;
@@ -1425,6 +1431,22 @@ summary:focus-visible {
   padding: 14px 15px;
   border-bottom: 1px solid var(--line);
   background: linear-gradient(135deg, rgba(29, 66, 67, 0.2), transparent);
+}
+
+.subsystem-alert-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.subsystem-alert-strip span {
+  padding: 4px 6px;
+  border: 1px solid rgba(255, 125, 98, 0.45);
+  background: rgba(102, 32, 25, 0.18);
+  color: #ff967f;
+  font: 600 8px/1 var(--mono);
+  letter-spacing: 0.06em;
 }
 
 .summary-identity {

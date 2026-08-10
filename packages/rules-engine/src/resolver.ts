@@ -19,8 +19,8 @@ import {
   sameCoord,
 } from "./hex";
 import { cargoSlotsForItem, disembarkCargo, embarkCargo, reloadAmmunition } from "./logistics";
-import { resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
-import { resolveEngineerRepair, resolveHealing } from "./forces";
+import { hasDisabledSubsystem, resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
+import { resolveEngineerRepair, resolveHealing, resolveSubsystemDamage } from "./forces";
 import {
   applyBombardmentSuppression,
   recoverBombardmentSuppression,
@@ -28,7 +28,7 @@ import {
 } from "./specialists";
 import { createSeededRandom, hashSeed } from "./rng";
 import { getTacticalActionRule, getTacticalOrderRule } from "./tactical-grammar";
-import { getTacticalUnitClass } from "./tactical-unit-catalogue";
+import { getTacticalSubsystemRules, getTacticalUnitClass } from "./tactical-unit-catalogue";
 import { applyScenarioReinforcements, evaluateScenarioRoundEnd } from "./scenario";
 
 export const ENGINE_VERSION = "foundation-0.1.0";
@@ -103,6 +103,9 @@ export function validateOrder(
   if (!deployment) return { legal: false, reasons: ["Deployment does not exist."], movementCost: 0 };
   if (deployment.status === "DESTROYED") reasons.push("Unit was destroyed before the order resolved.");
   if (deployment.status === "IMMOBILISED" && order.route.length > 1) reasons.push("Unit is immobilised.");
+  if (hasDisabledSubsystem(deployment, "MOBILITY") && order.route.length > 1) {
+    reasons.push("The unit's mobility subsystem is disabled.");
+  }
   const artillery = isArtilleryDeployment(deployment);
   const artilleryDeployed = artilleryState(deployment) === "DEPLOYED";
   if (artillery && artilleryDeployed && order.route.length > 1) {
@@ -753,6 +756,13 @@ export function resolveRound(input: RoundInput): RoundOutput {
   }
 
   const damage = new Map<string, number>();
+  const pendingSubsystemStates = new Map<string, NonNullable<CampaignDeployment["subsystems"]>>();
+  const pendingSubsystemEvents: Array<{
+    targetId: string;
+    sourceId: string;
+    naturalRoll: number;
+    affectedSubsystemIds: string[];
+  }> = [];
   const rushingUnits = new Set(
     [...validOrders.entries()]
       .filter(([, order]) => order.orderType === "RUSH")
@@ -815,8 +825,50 @@ export function resolveRound(input: RoundInput): RoundOutput {
         rushMultiplier,
         healthLoss,
       });
+      const subsystemRules = weapon.damage.count === 1 && result.roll
+        ? getTacticalSubsystemRules(target.definitionId)
+        : undefined;
+      if (subsystemRules) {
+        const subsystemResult = resolveSubsystemDamage({
+          profile: {
+            ...subsystemRules.profile,
+            triggers: subsystemRules.profile.triggers.map((trigger) => ({
+              ...trigger,
+              requiresAttackerHealthAtLeastRoll: attacker.stats.healthModel === "FORCE_STRENGTH",
+            })),
+          },
+          definitions: subsystemRules.definitions,
+          states: pendingSubsystemStates.get(target.id) ?? target.subsystems ?? [],
+          penetrated: result.penetrated,
+          naturalRoll: result.roll.raw,
+          attackerCurrentHealth: attacker.currentHealth,
+          sourceId: attacker.id,
+          round: state.round,
+        });
+        if (subsystemResult.triggered) {
+          pendingSubsystemStates.set(target.id, subsystemResult.states);
+          pendingSubsystemEvents.push({
+            targetId: target.id,
+            sourceId: attacker.id,
+            naturalRoll: result.roll.raw,
+            affectedSubsystemIds: subsystemResult.affectedSubsystemIds,
+          });
+        }
+      }
       if (healthLoss > 0) damage.set(target.id, (damage.get(target.id) ?? 0) + healthLoss);
     }
+  }
+
+  for (const [targetId, subsystems] of [...pendingSubsystemStates.entries()].sort(([left], [right]) => left.localeCompare(right))) {
+    const target = state.deployments.find((candidate) => candidate.id === targetId);
+    if (target) target.subsystems = subsystems;
+  }
+  for (const malfunction of pendingSubsystemEvents) {
+    event("SUBSYSTEM_MALFUNCTIONED", malfunction.sourceId, {
+      targetId: malfunction.targetId,
+      naturalRoll: malfunction.naturalRoll,
+      affectedSubsystemIds: malfunction.affectedSubsystemIds,
+    });
   }
 
   for (const [targetId, healthLoss] of [...damage.entries()].sort(([left], [right]) => left.localeCompare(right))) {

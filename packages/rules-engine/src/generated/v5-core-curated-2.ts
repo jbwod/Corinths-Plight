@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "7e31680f37dda978488eb2c75a579f98c095463f200e368bb147f60bb2255f76",
+  "contentHash": "597c9bd881ce13ac28030d27df9e75b236e0a21dc0f6e3a1a3a0797e1acb20ae",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -8409,13 +8409,24 @@ const snapshot = {
           "implementedSubset": [
             "HITS",
             "ATTACK",
-            "MOVEMENT"
+            "MOVEMENT",
+            "SUBSYSTEMS"
           ],
           "missing": [
             "EVASIVE",
-            "CARGO",
-            "SUBSYSTEMS"
-          ]
+            "CARGO"
+          ],
+          "publicationCorrection": {
+            "reason": "The V5 natural-5/6 subsystem malfunction rule now persists and gates later weapon and mobility use.",
+            "seedOverlay": {
+              "availabilityStatus": "DEV_ONLY",
+              "executable": true,
+              "implementationStatus": "PARTIAL",
+              "purchasable": false,
+              "reasonCode": "MISSING_CANONICAL_PRICE",
+              "requisitionStatus": "BALANCE_REQUIRED"
+            }
+          }
         }
       },
       {
@@ -8468,12 +8479,23 @@ const snapshot = {
             "ARMOUR",
             "AP",
             "FACING",
-            "REAR_ATTACK"
+            "REAR_ATTACK",
+            "SUBSYSTEMS"
           ],
           "missing": [
-            "SUBSYSTEMS",
             "CREW_REPAIR"
-          ]
+          ],
+          "publicationCorrection": {
+            "reason": "The V5 natural-5/6 subsystem malfunction rule now persists and gates later weapon and mobility use.",
+            "seedOverlay": {
+              "availabilityStatus": "DEV_ONLY",
+              "executable": true,
+              "implementationStatus": "PARTIAL",
+              "purchasable": false,
+              "reasonCode": "MISSING_CANONICAL_PRICE",
+              "requisitionStatus": "BALANCE_REQUIRED"
+            }
+          }
         }
       },
       {
@@ -13861,5 +13883,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "7e31680f37dda978488eb2c75a579f98c095463f200e368bb147f60bb2255f76" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "597c9bd881ce13ac28030d27df9e75b236e0a21dc0f6e3a1a3a0797e1acb20ae" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

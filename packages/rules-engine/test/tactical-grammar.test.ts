@@ -4,7 +4,7 @@ import {
   getTacticalActionRule,
   getTacticalOrderRule,
 } from "../src/tactical-grammar";
-import { getTacticalUnitClass } from "../src/tactical-unit-catalogue";
+import { getTacticalSubsystemRules, getTacticalUnitClass } from "../src/tactical-unit-catalogue";
 import { V5_CORE_CURATED_2_CONTENT_HASH } from "../src/generated/v5-core-curated-2";
 
 describe("generated tactical grammar", () => {
@@ -59,5 +59,35 @@ describe("generated tactical grammar", () => {
       allowedActions: ["HEAL", "RELOAD", "LOAD", "UNLOAD"],
     });
     expect(() => getTacticalUnitClass("unit-logi-truck")).toThrow("Unit class is not executable");
+  });
+
+  it("materializes the V5 subsystem malfunction profile from the governed durability record", () => {
+    expect(getTacticalSubsystemRules("unit-main-battle-tank")).toEqual({
+      profile: {
+        id: "durability-vehicle-hits-subsystems",
+        requiresPenetration: true,
+        triggers: [
+          {
+            naturalRolls: [5],
+            targetKind: "WEAPON",
+            resultingState: "DISABLED",
+            selection: "ALL",
+            requiresAttackerHealthAtLeastRoll: true,
+          },
+          {
+            naturalRolls: [6],
+            targetKind: "MOBILITY",
+            resultingState: "DISABLED",
+            selection: "ALL",
+            requiresAttackerHealthAtLeastRoll: true,
+          },
+        ],
+      },
+      definitions: [
+        { id: "WEAPONS", name: "Weapon systems", kind: "WEAPON", tags: [] },
+        { id: "MOBILITY", name: "Mobility", kind: "MOBILITY", tags: [] },
+      ],
+    });
+    expect(getTacticalSubsystemRules("unit-infantry-squad")).toBeUndefined();
   });
 });
