@@ -99,8 +99,20 @@ describe("server rules hydration", () => {
     expect(result.legacyDefinition.id).toBe("unit-infantry-squad");
   });
 
+  test("hydrates the executable Logi subset and withholds unresolved cargo actions", () => {
+    const result = resolveUnitRulesAuthority(unitInput("unit-logi-truck"), "development");
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.message);
+    expect(result.legacyDefinition).toMatchObject({
+      id: "unit-logi-truck",
+      stats: { healthModel: "HITS", maxHealth: 1, speed: 3 },
+      allowedActions: ["RESUPPLY"],
+    });
+    expect(result.authority.links.allowedActionTypes).toEqual(["RESUPPLY"]);
+    expect(result.authority.profiles.cargoProfile).toMatchObject({ id: "cargo-logi-two-slot" });
+  });
+
   test.each([
-    "unit-logi-truck",
     "unit-infantry-fighting-vehicle",
     "unit-vtol",
     "unit-heavy-air-transport",

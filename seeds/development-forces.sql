@@ -318,6 +318,7 @@ INSERT INTO player_unit_supplies (
   ('force-doc-7', 'SMALL_SUPPLY', 1, 1),
   ('force-anvil', 'SMALL_SUPPLY', 4, 4),
   ('force-longbow', 'SMALL_SUPPLY', 2, 2),
+  ('force-mule-3', 'SMALL_SUPPLY', 5, 10),
   ('force-vulture-1', 'MAIN_AMMUNITION', 1, 1),
   ('force-hammer-2', 'MAIN_AMMUNITION', 1, 1)
 ON CONFLICT(player_unit_id, resource_type) DO UPDATE SET
@@ -368,12 +369,15 @@ INSERT INTO unit_cargo_items (
   id, carrier_unit_id, item_kind, resource_type,
   quantity, cargo_slots_quarters, state, state_json
 ) VALUES
-  ('cargo-mule-small-supply', 'force-mule-3', 'SUPPLY', 'SMALL_SUPPLY', 5, 4, 'LOADED', '{}'),
   ('cargo-atlas-small-supply', 'force-atlas', 'SUPPLY', 'SMALL_SUPPLY', 5, 4, 'LOADED', '{}')
 ON CONFLICT(id) DO UPDATE SET
   quantity = excluded.quantity,
   state = 'LOADED',
   unloaded_at = NULL;
+
+-- Tactical Logi stock is authoritative in player_unit_supplies so campaign
+-- transfers and persistence do not maintain a second mutable crate count.
+DELETE FROM unit_cargo_items WHERE id = 'cargo-mule-small-supply';
 
 INSERT INTO unit_service_summaries (
   player_unit_id, campaigns_completed, rounds_served,
@@ -438,5 +442,5 @@ INSERT INTO battlegroup_units (battlegroup_id, player_unit_id, delegated_command
 SELECT 'battlegroup-hammer', id, 0
   FROM player_units
  WHERE owner_id = 'demo-user'
-   AND id IN ('force-raven-2', 'force-doc-7', 'force-anvil', 'force-longbow', 'force-nomad', 'force-carrier-6', 'force-bellator')
+   AND id IN ('force-raven-2', 'force-doc-7', 'force-anvil', 'force-longbow', 'force-mule-3', 'force-nomad', 'force-carrier-6', 'force-bellator')
 ON CONFLICT(battlegroup_id, player_unit_id) DO UPDATE SET delegated_command = 0;

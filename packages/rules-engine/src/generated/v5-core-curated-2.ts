@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "7d2ccf940c95e1738704b1f1a54a6477aa8137df52f5eee4f36e4bdcd0519947",
+  "contentHash": "a1a3ae78cc7511d9119dbf431318a46f0172e83497baf6e556c12218cd74f225",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1936,7 +1936,23 @@ const snapshot = {
             ],
             "weaponIds": []
           },
-          "execution": null,
+          "execution": {
+            "allowedActions": [
+              "RESUPPLY"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "RUSH"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "VEHICLE",
+              "LOGISTICS",
+              "TRANSPORT"
+            ]
+          },
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -7645,6 +7661,7 @@ const snapshot = {
             "unit-engineers",
             "unit-infantry-squad",
             "unit-light-vehicle",
+            "unit-logi-truck",
             "unit-main-battle-tank"
           ],
           "resolverPath": "packages/rules-engine/src/resolver.ts",
@@ -7681,6 +7698,7 @@ const snapshot = {
             "action-load-cargo",
             "action-pack-platform",
             "action-repair",
+            "action-transfer-supply",
             "action-reload",
             "action-unload-cargo"
           ],
@@ -7890,6 +7908,22 @@ const snapshot = {
       {
         "definitionKind": "ACTION",
         "definitionId": "action-repair",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-transfer-supply",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
         "availabilityStatus": "AVAILABLE",
@@ -8786,10 +8820,10 @@ const snapshot = {
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "BALANCE_REQUIRED",
         "availabilityStatus": "DEV_ONLY",
-        "executable": false,
+        "executable": true,
         "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "CP_201_CATALOGUE_HANDLER_CUTOVER_PENDING",
+        "handlerId": "foundation-generated-unit-class",
+        "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
@@ -8798,8 +8832,19 @@ const snapshot = {
             "UNLOAD",
             "AIRDROP"
           ],
+          "implementedSubset": [
+            "HITS",
+            "MOVEMENT",
+            "ARTILLERY_SMALL_SUPPLY_TRANSFER"
+          ],
+          "missing": [
+            "TOWING",
+            "PASSENGER_CARGO",
+            "COORDINATED_AIRDROP",
+            "GENERAL_RESUPPLY"
+          ],
           "publicationCorrection": {
-            "reason": "The final seed claimed transport execution before a generated-catalogue campaign handler existed.",
+            "reason": "The generated tactical handler executes the V5 Logi chassis and its narrow one-crate Artillery reload path; wider cargo and logistics remain gated.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": true,
@@ -14234,5 +14279,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "7d2ccf940c95e1738704b1f1a54a6477aa8137df52f5eee4f36e4bdcd0519947" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "a1a3ae78cc7511d9119dbf431318a46f0172e83497baf6e556c12218cd74f225" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

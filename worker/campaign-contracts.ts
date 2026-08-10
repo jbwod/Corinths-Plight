@@ -230,6 +230,9 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
   if (type === "REPAIR" && parsed.targetDeploymentId === undefined) {
     requestFail(`${path}.targetDeploymentId`, "Engineer Repair requires a target deployment.");
   }
+  if (type === "RESUPPLY" && parsed.targetDeploymentId === undefined) {
+    requestFail(`${path}.targetDeploymentId`, "Transfer Supply requires a target deployment.");
+  }
   if (value.targetHex !== undefined) parsed.targetHex = coordinate(value.targetHex, `${path}.targetHex`);
   if (value.structureDefinitionId !== undefined) {
     parsed.structureDefinitionId = identifier(value.structureDefinitionId, `${path}.structureDefinitionId`);

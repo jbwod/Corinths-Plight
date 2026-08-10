@@ -100,7 +100,13 @@ function deployment(
       : undefined,
     artilleryDeployment: definitionId === "unit-artillery" ? "PACKED" : undefined,
     equipmentIds: [],
-    supplies: definition.tags.includes("ENGINEER") ? { SMALL_SUPPLY: definition.stats.maxHealth } : undefined,
+    supplies: definition.tags.includes("ENGINEER")
+      ? { SMALL_SUPPLY: definition.stats.maxHealth }
+      : definition.tags.includes("ARTILLERY")
+        ? { SMALL_SUPPLY: 2 }
+        : definition.tags.includes("LOGISTICS")
+          ? { SMALL_SUPPLY: 5 }
+          : undefined,
     battlegroupId: side === "ALLIED" ? "hammer" : undefined,
   };
 }
@@ -151,6 +157,7 @@ export function createDemoCampaignState(
     deployment("dep-bellator", "unit-main-battle-tank", "demo-user", "ALLIED", "BELLATOR", { q: -4, r: 3 }, 1),
     deployment("dep-keystone", "unit-engineers", "demo-user", "ALLIED", "KEYSTONE", { q: -4, r: 1 }, 2),
     deployment("dep-longbow", "unit-artillery", "demo-user", "ALLIED", "LONGBOW", { q: -5, r: 2 }, 2),
+    deployment("dep-mule-3", "unit-logi-truck", "demo-user", "ALLIED", "MULE-3", { q: -5, r: 2 }, 2),
     deployment("dep-lantern", "unit-light-vehicle", "demo-user", "ALLIED", "LANTERN", { q: -2, r: -1 }, 2),
     deployment("bug-drone-1", "enemy-bug-drone", "enemy-doctrine", "ENEMY", "SKITTER-9", { q: 1, r: -1 }, 5, false),
     deployment("bug-warrior-1", "enemy-bug-warrior", "enemy-doctrine", "ENEMY", "CHITIN-4", { q: 3, r: -1 }, 5, false),

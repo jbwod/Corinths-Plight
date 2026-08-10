@@ -689,7 +689,7 @@ DELETE FROM battlegroup_units
 INSERT INTO battlegroup_units (battlegroup_id, player_unit_id, delegated_command)
 SELECT 'battlegroup-hammer', id, 0
   FROM player_units
- WHERE id IN ('force-raven-2', 'force-doc-7', 'force-anvil', 'force-longbow', 'force-nomad', 'force-carrier-6', 'force-bellator')
+ WHERE id IN ('force-raven-2', 'force-doc-7', 'force-anvil', 'force-longbow', 'force-mule-3', 'force-nomad', 'force-carrier-6', 'force-bellator')
 ON CONFLICT(battlegroup_id, player_unit_id) DO UPDATE SET delegated_command = 0;
 
 INSERT INTO battlegroup_units (battlegroup_id, player_unit_id, delegated_command)

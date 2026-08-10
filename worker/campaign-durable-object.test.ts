@@ -161,6 +161,35 @@ function orderBody(overrides: Record<string, unknown> = {}): string {
 }
 
 describe("CampaignDurableObject campaign contracts", () => {
+  it("accepts a governed Logi transfer without trusting client quantity or economy", async () => {
+    const { campaign, storage } = campaignObject();
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    seeded.deployments.find((deployment) => deployment.id === "dep-longbow")!.supplies = { SMALL_SUPPLY: 1 };
+    storage.values.set("state/current", encodeCampaignStoredState(seeded));
+
+    const response = await campaign.fetch(request("/orders", {
+      method: "POST",
+      body: orderBody({
+        commandId: "command-logi-resupply",
+        unitId: "dep-mule-3",
+        actions: [{ type: "RESUPPLY", targetDeploymentId: "dep-longbow" }],
+      }),
+    }));
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      order: {
+        unitId: "dep-mule-3",
+        actions: [{
+          type: "RESUPPLY",
+          targetDeploymentId: "dep-longbow",
+          economy: "STANDARD",
+          speedCost: 0.5,
+        }],
+      },
+    });
+  });
+
   it("replays an identical order command and rejects command reuse or a stale revision", async () => {
     const { campaign, storage } = campaignObject();
     const body = orderBody();
@@ -319,7 +348,7 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect((await campaign.fetch(request("/state"))).status).toBe(200);
     const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
     const originalOrderCount = seeded.orders.length;
-    seeded.deployments.find((deployment) => deployment.id === UNIT_ID)!.definitionId = "unit-logi-truck";
+    seeded.deployments.find((deployment) => deployment.id === UNIT_ID)!.definitionId = "unit-infantry-fighting-vehicle";
     storage.values.set("state/current", encodeCampaignStoredState(seeded));
 
     const before = storage.values.get("state/current");
@@ -328,7 +357,7 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(await stateResponse.json()).toMatchObject({
       error: {
         code: "CAMPAIGN_ERROR",
-        details: { message: "CAMPAIGN_UNIT_DEFINITION_NOT_EXECUTABLE:unit-logi-truck:NOT_EXECUTABLE" },
+        details: { message: "CAMPAIGN_UNIT_DEFINITION_NOT_EXECUTABLE:unit-infantry-fighting-vehicle:NOT_EXECUTABLE" },
       },
     });
     expect(storage.values.get("state/current")).toBe(before);

@@ -18,7 +18,13 @@ import {
   hexDistance,
   sameCoord,
 } from "./hex";
-import { cargoSlotsForItem, disembarkCargo, embarkCargo, reloadAmmunition } from "./logistics";
+import {
+  cargoSlotsForItem,
+  disembarkCargo,
+  embarkCargo,
+  reloadAmmunition,
+  transferLogiArtillerySupply,
+} from "./logistics";
 import { hasDisabledSubsystem, resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
 import { resolveSimultaneousMovement } from "./movement";
 import { resolveEngineerRepair, resolveHealing, resolveSubsystemDamage } from "./forces";
@@ -949,6 +955,44 @@ export function resolveRound(input: RoundInput): RoundOutput {
           before,
           after: target.currentHealth,
           smallSupplySpent: repaired.supplySpent,
+        }, actorVisibility);
+      }
+      if (action.type === "RESUPPLY") {
+        const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+        const actorIsLogistics = deploymentTags(actor).includes("LOGISTICS");
+        const targetIsArtillery = target ? deploymentTags(target).includes("ARTILLERY") : false;
+        const transfer = target && actorIsLogistics && targetIsArtillery && target.side === actor.side &&
+          target.status !== "DESTROYED" && sameCoord(actor.position, target.position)
+          ? transferLogiArtillerySupply(actor.supplies ?? {}, target.supplies ?? {})
+          : undefined;
+        if (!target || !actorIsLogistics || !targetIsArtillery || target.side !== actor.side ||
+            target.status === "DESTROYED" || !sameCoord(actor.position, target.position) || !transfer?.legal) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [
+              !actorIsLogistics
+                ? "Transfer Supply requires a Logi Truck."
+                : !target || !targetIsArtillery || target.side !== actor.side || target.status === "DESTROYED"
+                  ? "Transfer Supply requires a friendly operational Artillery unit."
+                  : !sameCoord(actor.position, target.position)
+                    ? "The Logi Truck and Artillery unit must finish in the same hex."
+                    : transfer?.reason ?? "Small Supply transfer is illegal.",
+            ],
+          }, actorVisibility);
+          continue;
+        }
+        actor.supplies = transfer.source;
+        target.supplies = transfer.destination;
+        event("SUPPLY_TRANSFERRED", actor.id, {
+          actionId: action.id,
+          targetId: target.id,
+          resourceType: "SMALL_SUPPLY",
+          quantity: 1,
+          sourceRemaining: transfer.source.SMALL_SUPPLY ?? 0,
+          targetAfter: transfer.destination.SMALL_SUPPLY ?? 0,
+          purpose: "ARTILLERY_RELOAD",
+          conflictId: "RC-SUP-001",
         }, actorVisibility);
       }
       if (action.type === "SCAN" || action.type === "DEPLOY_DRONE") {

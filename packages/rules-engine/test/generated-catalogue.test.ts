@@ -105,7 +105,7 @@ describe("rules catalogue bootstrap", () => {
     expect(content.movementProfiles.every((profile) => profile.definitionStatus === "unspecified")).toBe(true);
 
     const overlays = new Map(content.overlays.map((overlay) => [`${overlay.definitionKind}:${overlay.definitionId}`, overlay]));
-    for (const unitId of ["unit-heavy-air-transport", "unit-infantry-fighting-vehicle", "unit-logi-truck", "unit-vtol"]) {
+    for (const unitId of ["unit-heavy-air-transport", "unit-infantry-fighting-vehicle", "unit-vtol"]) {
       expect(overlays.get(`UNIT:${unitId}`)).toMatchObject({
         implementationStatus: "PARTIAL",
         executable: false,
@@ -113,6 +113,12 @@ describe("rules catalogue bootstrap", () => {
         reasonCode: "CP_201_CATALOGUE_HANDLER_CUTOVER_PENDING",
       });
     }
+    expect(overlays.get("UNIT:unit-logi-truck")).toMatchObject({
+      implementationStatus: "PARTIAL",
+      executable: true,
+      handlerId: "foundation-generated-unit-class",
+      reasonCode: "MISSING_CANONICAL_PRICE",
+    });
     for (const equipmentId of ["equipment-drone-operator", "equipment-vehicle-optics"]) {
       expect(overlays.get(`EQUIPMENT:${equipmentId}`)).toMatchObject({
         implementationStatus: "PARTIAL",
@@ -134,6 +140,7 @@ describe("rules catalogue bootstrap", () => {
       "ACTION:action-pack-platform",
       "ACTION:action-reload",
       "ACTION:action-repair",
+      "ACTION:action-transfer-supply",
       "ACTION:action-trench-upgrade",
       "ACTION:action-unload-cargo",
       "EQUIPMENT:equipment-flak-vests",
@@ -151,6 +158,7 @@ describe("rules catalogue bootstrap", () => {
       "UNIT:unit-engineers",
       "UNIT:unit-infantry-squad",
       "UNIT:unit-light-vehicle",
+      "UNIT:unit-logi-truck",
       "UNIT:unit-main-battle-tank",
     ]);
     expect(content.handlers.map((handler) => handler.id)).toEqual([

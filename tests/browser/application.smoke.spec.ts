@@ -44,7 +44,7 @@ async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<
   for (let index = 0; index < await deployableUnits.count(); index += 1) {
     const checkbox = deployableUnits.nth(index);
     const label = await checkbox.locator("..").innerText();
-    const foundationSupportUnit = ["LONGBOW", "DOC-7", "RAVEN-2", "ANVIL", "NOMAD", "BELLATR"].some((callsign) => label.includes(callsign));
+    const foundationSupportUnit = ["LONGBOW", "MULE-3", "DOC-7", "RAVEN-2", "ANVIL", "NOMAD", "BELLATR"].some((callsign) => label.includes(callsign));
     if (foundationSupportUnit && ![...deployedCallsigns].some((callsign) => label.includes(callsign))) {
       await checkbox.check();
       selectedForDeployment += 1;
@@ -588,6 +588,14 @@ test("tactical composer exposes every currently executable action and no catalog
   expect(roundThreeState.round, JSON.stringify(roundThreeDiagnostic)).toBe(3);
   expect(roundThreeState.phase).toBe("PLANNING");
 
+  await page.locator(".unit-roster").getByRole("button", { name: /MULE-3/ }).click();
+  await expect(composer.getByRole("button", { name: "RESUPPLY", exact: true })).toBeVisible();
+  await composer.getByRole("button", { name: "RESUPPLY", exact: true }).click();
+  await expect(composer.getByLabel("ARTILLERY STOCKPILE")).toContainText("LONGBOW");
+  await expect(composer.getByText(/LOGI STOCK: 5\/10 SMALL SUPPLY/)).toBeVisible();
+  await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
+  await expect(page.getByText(/MULE-3 order submitted to campaign command/)).toBeVisible();
+
   await submitRelayDefenceAttack(page);
   await submitEngineerAdvance(page);
   await submitInfantryRelayAdvance(page);
@@ -643,6 +651,13 @@ test("tactical composer exposes every currently executable action and no catalog
   });
   expect(repairedStateResponse.status()).toBe(200);
   const repairedState = await repairedStateResponse.json() as CampaignView;
+  expect(repairedState.events).toContainEqual(expect.objectContaining({
+    type: "SUPPLY_TRANSFERRED",
+    actor: expect.stringContaining("force-mule-3"),
+    payload: expect.objectContaining({ resourceType: "SMALL_SUPPLY", quantity: 1 }),
+  }));
+  expect(repairedState.deployments.find((deployment) => deployment.callsign === "MULE-3")?.supplies?.SMALL_SUPPLY).toBe(4);
+  expect(repairedState.deployments.find((deployment) => deployment.callsign === "LONGBOW")?.supplies?.SMALL_SUPPLY).toBe(2);
   if (repairSubmitted) {
     expect(repairedState.events).toContainEqual(expect.objectContaining({ type: "UNIT_REPAIRED", actor: expect.stringContaining("force-anvil") }));
     expect(repairedState.deployments.find((deployment) => deployment.callsign === "ANVIL")?.supplies?.SMALL_SUPPLY).toBe(3);

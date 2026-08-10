@@ -85,9 +85,9 @@ interface CampaignDirectoryEntry {
 }
 const campaignCanOpen = (entry: CampaignDirectoryEntry): boolean => entry.canEnter || entry.outcome !== undefined;
 type Notice = { tone: "info" | "success" | "danger"; message: string };
-type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "ARTILLERY_DIG_IN" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
+type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "ARTILLERY_DIG_IN" | "RELOAD" | "RESUPPLY" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
 type RepairKind = "HIT" | "SUBSYSTEM";
-const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "ARTILLERY_DIG_IN", "RELOAD", "LOAD", "UNLOAD", "HEAL", "REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
+const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "ARTILLERY_DIG_IN", "RELOAD", "RESUPPLY", "LOAD", "UNLOAD", "HEAL", "REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
 const constructibleFieldworks = CONSTRUCTIBLE_FIELDWORK_IDS.map(getFieldworkDefinition);
 
 function initialCampaign(): CampaignView {
@@ -137,6 +137,7 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "DAMAGE_APPLIED") return `${event.actor ?? "Unit"} lost ${String(payload.loss ?? "?")} strength.`;
   if (event.type === "UNIT_HEALED") return `${event.actor ?? "Medic"} restored ${String(payload.amount ?? "?")} strength to ${String(payload.targetId ?? "an allied unit")}.`;
   if (event.type === "UNIT_REPAIRED") return `${event.actor ?? "Engineer"} repaired ${String(payload.targetId ?? "an allied vehicle")}.`;
+  if (event.type === "SUPPLY_TRANSFERRED") return `${event.actor ?? "Logi"} transferred one Small Supply to ${String(payload.targetId ?? "an allied unit")}.`;
   if (event.type === "STRUCTURE_COMPLETED") return `${event.actor ?? "Engineer"} completed ${String(payload.structureName ?? "a fieldwork")} at ${String((payload.targetHex as AxialCoord | undefined)?.q ?? "?")}.${String((payload.targetHex as AxialCoord | undefined)?.r ?? "?")}.`;
   if (event.type === "STRUCTURE_UPGRADED") return `${event.actor ?? "Infantry"} upgraded a Sandbag Line into a Trench.`;
   if (event.type === "ARTILLERY_DEPLOYED") return `${event.actor ?? "Artillery"} deployed and is ready to fire.`;
@@ -459,6 +460,14 @@ function GameApp() {
     !deployment.statuses.includes("DUG_IN") &&
     hexDistance(deployment.position, draftedRoute.at(-1) ?? selectedUnit.position) <= 1
   ) : [];
+  const resupplyTargets = selectedUnit ? campaign.deployments.filter((deployment) =>
+    deployment.id !== selectedUnit.id &&
+    deployment.side === selectedUnit.side &&
+    deployment.status !== "DESTROYED" &&
+    deployment.tags?.includes("ARTILLERY") === true &&
+    (deployment.supplies?.SMALL_SUPPLY ?? 0) < 2 &&
+    coordinatesEqual(deployment.position, draftedRoute.at(-1) ?? selectedUnit.position)
+  ) : [];
   const supportTargets = actionMode === "LOAD"
     ? loadTargets
     : actionMode === "UNLOAD"
@@ -469,6 +478,8 @@ function GameApp() {
           ? repairTargets
         : actionMode === "ARTILLERY_DIG_IN"
           ? artilleryDigInTargets
+        : actionMode === "RESUPPLY"
+          ? resupplyTargets
         : [];
   const supportTarget = supportTargets.find((deployment) => deployment.id === supportTargetUnitId) ?? supportTargets[0];
   const repairableSubsystems = supportTarget?.subsystems?.filter((subsystem) => subsystem.state !== "OPERATIONAL") ?? [];
@@ -566,6 +577,7 @@ function GameApp() {
       (repairKind === "HIT" ? supportTarget.currentHealth < supportTarget.stats.maxHealth : selectedRepairSubsystem),
     )) ||
     (actionMode === "ARTILLERY_DIG_IN" && Boolean(isEngineerUnit && supportTarget)) ||
+    (actionMode === "RESUPPLY" && Boolean(supportTarget && (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0)) ||
     (actionMode === "CONSTRUCT" && Boolean(
       isEngineerUnit && selectedConstructionHex &&
       (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) >= selectedConstructionFieldwork.smallSupplyCost
@@ -609,6 +621,8 @@ function GameApp() {
               : `repair ${selectedRepairSubsystem?.subsystemId ?? "a subsystem"} on ${supportTarget.callsign}`
           : actionMode === "ARTILLERY_DIG_IN" && supportTarget
             ? `dig in deployed artillery ${supportTarget.callsign} for +2 Defense`
+          : actionMode === "RESUPPLY" && supportTarget
+            ? `transfer one Small Supply to ${supportTarget.callsign}`
           : actionMode === "CONSTRUCT" && selectedConstructionHex
             ? `build ${selectedConstructionFieldwork.name} at ${selectedConstructionHex.q}.${selectedConstructionHex.r}`
           : actionMode === "TRENCH_UPGRADE" && plannedEndHex
@@ -757,6 +771,8 @@ function GameApp() {
       });
     } else if (actionMode === "ARTILLERY_DIG_IN" && supportTarget) {
       actions.push({ type: "ARTILLERY_DIG_IN", targetDeploymentId: supportTarget.id, equipmentIds: [] });
+    } else if (actionMode === "RESUPPLY" && supportTarget) {
+      actions.push({ type: "RESUPPLY", targetDeploymentId: supportTarget.id, equipmentIds: [] });
     } else if (actionMode === "CONSTRUCT" && selectedConstructionHex) {
       actions.push({
         type: "CONSTRUCT",
@@ -1276,6 +1292,28 @@ function GameApp() {
                       SMALL SUPPLY: {selectedUnit.supplies?.SMALL_SUPPLY ?? 0} · reload consumes 1
                     </p>
                     {reloadableWeapons.length === 0 && <p className="validation">Every finite-ammo weapon is already full.</p>}
+                  </>
+                ) : actionMode === "RESUPPLY" ? (
+                  <>
+                    <label className="field-label" htmlFor="resupply-target">ARTILLERY STOCKPILE</label>
+                    <select
+                      id="resupply-target"
+                      aria-label="ARTILLERY STOCKPILE"
+                      value={supportTarget?.id ?? ""}
+                      onChange={(event) => setSupportTargetUnitId(event.target.value)}
+                      disabled={resupplyTargets.length === 0}
+                    >
+                      {resupplyTargets.map((deployment) => (
+                        <option value={deployment.id} key={deployment.id}>
+                          {deployment.callsign} · {deployment.supplies?.SMALL_SUPPLY ?? 0}/2 SMALL SUPPLY
+                        </option>
+                      ))}
+                    </select>
+                    <p className={`validation ${(selectedUnit.supplies?.SMALL_SUPPLY ?? 0) < 1 ? "danger" : ""}`}>
+                      LOGI STOCK: {selectedUnit.supplies?.SMALL_SUPPLY ?? 0}/10 SMALL SUPPLY
+                    </p>
+                    <p className="validation">STANDARD ACTION · 0.5 SPEED · transfer one crate to a co-located Artillery unit.</p>
+                    {resupplyTargets.length === 0 && <p className="validation danger">Move into the same hex as an Artillery unit with an open supply slot.</p>}
                   </>
                 ) : actionMode === "HEAL" ? (
                   <>

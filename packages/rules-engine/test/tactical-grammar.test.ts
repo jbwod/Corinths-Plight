@@ -63,7 +63,13 @@ describe("generated tactical grammar", () => {
       stats: { maxHealth: 4, speed: 1, capacity: 1 },
       allowedActions: ["DIG_IN", "HEAL", "RELOAD", "LOAD", "UNLOAD"],
     });
-    expect(() => getTacticalUnitClass("unit-logi-truck")).toThrow("Unit class is not executable");
+    expect(getTacticalUnitClass("unit-logi-truck")).toMatchObject({
+      category: "SUPPORT",
+      stats: { healthModel: "HITS", maxHealth: 1, speed: 3, capacity: 1 },
+      allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+      allowedActions: ["RESUPPLY"],
+      weapons: [],
+    });
   });
 
   it("materializes the V5 subsystem malfunction profile from the governed durability record", () => {

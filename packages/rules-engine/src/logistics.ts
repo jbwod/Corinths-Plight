@@ -393,6 +393,48 @@ export function transferProfiledSupply(input: SupplyTransferInput): SupplyTransf
   return { legal: true, source, destination };
 }
 
+export const LOGI_SMALL_SUPPLY_CAPACITY = 10;
+export const ARTILLERY_SMALL_SUPPLY_CAPACITY = 2;
+
+const logiSmallSupplyProfile: SupplyProfile = {
+  id: "v5-logi-small-supply-cargo",
+  capacities: { SMALL_SUPPLY: LOGI_SMALL_SUPPLY_CAPACITY },
+  totalCapacity: LOGI_SMALL_SUPPLY_CAPACITY,
+  retainExistingOverCapacity: true,
+  transferableTypes: ["SMALL_SUPPLY"],
+  handlerId: "foundation-action-handler",
+};
+
+const artillerySmallSupplyProfile: SupplyProfile = {
+  id: "v5-artillery-small-supply-stockpile",
+  capacities: { SMALL_SUPPLY: ARTILLERY_SMALL_SUPPLY_CAPACITY },
+  totalCapacity: ARTILLERY_SMALL_SUPPLY_CAPACITY,
+  retainExistingOverCapacity: true,
+  transferableTypes: ["SMALL_SUPPLY"],
+  handlerId: "foundation-action-handler",
+};
+
+/**
+ * The source-complete tactical logistics path: a Logi Standard Action moves
+ * one Small Supply crate into an Artillery stockpile. Wider resupply and
+ * weapon-reload conversions remain separate rules decisions.
+ */
+export function transferLogiArtillerySupply(
+  source: SupplyInventory,
+  destination: SupplyInventory,
+): SupplyTransferResult {
+  return transferProfiledSupply({
+    sourceProfile: logiSmallSupplyProfile,
+    destinationProfile: artillerySmallSupplyProfile,
+    source,
+    destination,
+    sourceCurrentHealth: 1,
+    destinationCurrentHealth: 3,
+    type: "SMALL_SUPPLY",
+    quantity: 1,
+  });
+}
+
 export interface ReloadInput {
   profile: ReloadProfile;
   weapon: WeaponProfile;

@@ -19,6 +19,7 @@ import {
   isConstructibleFieldworkId,
   projectCampaignState,
   resolveRound,
+  transferLogiArtillerySupply,
   validateArtilleryFire,
   validateOrder,
 } from "../packages/rules-engine/src";
@@ -971,6 +972,26 @@ export class CampaignDurableObject extends DurableObject<Env> {
       }
       if (targetOrder && (targetOrder.route.length > 1 || targetOrder.actions.some((candidate) => candidate.type === "PACK_UP"))) {
         return errorResponse(409, "ARTILLERY_MUST_REMAIN_STATIONARY", "The Artillery unit must remain deployed and stationary this round.");
+      }
+    }
+    for (const action of actions.filter((candidate) => candidate.type === "RESUPPLY")) {
+      const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+      const targetRules = target && resolveUnitExecutionAdapter(LEGACY_RULESET_ID, target.definitionId, this.env.ENVIRONMENT);
+      if (!execution.legacyDefinition.tags.includes("LOGISTICS")) {
+        return errorResponse(422, "RESUPPLY_INELIGIBLE", "Transfer Supply requires a Logi Truck.");
+      }
+      if (
+        !target || target.side !== deployment.side || target.status === "DESTROYED" ||
+        !targetRules?.ok || !targetRules.legacyDefinition.tags.includes("ARTILLERY")
+      ) {
+        return errorResponse(422, "RESUPPLY_TARGET_INVALID", "Transfer Supply requires a friendly operational Artillery unit.");
+      }
+      if (hexDistance(route.at(-1)!, target.position) !== 0) {
+        return errorResponse(422, "RESUPPLY_RANGE_INVALID", "The Logi Truck and Artillery unit must finish in the same hex.");
+      }
+      const transfer = transferLogiArtillerySupply(deployment.supplies ?? {}, target.supplies ?? {});
+      if (!transfer.legal) {
+        return errorResponse(422, "RESUPPLY_UNAVAILABLE", transfer.reason ?? "Small Supply cannot be transferred.");
       }
     }
     if (platformActions.length > 1) {

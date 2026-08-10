@@ -133,6 +133,53 @@ describe("equipment and transport actions", () => {
     })).toMatchObject({ legal: false, reasons: expect.arrayContaining(["The Artillery unit must already be deployed."]) });
   });
 
+  it("moves one Small Supply from a co-located Logi Truck into Artillery stock", () => {
+    const base = createDemoCampaignState(1_000);
+    const logi = base.deployments.find((deployment) => deployment.definitionId === "unit-logi-truck")!;
+    const artillery = base.deployments.find((deployment) => deployment.definitionId === "unit-artillery")!;
+    artillery.supplies = { SMALL_SUPPLY: 1 };
+    const rule = getTacticalActionRule("RESUPPLY");
+    const resupply: StructuredAction = {
+      id: "resupply-longbow",
+      type: "RESUPPLY",
+      economy: rule.economy,
+      speedCost: rule.speedCost,
+      targetDeploymentId: artillery.id,
+      equipmentIds: [],
+    };
+    const resupplyOrder = order(base, logi, [resupply]);
+    base.orders = [resupplyOrder];
+
+    const output = resolveRound({ ...input([resupplyOrder]), previousState: base });
+    expect(output.state.deployments.find((deployment) => deployment.id === logi.id)?.supplies?.SMALL_SUPPLY).toBe(4);
+    expect(output.state.deployments.find((deployment) => deployment.id === artillery.id)?.supplies?.SMALL_SUPPLY).toBe(2);
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "SUPPLY_TRANSFERRED",
+      actor: logi.id,
+      payload: expect.objectContaining({
+        targetId: artillery.id,
+        resourceType: "SMALL_SUPPLY",
+        quantity: 1,
+        sourceRemaining: 4,
+        targetAfter: 2,
+        purpose: "ARTILLERY_RELOAD",
+        conflictId: "RC-SUP-001",
+      }),
+    }));
+
+    const full = createDemoCampaignState(1_000);
+    const fullLogi = full.deployments.find((deployment) => deployment.definitionId === "unit-logi-truck")!;
+    const fullArtillery = full.deployments.find((deployment) => deployment.definitionId === "unit-artillery")!;
+    const rejectedOrder = order(full, fullLogi, [{ ...resupply, targetDeploymentId: fullArtillery.id }]);
+    full.orders = [rejectedOrder];
+    const rejected = resolveRound({ ...input([rejectedOrder]), previousState: full });
+    expect(rejected.events).toContainEqual(expect.objectContaining({
+      type: "ORDER_REJECTED",
+      actor: fullLogi.id,
+      payload: expect.objectContaining({ reasons: ["SMALL_SUPPLY supply capacity exceeded."] }),
+    }));
+  });
+
   it("bombards a spotted radius, spends Small Supply, and recovers suppression after fire stops", () => {
     const base = createDemoCampaignState(1_000);
     const artillery = base.deployments.find((deployment) => deployment.definitionId === "unit-artillery")!;

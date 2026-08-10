@@ -116,6 +116,30 @@ describe("campaign order request contracts", () => {
     })).toThrow(CampaignRequestContractError);
   });
 
+  it("accepts only a target for server-derived Logi supply transfer", () => {
+    expect(parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-allied-logi",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{ type: "RESUPPLY", targetDeploymentId: "deployment-allied-artillery" }],
+    }).actions).toEqual([{ type: "RESUPPLY", targetDeploymentId: "deployment-allied-artillery" }]);
+    expect(() => parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-allied-logi",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{ type: "RESUPPLY" }],
+    })).toThrow(CampaignRequestContractError);
+    expect(() => parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-allied-logi",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{ type: "RESUPPLY", targetDeploymentId: "deployment-allied-artillery", quantity: 10 }],
+    })).toThrow(CampaignRequestContractError);
+  });
+
   it("requires an exact structure and hex for Engineer construction", () => {
     expect(parseCampaignOrderIntent({
       ...ORDER_COMMAND,

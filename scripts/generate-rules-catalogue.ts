@@ -486,6 +486,12 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     allowedOrders: ["HOLD", "ADVANCE", "RUSH", "EVASIVE"],
     allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
   },
+  "unit-logi-truck": {
+    capacity: 1,
+    tags: ["GROUND", "VEHICLE", "LOGISTICS", "TRANSPORT"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+    allowedActions: ["RESUPPLY"],
+  },
   "unit-main-battle-tank": {
     capacity: 1,
     tags: ["GROUND", "VEHICLE", "SUB_SYSTEM", "REAR_WEAK_SPOT"],
@@ -759,6 +765,7 @@ const foundationUnitIds = [
   "unit-engineers",
   "unit-infantry-squad",
   "unit-light-vehicle",
+  "unit-logi-truck",
   "unit-main-battle-tank",
 ] as const;
 
@@ -781,6 +788,7 @@ const foundationActionIds = [
   "action-load-cargo",
   "action-pack-platform",
   "action-repair",
+  "action-transfer-supply",
   "action-reload",
   "action-unload-cargo",
 ] as const;
@@ -824,9 +832,13 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     explanation: "The final seed claimed transport execution before a generated-catalogue campaign handler existed.",
   },
   "UNIT:unit-logi-truck": {
-    implementationStatus: "PARTIAL", executable: false, handlerId: null,
-    reasonCode: "CP_201_CATALOGUE_HANDLER_CUTOVER_PENDING",
-    explanation: "The final seed claimed transport execution before a generated-catalogue campaign handler existed.",
+    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: "MISSING_CANONICAL_PRICE",
+    parameters: {
+      implementedSubset: ["HITS", "MOVEMENT", "ARTILLERY_SMALL_SUPPLY_TRANSFER"],
+      missing: ["TOWING", "PASSENGER_CARGO", "COORDINATED_AIRDROP", "GENERAL_RESUPPLY"],
+    },
+    explanation: "The generated tactical handler executes the V5 Logi chassis and its narrow one-crate Artillery reload path; wider cargo and logistics remain gated.",
   },
   "UNIT:unit-light-vehicle": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
