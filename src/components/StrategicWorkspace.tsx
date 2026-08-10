@@ -108,6 +108,18 @@ export function StrategicWorkspace({ view, onNavigate, onNotice }: StrategicWork
     );
   }
 
+  if (mode === "ERROR") {
+    return (
+      <main className="strategic-page strategic-auth-state">
+        <span className="eyebrow">PERSISTENT WORLD UNAVAILABLE</span>
+        <h1>No local war state has been substituted</h1>
+        <p>The authenticated strategic projection could not be loaded. Retry the live service; production never presents showcase formations or operations as persistent truth.</p>
+        {issues.length > 0 && <small>{issues.join(" · ")}</small>}
+        <button type="button" onClick={() => void refresh()}>RETRY STRATEGIC LINK</button>
+      </main>
+    );
+  }
+
   if (mode === "NO_BATTALION") {
     return (
       <main className="strategic-page strategic-auth-state">

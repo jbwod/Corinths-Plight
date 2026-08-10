@@ -18,12 +18,14 @@ import {
 } from "./model";
 
 const DEMO_USER = "demo-user";
+const DEMO_HEADERS = import.meta.env.DEV ? { "x-demo-user": DEMO_USER } : undefined;
+const JSON_HEADERS = { "content-type": "application/json", ...(DEMO_HEADERS ?? {}) };
 const FALLBACK_MAP_ID = "strategic-map-corinth";
 
 type JsonRecord = Record<string, unknown>;
 
 export interface StrategicLoadResult {
-  mode: "LIVE" | "SHOWCASE" | "AUTH_REQUIRED" | "NO_BATTALION";
+  mode: "LIVE" | "SHOWCASE" | "ERROR" | "AUTH_REQUIRED" | "NO_BATTALION";
   snapshot: StrategicSnapshot;
   issues: string[];
 }
@@ -628,7 +630,7 @@ export function normalizeStrategicPayloads(payloads: StrategicApiPayloads): Stra
 
 async function endpoint(path: string): Promise<EndpointResult> {
   try {
-    const response = await fetch(path, { headers: { "x-demo-user": DEMO_USER } });
+    const response = await fetch(path, { headers: DEMO_HEADERS });
     if (!response.ok) {
       return { ok: false, status: response.status, message: `${path} returned ${response.status}` };
     }
@@ -688,7 +690,11 @@ export async function loadStrategicSnapshot(): Promise<StrategicLoadResult> {
   const hasStrategicAssignment = Boolean(asRecord(commandRecord?.strategic));
   const required = [command, battalion, operations, ...(hasStrategicAssignment ? [map] : [])];
   if (required.some((result) => !result.ok)) {
-    return { mode: "SHOWCASE", snapshot: SHOWCASE_STRATEGIC_SNAPSHOT, issues };
+    return {
+      mode: import.meta.env.DEV ? "SHOWCASE" : "ERROR",
+      snapshot: SHOWCASE_STRATEGIC_SNAPSHOT,
+      issues,
+    };
   }
 
   return {
@@ -735,7 +741,7 @@ async function strategicMutation(path: string, value: unknown): Promise<Strategi
   try {
     const response = await fetch(path, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-demo-user": DEMO_USER },
+      headers: JSON_HEADERS,
       body: JSON.stringify(value),
     });
     const payload = asRecord(await response.json().catch(() => ({}))) ?? {};

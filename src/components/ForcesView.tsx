@@ -38,13 +38,15 @@ import {
 import { Glyph } from "./Glyph";
 
 const DEMO_USER = "demo-user";
+const DEMO_HEADERS = import.meta.env.DEV ? { "x-demo-user": DEMO_USER } : undefined;
+const JSON_HEADERS = { "content-type": "application/json", ...(DEMO_HEADERS ?? {}) };
 const STATUS_FILTERS: ForceStatusFilter[] = ["ALL", "READY", "DEPLOYED", "DAMAGED", "LOST"];
 
 interface ForcesViewProps {
   onNotice: (notice: { tone: "info" | "success" | "danger"; message: string }) => void;
 }
 
-type ForceDataMode = "LOADING" | "LIVE" | "SHOWCASE";
+type ForceDataMode = "LOADING" | "LIVE" | "SHOWCASE" | "ERROR";
 
 interface CollectionEnvelope {
   values: unknown[];
@@ -283,8 +285,8 @@ function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClos
   const refresh = useCallback(() => {
     let cancelled = false;
     void Promise.all([
-      fetch(`/api/forces/${encodeURIComponent(unit.unitId)}/loadout`, { headers: { "x-demo-user": DEMO_USER } }),
-      fetch(`/api/forces/${encodeURIComponent(unit.unitId)}/eligible-equipment`, { headers: { "x-demo-user": DEMO_USER } }),
+      fetch(`/api/forces/${encodeURIComponent(unit.unitId)}/loadout`, { headers: DEMO_HEADERS }),
+      fetch(`/api/forces/${encodeURIComponent(unit.unitId)}/eligible-equipment`, { headers: DEMO_HEADERS }),
     ])
       .then(async ([loadoutResponse, eligibleResponse]) => {
         if (!loadoutResponse.ok) throw new Error(errorMessage(loadoutResponse.status));
@@ -318,7 +320,7 @@ function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClos
     try {
       const response = await fetch(`/api/forces/${encodeURIComponent(unit.unitId)}/loadout-changes`, {
         method: "POST",
-        headers: { "content-type": "application/json", "x-demo-user": DEMO_USER },
+        headers: JSON_HEADERS,
         body: JSON.stringify({
           commandId: crypto.randomUUID(), expectedVersion: payload.unitVersion,
           expectedLoadoutRevision: payload.loadout.revision, context: "PRE_CAMPAIGN_MUSTER",
@@ -335,7 +337,7 @@ function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClos
     setBusy(true); setError(undefined);
     try {
       const response = await fetch("/api/requisition/equipment-purchases", {
-        method: "POST", headers: { "content-type": "application/json", "x-demo-user": DEMO_USER },
+        method: "POST", headers: JSON_HEADERS,
         body: JSON.stringify({ commandId: crypto.randomUUID(), definitionId, developerOverride: false }),
       });
       if (!response.ok) throw new Error(errorMessage(response.status));
@@ -388,7 +390,7 @@ function BattlegroupDialog({
   }, []);
 
   const refresh = useCallback(async (preferredId?: string) => {
-    const headers = { "x-demo-user": DEMO_USER };
+    const headers = DEMO_HEADERS;
     const [groupsResponse, membersResponse] = await Promise.all([
       fetch("/api/battlegroups", { headers }),
       fetch("/api/battalions/current/members", { headers }),
@@ -428,7 +430,7 @@ function BattlegroupDialog({
   async function post(path: string, value: Record<string, unknown>): Promise<BattlegroupMutationResultDto> {
     const response = await fetch(path, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-demo-user": DEMO_USER },
+      headers: JSON_HEADERS,
       body: JSON.stringify(value),
     });
     if (!response.ok) {
@@ -685,7 +687,7 @@ function RequisitionDialog({
     try {
       const response = await fetch("/api/requisition/purchases", {
         method: "POST",
-        headers: { "content-type": "application/json", "x-demo-user": DEMO_USER },
+        headers: JSON_HEADERS,
         body: JSON.stringify({
           commandId: `purchase:${crypto.randomUUID()}`,
           kind: "UNIT",
@@ -806,9 +808,9 @@ function RequisitionDialog({
 
 export function ForcesView({ onNotice }: ForcesViewProps) {
   const [mode, setMode] = useState<ForceDataMode>("LOADING");
-  const [units, setUnits] = useState<ForceUnitView[]>(SHOWCASE_FORCE);
-  const [catalogue, setCatalogue] = useState<ForceCatalogueView[]>(SHOWCASE_CATALOGUE);
-  const [selectedUnitId, setSelectedUnitId] = useState(SHOWCASE_FORCE[0].unitId);
+  const [units, setUnits] = useState<ForceUnitView[]>(import.meta.env.DEV ? SHOWCASE_FORCE : []);
+  const [catalogue, setCatalogue] = useState<ForceCatalogueView[]>(import.meta.env.DEV ? SHOWCASE_CATALOGUE : []);
+  const [selectedUnitId, setSelectedUnitId] = useState(import.meta.env.DEV ? SHOWCASE_FORCE[0].unitId : "");
   const [roleFilter, setRoleFilter] = useState<ForceRoleFilter>("ALL");
   const [statusFilter, setStatusFilter] = useState<ForceStatusFilter>("ALL");
   const [detailLoading, setDetailLoading] = useState(false);
@@ -820,7 +822,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
 
   const loadForces = useCallback(async (quiet = false) => {
     try {
-      const headers = { "x-demo-user": DEMO_USER };
+      const headers = DEMO_HEADERS;
       const [forcesResponse, catalogueResponse, requisitionResponse] = await Promise.all([
         fetch("/api/forces", { headers }),
         fetch("/api/catalogue/units", { headers }),
@@ -842,12 +844,16 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
       setRegistryNote("Owner-scoped D1 force registry");
       setSelectedUnitId((current) => nextUnits.some((unit) => unit.unitId === current) ? current : nextUnits[0]?.unitId ?? "");
     } catch (reason) {
-      setMode("SHOWCASE");
-      setUnits(SHOWCASE_FORCE);
-      setCatalogue(SHOWCASE_CATALOGUE);
+      setMode(import.meta.env.DEV ? "SHOWCASE" : "ERROR");
+      setUnits(import.meta.env.DEV ? SHOWCASE_FORCE : []);
+      setCatalogue(import.meta.env.DEV ? SHOWCASE_CATALOGUE : []);
       setRequisitionBalance(null);
-      setRegistryNote(reason instanceof Error ? `${reason.message} Deterministic local showcase loaded.` : "Deterministic local showcase loaded.");
-      if (!quiet) onNotice({ tone: "info", message: "Forces is running in SHOWCASE / LOCAL mode. Persistent mutations are disabled." });
+      setRegistryNote(reason instanceof Error
+        ? import.meta.env.DEV ? `${reason.message} Deterministic local showcase loaded.` : reason.message
+        : import.meta.env.DEV ? "Deterministic local showcase loaded." : "Persistent force registry is unavailable.");
+      if (!quiet) onNotice(import.meta.env.DEV
+        ? { tone: "info", message: "Forces is running in SHOWCASE / LOCAL mode. Persistent mutations are disabled." }
+        : { tone: "danger", message: "The persistent force registry is unavailable. No local data has been substituted." });
     }
   }, [onNotice]);
 
@@ -879,7 +885,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
     if (mode !== "LIVE") return;
     setDetailLoading(true);
     try {
-      const response = await fetch(`/api/forces/${encodeURIComponent(unit.unitId)}`, { headers: { "x-demo-user": DEMO_USER } });
+      const response = await fetch(`/api/forces/${encodeURIComponent(unit.unitId)}`, { headers: DEMO_HEADERS });
       if (!response.ok) throw new Error(errorMessage(response.status));
       const payload: unknown = await response.json();
       const detail = normalizeInspection(payload, unit);
@@ -911,7 +917,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
           <span className="lost"><b>{lostCount}</b><small>LOST</small></span>
         </div>
         <div className="forces-command-actions">
-          <span className={`registry-mode ${mode.toLowerCase()}`}><i /> {mode === "LIVE" ? "REGISTRY LIVE" : mode === "LOADING" ? "CONNECTING" : "SHOWCASE / LOCAL"}</span>
+          <span className={`registry-mode ${mode.toLowerCase()}`}><i /> {mode === "LIVE" ? "REGISTRY LIVE" : mode === "LOADING" ? "CONNECTING" : mode === "SHOWCASE" ? "SHOWCASE / LOCAL" : "REGISTRY UNAVAILABLE"}</span>
           <button className="requisition-button" onClick={() => setDrawerOpen(true)}><Glyph name="forces" size={17} /> REQUISITION UNIT</button>
         </div>
       </section>

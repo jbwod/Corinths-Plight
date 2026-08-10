@@ -1,4 +1,4 @@
-export type StrategicDataMode = "LOADING" | "LIVE" | "SHOWCASE" | "AUTH_REQUIRED" | "NO_BATTALION";
+export type StrategicDataMode = "LOADING" | "LIVE" | "SHOWCASE" | "ERROR" | "AUTH_REQUIRED" | "NO_BATTALION";
 
 export type ImplementationStatus = "IMPLEMENTED" | "PARTIAL" | "CATALOGUE_ONLY" | "DEFERRED";
 

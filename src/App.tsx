@@ -61,7 +61,7 @@ function initialNavigation(): ActiveNav {
   return matched ?? "Command";
 }
 
-type ConnectionState = "CONNECTING" | "LIVE" | "RECONNECTING" | "LOCAL";
+type ConnectionState = "CONNECTING" | "LIVE" | "RECONNECTING" | "LOCAL" | "ERROR";
 interface CampaignDirectoryEntry {
   campaignId: string;
   name: string;
@@ -242,11 +242,13 @@ function GameApp() {
       setConnection("LIVE");
       return next;
     } catch (error) {
-      setConnection((current) => (current === "LIVE" ? "RECONNECTING" : "LOCAL"));
+      setConnection((current) => current === "LIVE" ? "RECONNECTING" : import.meta.env.DEV ? "LOCAL" : "ERROR");
       if (!quiet) {
         setNotice({
-          tone: "info",
-          message: `Local tactical projection active. ${error instanceof Error ? error.message : "Campaign service is offline."}`,
+          tone: import.meta.env.DEV ? "info" : "danger",
+          message: import.meta.env.DEV
+            ? `Local tactical projection active. ${error instanceof Error ? error.message : "Campaign service is offline."}`
+            : `Campaign service unavailable. ${error instanceof Error ? error.message : "No local tactical state has been substituted."}`,
         });
       }
       return undefined;
@@ -259,8 +261,8 @@ function GameApp() {
       void loadCampaignDirectory()
         .then((selected) => selected ? loadCampaign(false, selected) : undefined)
         .catch((error: unknown) => {
-          setConnection("LOCAL");
-          setNotice({ tone: "info", message: error instanceof Error ? error.message : "Campaign directory is unavailable." });
+          setConnection(import.meta.env.DEV ? "LOCAL" : "ERROR");
+          setNotice({ tone: import.meta.env.DEV ? "info" : "danger", message: error instanceof Error ? error.message : "Campaign directory is unavailable." });
         });
     }, 0);
     const timer = window.setInterval(() => setNow(Date.now()), 1_000);
@@ -313,7 +315,7 @@ function GameApp() {
         });
         socket.addEventListener("error", () => socket?.close());
       } catch {
-        setConnection("LOCAL");
+        setConnection(import.meta.env.DEV ? "LOCAL" : "RECONNECTING");
       }
     };
     connect();
@@ -787,8 +789,12 @@ function GameApp() {
     Ship: { eyebrow: "PRIMARY ORBITAL // BATTALION HOME", title: "CSV Resolute" },
     Forces: { eyebrow: "33RD EXPEDITIONARY BATTALION // MUSTER", title: "Persistent Force Registry" },
     Deployment: { eyebrow: "TACTICAL MUSTER // FORCE PROJECTION", title: "Deployment Planner" },
-    Campaigns: { eyebrow: `ACTIVE OPERATION // ${campaign.planetName.toUpperCase()}`, title: campaign.campaignName },
-    Reports: { eyebrow: `AFTER-ACTION ARCHIVE // ${campaign.planetName.toUpperCase()}`, title: "Campaign Reports" },
+    Campaigns: connection === "ERROR"
+      ? { eyebrow: "TACTICAL NETWORK // UNAVAILABLE", title: "Campaign Operations" }
+      : { eyebrow: `ACTIVE OPERATION // ${campaign.planetName.toUpperCase()}`, title: campaign.campaignName },
+    Reports: connection === "ERROR"
+      ? { eyebrow: "TACTICAL ARCHIVE // UNAVAILABLE", title: "Campaign Reports" }
+      : { eyebrow: `AFTER-ACTION ARCHIVE // ${campaign.planetName.toUpperCase()}`, title: "Campaign Reports" },
   };
 
   function navigate(next: ActiveNav) {
@@ -867,11 +873,20 @@ function GameApp() {
         <ForcesView onNotice={setNotice} />
       ) : activeNav === "Deployment" ? (
         <DeploymentPlanner onNotice={setNotice} />
+      ) : (activeNav === "Campaigns" || activeNav === "Reports") && connection === "ERROR" ? (
+        <main className="operations-layout">
+          <section className="panel" style={{ gridColumn: "1 / -1", padding: "2rem" }}>
+            <span className="eyebrow">PERSISTENT CAMPAIGN UNAVAILABLE</span>
+            <h2>No local tactical state has been substituted</h2>
+            <p>The authenticated campaign directory or campaign state could not be loaded. Retry the live service before issuing orders or reading reports.</p>
+            <button onClick={() => void loadCampaignDirectory().then((selected) => selected ? loadCampaign(false, selected) : undefined)}>RETRY CAMPAIGN LINK</button>
+          </section>
+        </main>
       ) : activeNav === "Reports" ? (
         <CampaignReports
           campaign={campaign}
           campaignId={campaignId ?? campaign.campaignId}
-          demoUser={DEMO_USER}
+          demoUser={import.meta.env.DEV ? DEMO_USER : undefined}
           onReturnToCampaign={() => navigate("Campaigns")}
         />
       ) : activeNav === "Campaigns" && !campaignId ? (
