@@ -1,6 +1,6 @@
 # Corinth's Plight Cloudflare Architecture
 
-**Status:** Phase 3 plus equipment/deployment release candidate (2026-08-10)
+**Status:** Phase 3 plus equipment/deployment production runtime (2026-08-10)
 
 **Configuration:** `vite.config.ts`, `wrangler.jsonc`, and root `package.json`
 
@@ -12,7 +12,7 @@
 
 The repository builds a React/Vite client and one Cloudflare Worker containing the public API plus the exported Campaign and Strategic Map Durable Object classes. D1 and both named DO namespaces are configured. The V1 Flask application remains reference code and is not imported into the Worker.
 
-The Phase 2 runtime was deployed on 2026-08-09. The primary custom domain is `https://corinthplight.qnetica.com.au`; `https://corinths-plight.cybercow-now.workers.dev` remains enabled as a fallback. Production version `dcf7463d-6176-4377-8f01-451d7e40e3e4` binds D1 database `corinths-plight-production` (`c75ca7bc-f10b-4987-853d-f387d377bdb9`). The production database has the previously released migrations and published catalogue. Migration `0004`, the strategic fixture, the `STRATEGIC_MAP` binding, and Phase 3 UI/API changes are local-only in this checkpoint and have not been deployed. Preview remains unprovisioned.
+The Phase 3 and equipment/deployment runtime was deployed on 2026-08-10. The primary custom domain is `https://corinthplight.qnetica.com.au`; `https://corinths-plight.cybercow-now.workers.dev` remains enabled as a fallback. Production version `e23895fe-9723-4062-a921-e1919b2a1d6d` binds D1 database `corinths-plight-production` (`c75ca7bc-f10b-4987-853d-f387d377bdb9`) and both Durable Object namespaces. Production is migrated through `0005` and contains the core, Phase 2, and equipment/deployment canonical catalogues. Development fixtures were deliberately not applied; preview remains unprovisioned.
 
 ## 2. Current runtime topology
 
@@ -96,7 +96,7 @@ The values below are the actual `wrangler.jsonc` entries:
 |---|---|---:|---:|---|---|
 | default (local development) | `corinths-plight` / `development` | `true` | tactical 5m / 30s; strategic 5m / 30s | `corinths-plight`, `...0001` placeholder | Local-only |
 | `--env preview` | `corinths-plight-preview` / `preview` | `false` | tactical 30m / 30s; strategic 30m / 30s | `corinths-plight-preview`, `...0002` placeholder | Not provisioned/deployed |
-| `--env production` | `corinths-plight` / `production` | `false` | tactical 24h / 30s; strategic 24h / 30s | `corinths-plight-production`, `c75ca7bc-f10b-4987-853d-f387d377bdb9` | Phase 2 deployed; Phase 3 not deployed |
+| `--env production` | `corinths-plight` / `production` | `false` | tactical 24h / 30s; strategic 24h / 30s | `corinths-plight-production`, `c75ca7bc-f10b-4987-853d-f387d377bdb9` | Phase 3/equipment runtime deployed; identity and scenario data absent |
 
 Clock values change configuration only; manual/accelerated/production alarms call the same DO lock/resolve functions.
 
@@ -254,7 +254,7 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 - [x] `vite.config.ts` uses React and the Cloudflare Vite plugin.
 - [x] `wrangler.jsonc` uses compatibility date `2026-08-08`.
 - [x] `CampaignDurableObject` is exported, bound as `CAMPAIGN`, and included in DO migration `v1`.
-- [~] `StrategicMapDurableObject` is locally exported, bound as `STRATEGIC_MAP`, and included in DO migration `v2`; it is not deployed and strategic resolution persistence remains blocked.
+- [~] `StrategicMapDurableObject` is exported, deployed, bound as `STRATEGIC_MAP`, and included in DO migration `v2`; strategic resolution persistence remains blocked.
 - [x] No R2, Queue, or KV authority binding is present.
 - [x] Demo auth requires exact development opt-in and is limited to `outpost-k17` and `operation-spearhead`; production cannot enable it safely.
 - [x] Unsafe mutations/WebSocket upgrades require same origin; D1 membership is checked before DO lookup.
@@ -269,7 +269,7 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 - [ ] Implement events-after-sequence reconnect and hibernation integration tests.
 - [ ] Provision the preview D1 resource and replace its placeholder ID; production D1 is already provisioned.
 - [ ] Complete and record a remote preview deployment/smoke test.
-- [ ] Complete and record the production remote migration/seed/deployment.
+- [x] Complete and record the production remote migration/seed/deployment through version `e23895fe-9723-4062-a921-e1919b2a1d6d`.
 
 ## 13. Cloudflare decisions
 

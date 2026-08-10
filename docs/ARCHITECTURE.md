@@ -16,7 +16,7 @@ This document distinguishes three states:
 | **Target** | An accepted architecture decision that still needs implementation before production |
 | **Deferred** | Outside the first foundation deliverable |
 
-The current repository is a working local foundation with the Outpost K-17 tactical prototype and a seeded Corinth strategic checkpoint. It is **not** yet the complete production game: production login, tactical-to-strategic effect finalisation, complete retry journals, full deployment/withdrawal, and a verified Phase 3 release remain open.
+The current repository is a deployed Phase 3/equipment foundation with local K-17, Corinth strategic, and Spearhead fixtures. It is **not** yet the complete production game: production login, production scenario bootstrap, tactical-to-strategic effect finalisation, complete retry journals, and full withdrawal/redeployment remain open.
 
 ## 2. Exact foundation milestone
 
@@ -36,7 +36,7 @@ The current repository is a working local foundation with the Outpost K-17 tacti
 | Phase 3 strategic schema/world | `0004`, `development-strategic-world.sql`, and the four Phase 3 design documents | Implemented local checkpoint |
 | Strategic resolver/API/UI | Domain, pure-engine, Worker, and responsive strategic workspace files | Checkpoint work; verify landed tests before release |
 | Equipment/loadout/deployment slice | `0005`, canonical equipment seed, pure engine, Worker services, planner/force UI, and Spearhead fixture | Implemented release candidate; broader Store content remains blocked |
-| Successful remote foundation deployment | Production D1 is provisioned and the pre-Phase-3 foundation is available at `corinthplight.qnetica.com.au` | Implemented before this Phase 3 checkpoint; Phase 3 is not deployed |
+| Successful remote foundation deployment | Production D1 is migrated through `0005`; Phase 3/equipment Worker and UI are available at `corinthplight.qnetica.com.au` | Implemented on 2026-08-10; production identity/scenario data remains open |
 
 The full Phase 3 scenario—production account creation, invitation, purchase, ship travel, deployment into a tactical campaign, exact-once permanent strategic consequences, recovery, and redeployment—is the product definition of success, not a claim about this checkpoint.
 
@@ -283,7 +283,7 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 | Strategic map sharding, pure resolver, permission-scoped APIs, responsive UI | Checkpoint verification required | Phase 3 domain/engine/Worker/UI lanes; release only after full tests/build and visual inspection |
 | Strategic-to-tactical deployment/result reconciliation | Partial | Loadout/deployment commit, campaign snapshot bootstrap, and narrow tactical writeback exist; withdrawal and the full acknowledgement-gated protocol remain deferred |
 | Production D1 and custom-domain foundation | Complete for the earlier release | Production binding is provisioned; `corinthplight.qnetica.com.au` serves the pre-Phase-3 foundation |
-| Phase 3 remote deployment | Not performed | This checkpoint remains local until a separate release verification pass |
+| Phase 3 remote deployment | Complete | Cloudflare version `e23895fe-9723-4062-a921-e1919b2a1d6d`; custom-domain health/UI/auth smoke tests passed |
 
 Phase 3 should not be described as complete or production-ready until the open identity, deployment/result, correctness, and release gates above are closed. See [STRATEGIC_LAYER.md](./STRATEGIC_LAYER.md), [BATTALION_MODEL.md](./BATTALION_MODEL.md), [SHIP_SYSTEM.md](./SHIP_SYSTEM.md), and [STRATEGIC_RESOLUTION.md](./STRATEGIC_RESOLUTION.md).
 
