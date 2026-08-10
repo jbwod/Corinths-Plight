@@ -18,7 +18,7 @@
     "DEFAULT_STRATEGIC_ROUND_DURATION_MS": "300000",
     "STRATEGIC_ORDER_LOCK_LEAD_MS": "30000",
     "AUTH_BASE_URL": "http://127.0.0.1:5173",
-    "AUTH_FROM_EMAIL": "Corinth's Plight <access@updates.qnetica.com.au>",
+    "AUTH_FROM_EMAIL": "Corinth's Plight <register@corinth.qnetica.com.au>",
     "AUTH_SESSION_TTL_SECONDS": "2592000",
     "AUTH_CHALLENGE_TTL_SECONDS": "900"
   },
@@ -63,7 +63,7 @@
         "DEFAULT_STRATEGIC_ROUND_DURATION_MS": "1800000",
         "STRATEGIC_ORDER_LOCK_LEAD_MS": "30000",
         "AUTH_BASE_URL": "https://corinths-plight-preview.workers.dev",
-        "AUTH_FROM_EMAIL": "Corinth's Plight <access@updates.qnetica.com.au>",
+        "AUTH_FROM_EMAIL": "Corinth's Plight <register@corinth.qnetica.com.au>",
         "AUTH_SESSION_TTL_SECONDS": "2592000",
         "AUTH_CHALLENGE_TTL_SECONDS": "900"
       },
@@ -105,7 +105,7 @@
         "DEFAULT_STRATEGIC_ROUND_DURATION_MS": "86400000",
         "STRATEGIC_ORDER_LOCK_LEAD_MS": "30000",
         "AUTH_BASE_URL": "https://corinthplight.qnetica.com.au",
-        "AUTH_FROM_EMAIL": "Corinth's Plight <access@updates.qnetica.com.au>",
+        "AUTH_FROM_EMAIL": "Corinth's Plight <register@corinth.qnetica.com.au>",
         "AUTH_SESSION_TTL_SECONDS": "2592000",
         "AUTH_CHALLENGE_TTL_SECONDS": "900"
       },

@@ -42,8 +42,8 @@ The existing `users`, `profiles`, `auth_identities`, and `user_sessions` tables 
 
 ## 4. Resend and Cloudflare production setup
 
-1. In Resend, add and verify a sending subdomain such as `updates.qnetica.com.au`. Add the exact SPF and DKIM records Resend supplies in Cloudflare DNS; do not invent or copy values from another domain.
-2. Keep `AUTH_FROM_EMAIL` in `wrangler.jsonc` on that verified domain, currently `Corinth's Plight <access@updates.qnetica.com.au>`.
+1. In Resend, add and verify the sending subdomain `corinth.qnetica.com.au`. Add the exact SPF and DKIM records Resend supplies in Cloudflare DNS; do not invent or copy values from another domain.
+2. Keep `AUTH_FROM_EMAIL` in `wrangler.jsonc` on that verified domain, currently `Corinth's Plight <register@corinth.qnetica.com.au>`.
 3. Store secrets through Wrangler, never source control:
 
    ```bash

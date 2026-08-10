@@ -18,7 +18,7 @@ function environment(overrides: Partial<Env> = {}): Env {
     DEFAULT_STRATEGIC_ROUND_DURATION_MS: "86400000",
     STRATEGIC_ORDER_LOCK_LEAD_MS: "30000",
     AUTH_BASE_URL: "https://corinthplight.qnetica.com.au",
-    AUTH_FROM_EMAIL: "Corinth's Plight <access@updates.qnetica.com.au>",
+    AUTH_FROM_EMAIL: "Corinth's Plight <register@corinth.qnetica.com.au>",
     AUTH_HASH_KEY: "test-hmac-key-that-is-not-a-production-secret",
     RESEND_API_KEY: "re_test_only",
     DB: {} as D1Database,
@@ -95,7 +95,7 @@ describe("Resend delivery adapter", () => {
     });
     const body = JSON.parse(String(init.body)) as Record<string, unknown>;
     expect(body).toMatchObject({
-      from: "Corinth's Plight <access@updates.qnetica.com.au>",
+      from: "Corinth's Plight <register@corinth.qnetica.com.au>",
       to: ["commander@example.com"],
     });
     expect(String(body.html)).toContain("Avery &lt;Commander&gt;");
