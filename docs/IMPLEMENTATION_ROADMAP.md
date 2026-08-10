@@ -1,0 +1,177 @@
+# Corinth's Plight — Implementation Roadmap
+
+**Snapshot:** 2026-08-10
+
+**Authority:** `docs/GAME_COMPLETION_GOAL.md`
+
+**Release state:** Not release ready
+
+**Estimates:** Indicative engineering effort, not delivery dates. `S` is up to three focused days, `M` is roughly one week, `L` is two to four weeks, and `XL` must be split before implementation.
+
+This is the local issue register for the completion programme. IDs are stable and must be referenced by implementation commits, tests, audit updates, and release evidence. A row may be closed only when the applicable ten-layer definition of implemented in `GAME_COMPLETION_GOAL.md` is satisfied. Schema, catalogue, fixture, read-only UI, or unit-test presence alone is not completion.
+
+## Priorities and state
+
+- `P0` blocks safe public operation or makes an advertised path misleading.
+- `P1` is required for the intended public-v1 game loop.
+- `P2` is a deliberately unadvertised post-v1 expansion.
+- `DECISION` is blocked on an explicit rules or product ruling; unknown values remain null and unavailable.
+- States are `READY`, `IN_PROGRESS`, `BLOCKED`, `DEFERRED`, or `DONE`.
+
+## Dependency spine
+
+```text
+audited baseline + CI
+  -> runtime contracts + one catalogue
+  -> preview + operations substrate
+  -> persistent force/organisation loop
+  -> ship + strategic journal/movement
+  -> scenario pipeline + tactical journal
+  -> deterministic combined arms/PvE
+  -> strategic/tactical living war
+  -> reports/collaboration/accessibility
+  -> release rehearsal and sign-off
+```
+
+## Phase 0 — Reconcile and freeze the baseline
+
+| ID | Priority | State | Estimate | Slice | Dependencies | Acceptance evidence |
+|---|---|---:|---:|---|---|---|
+| CP-000 | P0 | IN_PROGRESS | M | Forensic capability, route, DO, rules, data, V1, and asset audit; maintain the four completion documents. | None | Every advertised surface has a status, evidence reference, confidence, and roadmap ID. |
+| CP-001 | P0 | IN_PROGRESS | S | Application CI for clean install, seed validation, migration/seed replay, typecheck, lint, tests, security checks, and production build. | CP-000 | A pull request cannot merge when an enforced gate fails; actions use least privilege and immutable versions. |
+| CP-002 | P0 | READY | M | Browser smoke baseline and test harness. | CP-001 | Headless browser proves landing, auth gateway, onboarding shell, authenticated navigation, and responsive 390px layout; artifacts retained. |
+| CP-003 | P0 | READY | M | Coverage and integration-test policy for routes, real D1, and both Durable Objects. | CP-001 | Critical services/DO transitions have direct tests and agreed thresholds; gaps cannot be hidden by pure-helper coverage. |
+| CP-004 | P0 | READY | S | Reconcile stale architecture, Cloudflare, authentication, onboarding, rules, and test-count documentation. | CP-000 | One current statement for deployed version, migration head, test baseline, active mechanics, and deliberate deferrals. |
+| CP-005 | P0 | READY | S | Immutable release manifest and health/readiness metadata. | CP-001 | Build exposes commit, artifact digest, migration head, ruleset/content hashes, environment, and deployment time without secrets. |
+
+**Phase 0 gate:** the application quality workflow is enforced and the audit has no unclassified advertised surface. CP-002 through CP-005 remain open after the initial audit/CI checkpoint.
+
+## Phase 1 — Make identity, onboarding, and the platform operable
+
+| ID | Priority | State | Estimate | Slice | Dependencies | Acceptance evidence |
+|---|---|---:|---:|---|---|---|
+| CP-100 | P0 | READY | L | Versioned runtime schemas for requests, responses, stored DO/D1 JSON, rules, scenarios, and audience DTOs; common error/command/receipt envelopes. | CP-001 | Invalid authoritative data fails closed; contract tests cover every public route and stored document version. |
+| CP-101 | P0 | BLOCKED | M | Provision isolated preview D1/DO resources, secrets, route, migrations, seed policy, smoke scripts, retention, and teardown. | Explicit Cloudflare authorization; CP-001 | Preview contains no production data or demo auth, rejects placeholder IDs, and passes the Phase 1 authenticated E2E flow. |
+| CP-102 | P0 | READY | M | Auth retention: expired challenge/session/rate-bucket cleanup, idle and absolute TTLs, session/device list, revoke-one/revoke-all, and time-travel tests. | CP-100 | Scheduled cleanup is bounded/idempotent, observable, and leaves active sessions valid. |
+| CP-103 | P1 | READY | M | Player profile settings, timezone/display identity, export, deletion/anonymisation policy, and returning-account empty states. | CP-100, CP-108 | A user can manage identity and data lifecycle without direct database work. |
+| CP-104 | P0 | READY | S | Invitation abuse controls: actor/Battalion/recipient/IP limits, cooldown, quotas, opt-out, and audit. | CP-100 | Wide-address and repeat-send abuse tests fail closed without account enumeration. |
+| CP-105 | P0 | READY | M | Observability and SLOs for HTTP, auth/email, D1, journal/effects, schedule lag, alarms, and sockets; least-privilege diagnostics. | CP-005 | Preview dashboards/alerts identify a forced fault and diagnostics do not expose private state. |
+| CP-106 | P0 | READY | M | Backup, restore, forward-fix/Worker rollback, D1 time-travel/export, DO checkpoint/reconstruction, and reconciliation rehearsal. | CP-101, CP-105 | A recorded preview restore meets approved RPO/RTO and verifies hashes/constraints/journal state. |
+| CP-107 | P0 | BLOCKED | M | Privacy, terms, support/security reporting, account-data policy, dependency notices, and asset-rights process. | Owner/legal decisions | Published minimum notices and support route exist before public invitations; unverified assets are quarantined. |
+| CP-108 | P0 | DONE | M | Passwordless Resend registration/login/verification/logout and guided join/create Battalion, starter unit, tour. | Migrations 0006–0007 | Production foundation deployed and unit-tested; broader operational gates remain CP-102–CP-107. |
+| CP-109 | P0 | READY | M | Durable schedule records and recovery semantics for pending/running/consumed/failed jobs. | CP-100, CP-105 | Duplicate, late, eviction, crash, and stale-running tests pass; new rounds remain gated on effect acknowledgement. |
+
+**Phase 1 gate:** a new preview user registers, verifies, onboards, returns in a fresh session, and sees only server-backed state. Backup/restore, retention, monitoring, and support evidence are recorded.
+
+## Phase 2 — One catalogue and the persistent force loop
+
+| ID | Priority | State | Estimate | Slice | Dependencies | Acceptance evidence |
+|---|---|---:|---:|---|---|---|
+| CP-200 | P0 | READY | L | Replace split D1/compiled/adaptor truth with one generated and validated immutable rules catalogue. | CP-100; rule decisions as activated | All 13 canonical class rows, weapons, actions, profiles, tags, equipment, overlays, SQL, API DTOs, engine handlers, UI and fixtures share one content hash. |
+| CP-201 | P0 | READY | M | Repair D1-to-tactical adapters: preserve availability/requisition status, action links, nullable stats, cargo alternatives, supply vocabulary, and executable-handler identity. | CP-200 | No D1 class marked executable can crash on `getUnitClass`; unknown sensor/cost values never become zero. |
+| CP-202 | P1 | BLOCKED | L | Approved Req economy: grants/income/rewards, unit/equipment/refit prices, replacement, timing, and exact-once ledger. | DEC-001 through DEC-004 | No zero-price fallback; concurrent/replayed purchases and losses produce one balanced ledger result. |
+| CP-203 | P1 | READY | L | Complete persistent unit lifecycle: obtain/name/inspect, health/ammo/supply, location, recovery/repair, service/history, destruction and memorial. | CP-200, CP-202 | A unit survives or dies across campaigns with exact persisted consequences and no duplicate location. |
+| CP-204 | P1 | READY | L | Inventory versus installed loadout, slots, prerequisites, incompatibilities, duplicates, ammo/cooldowns/consumables, refits, loss, and transaction history. | CP-200, approved equipment decisions | Each activated item has data, pure effect/validation, mutation, receipt, UI, fog projection, and tests. |
+| CP-205 | P1 | READY | M | Stable icon/sprite keys and licensed asset pipeline for Forces, deployment, map, reports, and accessible alternatives. | CP-107, CP-200 | Every public class has an optimized visual and semantic fallback; manifest records source/license/hash. |
+| CP-206 | P1 | READY | L | Battalion lifecycle: directory, invite/code, join/leave/remove, ranks/permissions, member management, active switching, audit. | CP-100, CP-104 | Two real accounts exercise each authorized transition; IDOR and permission tests cover every mutation. |
+| CP-207 | P1 | READY | L | Battlegroup CRUD, unit assignment, leader/delegation, composition validation, and operational filtering. | CP-203, CP-206 | Mixed-owner delegated group passes exact authority rules and cannot place a unit in two active formations. |
+| CP-208 | P1 | READY | M | Generalize Forces and deployment UI; remove `demo-user`, fixed Spearhead/Hammer IDs, and showcase-on-error behavior from production. | CP-201, CP-203, CP-207 | API failure renders an explicit recoverable error, never authoritative-looking local data. |
+
+**Phase 2 gate:** a real player can obtain, name, inspect, equip, organize, and persist a mixed force with every cost and eligibility decision enforced by the server.
+
+## Phase 3 — Ship and strategic movement vertical slice
+
+| ID | Priority | State | Estimate | Slice | Dependencies | Acceptance evidence |
+|---|---|---:|---:|---|---|---|
+| CP-300 | P1 | BLOCKED | L | Ship acquisition/naming policy and hull/module inventory, slots, prerequisites, compatibility, costs, refit/removal, history, revisions, and receipts. | CP-202; DEC-010–DEC-013 | Battalion configures one named ship through server mutations; invalid slots/cost/replay fail atomically. |
+| CP-301 | P1 | READY | L | Task Force/Battlegroup embark/disembark, berth/cargo/facility capacity, supply transfers, and location invariants. | CP-207, CP-300, DEC-008 | Cross-Battalion and over-capacity operations fail; carried forces cannot exist on-map simultaneously. |
+| CP-302 | P0 before activation | READY | XL | Strategic PREPARED/APPLIED/ACK/COMMITTED journal, crypto hashes, alarm coordinator, effects, reconcile/retry and failure injection. | CP-100, CP-105, CP-109 | Public orders and each round resolve exactly once across every forced crash boundary; collision/retry mismatches fail closed. |
+| CP-303 | P1 | BLOCKED | L | Public route planning, multi-round travel, arrival, supply use, route state, concurrency, withdrawal and redeployment. | CP-302, DEC-005 | Formation visibly traverses each route step without teleportation or duplication. |
+| CP-304 | P1 | READY | M | Production-like two-planet strategic content with multiple concurrent operations; no development seed in production. | CP-101, CP-303 | Preview demonstrates independent operations and audience-safe map projections on at least two planets. |
+| CP-305 | P1 | READY | M | Replace read-only/deferred Ship and Galactic controls with authorized mutations; remove strategic showcase fallback. | CP-300–CP-304 | Every advertised control reaches a tested receipt-backed workflow; unavailable mechanics are unadvertised. |
+
+**Phase 3 gate:** a Battalion configures a ship, embarks a legal force, submits a route, resolves over multiple rounds, and arrives at another planet without teleportation or duplicate state.
+
+## Phase 4 — Scenario pipeline and complete K-17 loop
+
+| ID | Priority | State | Estimate | Slice | Dependencies | Acceptance evidence |
+|---|---|---:|---:|---|---|---|
+| CP-400 | P0 | READY | L | Versioned scenario/map schemas, content hashes, importer/validator, map/objective/deployment/enemy/victory/reward definitions. | CP-100, CP-200 | A campaign loads its pinned scenario; no non-K17 campaign calls the demo-state factory. |
+| CP-401 | P1 | READY | M | Campaign browser, discovery/membership/withdraw/reinforce, general campaign navigation, and role policy. | CP-206, CP-400 | No production client constant selects campaign or user; unauthorized campaign IDs remain undiscoverable. |
+| CP-402 | P0 before live rounds | READY | XL | Tactical PREPARED/effects/ACK/COMMITTED journal, crypto hashes/seed commitment, D1 archives, retry/reconcile and next-round gate. | CP-100, CP-105, CP-109 | Every forced crash boundary resolves/reconciles exactly once; next planning round opens only after matching effect acknowledgement. |
+| CP-403 | P0 | READY | L | Per-audience WebSocket invalidations, monotonic sequence catch-up, event-time intelligence and report redaction. | CP-402 | Enemy viewers never receive allied order/unit identifiers; reconnect fills gaps with the same redacted event history. |
+| CP-404 | P1 | READY | L | Public Outpost K-17: setup, map, membership, deployment, enemy force, objectives, waves, outcomes, rewards and report. | CP-400–CP-403 | Two preview accounts complete multiple rounds and a destroyed equipped unit persists exactly once. |
+| CP-405 | P1 | READY | M | Campaign director/GM controls for create/configure, membership, clocks, spawns, objectives, announcements, awards and safe retry/reconcile. | CP-105, CP-400–CP-404 | Least-privilege audited commands recover a deliberately failed round without outcome editing or duplicate effects. |
+| CP-406 | P1 | READY | S | Expose every actually executable order/action in tactical UI and remove notice-only/inert controls. | CP-200, CP-404 | UI affordance matrix exactly matches server execution matrix and explains blockers. |
+
+**Phase 4 gate:** two or more preview accounts complete the `gameplan.md` introductory scenario, including a persistent death/loss and detailed audience-safe report.
+
+## Phase 5 — Deterministic PvE and combined arms
+
+| ID | Priority | State | Estimate | Slice | Dependencies | Acceptance evidence |
+|---|---|---:|---:|---|---|---|
+| CP-500 | P1 | READY | L | Movement contention, terrain/elevation/roads/rivers, facing, cover/high ground/smoke, structures and remembered intelligence. | CP-200, CP-400, decisions DEC-006/DEC-007 | Pure permutation/golden tests and event-time projections cover every activated terrain rule. |
+| CP-501 | P1 | READY | L | Multiweapon, Rapid Fire, arcs/domain, rear exclusions, subsystem damage/repair, indirect spotting, ammo/cooldown and simultaneous reports. | CP-200, applicable decisions | Reports show auditable calculation; no air flank, overfire, hidden-target or cooldown defect. |
+| CP-502 | P1 | READY | L | Medic, engineer, construction, artillery, structures and tactical supply. | CP-500, DEC-006/DEC-009 | Each activated support action consumes the authoritative actor/resource and persists deterministic progress/effects. |
+| CP-503 | P1 | BLOCKED | L | Cargo, towing, transfers, reload, Logi/HAT and transport-destruction consequences. | CP-201, DEC-008 | Occupancy/speed/capacity are checked; destruction follows the approved rule with conflict provenance. |
+| CP-504 | P1 | READY | L | Evasive, melee/brawl, Stealth and selected special orders. | CP-500–CP-501, activation decisions | Only approved profile mechanics become executable; deterministic target/tie rules have golden tests. |
+| CP-505 | P1 | BLOCKED | XL | Fighter, bomber, VTOL and HAT movement/altitude/landing, arcs, intercept, bomb/airdrop, rearm/repair and spotting. | CP-500–CP-503, DEC-009/DEC-013 | Combined-arms scenario exercises legal air paths and rejects unsafe/unknown cases without guessed values. |
+| CP-506 | P1 | READY | L | Data-defined enemy factions, units, doctrine, formation/cohesion, target spreading, objective/supply/retreat/reinforcement and difficulty. | CP-400, mechanics as activated | Enemy uses the same order grammar from the locked snapshot; repeated/permuted inputs yield identical intentions. |
+| CP-507 | P1 | READY | M | Larger combined-arms scenario plus deterministic regression fixtures. | CP-500–CP-506 | All public-v1 classes and activated mechanics appear in replayable, audience-safe tests. |
+
+## Phase 6 — Dynamic multi-planet war
+
+| ID | Priority | State | Estimate | Slice | Dependencies | Acceptance evidence |
+|---|---|---:|---:|---|---|---|
+| CP-600 | P1 | READY | XL | Deterministic campaign director for threat, control, routes, operations, supply, reinforcements, unlocks, consequences and victory/failure. | CP-302, CP-506 | Same strategic snapshot/events yield the same hashed transition; no LLM/network dependency. |
+| CP-601 | P1 | READY | L | Strategic deployment bootstraps tactical campaigns with exact unit/loadout/location snapshot. | CP-301, CP-400, CP-402 | Commit creates one tactical presence and reserves the formation atomically. |
+| CP-602 | P1 | READY | L | Tactical outcomes apply to strategic state through acknowledged idempotent effects. | CP-302, CP-402, CP-600 | Replayed result changes war state once; mismatched payload/hash fails and alerts. |
+| CP-603 | P1 | READY | L | Withdrawal, recovery, re-embark, resupply and redeployment. | CP-301, CP-601–CP-602 | Survivors return with exact damage/ammo/supply/history and later deploy elsewhere. |
+| CP-604 | P1 | BLOCKED | M | Season/war archive, reset and historical preservation policy. | DEC-014 | Reset preserves immutable player history and cannot orphan active campaigns/effects. |
+
+## Phase 7 — Reports, collaboration, content and polish
+
+| ID | Priority | State | Estimate | Slice | Dependencies | Acceptance evidence |
+|---|---|---:|---:|---|---|---|
+| CP-700 | P1 | READY | L | Reports index/detail, deterministic playback, calculations, event-time fog, declassification and export. | CP-403, CP-501 | A viewer can explain movement, dice, mitigation, casualties, objectives and strategic consequences without hidden-state leakage. |
+| CP-701 | P1 | READY | M | Pings, command markers, shared notes, intention filters, readiness/missing-order views and notifications. | CP-206, CP-403 | Collaboration is permissioned, audience-safe, rate-limited and reconnect-safe. |
+| CP-702 | P0 release gate | READY | L | WCAG 2.2 AA work: semantic tactical grid/list, keyboard route/target controls, dialogs/focus/live regions/contrast/reduced motion, screen-reader audit. | CP-404, CP-700 | Axe and manual keyboard/screen-reader evidence cover every core workflow on supported viewports. |
+| CP-703 | P1 | READY | M | Responsive/error/empty/help/rules/support polish and remove false-front local data. | Earlier UI slices | New users can understand next action, blocker, round result and strategic consequence without source knowledge. |
+| CP-704 | P2 | DEFERRED | XL | Orbital combat, boarding, blockade/interception, capture and advanced ship combat. | DEC-010–DEC-013 and post-v1 approval | Unadvertised until a separate end-to-end activation plan passes all implementation layers. |
+
+## Phase 8 — Public release hardening
+
+| ID | Priority | State | Estimate | Slice | Dependencies | Acceptance evidence |
+|---|---|---:|---:|---|---|---|
+| CP-800 | P0 | READY | L | Browser E2E matrix for auth/onboarding, force/equipment, Battalion/ship, strategic travel/deploy, tactical resolve/report, persistence/reconnect. | Phases 1–7 | Desktop/tablet/mobile production-like preview runs retain traces/screenshots and exercise real APIs. |
+| CP-801 | P0 | READY | M | Security matrix: IDOR, permissions, origin/CSRF, enumeration, replay, rate/payload abuse, secrets and admin least privilege. | CP-100 and every mutation | All mutation surfaces have negative tests; high findings are closed or release-blocking. |
+| CP-802 | P1 | READY | M | Performance/load/capacity tests for large maps/forces, concurrent submissions, WebSocket fan-out, D1 plans and DO CPU/storage. | Feature-complete preview | Approved p95/p99 and concurrency budgets pass a soak with alerts enabled. |
+| CP-803 | P0 | READY | M | Production-like migration, backup/restore, deployment and rollback rehearsal. | CP-101, CP-106 | Signed evidence records release manifest, hashes, RPO/RTO, rollback trigger and successful recovery. |
+| CP-804 | P0 | BLOCKED | M | Final legal/privacy/licensing/support closure. | CP-107 and owner/legal approval | All public assets/content have provenance; data rights and support/security routes are live. |
+| CP-805 | P0 | BLOCKED | L | Final 14-step public-release acceptance scenario and multi-day accelerated preview soak. | All P0/P1 and decisions | Every step in `GAME_COMPLETION_GOAL.md` is evidenced; no advertised 501, demo/showcase fallback, developer override or unresolved value is reachable. |
+
+## Decision dependencies
+
+Decision IDs live in `RULE_DECISIONS_REQUIRED.md`. The roadmap does not estimate content activation behind an unresolved decision as if the value were known.
+
+| Decision | Blocks |
+|---|---|
+| DEC-001 through DEC-004 — Req, prices, grants/rewards, replacement/refund | CP-202, CP-203, CP-204, CP-300 |
+| DEC-005 — strategic travel time/cost | CP-303, CP-304 |
+| DEC-006 — construction/structure values | CP-500, CP-502 |
+| DEC-007 — terrain/cover/scenario modifiers | CP-500 |
+| DEC-008 — cargo/transport destruction | CP-301, CP-503 |
+| DEC-009 — hazardous drops/aerospace details | CP-505 |
+| DEC-010 through DEC-013 — ship/orbital/Atmo-Fuel/supply | CP-300, CP-303, CP-505, CP-704 |
+| DEC-014 — season/reset/archive | CP-604 |
+| DEC-015 — event declassification | CP-700 |
+| DEC-016 — privacy/retention/legal | CP-102, CP-103, CP-107, CP-804 |
+
+## Working rules
+
+1. Take the smallest dependency-ready row and deliver it end to end.
+2. Start with a failing acceptance test or evidence capture.
+3. Preserve campaign/ruleset pinning; never mutate published truth in place.
+4. Unknown source values remain blocked, null, and visibly unavailable.
+5. Update `COMPLETION_AUDIT.md`, this roadmap, `RULE_DECISIONS_REQUIRED.md`, and `RELEASE_READINESS.md` in the same slice.
+6. Do not deploy, migrate production, push, send email, or perform irreversible external actions without explicit authorization.

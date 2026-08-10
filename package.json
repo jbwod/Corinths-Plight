@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "ci:verify:d1": "node --import tsx scripts/verify-d1-ci.ts",
     "check:production-config": "node -e \"const fs=require('node:fs');const config=fs.readFileSync('wrangler.jsonc','utf8');if(config.includes('00000000-0000-0000-0000-000000000003')){console.error('Production deploy blocked: replace the placeholder D1 database ID in wrangler.jsonc.');process.exit(1)}if(process.env.CORINTH_RELEASE_APPROVED!=='true'){console.error('Production deploy blocked: migration/runtime verification and explicit CORINTH_RELEASE_APPROVED=true are required.');process.exit(1)}\"",
     "deploy": "npm run check:production-config && npm run build:production && wrangler deploy --env production",
     "deploy:dry": "npm run check:production-config && npm run build:production && wrangler deploy --dry-run --env production",

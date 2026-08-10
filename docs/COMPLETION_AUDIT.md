@@ -1,0 +1,293 @@
+# Corinth's Plight — Completion Audit
+
+**Audited:** 2026-08-10
+
+**Commit:** `066f8f8` (`main`)
+
+**Authority:** `docs/GAME_COMPLETION_GOAL.md`
+
+**Verdict:** **Not release ready**
+
+The repository is a healthy Cloudflare-native foundation with production passwordless identity, guided onboarding, persistent force/loadout services, deployment-plan commits, useful strategic read models, and a deterministic tactical core. It is not yet the advertised living cooperative war. Production-facing clients still contain hard-coded demo identities and scenarios, local showcase fallbacks, inert/deferred controls, and two explicit strategic `501` paths. Tactical campaigns other than K-17 clone the K-17 demo map. The rules truth is split across V5, D1, the compiled engine catalogue, adapters, and React fixtures.
+
+This document reports evidence, not intent. A capability is `implemented` only when all applicable source/data/schema/engine/auth/persistence/event/UI/test/operations layers exist. The audit uses:
+
+- `implemented` — usable by a real authenticated player through an authoritative persisted workflow;
+- `partial` — a meaningful workflow exists, but required layers or cases are missing;
+- `catalogue-only` — data/type/UI representation exists without executable gameplay;
+- `blocked` — deliberately unavailable or awaiting a source/architecture gate;
+- `prototype` — fixture, local showcase, V1 reference, or demo-bound behavior;
+- `missing` — no usable workflow exists.
+
+Confidence is `High`, `Medium`, or `Low`. Roadmap IDs refer to `IMPLEMENTATION_ROADMAP.md`; rule decisions refer to `RULE_DECISIONS_REQUIRED.md`.
+
+## Evidence baseline
+
+The audit began with only two unrelated untracked user paths, which were preserved: `docs/GAME_COMPLETION_GOAL.md` and `image/background/`.
+
+| Check | Result | Evidence |
+|---|---|---|
+| Seed/content validator | Pass | `npm run seed:check`: 34 definitions, 28 active, 95 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 3 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
+| TypeScript | Pass | `npm run typecheck`. |
+| ESLint | Pass | `npm run lint`. |
+| Unit/contract tests | Pass | `npm test`: 32 files, 201 tests, Vitest 4.1.10. |
+| Worker/client build | Pass | `WRANGLER_WRITE_LOGS=false npm run build`; Worker 470.94 kB, client JS 418.94 kB, CSS 120.83 kB. |
+| Production-mode build | Pass | `WRANGLER_WRITE_LOGS=false npm run build:production`. |
+| Empty D1 migration replay | Pass | All seven migrations applied in isolated Wrangler state; reapply reported no pending migration. |
+| Repeat seed replay | Pass | All seven seeds applied twice. |
+| D1 integrity | Pass | SQLite `integrity_check=ok`; `foreign_key_check` empty; 7 migration records. |
+| Application CI | Missing at baseline | Existing `.github/workflows` automate issues/projects only. See CP-001. |
+| Browser/a11y/performance tests | Missing | No committed Playwright/Cypress/Axe/Lighthouse or load suite. See CP-002, CP-702, CP-800, CP-802. |
+
+The passing unit suite proves the tested helpers and contracts only. It does not activate catalogue-only content, validate real D1/DO crash boundaries, or prove a production browser workflow.
+
+## Executive capability matrix
+
+| Capability | Status | Confidence | Evidence | Gap / roadmap |
+|---|---|---:|---|---|
+| Passwordless Resend registration, verification, login, logout | implemented foundation | High | `worker/routes/auth.ts:33-73`; `worker/services/auth.ts`; `src/components/AuthGateway.tsx` | Retention, session management, recovery, profile/data rights remain CP-102/CP-103/CP-107. |
+| Guided Battalion join/create/invite, starter unit and tour | implemented foundation | High | `worker/routes/onboarding.ts:60-90`; `src/components/GuidedOnboarding.tsx:192-243` | Abuse controls and full organisation lifecycle remain CP-104/CP-206/CP-207. |
+| Force list/detail/history, unit/equipment purchase and loadout | partial | High | `worker/routes/forces.ts:114-177`; force/equipment services | D1/compiled split, no approved economy, UI false fronts/fallbacks and incomplete lifecycle: CP-200–CP-208. |
+| Deployment planning and commit | partial | High | `worker/routes/deployment.ts:49-86`; `worker/services/deployment.ts:335-445` | Demo IDs, no general scenario bootstrap, incomplete lift: CP-208/CP-400/CP-601. |
+| Tactical map and basic Hold/Advance/Rush/Attack | partial | High | `src/components/HexMap.tsx`; `packages/rules-engine/src/resolver.ts`; Campaign DO | Demo K-17 bootstrap, narrow composer, rule defects, unsafe journal/realtime: CP-400–CP-507. |
+| Deterministic enemy orders | prototype | High | `worker/enemy-ai.ts:15-101` | Hard-coded nearest-target doctrine and `objective-outpost`; D1 enemy data unused: CP-506. |
+| Tactical persistent effects | partial/unsafe | High | `worker/campaign-durable-object.ts:231-319,645-738` | Next round opens before D1 acknowledgement; no crypto journal: CP-402. |
+| Tactical realtime/report API | partial/unsafe | High | `worker/campaign-durable-object.ts:341-357,833-887` | Generic broadcast leaks identifiers, no catch-up, current-state redaction: CP-403/CP-700. |
+| Strategic command/Battalion/ship/map/operation reads | implemented read model | High | `worker/routes/strategic.ts:114-138,162-170` | UI can fabricate showcase/default state; no mutations: CP-305. |
+| Strategic order submission | blocked | High | `worker/routes/strategic.ts:139-146` | Always `501 STRATEGIC_ORDER_EXECUTION_DEFERRED`: CP-302/CP-303. |
+| Strategic resolution | blocked | High | `worker/strategic-map-durable-object.ts:124-140` | Always `501 STRATEGIC_RESOLUTION_NOT_IMPLEMENTED`; no alarm/journal runtime: CP-302. |
+| Ship identity/modules/cargo/supply | partial/read-only | High | D1 schema and `GET /api/ships/primary`; `ShipView.tsx` | Acquisition/configuration/movement/transfers/combat deferred: CP-300/CP-301/CP-305. |
+| Campaign discovery/create/join/scenario authoring | missing | High | No public route; only `/api/campaigns/:id/*` proxy | CP-400/CP-401/CP-405. |
+| Reports library/replay | missing UI, partial API | High | Report-by-round DO endpoint; Reports nav notice | CP-403/CP-700. |
+| Multi-planet living war | missing end to end | High | One development strategic fixture; public mutations blocked | CP-302–CP-305/CP-600–CP-604. |
+| CI, preview, recovery, SLOs, legal/a11y/performance | missing release evidence | High | Config/docs/workflow inventory | CP-001–CP-107/CP-702/CP-800–CP-805. |
+
+## Critical findings register
+
+| Finding | Priority | Status | Confidence | Evidence and acceptance boundary | Roadmap |
+|---|---|---:|---:|---|---|
+| AUD-CAT-001 — split gameplay truth | P0 | open | High | D1 seeds 13 V5 classes plus three companion classes (`seeds/v5-phase2-combined-arms.sql:20-50`), while compiled `unitClasses` contains only Infantry, Engineer, Light Vehicle, MBT and Artillery (`packages/rules-engine/src/catalogue.ts:68-159`). Several D1 overlays mark Logi/IFV/VTOL/HAT executable, but order submission calls compiled `getUnitClass` (`worker/campaign-durable-object.ts:454-471`) and can throw. One generated/pinned catalogue and a conformance test must make every executable definition resolvable. | CP-200/CP-201 |
+| AUD-RULE-002 — conflict provenance is internally broken | P0 | open | High | Fresh D1 contains only 12 obsolete short `rule_conflicts` IDs from `seeds/v5-core-curated.sql:28-40`, while the canonical doc has 72 namespaced IDs. Phase-2 definitions reference namespaced IDs with no D1 row; compiled definitions reference old IDs. Published definitions/events cannot form a referential conflict audit. | CP-200 |
+| AUD-CAT-003 — adapter invents/loses authority | P0 | open | High | `worker/services/equipment.ts:207-240` assigns every D1 class Hold/Advance/Rush and Attack/Load/Unload, and reports requisition status as published rather than preserving source links/status. Cargo shape handling defaults valid IFV/VTOL alternatives to zero capacity (`:59-88`). Small Supply vocabulary becomes incompatible with resolver reload. | CP-201 |
+| AUD-CAT-004 — blocked companion slots execute | P0 | open | High | RC-EQP-001 marks optional slot budgets blocked, and Phase-2 metadata says companion-only/catalogued; `listUnitSlots` ignores that metadata and the loadout engine enforces every row. Existing purchasable equipment therefore relies on an unapproved slot policy. | DEC-017/CP-200/CP-204 |
+| AUD-EQP-001 — Scan/Drone are event-only no-ops | P0 content-integrity | open | High | Resolver emits `HEX_SCANNED`/`DRONE_DEPLOYED` and cooldown, but visibility consumes only live sensors/LOS. Optics additionally invents passive `+1 Sensors`, and Drone Operator is seeded Secondary although its Store row says Primary. These overlays must be unavailable until DEC-018 is resolved and state/projection is wired. | DEC-018/CP-204/CP-500 |
+| AUD-RULE-004 — unknown sensors become a real zero | P0 | open | High | D1's non-null legacy column and Phase-2 0 sentinel turn an unknown sensor value into runtime truth, contrary to `GAME_SYSTEMS.md` unknown-value policy. Migrate a nullable/profile representation and block dependent mechanics until known. | CP-200/CP-201 |
+| AUD-SCEN-001 — every tactical campaign is K-17 shaped | P0 | open | High | K-17 uses `createDemoCampaignState`; non-K17 bootstrap reads D1 rows then calls the same demo factory and retains its map/terrain while clearing objectives (`worker/campaign-durable-object.ts:117-218`). | CP-400/CP-401 |
+| AUD-SCEN-002 — production seed chain has no world | P0 | open | High | Fresh migrations plus the four production seed families yield zero campaigns, insertion zones, strategic maps/nodes and ships. Those exist only in explicitly development-only seeds, so a production-onboarded user has no server-backed operation to enter. | DEC-020/CP-304/CP-400/CP-404 |
+| AUD-JOURNAL-001 — next round precedes durable acknowledgement | P0 | open | High | DO commits the next PLANNING state and alarm at `worker/campaign-durable-object.ts:697-733`, then applies D1 effects at `:737`. Resolution/effect records lack PREPARED/FAILED lifecycle and cryptographic input/output/payload hashes. | CP-402 |
+| AUD-RT-001 — cross-audience socket invalidation | P0 security | open | High | Socket attachments store viewer data, but `broadcast()` sends one payload to every socket (`worker/campaign-durable-object.ts:341-357`); order messages include unit/order IDs. No sequence catch-up exists; reports use current visibility. | CP-403 |
+| AUD-STRAT-001 — internal service unreachable from public order route | P0 when advertised | open | High | `commitStrategicOrder` exists at `worker/services/strategic.ts:874-1060`, but public POST validates then returns 501. The DO resolver also returns 501 and has no alarm. | CP-302/CP-303/CP-305 |
+| AUD-DETERMINISM-001 — noncanonical tactical ordering/hash | P0 before durable replay | open | High | Tactical stable digest/order sorts use `localeCompare` and 32-bit FNV (`resolver.ts:91-99,132-135,403`; `rng.ts:8-15`) despite the recorded Unicode code-point rule. Strategic code-point ordering is corrected, but its hash remains noncryptographic. | CP-200/CP-302/CP-402 |
+| AUD-RULE-005 — unactivated terrain defaults execute | P1 | open | High | `packages/rules-engine/src/hex.ts:113-146` applies road/elevation/river values that docs say require a scenario profile. Move them into pinned scenario/rules data and test inactive behavior. | CP-400/CP-500 |
+| AUD-RULE-006 — rear attack applies outside V5 domain | P1 | open | High | `packages/rules-engine/src/mechanics.ts:103-106` clears Armor broadly, whereas V5 excludes air and constrains ground flank behavior. | CP-501 |
+| AUD-RULE-007 — cargo/action ledger gaps | P1 | open | High | Normal unload skips occupancy checks; load/unload helpers receive full speed rather than remaining ledger; towing/mixed capacity is lost; airdrop specialist validation is not in the resolver path. | CP-201/CP-503/CP-505 |
+| AUD-RULE-008 — transport destruction unadjudicated | DECISION/P1 | blocked | High | Destroyed carrier leaves cargo attached; RC-V5-030 has no approved consequence. | DEC-008/CP-503 |
+| AUD-UI-001 — authoritative-looking local fallbacks | P0 | open | High | Tactical begins with local demo state; Forces replaces failed APIs with `SHOWCASE_FORCE`; strategic replaces required failures with a full local snapshot (`src/App.tsx:62-151`; `ForcesView.tsx:661-704`; `src/strategic/api.ts:625-703`). | CP-208/CP-305/CP-703 |
+| AUD-UI-002 — hard-coded production context | P0 | open | High | `demo-user`, `outpost-k17`, Spearhead, Hammer, Resolute/33rd and fixed round/unit IDs appear throughout App, Forces, DeploymentPlanner and strategic adapters. | CP-208/CP-401/CP-703 |
+| AUD-UI-003 — client fabricates tactical events | P0 | open | High | After order save, App creates local event ID/sequence/actor/payload/time/visibility (`src/App.tsx:360-376`) instead of consuming journal truth. | CP-403/CP-406 |
+| AUD-UI-004 — equipment selection does not mutate purchase | P1 | open | High | Forces requisition shows equipment checkboxes but omits `equipmentIds` from purchase payload (`ForcesView.tsx:504-550,583,636-644`). | CP-204/CP-208 |
+| AUD-AUTH-001 — retention and abuse operations absent | P0 | open | High | No scheduled cleanup exists for expired sessions/challenges/rate buckets/audit events; email invites lack actor/Battalion/recipient/IP quota controls. | CP-102/CP-104 |
+| AUD-OPS-001 — preview is a placeholder | P0 | blocked | High | Preview D1 ID is `00000000-0000-0000-0000-000000000002`; no preview migration/seed/deploy/smoke workflow. | CP-101 |
+| AUD-OPS-002 — no recovery evidence | P0 | open | High | No executable backup/restore/DO reconstruction/RPO/RTO rehearsal; health is shallow; release metadata/SLO dashboards/alerts absent. | CP-005/CP-105/CP-106 |
+| AUD-QA-001 — no application browser/accessibility/performance gate | P0 | open | High | Vitest is Node-only; no browser, Axe, screen-reader, visual, load or soak suite. Tactical canvas lacks a semantic route/target alternative. | CP-002/CP-702/CP-800/CP-802 |
+| AUD-LEGAL-001 — public policy and asset-rights evidence absent | P0 | blocked | High for missing evidence | No privacy/terms/security/support/data-rights flow or asset provenance manifest. This does not prove assets are unlicensed; it proves clearance evidence is absent. | CP-107/CP-205/CP-804 |
+
+## Public HTTP route inventory
+
+All routes are Worker same-origin routes. `Implemented` here means the route has a handler; its capability can still be partial as shown above.
+
+| Method and path | Route behavior | Status |
+|---|---|---:|
+| `GET /api/health` | Shallow liveness response | partial |
+| `GET /api/rulesets/v5-core-curated` | Returns compiled `allDefinitions`, not authoritative D1 catalogue | partial |
+| `GET /api/auth/session` | Current session | implemented |
+| `POST /api/auth/register` | Request registration email link | implemented |
+| `POST /api/auth/login` | Request login email link | implemented |
+| `GET /api/auth/verify?token=` | Stage one-time email challenge and redirect | implemented |
+| `POST /api/auth/verify` | Consume staged challenge and create session | implemented |
+| `POST /api/auth/logout` | Revoke and clear session | implemented |
+| `GET /api/onboarding` | Onboarding status/directory/invites/starter options | implemented |
+| `POST /api/onboarding/battalions/join` | Public/invite-code join | implemented |
+| `POST /api/onboarding/battalions` | One-time Req-backed Battalion charter | implemented product policy |
+| `POST /api/onboarding/battalions/settings` | Recruitment policy | implemented |
+| `POST /api/onboarding/battalions/invites` | Username/email invitation and email attempt | implemented; abuse controls missing |
+| `POST /api/onboarding/battalions/invites/respond` | Accept/decline | implemented |
+| `POST /api/onboarding/starter-unit` | Idempotent starter grant | implemented product policy |
+| `POST /api/onboarding/complete` | Complete tour/progress | implemented |
+| `GET /api/forces` | Owner force summaries/filter/cursor | implemented |
+| `GET /api/forces/:id` | Friendly inspection | implemented |
+| `GET /api/forces/:id/history` | History | implemented route; incomplete UI |
+| `GET /api/forces/:id/eligible-equipment` | Eligibility projection | partial |
+| `GET /api/forces/:id/loadout` | Loadout projection | implemented |
+| `POST /api/forces/:id/rename` | Versioned rename | implemented route; missing UI |
+| `POST /api/forces/:id/loadout-changes` | Versioned exact-once loadout mutation | partial item breadth |
+| `GET /api/catalogue/units` | D1 unit catalogue | partial/split truth |
+| `GET /api/requisition` | Owner balance/ledger | partial economy |
+| `POST /api/requisition/purchases` | Exact-once unit purchase | blocked for unknown prices outside dev policy |
+| `POST /api/requisition/equipment-purchases` | Exact-once equipment inventory purchase | partial item breadth |
+| `POST /api/deployment-readiness/check` | Server readiness | partial profile breadth |
+| `GET /api/deployment-context?campaignId=` | Planning context | partial/demo campaign ecosystem |
+| `GET /api/deployment-plans` | Owner plans | implemented |
+| `POST /api/deployment-plans` | Save/validate plan | implemented |
+| `GET /api/deployment-plans/:id` | Inspect plan | implemented |
+| `POST /api/deployment-plans/:id/validate` | Revalidate | implemented |
+| `POST /api/deployment-plans/:id/commit` | Commit snapshot/deployments | partial; does not initialize scenario |
+| `GET /api/command` | Strategic command projection | implemented read model |
+| `GET /api/battalions/current` | Current Battalion projection | implemented read model |
+| `GET /api/battalions/current/members` | Members | implemented read model |
+| `GET /api/battalions/current/activity` | Activity cursor | implemented read model |
+| `GET /api/ships/primary` | Primary ship projection | implemented read model |
+| `GET /api/operations` | Visible operations | implemented read model |
+| `GET /api/operations/:id` | Operation detail | implemented read model |
+| `GET /api/strategic/maps/:id` | Audience-filtered map projection | implemented read model |
+| `POST /api/strategic/orders` | Always returns strategic-execution deferred | **blocked / 501** |
+| `POST /api/strategic/maps/:id/resolve` | Development-only forward; production 404 | blocked |
+| `GET/PATCH/POST/DELETE /api/campaigns/:id/*` | Authz proxy to Campaign DO paths below | partial/demo-bound |
+
+No public campaign directory/create/join/leave, profile/settings/session-management, rank/member/Battlegroup administration, ship mutation, refit/construction, notification, report-index, rules publication, recovery, or operator diagnostics route exists.
+
+## Durable Object command inventory
+
+### Campaign Durable Object
+
+| Command | Runtime | Status/gap |
+|---|---|---|
+| `GET /state` | Project viewer campaign state | partial; demo scenario and current-time fog |
+| `POST /orders` | Save/update draft/submitted unit order | partial; no command receipt, broad split catalogue |
+| `DELETE /orders/:id` | Cancel current/future unlocked order | implemented backend; no UI |
+| `POST /resolve` | Admin manual tactical resolve | partial; unsafe journal boundary |
+| `PATCH /clock` | Admin clock preset | partial; generic player UI renders it |
+| `POST /pause` | Admin pause | partial |
+| `POST /resume` | Admin resume | partial |
+| `GET /ws` upgrade | Read-only hibernating invalidations | partial; audience/catch-up defects |
+| `GET /reports/:round` | Viewer round detail | partial; no index/event-time knowledge/UI |
+| alarm | Locks/resolves or processes scheduled transition | partial; no durable schedule lifecycle/recovery |
+
+### Strategic Map Durable Object
+
+| Command | Runtime | Status/gap |
+|---|---|---|
+| `POST /orders` | Internal caller can invoke `commitStrategicOrder` | unreachable from public route |
+| `POST /resolve` | Returns `STRATEGIC_RESOLUTION_NOT_IMPLEMENTED` | **blocked / 501** |
+| alarm | None | missing |
+
+## UI action and false-front inventory
+
+| UI surface/action family | Status | Evidence summary / required replacement |
+|---|---:|---|
+| Landing registration/login/verification/logout | implemented foundation | Server-backed auth flow. Marketing copy overstates living-war readiness and must be narrowed until gates pass. |
+| Guided Battalion directory/code/create, invites, starter unit, tour | implemented foundation | Product-policy numbers/lore are not canonical rules. |
+| Tactical campaign selection | missing | App always uses `outpost-k17`. |
+| Tactical unit/route/facing/order/Attack | partial | Fixed demo context; only Attack authored although server handles a few more actions. |
+| Tactical order cancel | missing UI | Backend exists. |
+| Tactical `MY UNITS/ALLIED`, `SURFACE/INTEL/SUPPLY` | inert prototype | Buttons have no handlers. |
+| Tactical non-foundation order types | catalogue-only | Disabled and marked soon. |
+| Tactical operator clock/pause/resume/resolve | misleading | Rendered to normal players; backend correctly requires admin. Hide/role-gate and add audited operator workflow. |
+| Tactical Reports/Settings | notice-only | Reports and settings nav do not open implemented workflows. |
+| Forces browse/inspect/readiness/purchase/loadout | partial | Useful server routes, but demo headers, fixed operation, fabricated/default fields and showcase-on-error remain. |
+| Forces initial-equipment checkboxes | false front | Selection is omitted from purchase command. |
+| Forces rename/history | missing UI | Backend routes exist. |
+| Forces abilities | catalogue-only | Explicitly labels resolver deferred. |
+| Deployment selection/method/zone/save/commit | partial | Real service flow but fixed Spearhead/Hammer/demo IDs and incomplete lift/scenario creation. |
+| Command/Battalion/ship/operation/map navigation | implemented read UX | Strategic fallback can replace failure with local fixture. |
+| Battalion rank/member/Battlegroup administration | missing/read-only | Organisation UI projects data only. |
+| Ship configure/upgrade/movement/transfer/consumption/combat | blocked/notice-only | Explicit deferred controls. |
+| Strategic order | blocked/notice-only | UI explains 501. |
+| Strategic-to-tactical deploy/result reconciliation | blocked/notice-only | No bootstrap/effect flow. |
+| Unit/planet/ship imagery | prototype | React uses text markers; supplied unit/sprite library is not integrated or licensed in a manifest. |
+
+## Rule-to-runtime activation matrix
+
+### Canonical V5 roster
+
+All 13 non-orbital classes have null Req prices and remain non-purchasable unless a separate product grant is explicitly allowed. Companion Power Armour, Irregulars and Special Forces remain catalogued/dev-only under RC-UNIT-015.
+
+| Class | D1 | Compiled tactical class | End-to-end status | Principal gap |
+|---|---:|---:|---:|---|
+| Infantry | yes | yes | partial | Dig In, cover, melee/stealth and price missing |
+| Medic | yes | no | catalogue-only | Healing helper not resolver/service/UI connected |
+| Engineer | yes | yes | misleading partial | Construct/repair absent; adapter loses action truth |
+| Artillery | yes | yes | experimental partial | Deploy/pack/bombard/control/reload path incomplete; damage provisional |
+| Logi Truck | yes, marked executable | no | defect/blocked | Compiled lookup crash; tow/supply absent |
+| Light Vehicle | yes | yes | partial | Evasive/Rapid Fire/subsystems/cargo absent |
+| IFV | yes, marked executable | no | defect/blocked | Compiled lookup crash; cargo shape becomes zero |
+| Main Battle Tank | yes | yes | partial | Rear-domain defect; repair/subsystems absent |
+| Light Mech | yes | no | catalogue-only | Helper-only mechanics |
+| Fighter | yes | no | catalogue-only | Aerospace resolver absent |
+| Bomber | yes | no | catalogue-only | Aerospace resolver absent |
+| VTOL | yes, marked executable | no | defect/blocked | Compiled lookup crash; cargo shape becomes zero |
+| HAT | yes, marked executable | no | defect/blocked | Compiled lookup crash; incomplete airlift/airdrop |
+
+### Orders, actions, equipment and deployment
+
+- Compiled executable orders: Hold, Advance and Rush only.
+- Compiled executable action handlers: Attack, Reload, Load, Unload, Scan and Drone; the tactical UI exposes only Attack.
+- D1 has 22 action definitions, but adapters do not preserve class-action links. First Aid, MASH, artillery deployment/funnel, supply transfer, crew repair, flight operations, airdrop and sabotage are not end-to-end.
+- Implemented/purchasable equipment overlay subset is narrow: Flak Vests, Light AT, Optics and Drone Operator. Orbital Drop Training remains partial/non-executable; other items are blocked/hidden. The compiled catalogue contains only Flak, Light AT and Optics.
+- Standard, Vehicle, VTOL, HAT and Paradrop deployment rows are marked implemented, but planner/scenario/aerospace integration is incomplete; Orbital remains partial and unresolved.
+
+## D1 inventory and workflow coverage
+
+Fresh replay produced 113 non-SQLite/non-Cloudflare tables including `d1_migrations`. The full names below are the reproducible schema inventory. Group status describes the strongest production workflow touching the family; individual gaps are called out afterward.
+
+| Family | Tables | Strongest status |
+|---|---|---:|
+| Identity/profile/auth | `users`, `profiles`, `user_sessions`, `auth_identities`, `auth_email_challenges`, `auth_rate_limits`, `auth_audit_events`, `account_recovery_challenges` | partial; recovery/cleanup/settings absent |
+| Published rules/content | `rulesets`, `ruleset_sources`, `rule_conflicts`, `unit_class_definitions`, `weapon_definitions`, `equipment_definitions`, `action_definitions`, `order_type_definitions`, `structure_definitions`, `terrain_definitions`, `ship_class_definitions`, `enemy_definitions`, `ruleset_implementation_overlays` | catalogue; runtime split/provenance broken |
+| Profiles/tags/abilities | `movement_profile_definitions`, `durability_profile_definitions`, `cargo_profile_definitions`, `supply_profile_definitions`, `deployment_profile_definitions`, `tag_definitions`, `ability_definitions`, `status_effect_definitions`, `unit_definition_profiles`, `unit_definition_tags`, `unit_definition_abilities`, `unit_definition_weapons`, `unit_equipment_slot_definitions`, `equipment_eligibility_rules` | partial catalogue/adapters |
+| Persistent force | `player_units`, `player_unit_equipment`, `unit_history`, `player_unit_loadouts`, `player_unit_loadout_items`, `player_unit_weapon_mounts`, `player_unit_supplies`, `player_unit_subsystems`, `player_unit_status_effects`, `unit_service_summaries`, `force_mutation_receipts` | partial live workflow |
+| Cargo/construction | `unit_cargo_manifests`, `unit_cargo_items`, `unit_construction_projects`, `unit_project_contributions` | cargo partial; construction missing |
+| Req/equipment/refit | `requisition_transactions`, `player_equipment_inventory`, `equipment_effect_definitions`, `refit_definitions`, `player_unit_refits` | purchases partial; economy/refits blocked |
+| Battalion/formation | `battalions`, `battalion_ranks`, `rank_permissions`, `battalion_permission_definitions`, `battalion_memberships`, `battalion_invites`, `battalion_email_invites`, `battalion_recruitment_settings`, `battalion_creation_charters`, `user_active_battalions`, `battlegroups`, `battlegroup_units`, `unit_order_delegations` | onboarding/read projections; lifecycle partial |
+| Onboarding | `onboarding_economy_policies`, `onboarding_progress`, `onboarding_command_receipts`, `onboarding_starter_unit_grants` | implemented product-policy flow |
+| Ships/capabilities | `ships`, `ship_equipment`, `ship_cargo`, `ship_capability_definitions`, `ship_module_capability_grants`, `ship_capability_overrides` | read-only/partial |
+| Tactical world | `planets`, `campaigns`, `campaign_memberships`, `deployments`, `round_metadata`, `order_archive`, `campaign_event_archive`, `persistent_effects` | campaigns/deployments partial; four journal tables dormant |
+| Deployment/equipment state | `deployment_method_definitions`, `campaign_insertion_zones`, `deployment_plans`, `deployment_plan_units`, `deployment_transport_assignments`, `campaign_loadout_snapshots`, `campaign_weapon_states`, `campaign_ability_states`, `deployment_mutation_receipts`, `campaign_effect_receipts` | plan/commit partial; Campaign DO ignores weapon/ability states |
+| Strategic content/world | `strategic_content_sources`, `strategic_locations`, `strategic_maps`, `strategic_nodes`, `strategic_routes`, `strategic_operations`, `strategic_war_variables` | read fixtures; content/variables no live workflow |
+| Strategic formations/supply | `task_forces`, `task_force_ships`, `task_force_battlegroups`, `strategic_supply_stores`, `strategic_supply_balances` | read-only/partial |
+| Strategic journal | `strategic_rounds`, `strategic_orders`, `strategic_events`, `strategic_effect_receipts` | schema/internal commit only; public execution blocked |
+
+Twenty-one tables fall into groups with no direct non-test runtime reference or no production mutation workflow: rules/content provenance surfaces, the four tactical archive/effect tables, recovery, strategic content/locations/effects/variables, refits, construction, ship overrides, and related admin surfaces. Presence is not implementation.
+
+## Seed and fixture inventory
+
+| Seed | Role | Production policy/status |
+|---|---|---|
+| `v5-core-curated.sql` | Core ruleset, limited definitions/conflicts | Production source, but conflict register and compiled drift must be repaired. |
+| `v5-phase2-combined-arms.sql` | Full class/profile/ability/capability catalogue | Production data with mixed implementation overlays; not proof of mechanics. |
+| `v5-equipment-deployment.sql` | Equipment effects, deployment methods and overlays | Production data; narrow activated subset, several overstated statuses. |
+| `onboarding-foundation.sql` | Starter/Battalion onboarding policies and NPC Battalions | Product policy, not canonical V5 lore/balance. |
+| `development-forces.sql` | Demonstration roster/ship/Battlegroups | Development only; must never be required by production. |
+| `development-strategic-world.sql` | Corinth map/routes/operations | Development only; route timing null/BALANCE_REQUIRED. |
+| `development-spearhead.sql` | Demonstration deployment campaign | Development only; not a public scenario. |
+
+## Asset and retained-prototype inventory
+
+At audit time, `image/` contained 347 files: 257 profile images, 72 unit assets, 13 planet images, one brand icon, one `.DS_Store`, and three untracked background GIFs. `app/static/img/` contained 352 files. `shipbuilder/` contained 32 files and `worldmap/` five. Across `image/` and `app/static/img/`, extensions included 654 PNG, 38 GIF, one JPG, two PDN and four `.DS_Store` files. Counts overlap duplicated legacy/current asset sets; no rights manifest or deduplication record exists.
+
+The audit intentionally does not assert ownership or licensing. CP-205/CP-804 require a per-file manifest with stable asset key, path, content hash, creator/source, licence/permission, derivative history, intended use, accessibility label/fallback, and optimisation status. Untracked `image/background/` remains user-owned and was not changed or staged.
+
+Retained V1 reference findings:
+
+- useful candidates to port deliberately: initial equipment/slot validation, custom unit visual identity, profile avatar workflow, Battalion identity/directory controls, commander/unit progression concepts;
+- prototypes, not working requirements: V1 requisition/deploy/order TODO alerts, hard-coded dossier stats, Phaser world map, disconnected PIXI ship builder;
+- do not delete the prototypes until their useful assets/workflows have an accepted production replacement and rights decision.
+
+## Documentation drift
+
+The live tree has outpaced several documents:
+
+- `GAME_SYSTEMS.md` contradicts itself on executable interaction actions and still describes a five-definition roster while D1 contains all 13 V5 classes.
+- `RULE_CONFLICTS.md` preserves the canonical 72-record register, while D1 seeds only 12 obsolete IDs.
+- test-count statements range from 62 to 177 rather than the audited 201.
+- architecture/Battalion docs still describe production login as deferred even though passwordless auth is deployed.
+- Cloudflare/auth/onboarding docs cite different deployment versions and migration heads.
+- Cloudflare documentation contains conflicting strategic deployment statements.
+
+CP-004 must reconcile these without upgrading implementation status merely to make prose consistent.
+
+## Release decision
+
+Current release decision: **NO-GO**.
+
+The earliest safe public milestone is not “all features complete”; it is the Phase 1 preview gate. Before accepting public players, at minimum close CP-001, CP-002, CP-100–CP-107 and either remove tactical/strategic claims and fixture-backed navigation or close the relevant P0 gameplay gates. Live tactical rounds additionally require CP-400–CP-403. Advertised strategic play requires CP-300–CP-305.
