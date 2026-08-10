@@ -5,6 +5,7 @@ import {
   authorizeCampaign,
   campaignAccessFromRow,
   demoAuthEnabled,
+  requestIsEmailVerificationNavigation,
   requestIsExplicitlyCrossOrigin,
   requestIsSameOrigin,
   requestRequiresSameOrigin,
@@ -59,6 +60,41 @@ describe("same-origin policy", () => {
     expect(requestIsSameOrigin(crossOrigin)).toBe(false);
     expect(requestIsExplicitlyCrossOrigin(crossOrigin)).toBe(true);
     expect(requestRequiresSameOrigin(socket)).toBe(true);
+  });
+
+  it("permits only a top-level document navigation to stage an email verification token", () => {
+    const emailNavigation = new Request("https://game.example/api/auth/verify?token=secret", {
+      headers: {
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "cross-site",
+      },
+    });
+    const otherApiNavigation = new Request("https://game.example/api/auth/session", {
+      headers: {
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "cross-site",
+      },
+    });
+    const foreignOrigin = new Request("https://game.example/api/auth/verify?token=secret", {
+      headers: {
+        origin: "https://mail.example",
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "cross-site",
+      },
+    });
+    const confirmation = new Request("https://game.example/api/auth/verify", {
+      method: "POST",
+      headers: { origin: "https://game.example" },
+    });
+
+    expect(requestIsExplicitlyCrossOrigin(emailNavigation)).toBe(true);
+    expect(requestIsEmailVerificationNavigation(emailNavigation)).toBe(true);
+    expect(requestIsEmailVerificationNavigation(otherApiNavigation)).toBe(false);
+    expect(requestIsEmailVerificationNavigation(foreignOrigin)).toBe(false);
+    expect(requestIsEmailVerificationNavigation(confirmation)).toBe(false);
   });
 });
 

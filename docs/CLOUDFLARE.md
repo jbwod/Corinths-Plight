@@ -111,7 +111,7 @@ The default Wrangler configuration deliberately enables the local demo. It must 
 ### 6.1 Implemented controls
 
 - Unsafe methods and WebSocket upgrades require a present, exactly matching same-origin `Origin`.
-- Explicitly cross-origin API requests are rejected, including safe requests carrying a foreign Origin or `Sec-Fetch-Site: cross-site`.
+- Explicitly cross-origin API requests are rejected. The sole exception is an Origin-less top-level document navigation to exact `GET /api/auth/verify`, allowing links opened from mail clients to stage their token without mutating account state; its confirmation POST remains exact same-origin.
 - Demo headers/query identity work only under the explicit development flag and only for K-17 or Operation Spearhead.
 - Cookie authentication accepts a 32–512 character `corinth_session`, URI-decodes it, hashes it with SHA-256, and queries an unexpired/unrevoked session joined to an `ACTIVE` user.
 - Session campaign access is loaded from D1 before `CAMPAIGN.getByName`. Only existing `ACTIVE`, `PAUSED`, `COMPLETE`, or `FAILED` campaigns route.

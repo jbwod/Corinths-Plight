@@ -69,6 +69,15 @@ export function requestIsExplicitlyCrossOrigin(request: Request): boolean {
   return request.headers.get("sec-fetch-site")?.toLowerCase() === "cross-site";
 }
 
+export function requestIsEmailVerificationNavigation(request: Request): boolean {
+  if (request.method.toUpperCase() !== "GET" || request.headers.has("origin")) return false;
+  if (new URL(request.url).pathname !== "/api/auth/verify") return false;
+  return (
+    request.headers.get("sec-fetch-mode")?.toLowerCase() === "navigate" &&
+    request.headers.get("sec-fetch-dest")?.toLowerCase() === "document"
+  );
+}
+
 export async function authenticate(request: Request, env: Env): Promise<AuthenticatedIdentity | null> {
   // Browsers cannot attach custom headers to a WebSocket handshake. The query
   // fallback is available only in an explicitly opted-in local environment.

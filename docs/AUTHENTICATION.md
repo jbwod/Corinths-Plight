@@ -25,7 +25,7 @@ The public React gateway presents the home page while signed out and mounts the 
 - Browser sessions use a separate 32-byte opaque token. D1 stores only its SHA-256 hash. The host-only cookie is `HttpOnly`, `SameSite=Lax`, `Secure` outside development, and expires after 30 days by default.
 - Registration is committed atomically only when the link is consumed. The User, Profile, identity link, session, and consumed challenge transition share one D1 batch.
 - Email, IP address, and User-Agent rate/audit keys are HMAC-pseudonymized with `AUTH_HASH_KEY`. Tokens and raw email addresses are never written to application logs.
-- Authentication mutations remain protected by the Worker's exact same-origin policy. Verification responses use `Referrer-Policy: no-referrer` so the query token is not forwarded while redirecting.
+- Authentication mutations remain protected by the Worker's exact same-origin policy. The only cross-site navigation exception is an exact top-level document `GET /api/auth/verify`, which stages but does not consume the token; confirmation still requires the same-origin POST. Verification responses use `Referrer-Policy: no-referrer` so the query token is not forwarded while redirecting.
 - Wrangler sets `assets.run_worker_first` for `/api/*`; otherwise SPA navigation fallback can serve `index.html` before an email verification GET reaches the Worker.
 - Five requests per email and per IP are accepted in each 15-minute window; further requests are blocked for the window.
 - Production fails email access closed unless the Resend key, HMAC key, HTTPS base URL, and sender are configured. Development without Resend returns the link in the JSON response for local testing only.

@@ -4,6 +4,7 @@ import {
   authenticate,
   authorizeCampaign,
   internalViewerHeaders,
+  requestIsEmailVerificationNavigation,
   requestIsExplicitlyCrossOrigin,
   requestIsSameOrigin,
   requestRequiresSameOrigin,
@@ -46,7 +47,7 @@ async function route(request: Request, env: Env, requestId: string): Promise<Res
   if (requestRequiresSameOrigin(request) && !requestIsSameOrigin(request)) {
     return errorResponse(403, "SAME_ORIGIN_REQUIRED", "This operation requires a same-origin request.");
   }
-  if (requestIsExplicitlyCrossOrigin(request)) {
+  if (requestIsExplicitlyCrossOrigin(request) && !requestIsEmailVerificationNavigation(request)) {
     return errorResponse(403, "CROSS_ORIGIN_FORBIDDEN", "Cross-origin API access is not permitted.");
   }
   if (url.pathname === "/api/health" && request.method === "GET") {
