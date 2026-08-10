@@ -144,7 +144,7 @@ Still target rather than implemented:
 - idempotency/expected-version contracts for tactical cancellation and operator pause/resume/resolve commands (order upsert and clock update now have this boundary);
 - delegated Battalion command and production-grade admin audit;
 - session rotation/device management, operator account controls, and legacy account migration;
-- an events-after-sequence reconnect endpoint.
+- event-time intelligence/declassification for historical reports beyond the bounded audience-projected socket reconnect catch-up.
 
 ### 5.1 Phase 3 organisation and strategic request flow
 
@@ -188,7 +188,7 @@ The implemented engine foundation now:
 
 Projection removes resolution records and pending effects, hides non-visible deployments, keeps other users' drafts private, and redacts dynamic control/objective/structure/environment fields on wholly unknown hexes. Reports pass stored events through the same current projector and do not expose the stored seed.
 
-This is not yet a complete fog/replay security proof. `CampaignView` is still largely the canonical state minus two fields; event filtering uses present-time actor visibility rather than event-time intelligence; public event payloads can contain target IDs; and generic WebSocket broadcasts are not yet separately projected per audience and may include order/unit identifiers. Production acceptance needs explicit safe DTOs, event-field redaction, event-time/declassification policy, report tests, and per-audience socket messages.
+This is not yet a complete fog/replay security proof. `CampaignView` is still largely the canonical state minus two fields; event filtering uses present-time actor visibility rather than event-time intelligence; and public event payloads can contain target IDs. WebSocket invalidations are now separately projected per viewer, contain no order/unit identifiers, and provide bounded projected catch-up after reconnect. Production acceptance still needs explicit safe DTOs, event-field redaction, event-time/declassification policy, report tests, and hibernation/browser evidence.
 
 ## 8. V1 strangler sequence
 
@@ -284,7 +284,7 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 | Viewer projection | Partial | Basic state/report redaction exists; event-time and socket-field leakage tests remain |
 | D1 persistent-effect applier and next-round gate | Partial | Supported effects use D1 receipts; cryptographic journal, automatic reconciliation, and next-round acknowledgement gate remain open |
 | PREPARED journal, cryptographic input/output hashes, secret seed commitment | Open | Current record is a committed snapshot with a predictable seed and 32-bit digest |
-| Separate persisted schedule records and reconnect catch-up | Open | Schedule lives inside current state; no events-after-sequence API |
+| Separate persisted schedule records and reconnect catch-up | Partial | Schedule lives inside current state; sockets provide bounded projected cursor catch-up but no separate persisted feed |
 | Production passwordless identity/session issuance | Deployed foundation | Resend verified-email links, opaque sessions, logout, auth rate limits, and pseudonymized audit are deployed; `0008` retention schedule is local-only pending migration/deployment |
 | Guided enlistment and Battalion recruitment | Deployed foundation | Public/private/code/targeted joins, one-charter economy, starter grant, tour, recruitment settings, and Resend delivery are deployed; `0008` invitation throttling/expiry is local-only |
 | Helion/Corinth strategic schema and fixture | Complete as development data only | Fresh 0001–0008 replay and all seven seeds twice passed; production seeds still create no strategic world or campaigns |

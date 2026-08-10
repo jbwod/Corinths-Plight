@@ -20,7 +20,7 @@ This is the live release checklist. A checked local build item is not permission
 | Demo/showcase/hard-coded production client paths | open P0 | App, Forces, Deployment and Strategic surfaces use fixed IDs or local fallback data. |
 | Strategic order and resolution `501` | open P0 when advertised | `POST /api/strategic/orders`; Strategic Map DO `/resolve`. |
 | Tactical next-round/effect acknowledgement ordering | open P0 | Next PLANNING state is committed before D1 effect ACK. |
-| Generic WebSocket broadcast/current-time report fog | open P0 security | No viewer-specific payload or events-after-sequence catch-up. |
+| WebSocket/report fog | partial P0 security | Socket invalidations are viewer-specific, identifier-free and provide bounded projected catch-up; reports still use current-time rather than event-time visibility. |
 | Runtime schema/fail-closed authoritative JSON | partial P0 | Campaign order/clock intents and v1 current/snapshot state now validate and fail closed; remaining routes, DTOs, rules/scenarios and stored documents are not comprehensively versioned. |
 | Preview environment | blocked P0 | Preview D1 is a placeholder and has no deploy/migrate/smoke proof. |
 | Auth retention/session operations/invite abuse controls | partial P0 | Local migration `0008` adds bounded cleanup, invitation limits/audit and a durable background delivery outbox; it is not deployed, and idle/device/revoke/opt-out/monitoring work remains. |
@@ -122,7 +122,7 @@ No external state was changed during this Phase-0 assessment.
 | Per-route body bounds/manual validation | partial | Tactical order/clock/bodyless mutations and v1 campaign state/snapshots now validate; shared coverage for every route/document remains absent. |
 | CSRF/origin browser matrix | partial | Exact-origin checks exist; complete mutation matrix/browser evidence absent. |
 | Content Security Policy/HSTS evidence | missing | Add CSP rollout and verify edge HSTS/TLS. |
-| WebSocket audience isolation | fail | Generic payload broadcasts identifiers to all campaign sockets. |
+| WebSocket audience isolation | partial/pass locally | Per-viewer invalidations omit gameplay identifiers and enemy catch-up excludes Allied order events; hibernation/browser evidence remains open. |
 | Event/report fog | fail | Current visibility is used instead of event-time knowledge. |
 | Admin least privilege/MFA/audit/retry controls | missing | Backend admin check alone is insufficient. |
 | Auth/invite abuse controls and cleanup | local partial | Migration `0008` adds bounded terminal-record cleanup, four-scope invitation limits, pseudonymized audit and retryable delivery; production migration/monitoring, opt-out and complete session operations remain. |

@@ -42,6 +42,7 @@ import {
 import { viewerFromInternalRequest } from "./auth";
 import { generateEnemyOrders } from "./enemy-ai";
 import { configuredCampaignStrategicConsequences } from "./campaign-strategic-effects";
+import { campaignRealtimeProjection, parseCampaignRealtimeCursor } from "./campaign-realtime";
 import type { Env } from "./env";
 import { errorResponse, json, readJson } from "./http";
 import { validateIncidentalActions } from "./order-validation";
@@ -717,19 +718,25 @@ export class CampaignDurableObject extends DurableObject<Env> {
     );
   }
 
-  private broadcast(type: string, state: CampaignRuntimeState, extra: Record<string, unknown> = {}): void {
-    const message = JSON.stringify({
-      type,
-      campaignId: state.campaignId,
-      round: state.round,
-      phase: state.phase,
-      deadline: state.clock.resolvesAt,
-      version: state.version,
-      ...extra,
-    });
+  private broadcast(type: string, state: CampaignRuntimeState): void {
     for (const socket of this.ctx.getWebSockets()) {
       try {
-        socket.send(message);
+        const attachment = socket.deserializeAttachment() as WebSocketAttachment | null;
+        if (!attachment) continue;
+        const projected = campaignRealtimeProjection(state, {
+          userId: attachment.userId,
+          side: attachment.side as ViewerContext["side"],
+          role: attachment.role as ViewerContext["role"],
+        });
+        socket.send(JSON.stringify({
+          type,
+          campaignId: state.campaignId,
+          round: state.round,
+          phase: state.phase,
+          deadline: state.clock.resolvesAt,
+          version: state.version,
+          cursor: projected.cursor,
+        }));
       } catch {
         // The hibernation API will deliver a close/error callback for dead peers.
       }
@@ -749,7 +756,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (url.pathname === "/pause" && request.method === "POST") return await this.handlePause(request);
       if (url.pathname === "/resume" && request.method === "POST") return await this.handleResume(request);
       if (url.pathname === "/ws" && request.headers.get("upgrade")?.toLowerCase() === "websocket") {
-        return this.handleWebSocket(request);
+        return await this.handleWebSocket(request);
       }
       if (url.pathname.startsWith("/reports/") && request.method === "GET") {
         return await this.handleReport(request, Number(url.pathname.slice("/reports/".length)));
@@ -1202,7 +1209,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
         actualOrderRevision: commit.orderRevision,
       });
     }
-    this.broadcast("order-updated", state, { orderId: order.id, unitId: deployment.id });
+    this.broadcast("order-updated", state);
     this.log("order.saved", { userId: viewer.userId, unitId: deployment.id, orderId: order.id, revision: order.revision });
     return json(response, { status });
   }
@@ -1226,7 +1233,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
     order.lifecycle = "CANCELLED";
     state.version += 1;
     await this.ctx.storage.put(STATE_KEY, encodeCampaignStoredState(state));
-    this.broadcast("order-cancelled", state, { orderId });
+    this.broadcast("order-cancelled", state);
     return json({ orderId, lifecycle: order.lifecycle });
   }
 
@@ -1465,10 +1472,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
     const settled = committedRecord.status === "RESOLVED"
       ? { state: nextState, record: committedRecord, complete: true }
       : await this.resumePersistentEffects(committedRecord.round, now);
-    this.broadcast(settled.complete ? (duplicate ? "round-resolution-replayed" : "round-resolved") : "round-effects-pending", settled.state, {
-      resolutionKey: settled.record.key,
-      digest: settled.record.stateDigest,
-    });
+    this.broadcast(settled.complete ? (duplicate ? "round-resolution-replayed" : "round-resolved") : "round-effects-pending", settled.state);
     this.log(settled.complete ? "round.resolved" : "round.effects_pending", {
       round: settled.record.round,
       resolutionKey: settled.record.key,
@@ -1665,14 +1669,26 @@ export class CampaignDurableObject extends DurableObject<Env> {
     return projected;
   }
 
-  private handleWebSocket(request: Request): Response {
+  private async handleWebSocket(request: Request): Promise<Response> {
     const viewer = this.viewer(request);
+    const state = await this.getState();
+    const catchUp = campaignRealtimeProjection(state, viewer, parseCampaignRealtimeCursor(new URL(request.url)));
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     const attachment: WebSocketAttachment = { userId: viewer.userId, side: viewer.side, role: viewer.role };
     server.serializeAttachment(attachment);
     this.ctx.acceptWebSocket(server, [`side:${viewer.side}`, `user:${viewer.userId}`]);
-    server.send(JSON.stringify({ type: "connected", campaignId: this.campaignId() }));
+    server.send(JSON.stringify({
+      type: "connected",
+      campaignId: this.campaignId(),
+      round: state.round,
+      phase: state.phase,
+      version: state.version,
+      cursor: catchUp.cursor,
+      events: catchUp.events,
+      truncated: catchUp.truncated,
+      serverTime: Date.now(),
+    }));
     return new Response(null, { status: 101, webSocket: client });
   }
 

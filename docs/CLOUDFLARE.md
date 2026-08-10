@@ -171,7 +171,7 @@ Still missing are separate consumed schedule history, explicit recovery records,
 
 The DO uses `acceptWebSocket` and serialised viewer attachment metadata. The Worker authenticates, validates origin, and authorises campaign membership before forwarding the upgrade. Raw credentials are not forwarded or attached. Sockets accept only `ping`; campaign mutations remain HTTP-only.
 
-Current broadcasts are sparse invalidation/status messages, which is the correct experience-layer role, but they are sent generically to all current sockets and some messages include order/unit IDs. Production target behavior must derive per-audience messages and prove those fields cannot leak hidden intentions. There is also no persisted `events-after-sequence` catch-up route; reconnect currently fetches the filtered current state/report only.
+Broadcasts are sparse experience-layer invalidations. The DO deserializes the authenticated viewer attachment for each socket and sends only campaign/round/phase/deadline/version plus that viewer's projected event cursor; order IDs, unit IDs, resolution keys and digests are not socket fields. Reconnect supplies `sinceRound`, `sinceSequence`, and `sinceVersion`; the initial socket message includes up to 100 missed events after that cursor, filtered through the same audience projection, and directs the client to refetch authoritative state. This catch-up is bounded from current DO event state rather than a separate unbounded feed. Event-time historical intelligence and hibernation/browser integration evidence remain open.
 
 ## 8. D1 operations and seed policy
 
@@ -284,7 +284,8 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 - [ ] Implement PREPARED journal, cryptographic input/output hashes, and protected deterministic seed.
 - [ ] Implement separate persisted schedule records and consumed/recovery semantics.
 - [~] D1 persistent-effect application uses idempotent receipts; acknowledgement-gated next-round transition and a cryptographic payload journal remain open.
-- [ ] Implement events-after-sequence reconnect and hibernation integration tests.
+- [x] Implement bounded audience-projected events-after-sequence reconnect.
+- [ ] Add hibernation/browser reconnect integration evidence and event-time intelligence projection.
 - [ ] Provision the preview D1 resource and replace its placeholder ID; production D1 is already provisioned.
 - [ ] Complete and record a remote preview deployment/smoke test.
 - [x] Complete and record production migration/deployment through `0007`, version `f34fa674-b242-4bda-9a7d-dd06cddc7363`.

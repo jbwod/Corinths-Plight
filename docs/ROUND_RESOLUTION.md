@@ -264,8 +264,8 @@ Remaining security work:
 - event payload fields such as `targetId` are not independently projected, so a public event with a visible actor can identify a hidden target;
 - report projection uses current state/visibility, not the viewer's event-time intelligence;
 - `CampaignView` is not a narrow versioned safe DTO;
-- live broadcasts are generic rather than derived for each viewer audience and can include unit/order identifiers;
-- there is no `events-after-sequence` catch-up endpoint.
+- live broadcasts are derived from each socket's authenticated viewer attachment and contain no unit/order/resolution identifiers;
+- reconnect carries a bounded audience-projected `events-after-sequence` catch-up, but event-time historical intelligence is not yet preserved.
 
 Sockets are read-only for commands; gameplay correctness does not depend on receiving a broadcast.
 

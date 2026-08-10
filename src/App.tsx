@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AxialCoord,
   CampaignDeployment,
@@ -204,6 +204,7 @@ function GameApp() {
     import.meta.env.DEV ? DEFAULT_DEVELOPMENT_CAMPAIGN_ID : undefined,
   );
   const [campaignDirectory, setCampaignDirectory] = useState<CampaignDirectoryEntry[]>([]);
+  const realtimeCursor = useRef<{ round: number; sequence: number; version: number } | undefined>(undefined);
 
   const loadCampaignDirectory = useCallback(async (): Promise<string | undefined> => {
     const response = await fetch("/api/campaigns", { headers: DEMO_HEADERS });
@@ -230,6 +231,14 @@ function GameApp() {
       if (!response.ok) throw new Error(await errorMessage(response));
       const next = (await response.json()) as CampaignView;
       setCampaign(next);
+      const latestEvent = [...next.events].sort((left, right) =>
+        left.round - right.round || left.sequence - right.sequence
+      ).at(-1);
+      realtimeCursor.current = {
+        round: latestEvent?.round ?? next.round,
+        sequence: latestEvent?.sequence ?? 0,
+        version: next.version,
+      };
       setConnection("LIVE");
       return next;
     } catch (error) {
@@ -271,13 +280,31 @@ function GameApp() {
     const connect = () => {
       if (closed) return;
       try {
+        const query = new URLSearchParams();
+        if (import.meta.env.DEV) query.set("demo_user", DEMO_USER);
+        if (realtimeCursor.current) {
+          query.set("sinceRound", String(realtimeCursor.current.round));
+          query.set("sinceSequence", String(realtimeCursor.current.sequence));
+          query.set("sinceVersion", String(realtimeCursor.current.version));
+        }
         socket = new WebSocket(
-          `${protocol}//${window.location.host}/api/campaigns/${campaignId}/ws${import.meta.env.DEV ? `?demo_user=${encodeURIComponent(DEMO_USER)}` : ""}`,
+          `${protocol}//${window.location.host}/api/campaigns/${campaignId}/ws${query.size > 0 ? `?${query}` : ""}`,
         );
         socket.addEventListener("open", () => setConnection("LIVE"));
         socket.addEventListener("message", (event) => {
-          const message = JSON.parse(String(event.data)) as { type?: string };
-          if (message.type !== "connected" && message.type !== "pong") void loadCampaign(true, campaignId);
+          const message = JSON.parse(String(event.data)) as {
+            type?: string;
+            version?: number;
+            cursor?: { round: number; sequence: number; version: number };
+            events?: unknown[];
+            truncated?: boolean;
+          };
+          const priorVersion = realtimeCursor.current?.version ?? 0;
+          if (message.cursor) realtimeCursor.current = message.cursor;
+          const missedWhileDisconnected = Boolean(message.events?.length || message.truncated || (message.version ?? 0) > priorVersion);
+          if (message.type !== "pong" && (message.type !== "connected" || missedWhileDisconnected)) {
+            void loadCampaign(true, campaignId);
+          }
         });
         socket.addEventListener("close", () => {
           if (closed) return;
