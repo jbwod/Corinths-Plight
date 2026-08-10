@@ -61,13 +61,15 @@ audited baseline + CI
 | CP-108 | P0 | DONE | M | Passwordless Resend registration/login/verification/logout and guided join/create Battalion, starter unit, tour. | Migrations 0006–0007 | Production foundation deployed and unit-tested; broader operational gates remain CP-102–CP-107. |
 | CP-109 | P0 | READY | M | Durable schedule records and recovery semantics for pending/running/consumed/failed jobs. | CP-100, CP-105 | Duplicate, late, eviction, crash, and stale-running tests pass; new rounds remain gated on effect acknowledgement. |
 
+**CP-100 catalogue sub-gate:** the catalogue-specific portion of CP-100 is now implemented locally: strict JSON/canonicalization utilities, a versioned normalized rules-catalogue envelope, SHA-256 verification, explicit nullable number/status pairs, definition/relation/overlay/handler invariants, canonical-versus-companion unit classification, and a redacted public projection. This unblocks CP-200 without pretending that CP-100's scenario, audience-DTO, and common mutation-envelope work is complete.
+
 **Phase 1 gate:** a new preview user registers, verifies, onboards, returns in a fresh session, and sees only server-backed state. Backup/restore, retention, monitoring, and support evidence are recorded.
 
 ## Phase 2 — One catalogue and the persistent force loop
 
 | ID | Priority | State | Estimate | Slice | Dependencies | Acceptance evidence |
 |---|---|---:|---:|---|---|---|
-| CP-200 | P0 | READY | L | Replace split D1/compiled/adaptor truth with one generated and validated immutable rules catalogue. | CP-100; rule decisions as activated | All 13 canonical class rows, weapons, actions, profiles, tags, equipment, overlays, SQL, API DTOs, engine handlers, UI and fixtures share one content hash. |
+| CP-200 | P0 | IN_PROGRESS | L | Replace split D1/compiled/adaptor truth with one generated and validated immutable rules catalogue. | CP-100 catalogue sub-gate; rule decisions as activated | The local contract and deterministic final-seed/conflict bootstrap now account for 96 top-level definitions, 104 supporting definitions, 13 canonical and 3 companion classes, and 72 canonical conflicts; generated source/runtime/SQL/API/UI cutover remains open. All consumers must ultimately share one content hash. |
 | CP-201 | P0 | READY | M | Repair D1-to-tactical adapters: preserve availability/requisition status, action links, nullable stats, cargo alternatives, supply vocabulary, and executable-handler identity. | CP-200 | No D1 class marked executable can crash on `getUnitClass`; unknown sensor/cost values never become zero. |
 | CP-202 | P1 | BLOCKED | L | Approved Req economy: grants/income/rewards, unit/equipment/refit prices, replacement, timing, and exact-once ledger. | DEC-001 through DEC-004 | No zero-price fallback; concurrent/replayed purchases and losses produce one balanced ledger result. |
 | CP-203 | P1 | READY | L | Complete persistent unit lifecycle: obtain/name/inspect, health/ammo/supply, location, recovery/repair, service/history, destruction and memorial. | CP-200, CP-202 | A unit survives or dies across campaigns with exact persisted consequences and no duplicate location. |

@@ -42,6 +42,9 @@ jobs:
       - name: Validate rules and seed sources
         run: npm run seed:check
 
+      - name: Verify generated rules catalogue
+        run: npm run catalogue:check
+
       - name: Typecheck
         run: npm run typecheck
 

@@ -36,6 +36,8 @@
     "db:seed:equipment:remote": "npm run check:production-config && wrangler d1 execute corinths-plight-production --remote --env production --file seeds/v5-equipment-deployment.sql",
     "db:seed:onboarding:remote": "npm run check:production-config && wrangler d1 execute corinths-plight-production --remote --env production --file seeds/onboarding-foundation.sql",
     "db:seed:remote": "npm run db:seed:core:remote && npm run db:seed:phase2:remote && npm run db:seed:equipment:remote && npm run db:seed:onboarding:remote",
+    "catalogue:generate": "node --import tsx scripts/generate-rules-catalogue.ts --write",
+    "catalogue:check": "node --import tsx scripts/generate-rules-catalogue.ts --check",
     "seed:check": "node --import tsx scripts/validate-seed.ts"
   },
   "dependencies": {

@@ -1,5 +1,8 @@
 export const RULESET_VERSION = "v5-core-curated@1" as const;
 
+export * from "./json-contract";
+export * from "./rules-catalogue-contract";
+
 export type DefinitionStatus = "active" | "experimental" | "legacy" | "incomplete";
 export type ImplementationStatus = "IMPLEMENTED" | "PARTIAL" | "CATALOGUE_ONLY";
 export type RequisitionStatus = "PUBLISHED" | "BALANCE_REQUIRED" | "NOT_APPLICABLE";

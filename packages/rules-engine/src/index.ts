@@ -1,4 +1,5 @@
 export * from "./catalogue";
+export * from "./catalogue-runtime";
 export * from "./demo";
 export * from "./deployment";
 export * from "./equipment";
