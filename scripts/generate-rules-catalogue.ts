@@ -818,7 +818,7 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["HITS", "ATTACK", "MOVEMENT", "SUBSYSTEMS"],
+      implementedSubset: ["HITS", "ATTACK", "MOVEMENT", "SUBSYSTEMS", "RAPID_FIRE"],
       missing: ["EVASIVE", "CARGO"],
     },
     explanation: "The V5 natural-5/6 subsystem malfunction rule now persists and gates later weapon and mobility use.",

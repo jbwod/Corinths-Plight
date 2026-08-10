@@ -74,6 +74,7 @@ function deployment(
     side,
     definitionId,
     callsign,
+    tags: [...definition.tags],
     status: "ACTIVE",
     position,
     facing,

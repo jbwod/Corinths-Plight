@@ -211,7 +211,7 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 | Engineer | yes | yes | partial/playable | Vehicle Repair is connected through generated catalogue, strict order contract, resolver, D1 health/Supply/subsystem effects, reports and tactical UI. It restores one Hit or one selected subsystem for one Small Supply in base contact. Construct and Dig In remain deferred. |
 | Artillery | yes | yes | partial/playable | Deploy/Pack Up and Bombardment are connected through generated grammar, strict orders, resolver, reports and tactical UI. Bombardment requires deployment, spotting, range and Small Supply, applies capped/recovering Defense stacks, and changes combat calculations. Funnel and anti-orbital paths remain deferred; direct damage remains experimental. |
 | Logi Truck | yes, legacy seed marks executable | no | safely blocked | Generated authority rejects the unsupported handler; tow/supply absent |
-| Light Vehicle | yes | yes | partial/playable | HITS combat and persistent natural-5/6 weapon/mobility subsystem malfunctions are active. Evasive, Rapid Fire and cargo remain absent. |
+| Light Vehicle | yes | yes | partial/playable | HITS combat, Rapid Fire against Horde, and persistent natural-5/6 weapon/mobility subsystem malfunctions are active. Evasive and cargo remain absent. |
 | IFV | yes, legacy seed marks executable | no | safely blocked | Generated authority rejects the unsupported handler; cargo alternatives remain unhydrated |
 | Main Battle Tank | yes | yes | partial/playable | Armor/AP/facing, persistent subsystem malfunctions and Engineer subsystem repair are active. Rear-domain and class-specific crew-repair rules remain incomplete. |
 | Light Mech | yes | no | catalogue-only | Helper-only mechanics |

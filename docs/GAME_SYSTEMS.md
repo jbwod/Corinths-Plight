@@ -65,7 +65,8 @@ Canonical status MUST NOT be inferred from an implementation flag, and implement
 | Evasive, Melee Charge, Stealth | `canonical_active`/`active_provisional` | `foundation_deferred`: structured definitions exist with `executable=false`; submission and resolver validation reject them. |
 | Attack action | `canonical_active` plus V5 rulings | `foundation_partial`: one seeded weapon Attack per unit implements FS cap, Armor/AP/Defense, axial rear calculation, range, direct LOS, indirect spotting, ammo, cooldown, Rush damage, and simultaneous commit. Rear-attack Armor bypass is not yet correctly category-scoped, and the remaining firing/melee/aerospace rules are deferred. |
 | Multiweapon attack activation | `active_provisional` (`RC-V5-003`) | `foundation_deferred`: the current order contract permits only one Attack action/weapon selection per unit. |
-| High ground, dynamic cover/Dig In, Evasive modifiers, Rapid Fire | Canonical or `active_provisional` | `foundation_deferred`: the basic mitigation pipeline is executable, but these modifiers/effects are not yet applied by the resolver. |
+| High ground, dynamic cover/Dig In, Evasive modifiers | Canonical or `active_provisional` | `foundation_deferred`: the basic mitigation pipeline is executable, but these modifiers/effects are not yet applied by the resolver. |
+| Rapid Fire versus Horde | `active_provisional` (`RC-V5-027`) | `foundation_executable`: the governed unit tags double the capped modified damage result before mitigation, preserve the natural die for subsystem checks, and retain one-Hit conversion against vehicle targets. |
 | Vehicle Subsystems | `active_provisional` | `foundation_executable`: a penetrating single-die natural 5 disables weapons and a natural 6 disables mobility; Infantry must retain at least that much FS. Malfunctions are simultaneous with attacks, persist, gate later orders, and can be restored by Engineer Repair. |
 | Simultaneous resolution | `canonical_active` plus `RC-V5-031` | `foundation_partial`: attacks aggregate before damage is committed and same-destination capacity contests are symmetric. Full distance-increment hostile route contention and melee defensive-fire timing are deferred. |
 | Hex geometry, pathing, LOS, capacity | Scenario-owned implementation of canonical measurement/LOS | `foundation_partial`: axial distance, adjacency, battlefield bounds, pathfinding, movement cost, LOS blockers, sensors, and per-hex capacity exist. Road/elevation/river defaults still execute without a fully pinned scenario profile, and hostile route contention is incomplete. |
@@ -222,7 +223,7 @@ For each weapon attack:
 
 Each eligible weapon rolls once during the attack activation. Spending a Primary Action or using Rush removes the entire activation, not merely one weapon roll (`RC-V5-003`).
 
-The foundation implements the target checks (including the friendly-spotter requirement for indirect fire), seeded roll, FS cap, Armor/AP/Defense threshold, rear-arc Armor bypass, one-Hit vehicle penetration, Rush loss multiplier, ammo/cooldown updates, simultaneous damage aggregation, and persistent subsystem malfunctions. It currently executes one declared weapon through one Attack action. High-ground and Evasive modifiers, Rapid Fire, multiweapon activations, firing-arc/category exceptions, melee, and other special attacks remain deferred even though their canonical decisions are retained below.
+The foundation implements the target checks (including the friendly-spotter requirement for indirect fire), seeded roll, FS cap, Rapid Fire against Horde, Armor/AP/Defense threshold, rear-arc Armor bypass, one-Hit vehicle penetration, Rush loss multiplier, ammo/cooldown updates, simultaneous damage aggregation, and persistent subsystem malfunctions. It currently executes one declared weapon through one Attack action. High-ground and Evasive modifiers, multiweapon activations, firing-arc/category exceptions, melee, and other special attacks remain deferred even though their canonical decisions are retained below.
 
 ### 3.6 Facing and flanking
 
@@ -462,7 +463,7 @@ Implementation requirements:
 Before a deferred system can become active, it needs the following:
 
 - Special orders/actions: resolver hooks and tests for Evasive, Melee Charge/Brawl, Stealth, Dig In, Construct, Funnel, general Resupply, Garrison, Assault, and Break Out/profile rejection behavior. First Aid, Engineer Repair, and Artillery Deploy/Pack Up/Bombardment are active; Load/Unload and finite-weapon Reload are narrow migrated UI/runtime paths; Scan and Deploy Drone still require authoritative effects/projection before activation.
-- Tactical completeness: multiweapon attack activations, dynamic cover/Dig In, high ground, Rapid Fire, typed firing/flanking exclusions, melee timing, and distance-increment hostile route contention.
+- Tactical completeness: multiweapon attack activations, dynamic cover/Dig In, high ground, typed firing/flanking exclusions, melee timing, and distance-increment hostile route contention.
 - Canonical roster: normalized foundation definitions for Medic, Logi Truck, IFV, Light Mech, Fighter, Bomber, VTOL, and Heavy Air Transport without importing legacy same-name statistics.
 - Optional equipment: V5-compatible unit access and slot budgets, action costs, dice semantics, ammo/reload data, durations, stack limits, and Req economy.
 - Expanded classes: conversion from FS vehicle health to Crew/Hits and V5 weapon dice.

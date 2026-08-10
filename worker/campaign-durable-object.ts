@@ -243,6 +243,9 @@ export class CampaignDurableObject extends DurableObject<Env> {
         side: row.side,
         definitionId: row.definition_id,
         callsign: row.callsign,
+        tags: Array.isArray(snapshot.tags)
+          ? snapshot.tags.filter((tag): tag is string => typeof tag === "string")
+          : [...execution.legacyDefinition.tags],
         status: row.status,
         position: position && Number.isInteger(position.q) && Number.isInteger(position.r)
           ? { q: position.q as number, r: position.r as number }

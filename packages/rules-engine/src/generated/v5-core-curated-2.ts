@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "597c9bd881ce13ac28030d27df9e75b236e0a21dc0f6e3a1a3a0797e1acb20ae",
+  "contentHash": "f56dd98c31f35984f58fe3c2b039f77b9327f052683430e88b0e02608cc5210c",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -8410,7 +8410,8 @@ const snapshot = {
             "HITS",
             "ATTACK",
             "MOVEMENT",
-            "SUBSYSTEMS"
+            "SUBSYSTEMS",
+            "RAPID_FIRE"
           ],
           "missing": [
             "EVASIVE",
@@ -13883,5 +13884,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "597c9bd881ce13ac28030d27df9e75b236e0a21dc0f6e3a1a3a0797e1acb20ae" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "f56dd98c31f35984f58fe3c2b039f77b9327f052683430e88b0e02608cc5210c" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

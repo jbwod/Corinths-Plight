@@ -64,6 +64,21 @@ describe("campaign reports", () => {
     expect(description).toBe("ROOK-7 attacked SKITTER-1: 2 damage, armour penetrated.");
   });
 
+  it("explains when Rapid Fire doubled the damage result", () => {
+    expect(describeCampaignReportEvent(
+      event("UNIT_ATTACKED", {
+        targetId: "dep-horde",
+        healthLoss: 4,
+        rapidFireMultiplier: 2,
+        penetrated: true,
+      }, "dep-vehicle"),
+      new Map([
+        ["dep-vehicle", "LANTERN"],
+        ["dep-horde", "SKITTER-9"],
+      ]),
+    )).toBe("LANTERN attacked SKITTER-9: 4 damage, Rapid Fire doubled the damage result, armour penetrated.");
+  });
+
   it("names an arriving enemy wave from its public event payload", () => {
     expect(describeCampaignReportEvent(event("ENEMY_REINFORCEMENTS_ARRIVED", {
       waveId: "k17-wave-2",

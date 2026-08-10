@@ -298,12 +298,14 @@ function GameApp() {
     (type !== "BOMBARDMENT" || artilleryDeployed),
   );
   const targetUnit = campaign.deployments.find((deployment) => deployment.id === targetUnitId);
+  const targetIsHorde = targetUnit?.tags?.includes("HORDE") === true;
   const reloadableWeapons = selectedUnit?.weapons.filter((weapon) =>
     weapon.ammoCapacity !== undefined &&
     (selectedUnit.ammunition[weapon.id] ?? 0) < weapon.ammoCapacity
   ) ?? [];
   const actionWeapons = actionMode === "RELOAD" ? reloadableWeapons : selectedUnit?.weapons ?? [];
   const selectedWeapon = actionWeapons.find((weapon) => weapon.id === selectedWeaponId) ?? actionWeapons[0];
+  const rapidFireReady = selectedWeapon?.tags.includes("RAPID_FIRE") === true;
   const coLocatedAllies = selectedUnit ? campaign.deployments.filter((deployment) =>
     deployment.id !== selectedUnit.id &&
     deployment.side === selectedUnit.side &&
@@ -999,6 +1001,7 @@ function GameApp() {
                       {targetUnit && <button onClick={() => setTargetUnitId(undefined)}>CLEAR</button>}
                     </div>
                     {targetOutOfRange && <p className="validation danger">Target is beyond the selected weapon's range.</p>}
+                    {rapidFireReady && targetIsHorde && <p className="validation">RAPID FIRE: modified damage doubles against this Horde target before mitigation.</p>}
                     {weaponSystemsDisabled && <p className="validation danger">Weapon systems offline. An Engineer must repair this unit before it can fire.</p>}
                     {orderType === "RUSH" && <p className="validation">Rush doubles received damage and forbids attacks.</p>}
                   </>

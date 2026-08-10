@@ -30,6 +30,8 @@ export interface AttackCalculation {
   threshold: number;
   penetrated: boolean;
   healthLoss: number;
+  rapidFireMultiplier: 1 | 2;
+  damageResult: number;
   ammoAfter?: number;
   cooldownAfter?: number;
 }
@@ -120,6 +122,7 @@ export function resolveAttackRoll(
   const baseDefense = rearAttack && target.statuses.includes("DUG_IN") ? 0 : target.stats.defense;
   const targetDefense = Math.max(0, baseDefense - (target.bombardmentSuppression?.stacks ?? 0));
   const threshold = effectiveArmor + targetDefense;
+  const rapidFireMultiplier = weapon.tags.includes("RAPID_FIRE") && target.tags?.includes("HORDE") === true ? 2 : 1;
   if (!targetCheck.legal) {
     return {
       ...targetCheck,
@@ -130,6 +133,8 @@ export function resolveAttackRoll(
       threshold,
       penetrated: false,
       healthLoss: 0,
+      rapidFireMultiplier,
+      damageResult: 0,
     };
   }
 
@@ -140,11 +145,12 @@ export function resolveAttackRoll(
     attacker.stats.healthModel === "FORCE_STRENGTH"
       ? Math.min(modified, attacker.currentHealth)
       : modified;
-  const penetrated = capped > threshold;
+  const damageResult = capped * rapidFireMultiplier;
+  const penetrated = damageResult > threshold;
   const healthLoss = penetrated
     ? target.stats.healthModel === "HITS"
       ? 1
-      : Math.max(1, capped - threshold)
+      : Math.max(1, damageResult - threshold)
     : 0;
 
   return {
@@ -157,6 +163,8 @@ export function resolveAttackRoll(
     threshold,
     penetrated,
     healthLoss,
+    rapidFireMultiplier,
+    damageResult,
     ammoAfter:
       weapon.ammoCapacity === undefined
         ? undefined

@@ -145,7 +145,7 @@ export function describeCampaignReportEvent(
       return `${actor} rolled ${raw}${modified !== raw ? `, modified to ${modified}` : ""}.`;
     }
     case "UNIT_ATTACKED":
-      return `${actor} attacked ${target}: ${numberValue(payload.healthLoss)} damage${payload.penetrated === true ? ", armour penetrated" : ""}.`;
+      return `${actor} attacked ${target}: ${numberValue(payload.healthLoss)} damage${payload.rapidFireMultiplier === 2 ? ", Rapid Fire doubled the damage result" : ""}${payload.penetrated === true ? ", armour penetrated" : ""}.`;
     case "SUBSYSTEM_MALFUNCTIONED": {
       const affected = Array.isArray(payload.affectedSubsystemIds)
         ? payload.affectedSubsystemIds.map(String).join(" and ")

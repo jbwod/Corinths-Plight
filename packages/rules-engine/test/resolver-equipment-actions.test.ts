@@ -471,6 +471,41 @@ describe("equipment and transport actions", () => {
     })).toMatchObject({ legal: false, reasons: expect.arrayContaining(["The unit's mobility subsystem is disabled."]) });
   });
 
+  it("uses the Light Vehicle's Rapid Fire tag to destroy a Horde through the normal attack pipeline", () => {
+    const base = createDemoCampaignState(1_000);
+    const vehicle = base.deployments.find((unit) => unit.definitionId === "unit-light-vehicle")!;
+    const horde = base.deployments.find((unit) => unit.definitionId === "enemy-bug-drone")!;
+    horde.position = { q: 0, r: -1 };
+    expect(vehicle.weapons[0].tags).toContain("RAPID_FIRE");
+    expect(horde.tags).toContain("HORDE");
+    const attackOrder = order(base, vehicle, [action("rapid-fire", "ATTACK", {
+      targetDeploymentId: horde.id,
+      weaponId: vehicle.weapons[0].id,
+    })]);
+    base.orders = [attackOrder];
+
+    const output = resolveRound({
+      previousState: base,
+      rulesetVersion: base.rulesetVersion,
+      playerOrders: [attackOrder],
+      enemyOrders: [],
+      seed: "rapid-fire",
+      resolutionTime: 2_000,
+    });
+
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "UNIT_ATTACKED",
+      actor: vehicle.id,
+      payload: expect.objectContaining({
+        targetId: horde.id,
+        rapidFireMultiplier: 2,
+        damageResult: 4,
+        healthLoss: 4,
+      }),
+    }));
+    expect(output.state.deployments.find((unit) => unit.id === horde.id)?.status).toBe("DESTROYED");
+  });
+
   it("rejects Drone until its visibility state effect is implemented", () => {
     const base = createDemoCampaignState(1_000);
     const unit = base.deployments[0];

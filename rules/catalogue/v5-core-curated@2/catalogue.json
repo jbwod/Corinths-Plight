@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "597c9bd881ce13ac28030d27df9e75b236e0a21dc0f6e3a1a3a0797e1acb20ae",
+  "contentHash": "f56dd98c31f35984f58fe3c2b039f77b9327f052683430e88b0e02608cc5210c",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -8393,7 +8393,8 @@
             "HITS",
             "ATTACK",
             "MOVEMENT",
-            "SUBSYSTEMS"
+            "SUBSYSTEMS",
+            "RAPID_FIRE"
           ],
           "missing": [
             "EVASIVE",

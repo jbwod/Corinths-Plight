@@ -681,6 +681,7 @@ export interface CampaignDeployment {
   side: FactionSide;
   definitionId: string;
   callsign: string;
+  tags?: string[];
   status: DeploymentStatus;
   position: AxialCoord;
   facing: Facing;

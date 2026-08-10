@@ -129,7 +129,7 @@ const abilityCopy: Record<string, Omit<ForceAbilityView, "id">> = {
   PACK_DEPLOY: { name: "Pack / Deploy", description: "Change the weapon platform's movement and firing state.", status: "CATALOGUE_ONLY" },
   RESUPPLY: { name: "Resupply", description: "Transfer compatible supplies or reload nearby units.", status: "CATALOGUE_ONLY" },
   TOW: { name: "Tow Platform", description: "Carry a compatible artillery platform as generic cargo.", status: "CATALOGUE_ONLY" },
-  RAPID_FIRE: { name: "Rapid Fire", description: "Use the vehicle's high-volume secondary weapon profile.", status: "CATALOGUE_ONLY" },
+  RAPID_FIRE: { name: "Rapid Fire", description: "Double the modified damage result against Horde targets before mitigation.", status: "IMPLEMENTED" },
   EVASIVE: { name: "Evasive", description: "Trade offensive options for a harder-to-hit movement pattern.", status: "CATALOGUE_ONLY" },
   TRANSPORT: { name: "Transport", description: "Embark and disembark compatible units using shared cargo rules.", status: "CATALOGUE_ONLY" },
   CREW_REPAIR: { name: "Crew Repair", description: "Attempt to recover a damaged internal subsystem.", status: "CATALOGUE_ONLY" },

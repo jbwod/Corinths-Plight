@@ -612,6 +612,7 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     stateString(deployment.ownerId, `${path}.ownerId`);
     stateString(deployment.definitionId, `${path}.definitionId`);
     stateString(deployment.callsign, `${path}.callsign`);
+    if (deployment.tags !== undefined) stateStringArray(deployment.tags, `${path}.tags`);
     if (typeof deployment.side !== "string" || !sides.has(deployment.side)) stateFail(`${path}.side`, "invalid side");
     if (typeof deployment.status !== "string" || !deploymentStatuses.has(deployment.status)) stateFail(`${path}.status`, "invalid deployment status");
     stateCoordinate(deployment.position, `${path}.position`);

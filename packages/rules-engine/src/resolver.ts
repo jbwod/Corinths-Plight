@@ -63,6 +63,7 @@ const artilleryProfile: ArtilleryProfile = {
 };
 
 function deploymentTags(deployment: CampaignDeployment): string[] {
+  if (deployment.tags) return deployment.tags;
   try {
     return getTacticalUnitClass(deployment.definitionId).tags;
   } catch {
@@ -809,6 +810,8 @@ export function resolveRound(input: RoundInput): RoundOutput {
         raw: result.roll.raw,
         modified: result.roll.modified,
         capped: result.roll.capped,
+        rapidFireMultiplier: result.rapidFireMultiplier,
+        damageResult: result.damageResult,
       });
       const rushMultiplier = rushingUnits.has(target.id) ? 2 : 1;
       const healthLoss = result.healthLoss * rushMultiplier;
@@ -824,6 +827,8 @@ export function resolveRound(input: RoundInput): RoundOutput {
         penetrated: result.penetrated,
         rushMultiplier,
         healthLoss,
+        rapidFireMultiplier: result.rapidFireMultiplier,
+        damageResult: result.damageResult,
       });
       const subsystemRules = weapon.damage.count === 1 && result.roll
         ? getTacticalSubsystemRules(target.definitionId)

@@ -239,6 +239,53 @@ describe("armor, AP, rear arcs, Hits, and FS caps", () => {
     expect(result.healthLoss).toBe(2);
   });
 
+  it("doubles a Rapid Fire damage result against Horde before mitigation", () => {
+    const attacker = makeDeployment("rapid", { q: 0, r: 0 }, "ALLIED", {
+      tags: ["VEHICLE", "RAPID_FIRE"],
+      stats: { healthModel: "HITS", maxHealth: 2 },
+      currentHealth: 2,
+    });
+    const horde = makeDeployment("horde", { q: 1, r: 0 }, "ENEMY", {
+      tags: ["PERSONNEL", "HORDE"],
+      stats: { healthModel: "FORCE_STRENGTH", maxHealth: 8, armor: 0, defense: 1 },
+      currentHealth: 8,
+    });
+    const ordinary = structuredClone(horde);
+    ordinary.id = "ordinary";
+    ordinary.tags = ["PERSONNEL"];
+
+    const rapidWeapon = { ...baseWeapon, tags: ["RAPID_FIRE"] };
+    expect(resolveAttackRoll(attacker, horde, rapidWeapon, map, fixedRandom(3))).toMatchObject({
+      roll: { raw: 3, modified: 3, capped: 3 },
+      rapidFireMultiplier: 2,
+      damageResult: 6,
+      threshold: 1,
+      healthLoss: 5,
+    });
+    expect(resolveAttackRoll(attacker, ordinary, rapidWeapon, map, fixedRandom(3))).toMatchObject({
+      rapidFireMultiplier: 1,
+      damageResult: 3,
+      healthLoss: 2,
+    });
+  });
+
+  it("still converts a Rapid Fire penetration against a Hits target to one Hit", () => {
+    const attacker = makeDeployment("rapid", { q: 0, r: 0 }, "ALLIED", {
+      tags: ["RAPID_FIRE"],
+    });
+    const target = makeDeployment("horde-vehicle", { q: 1, r: 0 }, "ENEMY", {
+      tags: ["HORDE", "VEHICLE"],
+      stats: { healthModel: "HITS", maxHealth: 4, armor: 0, defense: 0 },
+      currentHealth: 4,
+    });
+
+    expect(resolveAttackRoll(attacker, target, { ...baseWeapon, tags: ["RAPID_FIRE"] }, map, fixedRandom(4))).toMatchObject({
+      rapidFireMultiplier: 2,
+      damageResult: 8,
+      healthLoss: 1,
+    });
+  });
+
   it("converts any positive penetration against a vehicle to exactly one Hit", () => {
     const attacker = makeDeployment("attacker", { q: 0, r: 0 });
     const target = makeDeployment("target", { q: 1, r: 0 }, "ENEMY", {
