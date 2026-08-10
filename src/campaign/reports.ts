@@ -201,7 +201,7 @@ export function describeCampaignReportEvent(
         ? `${actor} restored ${String(payload.subsystemId ?? "a subsystem")} on ${target}.`
         : `${actor} restored one Hit to ${target} (${numberValue(payload.before)} → ${numberValue(payload.after)}).`;
     case "STRUCTURE_COMPLETED":
-      return `${actor} completed a Sandbag Line at hex ${coordLabel(payload.targetHex) ?? "unknown"}, spending one Small Supply.`;
+      return `${actor} completed ${String(payload.structureName ?? "a fieldwork")} at hex ${coordLabel(payload.targetHex) ?? "unknown"}, spending ${numberValue(payload.smallSupplySpent)} Small Supply.`;
     case "STRUCTURE_UPGRADED":
       return `${actor} upgraded the Sandbag Line at hex ${coordLabel(payload.targetHex) ?? "unknown"} into a Trench.`;
     case "ARTILLERY_DEPLOYED":

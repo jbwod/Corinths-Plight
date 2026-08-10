@@ -235,6 +235,43 @@ async function submitEngineerAdvance(page: Page): Promise<void> {
   expect(result, result.body).toMatchObject({ status: 201 });
 }
 
+async function submitEngineerRazorWire(page: Page): Promise<void> {
+  const response = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(response.status()).toBe(200);
+  const state = await response.json() as CampaignView;
+  const engineer = state.deployments.find((deployment) => deployment.callsign === "ANVIL")!;
+  const orderRevision = state.orders.find((order) => order.unitId === engineer.id && order.round === state.round)?.revision ?? 0;
+  const result = await page.evaluate(async ({ command }) => {
+    const order = await fetch("/api/campaigns/campaign-k17-relay/orders", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-demo-user": "demo-user" },
+      body: JSON.stringify(command),
+    });
+    return { status: order.status, body: await order.text() };
+  }, {
+    command: {
+      commandId: `browser-engineer-razor-wire-${state.round}`,
+      expectedCampaignVersion: state.version,
+      expectedOrderRevision: orderRevision,
+      unitId: engineer.id,
+      round: state.round,
+      orderType: "HOLD",
+      lifecycle: "SUBMITTED",
+      route: [engineer.position],
+      facing: engineer.facing,
+      actions: [{
+        type: "CONSTRUCT",
+        targetHex: engineer.position,
+        structureDefinitionId: "structure-razor-wire",
+      }],
+      incidentalActions: [],
+    },
+  });
+  expect(result, result.body).toMatchObject({ status: 201 });
+}
+
 test("public landing exposes the signed-out authentication shell", async ({ page }) => {
   const sessionResponse = page.waitForResponse((response) => response.url().endsWith("/api/auth/session"));
 
@@ -386,7 +423,7 @@ test("tactical composer exposes every currently executable action and no catalog
   await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
   await expect(page.getByText(/DOC-7 order submitted to campaign command/)).toBeVisible();
   await submitRelayDefenceOrder(page);
-  await submitEngineerAdvance(page);
+  await submitEngineerRazorWire(page);
   await resolveCurrentK17Round(page);
 
   await expect.poll(async () => {
@@ -397,13 +434,19 @@ test("tactical composer exposes every currently executable action and no catalog
     const state = await response.json() as {
       deployments?: Array<{ callsign: string; supplies?: Record<string, number>; statuses?: string[] }>;
       events?: Array<{ type: string; actor?: string; payload?: Record<string, unknown> }>;
+      map?: Array<{ structureIds: string[] }>;
     };
     const medic = state.deployments?.find((deployment) => deployment.callsign === "DOC-7");
     const artillery = state.deployments?.find((deployment) => deployment.callsign === "LONGBOW");
+    const razorWireBuilt = state.map?.some((hex) =>
+      hex.structureIds.some((id) => id.startsWith("structure-razor-wire:"))
+    );
     return medic?.supplies?.MEDICAL_SUPPLY === 3 &&
       artillery?.statuses?.includes("DEPLOYED") === true &&
+      razorWireBuilt === true &&
       state.events?.some((event) => event.type === "UNIT_HEALED") === true &&
-      state.events.some((event) => event.type === "ARTILLERY_DEPLOYED") === true;
+      state.events.some((event) => event.type === "ARTILLERY_DEPLOYED") === true &&
+      state.events.some((event) => event.type === "STRUCTURE_COMPLETED" && event.payload.structureDefinitionId === "structure-razor-wire") === true;
   }).toBe(true);
 
   await page.reload();
@@ -464,6 +507,11 @@ test("tactical composer exposes every currently executable action and no catalog
   await page.reload();
   await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
   await page.locator(".unit-roster").getByRole("button", { name: /ANVIL/ }).click();
+  await expect(composer.getByRole("button", { name: "CONSTRUCT", exact: true })).toBeVisible();
+  await composer.getByRole("button", { name: "CONSTRUCT", exact: true }).click();
+  await expect(composer.getByLabel("FIELDWORK")).toContainText("Sandbag Line");
+  await expect(composer.getByLabel("FIELDWORK")).toContainText("Razor Wire");
+  await expect(composer.getByLabel("FIELDWORK")).toContainText("Tank Traps");
   await expect(composer.getByRole("button", { name: "REPAIR", exact: true })).toBeVisible();
   await composer.getByRole("button", { name: "REPAIR", exact: true }).click();
   const repairOptions = composer.getByLabel("DAMAGED VEHICLE").locator("option");
@@ -509,7 +557,7 @@ test("tactical composer exposes every currently executable action and no catalog
     expect(repairedState.events).toContainEqual(expect.objectContaining({ type: "UNIT_REPAIRED", actor: expect.stringContaining("force-anvil") }));
     expect(repairedState.deployments.find((deployment) => deployment.callsign === "ANVIL")?.supplies?.SMALL_SUPPLY).toBe(3);
   } else {
-    expect(repairedState.deployments.find((deployment) => deployment.callsign === "ANVIL")?.supplies?.SMALL_SUPPLY).toBe(4);
+    expect(repairedState.deployments.find((deployment) => deployment.callsign === "ANVIL")?.supplies?.SMALL_SUPPLY).toBe(3);
   }
 
   await expect.poll(async () => {

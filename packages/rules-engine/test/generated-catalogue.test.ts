@@ -30,12 +30,12 @@ describe("rules catalogue bootstrap", () => {
       equipment: 22,
       actions: 23,
       orders: 6,
-      structures: 4,
+      structures: 6,
       terrain: 4,
       ships: 4,
       enemies: 7,
     });
-    expect(legacyTopLevelDefinitionCount(snapshot)).toBe(98);
+    expect(legacyTopLevelDefinitionCount(snapshot)).toBe(100);
     expect(await legacySourceHashMismatches(snapshot)).toEqual([]);
     expect(legacyUnitPublicationSplit(snapshot)).toEqual({
       canonicalUnitIds: [
@@ -93,7 +93,7 @@ describe("rules catalogue bootstrap", () => {
     expect([
       ...content.units, ...content.weapons, ...content.equipment, ...content.actions,
       ...content.orders, ...content.structures, ...content.terrain, ...content.ships, ...content.enemies,
-    ]).toHaveLength(98);
+    ]).toHaveLength(100);
     expect(content.conflicts).toHaveLength(84);
 
     const medic = content.units.find((unit) => unit.id === "unit-combat-medic")!;
@@ -141,6 +141,10 @@ describe("rules catalogue bootstrap", () => {
       "ORDER:order-evasive",
       "ORDER:order-hold",
       "ORDER:order-rush",
+      "STRUCTURE:structure-razor-wire",
+      "STRUCTURE:structure-sandbag-line",
+      "STRUCTURE:structure-tank-traps",
+      "STRUCTURE:structure-trench",
       "UNIT:unit-artillery",
       "UNIT:unit-combat-medic",
       "UNIT:unit-engineers",
@@ -152,6 +156,7 @@ describe("rules catalogue bootstrap", () => {
       "foundation-generated-unit-class",
       "foundation-order-handler",
       "foundation-action-handler",
+      "foundation-fieldwork-handler",
       "equipment-effect-flak-vests",
       "equipment-effect-light-at",
     ]);

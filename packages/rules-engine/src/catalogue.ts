@@ -379,6 +379,8 @@ export const supportingDefinitions: GameDefinition[] = [
   })),
   ...[
     ["structure-sandbag-line", "Sandbag Line", "active"],
+    ["structure-razor-wire", "Razor Wire", "active"],
+    ["structure-tank-traps", "Tank Traps", "active"],
     ["structure-trench", "Trench Line", "active"],
     ["structure-supply-depot", "Supply Depot", "experimental"],
     ["structure-sensor-tower", "Sensor Tower", "experimental"],

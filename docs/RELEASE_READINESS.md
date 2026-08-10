@@ -34,11 +34,11 @@ This is the live release checklist. A checked local build item is not permission
 
 | Command | Environment | Outcome | Notes |
 |---|---|---:|---|
-| `npm run seed:check` | macOS local, Node project toolchain | PASS | 34 definitions; 28 active; 95 SQL definitions; 16 allied classes; 7 enemy roles; 3 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
+| `npm run seed:check` | macOS local, Node project toolchain | PASS | 40 definitions; 35 active; 99 SQL definitions; 16 allied classes; 7 enemy roles; 4 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
 | `npm run typecheck` | local | PASS | TypeScript 6.0.3. |
 | `npm run lint` | local | PASS | ESLint 10.8.1. |
-| `npm test` | local | PASS | Vitest 4.1.10; 48 files / 335 tests. |
-| `npm run build` | local development config | PASS | Worker 969.77 kB; client JS 431.21 kB; CSS 129.97 kB; Wrangler emitted only its known sandboxed debug-log warning. |
+| `npm test` | local | PASS | Vitest 4.1.10; 59 files / 439 tests. |
+| `npm run build` | local development config | PASS | Worker 1,247.92 kB; client JS 774.37 kB; CSS 136.50 kB; Wrangler emitted only its known sandboxed debug-log warning. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
 | Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0010 applied. |
 | Seven seeds, twice | same isolated D1 | PASS | Core, Phase 2, equipment, onboarding and three development fixtures replayed twice. |

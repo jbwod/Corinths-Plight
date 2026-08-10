@@ -807,10 +807,10 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["FS", "MOVEMENT", "REPAIR_ACTION", "SANDBAG_LINE_CONSTRUCTION"],
-      missing: ["RAZOR_WIRE", "TANK_TRAPS", "BRIDGES"],
+      implementedSubset: ["FS", "MOVEMENT", "REPAIR_ACTION", "SANDBAG_LINE_CONSTRUCTION", "RAZOR_WIRE", "TANK_TRAPS"],
+      missing: ["BRIDGES"],
     },
-    explanation: "Engineer Repair and immediate V5 Sandbag Line construction execute end to end; edge and upgrade structures remain gated.",
+    explanation: "Engineer Repair and the source-complete V5 Sandbag, Razor Wire, and Tank Trap fieldworks execute end to end; Bridge remains gated.",
   },
   "UNIT:unit-heavy-air-transport": {
     implementationStatus: "PARTIAL", executable: false, handlerId: null,
@@ -892,6 +892,15 @@ function buildHandlers(): RuleEngineHandlerV1[] {
       },
     },
     {
+      id: "foundation-fieldwork-handler",
+      kind: "STRUCTURE",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/fieldworks.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["structure-razor-wire", "structure-sandbag-line", "structure-tank-traps", "structure-trench"],
+      },
+    },
+    {
       id: "equipment-effect-flak-vests",
       kind: "EQUIPMENT",
       evidence: {
@@ -914,6 +923,7 @@ function buildHandlers(): RuleEngineHandlerV1[] {
 
 function handlerForOverlay(kind: string, id: string): string | null {
   if (kind === "UNIT" && foundationUnitIds.includes(id as (typeof foundationUnitIds)[number])) return "foundation-generated-unit-class";
+  if (kind === "STRUCTURE" && ["structure-razor-wire", "structure-sandbag-line", "structure-tank-traps", "structure-trench"].includes(id)) return "foundation-fieldwork-handler";
   if (kind === "EQUIPMENT" && id === "equipment-flak-vests") return "equipment-effect-flak-vests";
   if (kind === "EQUIPMENT" && id === "equipment-light-at") return "equipment-effect-light-at";
   return null;
@@ -1131,7 +1141,7 @@ export async function buildCanonicalCatalogueEnvelope(root = repositoryRoot): Pr
     readLegacyCatalogueSnapshot(root),
     readCanonicalConflictRegister(root),
   ]);
-  if (legacyTopLevelDefinitionCount(snapshot) !== 98) throw new Error("The final seed snapshot must contain exactly 98 top-level definitions.");
+  if (legacyTopLevelDefinitionCount(snapshot) !== 100) throw new Error("The final seed snapshot must contain exactly 100 top-level definitions.");
   if (canonicalConflicts.length !== 72) throw new Error("The canonical conflict register must contain exactly 72 records.");
   const sourceMismatches = await legacySourceHashMismatches(snapshot, root);
   if (sourceMismatches.length > 0) throw new Error(`Rules source hashes drifted: ${canonicalJson(sourceMismatches)}`);
@@ -1185,8 +1195,8 @@ export async function buildCanonicalCatalogueEnvelope(root = repositoryRoot): Pr
 async function bootstrapLegacySnapshot(destination: string): Promise<void> {
   const snapshot = await readLegacyCatalogueSnapshot();
   const topLevelDefinitions = legacyTopLevelDefinitionCount(snapshot);
-  if (topLevelDefinitions !== 98) {
-    throw new Error(`Expected 98 final seeded top-level definitions; received ${topLevelDefinitions}.`);
+  if (topLevelDefinitions !== 100) {
+    throw new Error(`Expected 100 final seeded top-level definitions; received ${topLevelDefinitions}.`);
   }
   await writeFile(destination, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
   console.log(`Bootstrapped ${topLevelDefinitions} definitions to ${relative(repositoryRoot, destination)}.`);

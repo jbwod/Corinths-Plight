@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { CampaignDeployment, RoundInput, StructuredAction, UnitOrder } from "../../domain/src";
 import {
+  calculateRouteCost,
   createDemoCampaignState,
   getActionDefinition,
   getTacticalActionRule,
   getTacticalUnitClass,
+  hexDistance,
   resolveTacticalCover,
   resolveRound,
   validateOrder,
@@ -411,6 +413,44 @@ describe("equipment and transport actions", () => {
       armor: 1,
       sources: ["structure-sandbag-line"],
     });
+  });
+
+  it.each([
+    ["structure-razor-wire", "Razor Wire", "INFANTRY", 0.5],
+    ["structure-tank-traps", "Tank Traps", "VEHICLE", 1],
+  ] as const)("constructs persistent %s and applies its movement penalty", (structureDefinitionId, structureName, affectedTag, expectedPenalty) => {
+    const base = createDemoCampaignState(1_000);
+    const engineer = base.deployments.find((unit) => unit.definitionId === "unit-engineers")!;
+    const targetHex = base.map.find((hex) => hex.coord.q === engineer.position.q && hex.coord.r === engineer.position.r)!;
+    const constructRule = getTacticalActionRule("CONSTRUCT");
+    const constructAction: StructuredAction = {
+      id: `construct-${structureDefinitionId}`,
+      type: "CONSTRUCT",
+      economy: constructRule.economy,
+      speedCost: constructRule.speedCost,
+      targetHex: { ...targetHex.coord },
+      structureDefinitionId,
+      equipmentIds: [],
+    };
+    const constructOrder = order(base, engineer, [constructAction]);
+    base.orders = [constructOrder];
+
+    const output = resolveRound({ ...input([constructOrder]), previousState: base });
+    const builtHex = output.state.map.find((hex) => hex.coord.q === targetHex.coord.q && hex.coord.r === targetHex.coord.r)!;
+    expect(builtHex.structureIds).toContainEqual(expect.stringMatching(new RegExp(`^${structureDefinitionId}:`)));
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "STRUCTURE_COMPLETED",
+      actor: engineer.id,
+      payload: expect.objectContaining({ structureDefinitionId, structureName, smallSupplySpent: 1 }),
+    }));
+    const approach = output.state.map.find((hex) => hexDistance(hex.coord, targetHex.coord) === 1)!;
+    const route = [approach.coord, targetHex.coord];
+    const baseCost = calculateRouteCost(route, output.state.map).total;
+    expect(calculateRouteCost(
+      route,
+      output.state.map,
+      { unitTags: [affectedTag] },
+    ).total).toBe(baseCost + expectedPenalty);
   });
 
   it("upgrades Sandbags into a Trench and preserves Dig In along connected Trench hexes", () => {

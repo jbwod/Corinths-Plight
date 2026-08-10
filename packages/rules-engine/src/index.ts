@@ -6,6 +6,7 @@ export * from "./demo";
 export * from "./deployment";
 export * from "./equipment";
 export * from "./enemy-doctrine";
+export * from "./fieldworks";
 export * from "./forces";
 export * from "./hex";
 export * from "./logistics";

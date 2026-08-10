@@ -95,6 +95,7 @@ describe("routes, terrain, and pathing", () => {
           elevation: 1,
           river: 1,
           road: true,
+          fieldwork: 0,
           total: 2.75,
         },
       ],
@@ -116,6 +117,20 @@ describe("routes, terrain, and pathing", () => {
 
     expect(reverse.legal).toBe(true);
     expect(reverse.steps[0]).toMatchObject({ road: true, river: 1 });
+  });
+
+  it("charges source-defined fieldwork Speed on entry by unit domain", () => {
+    const start = makeHex(0, 0);
+    const wire = makeHex(1, 0, { structureIds: ["structure-razor-wire:test"] });
+    const traps = makeHex(0, 1, { structureIds: ["structure-tank-traps:test"] });
+
+    expect(calculateRouteCost([start.coord, wire.coord], [start, wire], { unitTags: ["INFANTRY"] }))
+      .toMatchObject({ total: 1.5, steps: [{ fieldwork: 0.5 }] });
+    expect(calculateRouteCost([start.coord, wire.coord], [start, wire], { unitTags: ["VEHICLE"] }).total).toBe(1);
+    expect(calculateRouteCost([start.coord, traps.coord], [start, traps], { unitTags: ["VEHICLE"] }))
+      .toMatchObject({ total: 2, steps: [{ fieldwork: 1 }] });
+    expect(calculateRouteCost([start.coord, traps.coord], [start, traps], { unitTags: ["INFANTRY"] }).total).toBe(1);
+    expect(calculateRouteCost([start.coord, wire.coord], [start, wire], { rush: true, unitTags: ["INFANTRY"] }).total).toBe(1);
   });
 
   it("finds a shortest-hop detour around blocked hexes", () => {

@@ -52,7 +52,7 @@ function routeWithinBudget(
   const route = [path[0]!];
   for (const step of path.slice(1)) {
     const candidate = [...route, step];
-    if (calculateRouteCost(candidate, state.map).total > enemy.stats.speed) break;
+    if (calculateRouteCost(candidate, state.map, { unitTags: enemy.tags }).total > enemy.stats.speed) break;
     route.push(step);
     if (desiredRange !== undefined && hexDistance(step, destination) <= desiredRange) break;
   }

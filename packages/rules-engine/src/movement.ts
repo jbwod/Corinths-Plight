@@ -58,7 +58,10 @@ export function resolveSimultaneousMovement(
     .map((order): MovementPlan | undefined => {
       const deployment = deploymentById.get(order.unitId);
       if (!deployment || order.route.length <= 1) return undefined;
-      const route = calculateRouteCost(order.route, map, { rush: order.orderType === "RUSH" });
+      const route = calculateRouteCost(order.route, map, {
+        rush: order.orderType === "RUSH",
+        unitTags: deployment.tags,
+      });
       if (!route.legal) return undefined;
       let cumulative = 0;
       const arrivals = route.steps.map((step) => {

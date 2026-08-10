@@ -22,6 +22,7 @@ import { cargoSlotsForItem, disembarkCargo, embarkCargo, reloadAmmunition } from
 import { hasDisabledSubsystem, resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
 import { resolveSimultaneousMovement } from "./movement";
 import { resolveEngineerRepair, resolveHealing, resolveSubsystemDamage } from "./forces";
+import { getFieldworkDefinition, isConstructibleFieldworkId, structureInstanceMatches } from "./fieldworks";
 import {
   applyBombardmentSuppression,
   recoverBombardmentSuppression,
@@ -140,6 +141,7 @@ export function validateOrder(
   }
   const route = calculateRouteCost(order.route, input.previousState.map, {
     rush: order.orderType === "RUSH",
+    unitTags: deployment.tags,
   });
   if (!route.legal) reasons.push(route.reason ?? "Route is illegal.");
   const budget = validateSpeedBudget(deployment.stats, route.total, [
@@ -437,17 +439,20 @@ export function resolveRound(input: RoundInput): RoundOutput {
         const targetHex = action.targetHex;
         const targetMapHex = targetHex && state.map.find((hex) => sameCoord(hex.coord, targetHex));
         const supplyBefore = actor.supplies?.SMALL_SUPPLY ?? 0;
-        const alreadyPresent = targetMapHex?.structureIds.some((id) =>
-          id === "structure-sandbag-line" || id.startsWith("structure-sandbag-line:")
-        ) ?? false;
+        const fieldwork = isConstructibleFieldworkId(action.structureDefinitionId)
+          ? getFieldworkDefinition(action.structureDefinitionId)
+          : undefined;
+        const alreadyPresent = fieldwork
+          ? targetMapHex?.structureIds.some((id) => structureInstanceMatches(id, fieldwork.id)) ?? false
+          : false;
         if (
           !(actor.tags ?? []).includes("ENGINEER") ||
-          action.structureDefinitionId !== "structure-sandbag-line" ||
+          !fieldwork ||
           !targetHex ||
           !targetMapHex ||
           hexDistance(actor.position, targetHex) > 1 ||
           alreadyPresent ||
-          supplyBefore < 1
+          supplyBefore < (fieldwork?.smallSupplyCost ?? 0)
         ) {
           event("ORDER_REJECTED", actor.id, {
             orderId: order.id,
@@ -455,27 +460,28 @@ export function resolveRound(input: RoundInput): RoundOutput {
             reasons: [
               !(actor.tags ?? []).includes("ENGINEER")
                 ? "Construction requires an Engineer unit."
-                : action.structureDefinitionId !== "structure-sandbag-line"
-                  ? "Only the V5 Sandbag Line is executable."
+                : !fieldwork
+                  ? "That fieldwork is not executable."
                   : alreadyPresent
-                    ? "That hex already contains a Sandbag Line."
-                    : supplyBefore < 1
-                      ? "A Sandbag Line requires one Small Supply."
-                      : "A Sandbag Line must be placed in the Engineer's current or an adjacent hex.",
+                    ? `That hex already contains ${fieldwork.name}.`
+                    : supplyBefore < fieldwork.smallSupplyCost
+                      ? `${fieldwork.name} requires ${fieldwork.smallSupplyCost} Small Supply.`
+                      : `${fieldwork.name} must be placed in the Engineer's current or an adjacent hex.`,
             ],
           }, actorVisibility);
           continue;
         }
-        const instanceId = `structure-sandbag-line:${state.campaignId}:${state.round}:${actor.id}:${targetHex.q},${targetHex.r}`;
+        const instanceId = `${fieldwork.id}:${state.campaignId}:${state.round}:${actor.id}:${targetHex.q},${targetHex.r}`;
         targetMapHex.structureIds.push(instanceId);
-        actor.supplies = { ...(actor.supplies ?? {}), SMALL_SUPPLY: supplyBefore - 1 };
+        actor.supplies = { ...(actor.supplies ?? {}), SMALL_SUPPLY: supplyBefore - fieldwork.smallSupplyCost };
         event("STRUCTURE_COMPLETED", actor.id, {
           actionId: action.id,
-          structureDefinitionId: action.structureDefinitionId,
+          structureDefinitionId: fieldwork.id,
+          structureName: fieldwork.name,
           structureInstanceId: instanceId,
           targetHex,
-          smallSupplySpent: 1,
-          infantryArmor: 1,
+          smallSupplySpent: fieldwork.smallSupplyCost,
+          movementPenalty: fieldwork.movementPenalty,
         }, actorVisibility);
       }
       if (action.type === "TRENCH_UPGRADE") {

@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "898ae7448cf47317fd6f7e8bb6272a99b804001429b831aee42c0976aee532b8",
+  "contentHash": "c703aad796a5ee516394548721eaec3dca77ea6f4ea6292f536769d5871750f2",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -4350,6 +4350,39 @@ const snapshot = {
     ],
     "structures": [
       {
+        "id": "structure-razor-wire",
+        "kind": "STRUCTURE",
+        "name": "Razor Wire",
+        "definitionStatus": "active",
+        "sourceId": "source-v5-core",
+        "sourcePath": null,
+        "sourceLocator": "V5 / Engineers / Action Construct: Razor Wire",
+        "notes": "Source-complete movement fieldwork; durability remains unresolved under RC-BUILD-006.",
+        "sourcedNumbers": {
+          "buildPoints": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "health": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          }
+        },
+        "references": [],
+        "parameters": {
+          "buildCost": {
+            "smallSupply": 1
+          },
+          "definition": {
+            "constructRange": "ADJACENT_OR_CURRENT",
+            "movementPenalty": {
+              "speed": 0.5,
+              "unitTag": "INFANTRY"
+            }
+          }
+        }
+      },
+      {
         "id": "structure-sandbag-line",
         "kind": "STRUCTURE",
         "name": "Sandbag Line",
@@ -4433,6 +4466,39 @@ const snapshot = {
             "stores": [
               "SMALL_SUPPLY"
             ]
+          }
+        }
+      },
+      {
+        "id": "structure-tank-traps",
+        "kind": "STRUCTURE",
+        "name": "Tank Traps",
+        "definitionStatus": "active",
+        "sourceId": "source-v5-core",
+        "sourcePath": null,
+        "sourceLocator": "V5 / Engineers / Action Construct: Tank Traps",
+        "notes": "Source-complete movement fieldwork; durability remains unresolved under RC-BUILD-006.",
+        "sourcedNumbers": {
+          "buildPoints": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "health": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          }
+        },
+        "references": [],
+        "parameters": {
+          "buildCost": {
+            "smallSupply": 1
+          },
+          "definition": {
+            "constructRange": "ADJACENT_OR_CURRENT",
+            "movementPenalty": {
+              "speed": 1,
+              "unitTag": "VEHICLE"
+            }
           }
         }
       },
@@ -7592,6 +7658,20 @@ const snapshot = {
         }
       },
       {
+        "id": "foundation-fieldwork-handler",
+        "kind": "STRUCTURE",
+        "evidence": {
+          "definitionIds": [
+            "structure-razor-wire",
+            "structure-sandbag-line",
+            "structure-tank-traps",
+            "structure-trench"
+          ],
+          "resolverPath": "packages/rules-engine/src/resolver.ts",
+          "sourcePath": "packages/rules-engine/src/fieldworks.ts"
+        }
+      },
+      {
         "id": "equipment-effect-flak-vests",
         "kind": "EQUIPMENT",
         "evidence": {
@@ -8274,6 +8354,70 @@ const snapshot = {
         "parameters": {}
       },
       {
+        "definitionKind": "STRUCTURE",
+        "definitionId": "structure-razor-wire",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-fieldwork-handler",
+        "reasonCode": null,
+        "sourcePath": "rules/Meta - Core Rules (V5).md",
+        "sourceLocator": "Engineers / Razor Wire",
+        "parameters": {
+          "durability": "UNRESOLVED_NON_ATTACKABLE"
+        }
+      },
+      {
+        "definitionKind": "STRUCTURE",
+        "definitionId": "structure-sandbag-line",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-fieldwork-handler",
+        "reasonCode": null,
+        "sourcePath": "rules/Meta - Core Rules (V5).md",
+        "sourceLocator": "Engineers / Sandbag Line",
+        "parameters": {
+          "durability": "UNRESOLVED_NON_ATTACKABLE"
+        }
+      },
+      {
+        "definitionKind": "STRUCTURE",
+        "definitionId": "structure-tank-traps",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-fieldwork-handler",
+        "reasonCode": null,
+        "sourcePath": "rules/Meta - Core Rules (V5).md",
+        "sourceLocator": "Engineers / Tank Traps",
+        "parameters": {
+          "durability": "UNRESOLVED_NON_ATTACKABLE"
+        }
+      },
+      {
+        "definitionKind": "STRUCTURE",
+        "definitionId": "structure-trench",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-fieldwork-handler",
+        "reasonCode": null,
+        "sourcePath": "rules/Meta - Core Rules (V5).md",
+        "sourceLocator": "Engineers / Trench Upgrade",
+        "parameters": {
+          "durability": "UNRESOLVED_NON_ATTACKABLE"
+        }
+      },
+      {
         "definitionKind": "UNIT",
         "definitionId": "unit-aerospace-bomber",
         "implementationStatus": "PARTIAL",
@@ -8391,15 +8535,15 @@ const snapshot = {
             "FS",
             "MOVEMENT",
             "REPAIR_ACTION",
-            "SANDBAG_LINE_CONSTRUCTION"
+            "SANDBAG_LINE_CONSTRUCTION",
+            "RAZOR_WIRE",
+            "TANK_TRAPS"
           ],
           "missing": [
-            "RAZOR_WIRE",
-            "TANK_TRAPS",
             "BRIDGES"
           ],
           "publicationCorrection": {
-            "reason": "Engineer Repair and immediate V5 Sandbag Line construction execute end to end; edge and upgrade structures remain gated.",
+            "reason": "Engineer Repair and the source-complete V5 Sandbag, Razor Wire, and Tank Trap fieldworks execute end to end; Bridge remains gated.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": true,
@@ -14042,5 +14186,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "898ae7448cf47317fd6f7e8bb6272a99b804001429b831aee42c0976aee532b8" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "c703aad796a5ee516394548721eaec3dca77ea6f4ea6292f536769d5871750f2" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

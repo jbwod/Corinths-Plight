@@ -45,6 +45,7 @@ export interface MovementRouteInput {
   availableSpeed?: number;
   rush?: boolean;
   hostileGroundPositions?: AxialCoord[];
+  unitTags?: readonly string[];
 }
 
 export interface MovementRouteResult {
@@ -98,6 +99,7 @@ export function validateMovementRoute(input: MovementRouteInput): MovementRouteR
         ignoresElevation: profile.ignoresElevation,
         ignoresRivers: profile.ignoresRivers,
         roadMultiplier: profile.roadMultiplier,
+        unitTags: input.unitTags,
       });
       if (!calculated.legal) reasons.push(calculated.reason ?? "Movement route is illegal.");
       cost = calculated.total;

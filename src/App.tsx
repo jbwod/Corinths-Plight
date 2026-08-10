@@ -10,16 +10,20 @@ import type {
 } from "../packages/domain/src";
 import {
   FACING_LABELS,
+  CONSTRUCTIBLE_FIELDWORK_IDS,
   calculateRouteCost,
   canTarget,
   createDemoCampaignState,
   getTacticalActionRule,
+  getFieldworkDefinition,
   getTacticalOrderRule,
   getUnitClass,
   hexDistance,
   projectCampaignState,
   resolveTacticalCover,
   shortestPath,
+  structureInstanceMatches,
+  type ConstructibleFieldworkId,
 } from "../packages/rules-engine/src";
 import brandMark from "../app/static/img/brand-icon.gif";
 import { ForcesView } from "./components/ForcesView";
@@ -79,10 +83,12 @@ interface CampaignDirectoryEntry {
     resolvedAt: number;
   };
 }
+const campaignCanOpen = (entry: CampaignDirectoryEntry): boolean => entry.canEnter || entry.outcome !== undefined;
 type Notice = { tone: "info" | "success" | "danger"; message: string };
 type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
 type RepairKind = "HIT" | "SUBSYSTEM";
 const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "RELOAD", "LOAD", "UNLOAD", "HEAL", "REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
+const constructibleFieldworks = CONSTRUCTIBLE_FIELDWORK_IDS.map(getFieldworkDefinition);
 
 function initialCampaign(): CampaignView {
   const now = Date.now();
@@ -129,7 +135,7 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "DAMAGE_APPLIED") return `${event.actor ?? "Unit"} lost ${String(payload.loss ?? "?")} strength.`;
   if (event.type === "UNIT_HEALED") return `${event.actor ?? "Medic"} restored ${String(payload.amount ?? "?")} strength to ${String(payload.targetId ?? "an allied unit")}.`;
   if (event.type === "UNIT_REPAIRED") return `${event.actor ?? "Engineer"} repaired ${String(payload.targetId ?? "an allied vehicle")}.`;
-  if (event.type === "STRUCTURE_COMPLETED") return `${event.actor ?? "Engineer"} completed a Sandbag Line at ${String((payload.targetHex as AxialCoord | undefined)?.q ?? "?")}.${String((payload.targetHex as AxialCoord | undefined)?.r ?? "?")}.`;
+  if (event.type === "STRUCTURE_COMPLETED") return `${event.actor ?? "Engineer"} completed ${String(payload.structureName ?? "a fieldwork")} at ${String((payload.targetHex as AxialCoord | undefined)?.q ?? "?")}.${String((payload.targetHex as AxialCoord | undefined)?.r ?? "?")}.`;
   if (event.type === "STRUCTURE_UPGRADED") return `${event.actor ?? "Infantry"} upgraded a Sandbag Line into a Trench.`;
   if (event.type === "ARTILLERY_DEPLOYED") return `${event.actor ?? "Artillery"} deployed and is ready to fire.`;
   if (event.type === "ARTILLERY_PACKED") return `${event.actor ?? "Artillery"} packed up for movement.`;
@@ -194,6 +200,7 @@ function GameApp() {
   const [repairSubsystemId, setRepairSubsystemId] = useState<string>();
   const [bombardmentTargetHex, setBombardmentTargetHex] = useState<AxialCoord>();
   const [constructionTargetHex, setConstructionTargetHex] = useState<AxialCoord>();
+  const [constructionDefinitionId, setConstructionDefinitionId] = useState<ConstructibleFieldworkId>("structure-sandbag-line");
   const [selectedWeaponId, setSelectedWeaponId] = useState<string>();
   const [scheduledRound, setScheduledRound] = useState(18);
   const [hovered, setHovered] = useState<{ coord?: AxialCoord; unit?: CampaignDeployment }>({});
@@ -221,8 +228,8 @@ function GameApp() {
       ...(Array.isArray(body.availableCampaigns) ? body.availableCampaigns : []),
     ];
     setCampaignDirectory(entries);
-    const selected = entries.find((entry) => entry.campaignId === campaignId && entry.canEnter)
-      ?? entries.find((entry) => entry.canEnter);
+    const selected = entries.find((entry) => entry.campaignId === campaignId && campaignCanOpen(entry))
+      ?? entries.find(campaignCanOpen);
     setCampaignId(selected?.campaignId);
     return selected?.campaignId;
   }, [campaignId]);
@@ -472,11 +479,12 @@ function GameApp() {
   const selectedBombardmentHex = bombardmentHexes.find((hex) =>
     bombardmentTargetHex && coordinatesEqual(hex.coord, bombardmentTargetHex)
   )?.coord ?? bombardmentHexes[0]?.coord;
+  const selectedConstructionFieldwork = getFieldworkDefinition(constructionDefinitionId);
   const constructionHexes = selectedUnit ? campaign.map
     .filter((hex) =>
       hex.visibility !== "UNKNOWN" &&
       hexDistance(draftedRoute.at(-1) ?? selectedUnit.position, hex.coord) <= 1 &&
-      !hex.structureIds.some((id) => id === "structure-sandbag-line" || id.startsWith("structure-sandbag-line:"))
+      !hex.structureIds.some((id) => structureInstanceMatches(id, constructionDefinitionId))
     )
     .sort((left, right) =>
       hexDistance(draftedRoute.at(-1) ?? selectedUnit.position, left.coord) -
@@ -496,7 +504,10 @@ function GameApp() {
   const currentOrderRevision = campaign.orders.find(
     (order) => order.unitId === selectedUnit?.id && order.round === campaign.round,
   )?.revision ?? 0;
-  const routeResult = calculateRouteCost(draftedRoute, campaign.map, { rush: orderType === "RUSH" });
+  const routeResult = calculateRouteCost(draftedRoute, campaign.map, {
+    rush: orderType === "RUSH",
+    unitTags: selectedUnit?.tags,
+  });
   const targetRange =
     targetUnit && draftedRoute.length > 0 ? hexDistance(draftedRoute.at(-1)!, targetUnit.position) : undefined;
   const ordersForRound = campaign.orders.filter(
@@ -542,7 +553,8 @@ function GameApp() {
       (repairKind === "HIT" ? supportTarget.currentHealth < supportTarget.stats.maxHealth : selectedRepairSubsystem),
     )) ||
     (actionMode === "CONSTRUCT" && Boolean(
-      isEngineerUnit && selectedConstructionHex && (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0
+      isEngineerUnit && selectedConstructionHex &&
+      (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) >= selectedConstructionFieldwork.smallSupplyCost
     )) ||
     (actionMode === "TRENCH_UPGRADE" && Boolean(
       selectedUnit?.tags?.includes("INFANTRY") && plannedEndHex && sandbagAtPlannedEnd
@@ -582,7 +594,7 @@ function GameApp() {
               ? `restore one Hit to ${supportTarget.callsign}`
               : `repair ${selectedRepairSubsystem?.subsystemId ?? "a subsystem"} on ${supportTarget.callsign}`
           : actionMode === "CONSTRUCT" && selectedConstructionHex
-            ? `build a Sandbag Line at ${selectedConstructionHex.q}.${selectedConstructionHex.r}`
+            ? `build ${selectedConstructionFieldwork.name} at ${selectedConstructionHex.q}.${selectedConstructionHex.r}`
           : actionMode === "TRENCH_UPGRADE" && plannedEndHex
             ? `upgrade the Sandbag Line at ${plannedEndHex.q}.${plannedEndHex.r} into a Trench`
           : actionMode === "DIG_IN"
@@ -627,6 +639,9 @@ function GameApp() {
     );
     setBombardmentTargetHex(storedAction?.type === "BOMBARDMENT" ? storedAction.targetHex : undefined);
     setConstructionTargetHex(storedAction?.type === "CONSTRUCT" ? storedAction.targetHex : undefined);
+    if (storedAction?.type === "CONSTRUCT" && CONSTRUCTIBLE_FIELDWORK_IDS.includes(storedAction.structureDefinitionId as ConstructibleFieldworkId)) {
+      setConstructionDefinitionId(storedAction.structureDefinitionId as ConstructibleFieldworkId);
+    }
     setSelectedWeaponId(storedAction?.weaponId ?? selectedUnit.weapons[0]?.id);
   }, [campaign.orders, scheduledRound, selectedUnit]);
 
@@ -648,11 +663,11 @@ function GameApp() {
     if (actionMode === "CONSTRUCT" && executableComposerActions.includes("CONSTRUCT")) {
       const eligible = constructionHexes.some((hex) => coordinatesEqual(hex.coord, coord));
       if (!eligible) {
-        setNotice({ tone: "danger", message: "Sandbags must be placed in the Engineer's current or an adjacent known hex." });
+        setNotice({ tone: "danger", message: `${selectedConstructionFieldwork.name} must be placed in the Engineer's current or an adjacent known hex.` });
         return;
       }
       setConstructionTargetHex(coord);
-      setNotice({ tone: "info", message: `Hex ${coord.q}.${coord.r} designated for a Sandbag Line.` });
+      setNotice({ tone: "info", message: `Hex ${coord.q}.${coord.r} designated for ${selectedConstructionFieldwork.name}.` });
       return;
     }
     if (actionMode === "BOMBARDMENT" && executableComposerActions.includes("BOMBARDMENT")) {
@@ -728,7 +743,7 @@ function GameApp() {
       actions.push({
         type: "CONSTRUCT",
         targetHex: selectedConstructionHex,
-        structureDefinitionId: "structure-sandbag-line",
+        structureDefinitionId: constructionDefinitionId,
         equipmentIds: [],
       });
     } else if (actionMode === "TRENCH_UPGRADE" && plannedEndHex) {
@@ -876,7 +891,7 @@ function GameApp() {
               value={campaignId ?? ""}
               onChange={(event) => setCampaignId(event.target.value || undefined)}
             >
-              {campaignDirectory.filter((entry) => entry.canEnter).map((entry) => (
+              {campaignDirectory.filter(campaignCanOpen).map((entry) => (
                 <option key={entry.campaignId} value={entry.campaignId}>
                   {entry.name} · {entry.status}
                 </option>
@@ -1325,7 +1340,26 @@ function GameApp() {
                   </>
                 ) : actionMode === "CONSTRUCT" ? (
                   <>
-                    <label className="field-label" htmlFor="construction-target">SANDBAG LINE HEX</label>
+                    <label className="field-label" htmlFor="construction-fieldwork">FIELDWORK</label>
+                    <select
+                      id="construction-fieldwork"
+                      value={constructionDefinitionId}
+                      onChange={(event) => {
+                        const definitionId = event.target.value as ConstructibleFieldworkId;
+                        setConstructionDefinitionId(definitionId);
+                        const next = campaign.map.find((hex) =>
+                          hex.visibility !== "UNKNOWN" &&
+                          hexDistance(draftedRoute.at(-1) ?? selectedUnit.position, hex.coord) <= 1 &&
+                          !hex.structureIds.some((id) => structureInstanceMatches(id, definitionId))
+                        );
+                        setConstructionTargetHex(next?.coord);
+                      }}
+                    >
+                      {constructibleFieldworks.map((fieldwork) => (
+                        <option value={fieldwork.id} key={fieldwork.id}>{fieldwork.name}</option>
+                      ))}
+                    </select>
+                    <label className="field-label" htmlFor="construction-target">TARGET HEX</label>
                     <select
                       id="construction-target"
                       value={selectedConstructionHex ? `${selectedConstructionHex.q},${selectedConstructionHex.r}` : ""}
@@ -1342,10 +1376,16 @@ function GameApp() {
                       ))}
                     </select>
                     <p className={`validation ${(selectedUnit.supplies?.SMALL_SUPPLY ?? 0) < 1 ? "danger" : ""}`}>
-                      SMALL SUPPLY: {selectedUnit.supplies?.SMALL_SUPPLY ?? 0} · Sandbag Line consumes 1
+                      SMALL SUPPLY: {selectedUnit.supplies?.SMALL_SUPPLY ?? 0} · {selectedConstructionFieldwork.name} consumes {selectedConstructionFieldwork.smallSupplyCost}
                     </p>
-                    <p className="validation">STANDARD ACTION · 0.5 SPEED · Infantry in the hex gain +1 Armor against fire from outside it.</p>
-                    {constructionHexes.length === 0 && <p className="validation danger">No current or adjacent known hex can accept another Sandbag Line.</p>}
+                    <p className="validation">
+                      STANDARD ACTION · 0.5 SPEED · {selectedConstructionFieldwork.id === "structure-sandbag-line"
+                        ? "Infantry in the hex gain +1 Armor against fire from outside it."
+                        : selectedConstructionFieldwork.id === "structure-razor-wire"
+                          ? "Infantry pay +0.5 Speed when entering this hex."
+                          : "Vehicles pay +1 Speed when entering this hex."}
+                    </p>
+                    {constructionHexes.length === 0 && <p className="validation danger">No current or adjacent known hex can accept another {selectedConstructionFieldwork.name}.</p>}
                   </>
                 ) : actionMode === "TRENCH_UPGRADE" ? (
                   <>

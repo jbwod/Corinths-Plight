@@ -12,9 +12,11 @@ import {
   createDemoCampaignState,
   canTarget,
   createScenarioCampaignState,
+  getFieldworkDefinition,
   getTacticalActionRule,
   getTacticalOrderRule,
   hexDistance,
+  isConstructibleFieldworkId,
   projectCampaignState,
   resolveRound,
   validateArtilleryFire,
@@ -1038,14 +1040,18 @@ export class CampaignDurableObject extends DurableObject<Env> {
       }
     }
     const constructionActions = [...actions, ...incidentalActions].filter((action) => action.type === "CONSTRUCT");
-    if ((deployment.supplies?.SMALL_SUPPLY ?? 0) < constructionActions.length) {
-      return errorResponse(422, "CONSTRUCTION_SUPPLY_REQUIRED", "Each Sandbag Line requires one Small Supply.");
+    const constructionSupplyCost = constructionActions.reduce((total, action) =>
+      total + (isConstructibleFieldworkId(action.structureDefinitionId)
+        ? getFieldworkDefinition(action.structureDefinitionId).smallSupplyCost
+        : 0), 0);
+    if ((deployment.supplies?.SMALL_SUPPLY ?? 0) < constructionSupplyCost) {
+      return errorResponse(422, "CONSTRUCTION_SUPPLY_REQUIRED", "The Engineer does not carry enough Small Supply for these fieldworks.");
     }
     const constructionTargets = constructionActions.map((action) =>
-      action.targetHex ? `${action.targetHex.q},${action.targetHex.r}` : "missing"
+      action.targetHex ? `${action.structureDefinitionId ?? "missing"}:${action.targetHex.q},${action.targetHex.r}` : "missing"
     );
     if (new Set(constructionTargets).size !== constructionTargets.length) {
-      return errorResponse(422, "CONSTRUCTION_TARGET_DUPLICATED", "One order cannot build multiple Sandbag Lines in the same hex.");
+      return errorResponse(422, "CONSTRUCTION_TARGET_DUPLICATED", "One order cannot build the same fieldwork twice in one hex.");
     }
     for (const action of [...actions, ...incidentalActions]) {
       if (action.type !== "CONSTRUCT") continue;
@@ -1056,14 +1062,15 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (!execution.legacyDefinition.tags.includes("ENGINEER")) {
         return errorResponse(422, "CONSTRUCTION_INELIGIBLE", "Construction requires an Engineer unit.");
       }
-      if (action.structureDefinitionId !== "structure-sandbag-line") {
-        return errorResponse(422, "STRUCTURE_NOT_EXECUTABLE", "Only the V5 Sandbag Line is executable in this rules version.");
+      if (!isConstructibleFieldworkId(action.structureDefinitionId)) {
+        return errorResponse(422, "STRUCTURE_NOT_EXECUTABLE", "That fieldwork is not executable in this rules version.");
       }
+      const fieldwork = getFieldworkDefinition(action.structureDefinitionId);
       if (!targetHex || !targetMapHex || hexDistance(route.at(-1)!, targetHex) > 1) {
-        return errorResponse(422, "CONSTRUCTION_HEX_INVALID", "A Sandbag Line must be placed in the Engineer's current or an adjacent hex.");
+        return errorResponse(422, "CONSTRUCTION_HEX_INVALID", `${fieldwork.name} must be placed in the Engineer's current or an adjacent hex.`);
       }
-      if (targetMapHex.structureIds.some((id) => id === "structure-sandbag-line" || id.startsWith("structure-sandbag-line:"))) {
-        return errorResponse(409, "STRUCTURE_ALREADY_PRESENT", "That hex already contains a Sandbag Line.");
+      if (targetMapHex.structureIds.some((id) => id === fieldwork.id || id.startsWith(`${fieldwork.id}:`))) {
+        return errorResponse(409, "STRUCTURE_ALREADY_PRESENT", `That hex already contains ${fieldwork.name}.`);
       }
     }
     for (const action of [...actions, ...incidentalActions]) {

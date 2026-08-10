@@ -10,6 +10,7 @@ import {
 const registeredHandlerIds = new Set([
   "foundation-generated-unit-class",
   "foundation-action-handler",
+  "foundation-fieldwork-handler",
   "foundation-order-handler",
   "equipment-effect-flak-vests",
   "equipment-effect-light-at",

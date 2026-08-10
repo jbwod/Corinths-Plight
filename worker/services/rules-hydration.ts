@@ -30,6 +30,7 @@ export const LEGACY_RULESET_ID = "ruleset-v5-core-curated-1" as const;
 const callerHandlerIds = new Set([
   "foundation-generated-unit-class",
   "foundation-action-handler",
+  "foundation-fieldwork-handler",
   "foundation-order-handler",
   "equipment-effect-flak-vests",
   "equipment-effect-light-at",

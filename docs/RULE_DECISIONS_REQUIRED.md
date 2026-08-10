@@ -134,6 +134,8 @@ For every `PENDING` row:
 
 **Recommendation:** Option 1 for K-17, Option 2 for later combined arms. Do not mix the historical profile into V5.
 
+**Current bounded activation:** Option 1 is applied only to source-complete Sandbag Lines, Trenches, Razor Wire and Tank Traps. They cannot be attacked or repaired because durability remains unknown. Bridge damage and every historical structure remain separately blocked, so DEC-006 stays pending for the wider construction system.
+
 **Acceptance:** construction progress, placement, effects, damage and repair share one pinned definition and emit provenance-bearing events.
 
 ### DEC-007 — Terrain, cover, high ground, roads, rivers and LOS
@@ -332,7 +334,7 @@ These already have recorded provisional dispositions. Confirming them does not m
 | RC-V5-019 | Dig In duration/preservation/stacking | not implemented |
 | RC-V5-020 | Enemy split-fire, round-robin and ties | AI incomplete |
 | RC-V5-021 | High-ground `+1 attack` modifies Damage | not implemented |
-| RC-V5-022 | Any Infantry upgrades trench at no extra Supply | not implemented |
+| RC-V5-022 | Any Infantry upgrades trench at no extra Supply | active end to end |
 | RC-V5-023 | Aerospace reload at scenario airfield without crate quantity | not implemented |
 | RC-V5-025 | Adjacent Engineer pays Standard Action to Dig In Artillery | not implemented |
 | RC-V5-027 | Rapid Fire doubles pre-mitigation Damage | not implemented |

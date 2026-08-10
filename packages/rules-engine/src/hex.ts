@@ -1,4 +1,5 @@
 import type { AxialCoord, BattlefieldHex, CampaignDeployment, Facing } from "../../domain/src";
+import { fieldworkMovementPenalty } from "./fieldworks";
 
 export const FACING_LABELS = ["N", "NE", "SE", "S", "SW", "NW"] as const;
 export const HEX_DIRECTIONS: ReadonlyArray<AxialCoord> = [
@@ -93,6 +94,7 @@ export interface RouteCostOptions {
   ignoresRivers?: boolean;
   ignoresElevation?: boolean;
   roadMultiplier?: number;
+  unitTags?: readonly string[];
 }
 
 export interface RouteCostResult {
@@ -104,6 +106,7 @@ export interface RouteCostResult {
     elevation: number;
     river: number;
     road: boolean;
+    fieldwork: number;
     total: number;
   }>;
   legal: boolean;
@@ -138,8 +141,9 @@ export function calculateRouteCost(
     const riverCrossing =
       from.edges.rivers.includes(direction) || to.edges.rivers.includes(rearFacing(direction));
     const river = options.ignoresRivers || !riverCrossing ? 0 : 1;
-    const stepTotal = Math.max(0.25, base + elevation + river) * (options.rush ? 0.5 : 1);
-    steps.push({ from: fromCoord, to: toCoord, base, elevation, river, road, total: stepTotal });
+    const fieldwork = fieldworkMovementPenalty(to, options.unitTags).total;
+    const stepTotal = Math.max(0.25, base + elevation + river) * (options.rush ? 0.5 : 1) + fieldwork;
+    steps.push({ from: fromCoord, to: toCoord, base, elevation, river, road, fieldwork, total: stepTotal });
     total += stepTotal;
   }
 

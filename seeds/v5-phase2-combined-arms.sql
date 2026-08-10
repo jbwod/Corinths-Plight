@@ -626,7 +626,11 @@ INSERT INTO ruleset_implementation_overlays (
   ('ENEMY', 'enemy-bug-spitter', 'ruleset-v5-core-curated-1', 'CATALOGUE_ONLY', 'BALANCE_REQUIRED', 'HIDDEN', 0, 0, 'BALANCE_REQUIRED', 'phase2-forces.md', 'Varied Bug roster', '{}'),
   ('ENEMY', 'enemy-bug-burrower', 'ruleset-v5-core-curated-1', 'CATALOGUE_ONLY', 'BALANCE_REQUIRED', 'HIDDEN', 0, 0, 'BALANCE_REQUIRED', 'phase2-forces.md', 'Varied Bug roster', '{}'),
   ('ENEMY', 'enemy-bug-flyer', 'ruleset-v5-core-curated-1', 'CATALOGUE_ONLY', 'BALANCE_REQUIRED', 'HIDDEN', 0, 0, 'BALANCE_REQUIRED', 'phase2-forces.md', 'Varied Bug roster', '{}'),
-  ('ENEMY', 'enemy-bug-artillery', 'ruleset-v5-core-curated-1', 'CATALOGUE_ONLY', 'BALANCE_REQUIRED', 'HIDDEN', 0, 0, 'BALANCE_REQUIRED', 'phase2-forces.md', 'Varied Bug roster', '{}')
+  ('ENEMY', 'enemy-bug-artillery', 'ruleset-v5-core-curated-1', 'CATALOGUE_ONLY', 'BALANCE_REQUIRED', 'HIDDEN', 0, 0, 'BALANCE_REQUIRED', 'phase2-forces.md', 'Varied Bug roster', '{}'),
+  ('STRUCTURE', 'structure-sandbag-line', 'ruleset-v5-core-curated-1', 'IMPLEMENTED', 'NOT_APPLICABLE', 'AVAILABLE', 1, 0, NULL, 'rules/Meta - Core Rules (V5).md', 'Engineers / Sandbag Line', '{"durability":"UNRESOLVED_NON_ATTACKABLE"}'),
+  ('STRUCTURE', 'structure-razor-wire', 'ruleset-v5-core-curated-1', 'IMPLEMENTED', 'NOT_APPLICABLE', 'AVAILABLE', 1, 0, NULL, 'rules/Meta - Core Rules (V5).md', 'Engineers / Razor Wire', '{"durability":"UNRESOLVED_NON_ATTACKABLE"}'),
+  ('STRUCTURE', 'structure-tank-traps', 'ruleset-v5-core-curated-1', 'IMPLEMENTED', 'NOT_APPLICABLE', 'AVAILABLE', 1, 0, NULL, 'rules/Meta - Core Rules (V5).md', 'Engineers / Tank Traps', '{"durability":"UNRESOLVED_NON_ATTACKABLE"}'),
+  ('STRUCTURE', 'structure-trench', 'ruleset-v5-core-curated-1', 'IMPLEMENTED', 'NOT_APPLICABLE', 'AVAILABLE', 1, 0, NULL, 'rules/Meta - Core Rules (V5).md', 'Engineers / Trench Upgrade', '{"durability":"UNRESOLVED_NON_ATTACKABLE"}')
 ON CONFLICT(definition_kind, definition_id, ruleset_id) DO UPDATE SET
   implementation_status = excluded.implementation_status,
   requisition_status = excluded.requisition_status,

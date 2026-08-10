@@ -275,6 +275,48 @@ export function HexMap({
         ctx.stroke();
         ctx.restore();
       }
+      if (
+        hex.visibility !== "UNKNOWN" &&
+        hex.structureIds.some((id) => id === "structure-razor-wire" || id.startsWith("structure-razor-wire:"))
+      ) {
+        ctx.save();
+        ctx.translate(point.x, point.y - 11);
+        ctx.strokeStyle = "rgba(214, 220, 213, .92)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-19, 0);
+        ctx.bezierCurveTo(-12, -8, -5, 8, 2, 0);
+        ctx.bezierCurveTo(9, -8, 15, 8, 20, 0);
+        ctx.stroke();
+        for (const offset of [-13, -3, 7, 17]) {
+          ctx.beginPath();
+          ctx.moveTo(offset - 3, -4);
+          ctx.lineTo(offset + 3, 4);
+          ctx.moveTo(offset + 3, -4);
+          ctx.lineTo(offset - 3, 4);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+      if (
+        hex.visibility !== "UNKNOWN" &&
+        hex.structureIds.some((id) => id === "structure-tank-traps" || id.startsWith("structure-tank-traps:"))
+      ) {
+        ctx.save();
+        ctx.translate(point.x, point.y - 11);
+        ctx.strokeStyle = "rgba(226, 161, 103, .95)";
+        ctx.lineWidth = 2.5;
+        for (const offset of [-13, 0, 13]) {
+          ctx.beginPath();
+          ctx.moveTo(offset - 5, 5);
+          ctx.lineTo(offset, -6);
+          ctx.lineTo(offset + 5, 5);
+          ctx.moveTo(offset - 6, 0);
+          ctx.lineTo(offset + 6, 0);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
       if (hex.visibility === "UNKNOWN") {
         polygon(ctx, point, 2);
         ctx.fillStyle = "rgba(2,7,9,.73)";
