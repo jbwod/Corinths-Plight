@@ -17,11 +17,14 @@ export const IRON_RAIN_SCENARIO_ID = "scenario-operation-iron-rain" as const;
 export const IRON_RAIN_SCENARIO_VERSION = 1 as const;
 export const BROKEN_ROAD_SCENARIO_ID = "scenario-operation-broken-road" as const;
 export const BROKEN_ROAD_SCENARIO_VERSION = 1 as const;
+export const NIGHT_GLASS_SCENARIO_ID = "scenario-operation-night-glass" as const;
+export const NIGHT_GLASS_SCENARIO_VERSION = 1 as const;
 
 export const AUTHORED_SCENARIO_MAP_SOURCES = [
   "fixture/outpost-k17",
   "fixture/operation-iron-rain",
   "fixture/operation-broken-road",
+  "fixture/operation-night-glass",
 ] as const;
 
 export function isAuthoredScenarioMapSourceKey(value: string): boolean {
@@ -176,6 +179,56 @@ export function createBrokenRoadMap(radius = 6): BattlefieldHex[] {
     const minimumR = Math.max(-radius, -q - radius);
     const maximumR = Math.min(radius, -q + radius);
     for (let r = minimumR; r <= maximumR; r += 1) hexes.push(brokenRoadHex(q, r));
+  }
+  return hexes;
+}
+
+const nightGlassObjectiveCoordinates = new Map([
+  ["0,0", "objective-night-glass-array"],
+  ["4,-2", "objective-night-glass-burrow"],
+]);
+
+function nightGlassHex(q: number, r: number): BattlefieldHex {
+  const key = `${q},${r}`;
+  const pattern = Math.abs(q * 23 + r * 7);
+  const isArray = key === "0,0";
+  const isBurrow = key === "4,-2";
+  const isInsertion = key === "-4,2";
+  const ruinedDistrict = q >= -1 && q <= 2 && r >= -2 && r <= 1;
+  const terrainId = isArray || isBurrow
+    ? "terrain-open"
+    : ruinedDistrict || pattern % 8 === 0
+      ? "terrain-forest"
+      : pattern % 11 === 0
+        ? "terrain-ridge"
+        : "terrain-open";
+  return {
+    coord: { q, r },
+    terrainId,
+    elevation: terrainId === "terrain-ridge" ? 1 : 0,
+    movementCost: 1,
+    blocksLineOfSight: terrainId === "terrain-forest",
+    lineOfSightModifier: terrainId === "terrain-forest" ? -1 : 0,
+    capacity: isInsertion ? 8 : isArray ? 5 : isBurrow ? 4 : terrainId === "terrain-forest" ? 2 : 3,
+    edges: { rivers: [], roads: r === 0 ? [0, 3] : [] },
+    structureIds: isArray
+      ? ["structure-night-glass-sensor-array"]
+      : isBurrow
+        ? ["structure-night-glass-burrow"]
+        : [],
+    objectiveId: nightGlassObjectiveCoordinates.get(key),
+    control: q < 0 ? "ALLIED" : q > 2 ? "ENEMY" : "NEUTRAL",
+    environment: isArray ? [INFANTRY_COVER_ARMOR_1, "NIGHT", "SENSOR_ARRAY"] : ["NIGHT"],
+    visibility: q <= 0 ? "OBSERVED" : "UNKNOWN",
+  };
+}
+
+export function createNightGlassMap(radius = 5): BattlefieldHex[] {
+  const hexes: BattlefieldHex[] = [];
+  for (let q = -radius; q <= radius; q += 1) {
+    const minimumR = Math.max(-radius, -q - radius);
+    const maximumR = Math.min(radius, -q + radius);
+    for (let r = minimumR; r <= maximumR; r += 1) hexes.push(nightGlassHex(q, r));
   }
   return hexes;
 }
@@ -340,6 +393,115 @@ function createBrokenRoadCampaignState(input: ScenarioCampaignInput): CampaignRu
   };
 }
 
+function nightGlassObjectives(): ObjectiveState[] {
+  return [
+    {
+      id: "objective-night-glass-array",
+      name: "Hold Sensor Array",
+      coord: { q: 0, r: 0 },
+      owner: "ALLIED",
+      status: "ACTIVE",
+      description: "Keep the New Carthage sensor array online through the night assault.",
+    },
+    {
+      id: "objective-night-glass-burrow",
+      name: "Clear Forward Burrow",
+      coord: { q: 4, r: -2 },
+      owner: "ENEMY",
+      status: "ACTIVE",
+      description: "Locate and clear the forward Bug burrow directing the attack.",
+    },
+  ];
+}
+
+function createNightGlassCampaignState(input: ScenarioCampaignInput): CampaignRuntimeState {
+  const round = input.round ?? 1;
+  const lockLeadMs = Math.min(30_000, Math.floor(input.durationMs / 5));
+  const resolvesAt = input.now + input.durationMs;
+  const lockAt = resolvesAt - lockLeadMs;
+  const nightGlassEnemy = (
+    id: string,
+    definitionId: string,
+    callsign: string,
+    position: { q: number; r: number },
+    facing: Facing,
+    reserve = false,
+  ) => enemy(input.campaignId, id, definitionId, callsign, position, facing, reserve, "night-glass");
+  return {
+    campaignId: input.campaignId,
+    campaignName: input.campaignName,
+    planetName: input.planetName,
+    scenarioId: NIGHT_GLASS_SCENARIO_ID,
+    scenarioVersion: NIGHT_GLASS_SCENARIO_VERSION,
+    rulesetVersion: RULESET_VERSION,
+    engineVersion: ENGINE_VERSION,
+    round,
+    phase: "PLANNING",
+    clock: {
+      durationMs: input.durationMs,
+      lockLeadMs,
+      roundStartedAt: input.now,
+      lockAt,
+      resolvesAt,
+      schedule: [
+        { id: `${input.campaignId}:${round}:lock`, type: "ORDER_LOCK", round, runAt: lockAt },
+        { id: `${input.campaignId}:${round}:resolve`, type: "ROUND_RESOLVE", round, runAt: resolvesAt },
+      ],
+    },
+    map: createNightGlassMap(),
+    deployments: [
+      ...input.alliedDeployments.map((deployment) => structuredClone(deployment)),
+      nightGlassEnemy("glass-drone", "enemy-bug-drone", "GLINT-5", { q: 2, r: -1 }, 5),
+      nightGlassEnemy("glass-warrior", "enemy-bug-warrior", "SHADE-17", { q: 3, r: -1 }, 5),
+      nightGlassEnemy("wave-2-drone", "enemy-bug-drone", "GLINT-9", { q: 5, r: -2 }, 4, true),
+      nightGlassEnemy("wave-2-warrior", "enemy-bug-warrior", "SHADE-23", { q: 5, r: -1 }, 4, true),
+      nightGlassEnemy("wave-3-warrior", "enemy-bug-warrior", "CHITIN-44", { q: 4, r: 0 }, 4, true),
+      nightGlassEnemy("wave-3-heavy", "enemy-bug-heavy", "DARKWALL", { q: 3, r: 1 }, 4, true),
+    ],
+    orders: [],
+    objectives: nightGlassObjectives(),
+    scenarioPolicy: {
+      policyId: "HOLD_PRIMARY_OBJECTIVE",
+      version: 1,
+      startRound: round,
+      maxRounds: 4,
+      primaryObjectiveId: "objective-night-glass-array",
+      capturableObjectiveIds: ["objective-night-glass-array", "objective-night-glass-burrow"],
+    },
+    reinforcementWaves: [
+      {
+        id: "night-glass-wave-2",
+        arrivesAfterRound: round,
+        deploymentIds: [`${input.campaignId}:wave-2-drone`, `${input.campaignId}:wave-2-warrior`],
+        status: "PENDING",
+      },
+      {
+        id: "night-glass-wave-3",
+        arrivesAfterRound: round + 1,
+        deploymentIds: [`${input.campaignId}:wave-3-warrior`, `${input.campaignId}:wave-3-heavy`],
+        status: "PENDING",
+      },
+    ],
+    events: [{
+      eventId: `${input.campaignId}:${round}:0001:ROUND_STARTED`,
+      campaignId: input.campaignId,
+      round,
+      sequence: 1,
+      type: "ROUND_STARTED",
+      payload: {
+        deadline: resolvesAt,
+        scenarioId: NIGHT_GLASS_SCENARIO_ID,
+        scenarioVersion: NIGHT_GLASS_SCENARIO_VERSION,
+      },
+      timestamp: input.now,
+      visibility: "PUBLIC",
+    }],
+    resolutions: {},
+    pendingPersistentEffects: [],
+    version: 1,
+  };
+}
+
 function createIronRainCampaignState(input: ScenarioCampaignInput): CampaignRuntimeState {
   const round = input.round ?? 1;
   const lockLeadMs = Math.min(30_000, Math.floor(input.durationMs / 5));
@@ -444,6 +606,9 @@ export function createScenarioCampaignState(input: ScenarioCampaignInput): Campa
   }
   if (input.mapSourceKey === "fixture/operation-broken-road") {
     return createBrokenRoadCampaignState(input);
+  }
+  if (input.mapSourceKey === "fixture/operation-night-glass") {
+    return createNightGlassCampaignState(input);
   }
   if (input.mapSourceKey !== "fixture/outpost-k17") {
     throw new Error(`CAMPAIGN_SCENARIO_NOT_AVAILABLE:${input.mapSourceKey}`);

@@ -7,6 +7,8 @@ import {
   createScenarioCampaignState,
   IRON_RAIN_SCENARIO_ID,
   IRON_RAIN_SCENARIO_VERSION,
+  NIGHT_GLASS_SCENARIO_ID,
+  NIGHT_GLASS_SCENARIO_VERSION,
   OUTPOST_K17_SCENARIO_ID,
   OUTPOST_K17_SCENARIO_VERSION,
 } from "../src/scenario-content";
@@ -143,6 +145,47 @@ describe("authored scenario content", () => {
     expect(state.reinforcementWaves).toEqual([
       expect.objectContaining({ id: "broken-road-wave-2", arrivesAfterRound: 1 }),
       expect.objectContaining({ id: "broken-road-wave-3", arrivesAfterRound: 3 }),
+    ]);
+  });
+
+  it("builds the Night Glass rapid-response battlefield", () => {
+    const allied = createDemoCampaignState(1_000).deployments
+      .filter((deployment) => deployment.side === "ALLIED")
+      .slice(0, 2)
+      .map((deployment) => ({
+        ...deployment,
+        id: `night-glass:${deployment.id}`,
+        campaignId: "operation-night-glass",
+        ownerId: "player-live",
+        position: { q: -4, r: 2 },
+      }));
+    const state = createScenarioCampaignState({
+      mapSourceKey: "fixture/operation-night-glass",
+      campaignId: "operation-night-glass",
+      campaignName: "Operation Night Glass",
+      planetName: "Corinth",
+      now: 40_000,
+      durationMs: 300_000,
+      alliedDeployments: allied,
+    });
+
+    expect(state).toMatchObject({
+      scenarioId: NIGHT_GLASS_SCENARIO_ID,
+      scenarioVersion: NIGHT_GLASS_SCENARIO_VERSION,
+      scenarioPolicy: {
+        startRound: 1,
+        maxRounds: 4,
+        primaryObjectiveId: "objective-night-glass-array",
+      },
+    });
+    expect(state.map).toHaveLength(91);
+    expect(state.map.find((hex) => hex.coord.q === -4 && hex.coord.r === 2)?.capacity).toBe(8);
+    expect(state.objectives.map((objective) => objective.name)).toEqual(["Hold Sensor Array", "Clear Forward Burrow"]);
+    expect(state.deployments.filter((deployment) => deployment.side === "ENEMY" && deployment.status === "ACTIVE")).toHaveLength(2);
+    expect(state.deployments.filter((deployment) => deployment.locationState === "RESERVE")).toHaveLength(4);
+    expect(state.reinforcementWaves).toEqual([
+      expect.objectContaining({ id: "night-glass-wave-2", arrivesAfterRound: 1 }),
+      expect.objectContaining({ id: "night-glass-wave-3", arrivesAfterRound: 2 }),
     ]);
   });
 });

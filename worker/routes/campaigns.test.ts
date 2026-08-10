@@ -155,4 +155,43 @@ describe("campaign directory", () => {
       availableCampaigns: [],
     });
   });
+
+  it("advertises the unlocked Night Glass follow-on briefing", async () => {
+    const response = await routeCampaignDirectoryRequest(new Request("https://game.test/api/campaigns", {
+      headers: { "x-demo-user": "demo-user" },
+    }), env([{
+      campaign_id: "operation-night-glass",
+      name: "Operation Night Glass",
+      status: "RECRUITING",
+      planet_name: "Corinth",
+      map_source_key: "fixture/operation-night-glass",
+      side: "ALLIED",
+      role: "PLAYER",
+      joined_at: 1,
+      minimum_players: 1,
+      maximum_players: 6,
+      member_count: 1,
+      deployment_count: 0,
+      result: null,
+      outcome_reason: null,
+      result_round: null,
+      rewards_json: null,
+      resolved_at: null,
+    }]));
+
+    expect(response?.status).toBe(200);
+    expect(await response?.json()).toEqual({
+      campaigns: [expect.objectContaining({
+        campaignId: "operation-night-glass",
+        scenarioAvailable: true,
+        briefing: {
+          threat: "HIGH",
+          objectives: ["Hold Sensor Array", "Clear Forward Burrow"],
+          durationRounds: 4,
+          recommendedCapabilities: ["GROUND_COMBAT", "RECON", "AIR_MOBILE", "ARTILLERY"],
+        },
+      })],
+      availableCampaigns: [],
+    });
+  });
 });
