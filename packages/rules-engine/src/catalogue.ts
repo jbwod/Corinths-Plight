@@ -315,11 +315,13 @@ export const orderTypeDefinitions: OrderTypeRuleDefinition[] = (
   }));
 
 const actionProfiles: Record<
-  "ATTACK" | "DIG_IN" | "REPAIR" | "CONSTRUCT" | "BOMBARDMENT" | "RELOAD" | "LOAD" | "UNLOAD" | "SCAN" | "DEPLOY_DRONE",
+  "ATTACK" | "DIG_IN" | "DEPLOY" | "PACK_UP" | "REPAIR" | "CONSTRUCT" | "BOMBARDMENT" | "RELOAD" | "LOAD" | "UNLOAD" | "SCAN" | "DEPLOY_DRONE",
   { economy: ActionEconomy; speedCost: number; usesAttack: boolean; executable: boolean }
 > = {
   ATTACK: { economy: "STANDARD", speedCost: 0, usesAttack: true, executable: true },
   DIG_IN: { economy: "STANDARD", speedCost: 1, usesAttack: false, executable: false },
+  DEPLOY: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
+  PACK_UP: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
   REPAIR: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
   CONSTRUCT: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
   BOMBARDMENT: { economy: "PRIMARY", speedCost: 0, usesAttack: true, executable: false },
@@ -331,9 +333,17 @@ const actionProfiles: Record<
 };
 
 export const actionDefinitions: ActionRuleDefinition[] = (
-  ["ATTACK", "DIG_IN", "REPAIR", "CONSTRUCT", "BOMBARDMENT", "RELOAD", "LOAD", "UNLOAD", "SCAN", "DEPLOY_DRONE"] as const
+  ["ATTACK", "DIG_IN", "DEPLOY", "PACK_UP", "REPAIR", "CONSTRUCT", "BOMBARDMENT", "RELOAD", "LOAD", "UNLOAD", "SCAN", "DEPLOY_DRONE"] as const
 ).map((name) => ({
-    id: name === "LOAD" ? "action-load-cargo" : name === "UNLOAD" ? "action-unload-cargo" : `action-${name.toLowerCase().replaceAll("_", "-")}`,
+    id: name === "LOAD"
+      ? "action-load-cargo"
+      : name === "UNLOAD"
+        ? "action-unload-cargo"
+        : name === "DEPLOY"
+          ? "action-deploy-platform"
+          : name === "PACK_UP"
+            ? "action-pack-platform"
+            : `action-${name.toLowerCase().replaceAll("_", "-")}`,
     kind: "action" as const,
     name,
     actionType: name,

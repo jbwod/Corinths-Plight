@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "e12255f8db59721aa390eff79b1ed5d118145b32d00f1f0fd1eb66dee1e66f8b",
+  "contentHash": "a2c554405dd3f61e08e99c0a40107575698a63c841c53aa72a167f5f27260955",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1278,6 +1278,8 @@ const snapshot = {
           "execution": {
             "allowedActions": [
               "ATTACK",
+              "DEPLOY",
+              "PACK_UP",
               "RELOAD"
             ],
             "allowedOrders": [
@@ -7496,8 +7498,10 @@ const snapshot = {
         "evidence": {
           "definitionIds": [
             "action-attack",
+            "action-deploy-platform",
             "action-first-aid",
             "action-load-cargo",
+            "action-pack-platform",
             "action-repair",
             "action-reload",
             "action-unload-cargo"
@@ -7549,6 +7553,22 @@ const snapshot = {
       },
       {
         "definitionKind": "ACTION",
+        "definitionId": "action-deploy-platform",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
         "definitionId": "action-first-aid",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
@@ -7566,6 +7586,22 @@ const snapshot = {
       {
         "definitionKind": "ACTION",
         "definitionId": "action-load-cargo",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-pack-platform",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
         "availabilityStatus": "AVAILABLE",
@@ -8127,17 +8163,32 @@ const snapshot = {
         "executable": true,
         "purchasable": false,
         "handlerId": "foundation-generated-unit-class",
-        "reasonCode": "MISSING_CANONICAL_PRICE",
+        "reasonCode": "EXPERIMENTAL_DAMAGE_PROFILE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
           "implementedSubset": [
-            "INDIRECT_ATTACK_VALIDATION"
+            "FS",
+            "MOVEMENT",
+            "DEPLOY_PACK_STATE",
+            "EXPERIMENTAL_ATTACK"
           ],
           "missing": [
-            "PACKED_DEPLOYED",
-            "CONTROL_ACTIONS"
-          ]
+            "BOMBARDMENT",
+            "FUNNEL",
+            "ANTI_ORBITAL"
+          ],
+          "publicationCorrection": {
+            "reason": "Artillery can now deploy and pack with the V5 half-Speed Standard Action while its control actions remain deferred.",
+            "seedOverlay": {
+              "availabilityStatus": "DEV_ONLY",
+              "executable": true,
+              "implementationStatus": "PARTIAL",
+              "purchasable": false,
+              "reasonCode": "MISSING_CANONICAL_PRICE",
+              "requisitionStatus": "BALANCE_REQUIRED"
+            }
+          }
         }
       },
       {
@@ -13792,5 +13843,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "e12255f8db59721aa390eff79b1ed5d118145b32d00f1f0fd1eb66dee1e66f8b" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "a2c554405dd3f61e08e99c0a40107575698a63c841c53aa72a167f5f27260955" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

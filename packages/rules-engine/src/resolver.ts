@@ -33,6 +33,14 @@ export interface OrderValidation {
   movementCost: number;
 }
 
+function isArtilleryDeployment(deployment: CampaignDeployment): boolean {
+  try {
+    return getTacticalUnitClass(deployment.definitionId).tags.includes("ARTILLERY");
+  } catch {
+    return false;
+  }
+}
+
 export function validateOrder(
   order: UnitOrder,
   deployment: CampaignDeployment | undefined,
@@ -42,6 +50,11 @@ export function validateOrder(
   if (!deployment) return { legal: false, reasons: ["Deployment does not exist."], movementCost: 0 };
   if (deployment.status === "DESTROYED") reasons.push("Unit was destroyed before the order resolved.");
   if (deployment.status === "IMMOBILISED" && order.route.length > 1) reasons.push("Unit is immobilised.");
+  const artillery = isArtilleryDeployment(deployment);
+  const artilleryDeployed = deployment.statuses.includes("DEPLOYED");
+  if (artillery && artilleryDeployed && order.route.length > 1) {
+    reasons.push("Deployed artillery must pack up before it can move in a later round.");
+  }
   const embarked = deployment.locationState === "EMBARKED" || deployment.locationState === "IN_VEHICLE" || deployment.locationState === "IN_AIR_TRANSPORT";
   if (embarked && (order.route.length > 1 || order.actions.some((action) => action.type !== "UNLOAD"))) {
     reasons.push("Embarked units cannot move or perform actions other than coordinated unloading.");
@@ -86,6 +99,17 @@ export function validateOrder(
   }
   if (order.actions.filter((action) => action.type === "ATTACK").length > 1) {
     reasons.push("A unit receives one attack activation per round.");
+  }
+  const deployActions = order.actions.filter((action) => action.type === "DEPLOY");
+  const packActions = order.actions.filter((action) => action.type === "PACK_UP");
+  if (deployActions.length + packActions.length > 1) reasons.push("Artillery may change platform state once per round.");
+  if ((deployActions.length > 0 || packActions.length > 0) && !artillery) {
+    reasons.push("Deploy and Pack Up require an Artillery unit.");
+  }
+  if (deployActions.length > 0 && artilleryDeployed) reasons.push("Artillery is already deployed.");
+  if (packActions.length > 0 && !artilleryDeployed) reasons.push("Artillery is already packed.");
+  if (artillery && order.actions.some((action) => action.type === "ATTACK") && !artilleryDeployed && deployActions.length === 0) {
+    reasons.push("Artillery must deploy before firing.");
   }
   const primaryCount = order.actions.filter((action) => action.economy === "PRIMARY").length;
   if (primaryCount > 0 && order.actions.some((action) => action.type === "ATTACK")) {
@@ -272,6 +296,25 @@ export function resolveRound(input: RoundInput): RoundOutput {
     const actor = state.deployments.find((candidate) => candidate.id === order.unitId)!;
     const actorVisibility: CampaignEvent["visibility"] = actor.side === "ENEMY" ? "ENEMY" : "ALLIED";
     for (const action of order.actions.filter((candidate) => candidate.type !== "ATTACK")) {
+      if (action.type === "DEPLOY" || action.type === "PACK_UP") {
+        if (!isArtilleryDeployment(actor)) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: ["Deploy and Pack Up require an Artillery unit."],
+          }, actorVisibility);
+          continue;
+        }
+        const deployed = action.type === "DEPLOY";
+        actor.statuses = actor.statuses.filter((status) => status !== "PACKED" && status !== "DEPLOYED");
+        actor.statuses.push(deployed ? "DEPLOYED" : "PACKED");
+        event(deployed ? "ARTILLERY_DEPLOYED" : "ARTILLERY_PACKED", actor.id, {
+          actionId: action.id,
+          fromStatus: deployed ? "PACKED" : "DEPLOYED",
+          toStatus: deployed ? "DEPLOYED" : "PACKED",
+          speedCost: action.speedCost,
+        }, actorVisibility);
+      }
       if (action.type === "LOAD") {
         if (!actor.cargoProfile && action.targetDeploymentId && state.deployments.find((candidate) => candidate.id === action.targetDeploymentId)?.cargoProfile) continue;
         const cargo = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
@@ -565,6 +608,14 @@ export function resolveRound(input: RoundInput): RoundOutput {
   for (const order of validOrders.values()) {
     const attacker = state.deployments.find((candidate) => candidate.id === order.unitId)!;
     for (const action of order.actions.filter((candidate) => candidate.type === "ATTACK")) {
+      if (isArtilleryDeployment(attacker) && !attacker.statuses.includes("DEPLOYED")) {
+        event("ORDER_REJECTED", attacker.id, {
+          orderId: order.id,
+          actionId: action.id,
+          reasons: ["Artillery must be deployed before firing."],
+        });
+        continue;
+      }
       const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
       const weapon = attacker.weapons.find((candidate) => candidate.id === action.weaponId);
       if (!target || !weapon) {

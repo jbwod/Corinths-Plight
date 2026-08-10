@@ -331,6 +331,12 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(composer.getByRole("button", { name: "RELOAD", exact: true })).toBeVisible();
   await composer.getByRole("button", { name: "RELOAD", exact: true }).click();
   await expect(composer.getByText(/SMALL SUPPLY:/)).toBeVisible();
+  await expect(composer.getByRole("button", { name: "DEPLOY", exact: true })).toBeVisible();
+  await expect(composer.getByRole("button", { name: "PACK_UP", exact: true })).toHaveCount(0);
+  await composer.getByRole("button", { name: "DEPLOY", exact: true }).click();
+  await expect(composer.getByText(/CURRENT STATE: PACKED/)).toBeVisible();
+  await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
+  await expect(page.getByText(/LONGBOW order submitted to campaign command/)).toBeVisible();
 
   await page.locator(".unit-roster").getByRole("button", { name: /DOC-7/ }).click();
   await expect(composer.getByRole("button", { name: "HEAL", exact: true })).toBeVisible();
@@ -349,11 +355,15 @@ test("tactical composer exposes every currently executable action and no catalog
     });
     if (!response.ok()) return false;
     const state = await response.json() as {
-      deployments?: Array<{ callsign: string; supplies?: Record<string, number> }>;
+      deployments?: Array<{ callsign: string; supplies?: Record<string, number>; statuses?: string[] }>;
       events?: Array<{ type: string; actor?: string; payload?: Record<string, unknown> }>;
     };
     const medic = state.deployments?.find((deployment) => deployment.callsign === "DOC-7");
-    return medic?.supplies?.MEDICAL_SUPPLY === 3 && state.events?.some((event) => event.type === "UNIT_HEALED") === true;
+    const artillery = state.deployments?.find((deployment) => deployment.callsign === "LONGBOW");
+    return medic?.supplies?.MEDICAL_SUPPLY === 3 &&
+      artillery?.statuses?.includes("DEPLOYED") === true &&
+      state.events?.some((event) => event.type === "UNIT_HEALED") === true &&
+      state.events.some((event) => event.type === "ARTILLERY_DEPLOYED") === true;
   }).toBe(true);
 
   await page.reload();

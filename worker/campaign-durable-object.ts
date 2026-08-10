@@ -253,7 +253,9 @@ export class CampaignDurableObject extends DurableObject<Env> {
         weapons: Array.isArray(snapshot.weapons) ? snapshot.weapons as CampaignDeployment["weapons"] : [],
         ammunition: snapshot.ammunition && typeof snapshot.ammunition === "object" ? snapshot.ammunition as Record<string, number> : {},
         cooldowns: snapshot.cooldowns && typeof snapshot.cooldowns === "object" ? snapshot.cooldowns as Record<string, number> : {},
-        statuses: [],
+        statuses: Array.isArray(snapshot.statuses)
+          ? snapshot.statuses.filter((status): status is string => typeof status === "string")
+          : row.definition_id === "unit-artillery" ? ["PACKED"] : [],
         equipmentIds: Array.isArray(snapshot.equipmentInstanceIds) ? snapshot.equipmentInstanceIds.filter((id): id is string => typeof id === "string") : [],
         allowedActions: snapshotActions.filter((action) => execution.allowedActionTypes.includes(action)) as CampaignDeployment["allowedActions"],
         allowedOrders: snapshotOrders.filter((order) => execution.allowedOrderTypes.includes(order)) as CampaignDeployment["allowedOrders"],
@@ -714,6 +716,32 @@ export class CampaignDurableObject extends DurableObject<Env> {
     }
     if ([...actions, ...incidentalActions].filter((action) => action.type === "ATTACK").length > 1) {
       return errorResponse(422, "ATTACK_LIMIT", "A unit receives one attack activation per round.");
+    }
+    const artillery = execution.legacyDefinition.tags.includes("ARTILLERY");
+    const artilleryDeployed = deployment.statuses.includes("DEPLOYED");
+    const platformActions = actions.filter((action) => action.type === "DEPLOY" || action.type === "PACK_UP");
+    if (platformActions.length > 1) {
+      return errorResponse(422, "ARTILLERY_STATE_CONFLICT", "Artillery may change platform state once per round.");
+    }
+    if (platformActions.length > 0 && !artillery) {
+      return errorResponse(422, "ARTILLERY_ACTION_INELIGIBLE", "Deploy and Pack Up require an Artillery unit.");
+    }
+    if (platformActions[0]?.type === "DEPLOY" && artilleryDeployed) {
+      return errorResponse(422, "ARTILLERY_ALREADY_DEPLOYED", "Artillery is already deployed.");
+    }
+    if (platformActions[0]?.type === "PACK_UP" && !artilleryDeployed) {
+      return errorResponse(422, "ARTILLERY_ALREADY_PACKED", "Artillery is already packed.");
+    }
+    if (artillery && artilleryDeployed && route.length > 1) {
+      return errorResponse(422, "ARTILLERY_DEPLOYED", "Deployed artillery must pack up before it can move in a later round.");
+    }
+    if (
+      artillery &&
+      actions.some((action) => action.type === "ATTACK") &&
+      !artilleryDeployed &&
+      platformActions[0]?.type !== "DEPLOY"
+    ) {
+      return errorResponse(422, "ARTILLERY_PACKED", "Artillery must deploy before firing.");
     }
     const visibleDeploymentIds = new Set(
       projectCampaignState(state, viewer, Date.now()).deployments.map((candidate) => candidate.id),

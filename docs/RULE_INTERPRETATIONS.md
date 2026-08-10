@@ -14,6 +14,7 @@ This document records the narrow decisions used by the equipment/loadout/deploym
 8. Field Reload consumes one Small Supply and restores a finite weapon to its published capacity. Supported campaign ammo, cooldown, supply, location, and cargo consequences use receipt-idempotent D1 writeback after DO result commit; the next round currently opens before that acknowledgement, so this is not the release-grade exactly-once protocol.
 9. Orbital Drop Training applies its published effective-unit mutation and records eligibility, but orbital deployment remains disabled because the coordinator/hazard rules are incomplete.
 10. Engineer vehicle Repair resolves after simultaneous movement and before attacks, in the same support-action phase as First Aid. The Engineer and friendly living vehicle must be in base contact at that post-movement position. The player selects either one missing Hit or one damaged subsystem; the server spends exactly one Small Supply and derives the resulting state. This timing orders already-published effects without adding a new balance value.
+11. Artillery starts a tactical deployment `PACKED`. Deploy and Pack Up are Standard Actions costing `0.5` Speed and include hitching/unhitching exactly as V5 states. A packed platform may move and then deploy; a deployed platform cannot move until it packs, with movement available from the following round. Support actions resolve before attacks, so a platform may deploy and fire in the same order. Bombardment and Funnel remain separate deferred actions.
 
 ## Explicitly unresolved
 

@@ -43,6 +43,37 @@ function input(orders: UnitOrder[]): RoundInput {
 }
 
 describe("equipment and transport actions", () => {
+  it("deploys and packs Artillery using the governed half-Speed Standard Action", () => {
+    const deployState = createDemoCampaignState(1_000);
+    const artillery = deployState.deployments.find((deployment) => deployment.definitionId === "unit-artillery")!;
+    expect(artillery.statuses).toEqual(["PACKED"]);
+    const deployRule = getTacticalActionRule("DEPLOY");
+    const deployOrder = order(deployState, artillery, [action("deploy-artillery", "DEPLOY")]);
+    deployState.orders = [deployOrder];
+
+    const deployed = resolveRound({ ...input([deployOrder]), previousState: deployState });
+    expect(deployed.state.deployments.find((deployment) => deployment.id === artillery.id)?.statuses).toEqual(["DEPLOYED"]);
+    expect(deployed.events).toContainEqual(expect.objectContaining({
+      type: "ARTILLERY_DEPLOYED",
+      actor: artillery.id,
+      payload: expect.objectContaining({ speedCost: deployRule.speedCost, toStatus: "DEPLOYED" }),
+    }));
+
+    const packState = createDemoCampaignState(1_000);
+    const deployedArtillery = packState.deployments.find((deployment) => deployment.definitionId === "unit-artillery")!;
+    deployedArtillery.statuses = ["DEPLOYED"];
+    const packRule = getTacticalActionRule("PACK_UP");
+    const packOrder = order(packState, deployedArtillery, [action("pack-artillery", "PACK_UP")]);
+    packState.orders = [packOrder];
+    const packed = resolveRound({ ...input([packOrder]), previousState: packState });
+    expect(packed.state.deployments.find((deployment) => deployment.id === deployedArtillery.id)?.statuses).toEqual(["PACKED"]);
+    expect(packed.events).toContainEqual(expect.objectContaining({
+      type: "ARTILLERY_PACKED",
+      actor: deployedArtillery.id,
+      payload: expect.objectContaining({ speedCost: packRule.speedCost, toStatus: "PACKED" }),
+    }));
+  });
+
   it("requires paired carrier/cargo actions and loads deterministically", () => {
     const base = createDemoCampaignState(1_000);
     const carrier = base.deployments[0];

@@ -86,7 +86,7 @@ function deployment(
         .map((weapon) => [weapon.id, weapon.ammoCapacity!]),
     ),
     cooldowns: {},
-    statuses: [],
+    statuses: definitionId === "unit-artillery" ? ["PACKED"] : [],
     equipmentIds: [],
     battlegroupId: side === "ALLIED" ? "hammer" : undefined,
   };

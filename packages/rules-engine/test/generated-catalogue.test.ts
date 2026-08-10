@@ -124,8 +124,10 @@ describe("rules catalogue bootstrap", () => {
     }
     expect(content.overlays.filter((overlay) => overlay.executable).map((overlay) => `${overlay.definitionKind}:${overlay.definitionId}`)).toEqual([
       "ACTION:action-attack",
+      "ACTION:action-deploy-platform",
       "ACTION:action-first-aid",
       "ACTION:action-load-cargo",
+      "ACTION:action-pack-platform",
       "ACTION:action-reload",
       "ACTION:action-repair",
       "ACTION:action-unload-cargo",

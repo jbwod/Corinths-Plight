@@ -78,9 +78,9 @@ interface CampaignDirectoryEntry {
   };
 }
 type Notice = { tone: "info" | "success" | "danger"; message: string };
-type ComposerActionMode = "NONE" | "ATTACK" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR";
+type ComposerActionMode = "NONE" | "ATTACK" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "DEPLOY" | "PACK_UP";
 type RepairKind = "HIT" | "SUBSYSTEM";
-const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "RELOAD", "LOAD", "UNLOAD", "HEAL", "REPAIR"];
+const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "RELOAD", "LOAD", "UNLOAD", "HEAL", "REPAIR", "DEPLOY", "PACK_UP"];
 
 function initialCampaign(): CampaignView {
   const now = Date.now();
@@ -110,6 +110,8 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "DAMAGE_APPLIED") return `${event.actor ?? "Unit"} lost ${String(payload.loss ?? "?")} strength.`;
   if (event.type === "UNIT_HEALED") return `${event.actor ?? "Medic"} restored ${String(payload.amount ?? "?")} strength to ${String(payload.targetId ?? "an allied unit")}.`;
   if (event.type === "UNIT_REPAIRED") return `${event.actor ?? "Engineer"} repaired ${String(payload.targetId ?? "an allied vehicle")}.`;
+  if (event.type === "ARTILLERY_DEPLOYED") return `${event.actor ?? "Artillery"} deployed and is ready to fire.`;
+  if (event.type === "ARTILLERY_PACKED") return `${event.actor ?? "Artillery"} packed up for movement.`;
   if (event.type === "MEDICAL_SUPPLY_RELOADED") return `${event.actor ?? "Medic"} restored Medical Supply to ${String(payload.medicalSupplyAfter ?? "?")}.`;
   if (event.type === "UNIT_DESTROYED") return `${event.actor ?? "Unit"} was destroyed.`;
   if (event.type === "ROUND_FINISHED") return `Round ${event.round} resolved and archived.`;
@@ -277,9 +279,14 @@ function GameApp() {
   const selectedAllowedActions = selectedUnit?.allowedActions ?? selectedDefinition?.allowedActions ?? [];
   const isMedicalUnit = selectedDefinition?.tags.includes("MEDICAL") ?? false;
   const isEngineerUnit = selectedDefinition?.tags.includes("ENGINEER") ?? false;
+  const isArtilleryUnit = selectedDefinition?.tags.includes("ARTILLERY") ?? false;
+  const artilleryDeployed = selectedUnit?.statuses.includes("DEPLOYED") ?? false;
   const medicalSupplyCapacity = selectedUnit ? Math.max(0, Math.floor(selectedUnit.currentHealth)) : 0;
-  const executableComposerActions = composerActionModes.filter(
-    (type) => selectedAllowedActions.includes(type) && getTacticalActionRule(type).executable,
+  const executableComposerActions = composerActionModes.filter((type) =>
+    selectedAllowedActions.includes(type) &&
+    getTacticalActionRule(type).executable &&
+    (type !== "DEPLOY" || !artilleryDeployed) &&
+    (type !== "PACK_UP" || artilleryDeployed),
   );
   const targetUnit = campaign.deployments.find((deployment) => deployment.id === targetUnitId);
   const reloadableWeapons = selectedUnit?.weapons.filter((weapon) =>
@@ -373,6 +380,7 @@ function GameApp() {
       : formatCountdown(campaign.clock.resolvesAt - now);
   const lockCountdown = manualClock ? "operator controlled" : formatCountdown(campaign.clock.lockAt - now);
   const routeOverBudget = Boolean(selectedUnit && routeResult.total > selectedUnit.stats.speed);
+  const deployedArtilleryMoving = Boolean(isArtilleryUnit && artilleryDeployed && draftedRoute.length > 1);
   const targetOutOfRange = Boolean(
     actionMode === "ATTACK" && targetUnit && selectedWeapon && targetRange !== undefined && targetRange > selectedWeapon.range,
   );
@@ -392,12 +400,15 @@ function GameApp() {
       (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0 &&
       (repairKind === "HIT" ? supportTarget.currentHealth < supportTarget.stats.maxHealth : selectedRepairSubsystem),
     )) ||
+    (actionMode === "DEPLOY" && isArtilleryUnit && !artilleryDeployed) ||
+    (actionMode === "PACK_UP" && isArtilleryUnit && artilleryDeployed) ||
     ((actionMode === "LOAD" || actionMode === "UNLOAD") && Boolean(supportTarget));
   const canSubmit = Boolean(
     selectedUnit &&
       selectedDefinition &&
       routeResult.legal &&
       !routeOverBudget &&
+      !deployedArtilleryMoving &&
       !locked &&
       actionReady,
   );
@@ -417,6 +428,10 @@ function GameApp() {
             ? repairKind === "HIT"
               ? `restore one Hit to ${supportTarget.callsign}`
               : `repair ${selectedRepairSubsystem?.subsystemId ?? "a subsystem"} on ${supportTarget.callsign}`
+          : actionMode === "DEPLOY"
+            ? "deploy and unhitch the artillery platform"
+          : actionMode === "PACK_UP"
+            ? "pack and hitch the artillery platform"
           : undefined;
 
   useEffect(() => {
@@ -532,6 +547,8 @@ function GameApp() {
           ? { repairKind: "HIT" }
           : { repairKind: "SUBSYSTEM", subsystemId: selectedRepairSubsystem?.subsystemId },
       });
+    } else if (actionMode === "DEPLOY" || actionMode === "PACK_UP") {
+      actions.push({ type: actionMode, equipmentIds: [] });
     }
     setBusy(true);
     try {
@@ -1042,6 +1059,15 @@ function GameApp() {
                     </p>
                     <p className="validation">Restore one vehicle Hit or one damaged subsystem to a friendly vehicle in base contact.</p>
                     {repairTargets.length === 0 && <p className="validation danger">No damaged friendly vehicle is in base contact at the planned destination.</p>}
+                  </>
+                ) : actionMode === "DEPLOY" || actionMode === "PACK_UP" ? (
+                  <>
+                    <p className="validation">
+                      {actionMode === "DEPLOY"
+                        ? "Deploy and unhitch the artillery platform. It may fire after deploying."
+                        : "Pack and hitch the artillery platform. It may move from the next round."}
+                    </p>
+                    <p className="validation">STANDARD ACTION · 0.5 SPEED · CURRENT STATE: {artilleryDeployed ? "DEPLOYED" : "PACKED"}</p>
                   </>
                 ) : actionMode === "LOAD" || actionMode === "UNLOAD" ? (
                   <>

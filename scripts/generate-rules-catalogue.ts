@@ -460,7 +460,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     capacity: 1,
     tags: ["GROUND", "PERSONNEL", "ARTILLERY", "INDIRECT", "DEPLOYABLE"],
     allowedOrders: ["HOLD", "ADVANCE"],
-    allowedActions: ["ATTACK", "RELOAD"],
+    allowedActions: ["ATTACK", "DEPLOY", "PACK_UP", "RELOAD"],
   },
   "unit-combat-medic": {
     capacity: 1,
@@ -770,14 +770,25 @@ const foundationOrderIds = [
 
 const foundationActionIds = [
   "action-attack",
+  "action-deploy-platform",
   "action-first-aid",
   "action-load-cargo",
+  "action-pack-platform",
   "action-repair",
   "action-reload",
   "action-unload-cargo",
 ] as const;
 
 const implementationCorrections: Record<string, Partial<RuleImplementationOverlayV1> & { explanation: string }> = {
+  "UNIT:unit-artillery": {
+    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: "EXPERIMENTAL_DAMAGE_PROFILE",
+    parameters: {
+      implementedSubset: ["FS", "MOVEMENT", "DEPLOY_PACK_STATE", "EXPERIMENTAL_ATTACK"],
+      missing: ["BOMBARDMENT", "FUNNEL", "ANTI_ORBITAL"],
+    },
+    explanation: "Artillery can now deploy and pack with the V5 half-Speed Standard Action while its control actions remain deferred.",
+  },
   "UNIT:unit-engineers": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
