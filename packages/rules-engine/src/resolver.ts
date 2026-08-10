@@ -1,6 +1,8 @@
 import type {
   CampaignDeployment,
   CampaignEvent,
+  EngineerRepairChoice,
+  EngineerRepairProfile,
   HealingProfile,
   PendingPersistentEffect,
   RoundInput,
@@ -17,7 +19,7 @@ import {
 } from "./hex";
 import { cargoSlotsForItem, disembarkCargo, embarkCargo, reloadAmmunition } from "./logistics";
 import { resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
-import { resolveHealing } from "./forces";
+import { resolveEngineerRepair, resolveHealing } from "./forces";
 import { createSeededRandom, hashSeed } from "./rng";
 import { getTacticalActionRule, getTacticalOrderRule } from "./tactical-grammar";
 import { getTacticalUnitClass } from "./tactical-unit-catalogue";
@@ -466,6 +468,74 @@ export function resolveRound(input: RoundInput): RoundOutput {
           medicalSupplySpent: healed.supplySpent,
         }, actorVisibility);
       }
+      if (action.type === "REPAIR") {
+        const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+        let actorIsEngineer = false;
+        if (target) {
+          try {
+            actorIsEngineer = getTacticalUnitClass(actor.definitionId).tags.includes("ENGINEER");
+          } catch {
+            actorIsEngineer = false;
+          }
+        }
+        const repairKind = action.payload?.repairKind;
+        const subsystemId = action.payload?.subsystemId;
+        const choice: EngineerRepairChoice | undefined = repairKind === "HIT"
+          ? { kind: "HIT" }
+          : repairKind === "SUBSYSTEM" && typeof subsystemId === "string"
+            ? { kind: "SUBSYSTEM", subsystemId }
+            : undefined;
+        const profile: EngineerRepairProfile = {
+          id: "v5-engineer-field-repair",
+          maximumRange: 0,
+          requiresFriendlyTarget: true,
+          targetHealthModels: ["HITS"],
+          hitRepair: 1,
+          supplyType: "SMALL_SUPPLY",
+          supplyCost: 1,
+          handlerId: "foundation-action-handler",
+        };
+        const repaired = target && actorIsEngineer && choice ? resolveEngineerRepair({
+          profile,
+          engineer: { id: actor.id, side: actor.side },
+          target: {
+            id: target.id,
+            side: target.side,
+            healthModel: target.stats.healthModel,
+            currentHealth: target.currentHealth,
+            maximumHealth: target.stats.maxHealth,
+            subsystems: target.subsystems ?? [],
+          },
+          distance: hexDistance(actor.position, target.position),
+          supplyAvailable: actor.supplies?.SMALL_SUPPLY ?? 0,
+          choice,
+        }) : undefined;
+        if (!target || !actorIsEngineer || !choice || !repaired?.legal) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [
+              !actorIsEngineer
+                ? "Engineer Repair requires an Engineer unit."
+                : repaired?.reason ?? "Engineer Repair target or repair choice is invalid.",
+            ],
+          }, actorVisibility);
+          continue;
+        }
+        const before = target.currentHealth;
+        target.currentHealth = repaired.targetHealthAfter;
+        target.subsystems = repaired.subsystemsAfter;
+        actor.supplies = { ...(actor.supplies ?? {}), SMALL_SUPPLY: repaired.supplyAfter };
+        event("UNIT_REPAIRED", actor.id, {
+          actionId: action.id,
+          targetId: target.id,
+          repairKind: repaired.choice.kind,
+          subsystemId: repaired.choice.kind === "SUBSYSTEM" ? repaired.choice.subsystemId : undefined,
+          before,
+          after: target.currentHealth,
+          smallSupplySpent: repaired.supplySpent,
+        }, actorVisibility);
+      }
       if (action.type === "SCAN" || action.type === "DEPLOY_DRONE") {
         const targetHex = action.targetHex;
         const ability = action.type === "DEPLOY_DRONE"
@@ -595,6 +665,8 @@ export function resolveRound(input: RoundInput): RoundOutput {
         cooldowns: deployment.cooldowns,
         supplies: deployment.supplies ?? {},
         currentHealth: deployment.currentHealth,
+        maximumHealth: deployment.stats.maxHealth,
+        subsystems: deployment.subsystems ?? [],
         cargo: (deployment.cargo ?? []).map((item) => ({
           ...item,
           slotsQuarters: deployment.cargoProfile ? cargoSlotsForItem(deployment.cargoProfile, item).slotsQuarters : 0,

@@ -127,6 +127,7 @@ describe("rules catalogue bootstrap", () => {
       "ACTION:action-first-aid",
       "ACTION:action-load-cargo",
       "ACTION:action-reload",
+      "ACTION:action-repair",
       "ACTION:action-unload-cargo",
       "EQUIPMENT:equipment-flak-vests",
       "EQUIPMENT:equipment-light-at",

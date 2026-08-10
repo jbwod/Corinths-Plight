@@ -28,7 +28,7 @@ import {
   type LoadoutContextRow,
   type UnitWeaponRow,
 } from "../repositories/equipment";
-import { getMutationReceipt, getRequisitionBalance } from "../repositories/forces";
+import { getForceSubsystems, getMutationReceipt, getRequisitionBalance } from "../repositories/forces";
 import { ForceServiceError } from "./forces";
 import {
   resolveEquipmentRulesAuthority,
@@ -140,7 +140,7 @@ export async function buildStoredEffectiveUnit(
 }> {
   const context = await getLoadoutContext(env.DB, ownerId, unitId);
   if (!context) throw new ForceServiceError(404, "UNIT_NOT_FOUND", "Persistent unit or active default loadout was not found.");
-  const [inventoryRows, currentItems, slots, tags, abilities, baseWeaponRows, allWeaponRows, storedSupplies] = await Promise.all([
+  const [inventoryRows, currentItems, slots, tags, abilities, baseWeaponRows, allWeaponRows, storedSupplies, storedSubsystems] = await Promise.all([
     listInventoryEffects(env.DB, ownerId),
     listLoadoutItems(env.DB, context.loadout_id, unitId),
     listUnitSlots(env.DB, context.definition_id, context.ruleset_id),
@@ -149,6 +149,7 @@ export async function buildStoredEffectiveUnit(
     listUnitWeapons(env.DB, context.definition_id, context.ruleset_id),
     listRulesetWeapons(env.DB, context.ruleset_id),
     getUnitSupplies(env.DB, unitId),
+    getForceSubsystems(env.DB, ownerId, unitId),
   ]);
   const supplies = normalizeTacticalSupplyInventory(storedSupplies, `player_units.${unitId}.supplies`);
   const definitionJson = parseJson<Record<string, unknown>>(context.definition_json, {});
@@ -311,6 +312,15 @@ export async function buildStoredEffectiveUnit(
       id: context.unit_id, version: context.unit_version, ownerId, definitionId: context.definition_id,
       callsign: "", name: "", status: context.unit_status as "ACTIVE", currentHealth: context.current_health,
       equipmentIds: [], ammunition, cooldowns: {}, damage: [], requisitionValue: context.requisition_value, campaignHistory: [],
+      subsystems: storedSubsystems.map((subsystem) => {
+        if (!["OPERATIONAL", "DAMAGED", "DISABLED"].includes(subsystem.state)) {
+          throw new ForceServiceError(500, "SUBSYSTEM_STATE_INVALID", `Unit ${context.unit_id} has an invalid subsystem state.`);
+        }
+        return {
+          subsystemId: subsystem.subsystem_type,
+          state: subsystem.state as "OPERATIONAL" | "DAMAGED" | "DISABLED",
+        };
+      }),
     },
     refits: [],
     equipment: selected,

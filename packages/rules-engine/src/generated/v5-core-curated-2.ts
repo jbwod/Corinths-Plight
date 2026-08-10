@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "c6f3ddfbb1b7ffd69e375836b4e7ef1f17fb2da460818e74d101fcbb2c844d15",
+  "contentHash": "e12255f8db59721aa390eff79b1ed5d118145b32d00f1f0fd1eb66dee1e66f8b",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1431,6 +1431,7 @@ const snapshot = {
           },
           "execution": {
             "allowedActions": [
+              "REPAIR",
               "LOAD",
               "UNLOAD"
             ],
@@ -7497,6 +7498,7 @@ const snapshot = {
             "action-attack",
             "action-first-aid",
             "action-load-cargo",
+            "action-repair",
             "action-reload",
             "action-unload-cargo"
           ],
@@ -7580,6 +7582,22 @@ const snapshot = {
       {
         "definitionKind": "ACTION",
         "definitionId": "action-reload",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-repair",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
         "availabilityStatus": "AVAILABLE",
@@ -8159,12 +8177,23 @@ const snapshot = {
         "parameters": {
           "implementedSubset": [
             "FS",
-            "MOVEMENT"
+            "MOVEMENT",
+            "REPAIR_ACTION"
           ],
           "missing": [
-            "CONSTRUCTION_PROJECTS",
-            "REPAIR_ACTION"
-          ]
+            "CONSTRUCTION_PROJECTS"
+          ],
+          "publicationCorrection": {
+            "reason": "The V5 Engineer Repair vertical now restores one vehicle Hit or one subsystem for one Small Supply.",
+            "seedOverlay": {
+              "availabilityStatus": "DEV_ONLY",
+              "executable": true,
+              "implementationStatus": "PARTIAL",
+              "purchasable": false,
+              "reasonCode": "MISSING_CANONICAL_PRICE",
+              "requisitionStatus": "BALANCE_REQUIRED"
+            }
+          }
         }
       },
       {
@@ -13763,5 +13792,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "c6f3ddfbb1b7ffd69e375836b4e7ef1f17fb2da460818e74d101fcbb2c844d15" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "e12255f8db59721aa390eff79b1ed5d118145b32d00f1f0fd1eb66dee1e66f8b" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

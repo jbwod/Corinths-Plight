@@ -78,8 +78,9 @@ interface CampaignDirectoryEntry {
   };
 }
 type Notice = { tone: "info" | "success" | "danger"; message: string };
-type ComposerActionMode = "NONE" | "ATTACK" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL";
-const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "RELOAD", "LOAD", "UNLOAD", "HEAL"];
+type ComposerActionMode = "NONE" | "ATTACK" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR";
+type RepairKind = "HIT" | "SUBSYSTEM";
+const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "RELOAD", "LOAD", "UNLOAD", "HEAL", "REPAIR"];
 
 function initialCampaign(): CampaignView {
   const now = Date.now();
@@ -108,6 +109,7 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "UNIT_ATTACKED") return `${event.actor ?? "Unit"} engaged ${String(payload.targetId ?? "a hostile")}.`;
   if (event.type === "DAMAGE_APPLIED") return `${event.actor ?? "Unit"} lost ${String(payload.loss ?? "?")} strength.`;
   if (event.type === "UNIT_HEALED") return `${event.actor ?? "Medic"} restored ${String(payload.amount ?? "?")} strength to ${String(payload.targetId ?? "an allied unit")}.`;
+  if (event.type === "UNIT_REPAIRED") return `${event.actor ?? "Engineer"} repaired ${String(payload.targetId ?? "an allied vehicle")}.`;
   if (event.type === "MEDICAL_SUPPLY_RELOADED") return `${event.actor ?? "Medic"} restored Medical Supply to ${String(payload.medicalSupplyAfter ?? "?")}.`;
   if (event.type === "UNIT_DESTROYED") return `${event.actor ?? "Unit"} was destroyed.`;
   if (event.type === "ROUND_FINISHED") return `Round ${event.round} resolved and archived.`;
@@ -158,6 +160,8 @@ function GameApp() {
   const [targetUnitId, setTargetUnitId] = useState<string>();
   const [supportTargetUnitId, setSupportTargetUnitId] = useState<string>();
   const [actionMode, setActionMode] = useState<ComposerActionMode>("NONE");
+  const [repairKind, setRepairKind] = useState<RepairKind>("HIT");
+  const [repairSubsystemId, setRepairSubsystemId] = useState<string>();
   const [selectedWeaponId, setSelectedWeaponId] = useState<string>();
   const [scheduledRound, setScheduledRound] = useState(18);
   const [hovered, setHovered] = useState<{ coord?: AxialCoord; unit?: CampaignDeployment }>({});
@@ -272,6 +276,7 @@ function GameApp() {
   const selectedAllowedOrders = selectedUnit?.allowedOrders ?? selectedDefinition?.allowedOrders ?? [];
   const selectedAllowedActions = selectedUnit?.allowedActions ?? selectedDefinition?.allowedActions ?? [];
   const isMedicalUnit = selectedDefinition?.tags.includes("MEDICAL") ?? false;
+  const isEngineerUnit = selectedDefinition?.tags.includes("ENGINEER") ?? false;
   const medicalSupplyCapacity = selectedUnit ? Math.max(0, Math.floor(selectedUnit.currentHealth)) : 0;
   const executableComposerActions = composerActionModes.filter(
     (type) => selectedAllowedActions.includes(type) && getTacticalActionRule(type).executable,
@@ -316,14 +321,30 @@ function GameApp() {
     deployment.currentHealth < deployment.stats.maxHealth &&
     coordinatesEqual(deployment.position, draftedRoute.at(-1) ?? selectedUnit.position)
   ) : [];
+  const repairTargets = selectedUnit ? campaign.deployments.filter((deployment) =>
+    deployment.id !== selectedUnit.id &&
+    deployment.side === selectedUnit.side &&
+    deployment.status !== "DESTROYED" &&
+    deployment.stats.healthModel === "HITS" &&
+    (
+      deployment.currentHealth < deployment.stats.maxHealth ||
+      deployment.subsystems?.some((subsystem) => subsystem.state !== "OPERATIONAL") === true
+    ) &&
+    coordinatesEqual(deployment.position, draftedRoute.at(-1) ?? selectedUnit.position)
+  ) : [];
   const supportTargets = actionMode === "LOAD"
     ? loadTargets
     : actionMode === "UNLOAD"
       ? unloadTargets
       : actionMode === "HEAL"
         ? healTargets
+        : actionMode === "REPAIR"
+          ? repairTargets
         : [];
   const supportTarget = supportTargets.find((deployment) => deployment.id === supportTargetUnitId) ?? supportTargets[0];
+  const repairableSubsystems = supportTarget?.subsystems?.filter((subsystem) => subsystem.state !== "OPERATIONAL") ?? [];
+  const selectedRepairSubsystem = repairableSubsystems.find((subsystem) => subsystem.subsystemId === repairSubsystemId)
+    ?? repairableSubsystems[0];
   const currentOrder = campaign.orders.find(
     (order) => order.unitId === selectedUnit?.id && order.round === scheduledRound && order.lifecycle !== "CANCELLED",
   );
@@ -365,6 +386,12 @@ function GameApp() {
         : selectedWeapon),
     )) ||
     (actionMode === "HEAL" && Boolean(supportTarget && (selectedUnit?.supplies?.MEDICAL_SUPPLY ?? 0) > 0)) ||
+    (actionMode === "REPAIR" && Boolean(
+      isEngineerUnit &&
+      supportTarget &&
+      (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0 &&
+      (repairKind === "HIT" ? supportTarget.currentHealth < supportTarget.stats.maxHealth : selectedRepairSubsystem),
+    )) ||
     ((actionMode === "LOAD" || actionMode === "UNLOAD") && Boolean(supportTarget));
   const canSubmit = Boolean(
     selectedUnit &&
@@ -386,6 +413,10 @@ function GameApp() {
           ? `coordinate unloading with ${supportTarget.callsign}`
           : actionMode === "HEAL" && supportTarget
             ? `give First Aid to ${supportTarget.callsign}`
+          : actionMode === "REPAIR" && supportTarget
+            ? repairKind === "HIT"
+              ? `restore one Hit to ${supportTarget.callsign}`
+              : `repair ${selectedRepairSubsystem?.subsystemId ?? "a subsystem"} on ${supportTarget.callsign}`
           : undefined;
 
   useEffect(() => {
@@ -408,8 +439,14 @@ function GameApp() {
     setActionMode(storedMode);
     setTargetUnitId(storedAction?.type === "ATTACK" ? storedAction.targetDeploymentId : undefined);
     setSupportTargetUnitId(
-      storedAction?.type === "LOAD" || storedAction?.type === "UNLOAD" || storedAction?.type === "HEAL"
+      storedAction?.type === "LOAD" || storedAction?.type === "UNLOAD" || storedAction?.type === "HEAL" || storedAction?.type === "REPAIR"
         ? storedAction.targetDeploymentId ?? (typeof storedAction.payload?.cargoDeploymentId === "string" ? storedAction.payload.cargoDeploymentId : undefined)
+        : undefined,
+    );
+    setRepairKind(storedAction?.type === "REPAIR" && storedAction.payload?.repairKind === "SUBSYSTEM" ? "SUBSYSTEM" : "HIT");
+    setRepairSubsystemId(
+      storedAction?.type === "REPAIR" && typeof storedAction.payload?.subsystemId === "string"
+        ? storedAction.payload.subsystemId
         : undefined,
     );
     setSelectedWeaponId(storedAction?.weaponId ?? selectedUnit.weapons[0]?.id);
@@ -486,6 +523,15 @@ function GameApp() {
       });
     } else if (actionMode === "HEAL" && supportTarget) {
       actions.push({ type: "HEAL", targetDeploymentId: supportTarget.id, equipmentIds: [] });
+    } else if (actionMode === "REPAIR" && supportTarget) {
+      actions.push({
+        type: "REPAIR",
+        targetDeploymentId: supportTarget.id,
+        equipmentIds: [],
+        payload: repairKind === "HIT"
+          ? { repairKind: "HIT" }
+          : { repairKind: "SUBSYSTEM", subsystemId: selectedRepairSubsystem?.subsystemId },
+      });
     }
     setBusy(true);
     try {
@@ -856,8 +902,16 @@ function GameApp() {
                               ? unloadTargets[0]?.id
                               : type === "HEAL"
                                 ? healTargets[0]?.id
+                                : type === "REPAIR"
+                                  ? repairTargets[0]?.id
                                 : undefined,
                         );
+                        if (type === "REPAIR") {
+                          const target = repairTargets[0];
+                          const damagedSubsystem = target?.subsystems?.find((subsystem) => subsystem.state !== "OPERATIONAL");
+                          setRepairKind(target && target.currentHealth < target.stats.maxHealth ? "HIT" : "SUBSYSTEM");
+                          setRepairSubsystemId(damagedSubsystem?.subsystemId);
+                        }
                       }}
                     >{type}</button>
                   ))}
@@ -930,6 +984,64 @@ function GameApp() {
                       Restore D6 Force Strength to a wounded friendly Infantry unit in base contact, capped by this medic's current Force Strength.
                     </p>
                     {healTargets.length === 0 && <p className="validation danger">No wounded friendly Infantry unit is in base contact at the planned destination.</p>}
+                  </>
+                ) : actionMode === "REPAIR" ? (
+                  <>
+                    <label className="field-label" htmlFor="repair-target">DAMAGED VEHICLE</label>
+                    <select
+                      id="repair-target"
+                      value={supportTarget?.id ?? ""}
+                      onChange={(event) => {
+                        const target = repairTargets.find((deployment) => deployment.id === event.target.value);
+                        setSupportTargetUnitId(event.target.value);
+                        setRepairKind(target && target.currentHealth < target.stats.maxHealth ? "HIT" : "SUBSYSTEM");
+                        setRepairSubsystemId(target?.subsystems?.find((subsystem) => subsystem.state !== "OPERATIONAL")?.subsystemId);
+                      }}
+                      disabled={repairTargets.length === 0}
+                    >
+                      {repairTargets.map((deployment) => (
+                        <option value={deployment.id} key={deployment.id}>
+                          {deployment.callsign} · {deployment.currentHealth}/{deployment.stats.maxHealth} HITS
+                        </option>
+                      ))}
+                    </select>
+                    <div className="order-types repair-types" aria-label="Repair choice">
+                      <button
+                        className={repairKind === "HIT" ? "active" : ""}
+                        disabled={!supportTarget || supportTarget.currentHealth >= supportTarget.stats.maxHealth}
+                        onClick={() => setRepairKind("HIT")}
+                      >RESTORE 1 HIT</button>
+                      <button
+                        className={repairKind === "SUBSYSTEM" ? "active" : ""}
+                        disabled={repairableSubsystems.length === 0}
+                        onClick={() => {
+                          setRepairKind("SUBSYSTEM");
+                          setRepairSubsystemId(repairableSubsystems[0]?.subsystemId);
+                        }}
+                      >REPAIR SUBSYSTEM</button>
+                    </div>
+                    {repairKind === "SUBSYSTEM" && (
+                      <>
+                        <label className="field-label" htmlFor="repair-subsystem">DAMAGED SUBSYSTEM</label>
+                        <select
+                          id="repair-subsystem"
+                          value={selectedRepairSubsystem?.subsystemId ?? ""}
+                          onChange={(event) => setRepairSubsystemId(event.target.value)}
+                          disabled={repairableSubsystems.length === 0}
+                        >
+                          {repairableSubsystems.map((subsystem) => (
+                            <option value={subsystem.subsystemId} key={subsystem.subsystemId}>
+                              {subsystem.subsystemId.replaceAll("_", " ")} · {subsystem.state}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                    <p className={`validation ${(selectedUnit.supplies?.SMALL_SUPPLY ?? 0) < 1 ? "danger" : ""}`}>
+                      SMALL SUPPLY: {selectedUnit.supplies?.SMALL_SUPPLY ?? 0} · Engineer Repair consumes 1
+                    </p>
+                    <p className="validation">Restore one vehicle Hit or one damaged subsystem to a friendly vehicle in base contact.</p>
+                    {repairTargets.length === 0 && <p className="validation danger">No damaged friendly vehicle is in base contact at the planned destination.</p>}
                   </>
                 ) : actionMode === "LOAD" || actionMode === "UNLOAD" ? (
                   <>

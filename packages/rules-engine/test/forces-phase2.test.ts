@@ -1,6 +1,7 @@
 import type {
   ConstructionProfile,
   DurabilityProfile,
+  EngineerRepairProfile,
   HealingProfile,
   MovementProfile,
   SubsystemDamageProfile,
@@ -14,6 +15,7 @@ import {
   hasAllTags,
   resolveBuildAction,
   resolveDurabilityDamage,
+  resolveEngineerRepair,
   resolveHealing,
   resolveSubsystemDamage,
   resolveSubsystemRepair,
@@ -240,5 +242,87 @@ describe("subsystem damage and repair", () => {
         supplyAvailable: 1,
       }),
     ).toMatchObject({ legal: true, supplySpent: 1, states: expect.arrayContaining([{ subsystemId: "weapon-main", state: "OPERATIONAL" }]) });
+  });
+});
+
+describe("Engineer field repair", () => {
+  const profile: EngineerRepairProfile = {
+    id: "ability-repair-vehicle",
+    maximumRange: 0,
+    requiresFriendlyTarget: true,
+    targetHealthModels: ["HITS"],
+    hitRepair: 1,
+    supplyType: "SMALL_SUPPLY",
+    supplyCost: 1,
+    handlerId: "REPAIR_VEHICLE",
+  };
+  const engineer = { id: "anvil", side: "ALLIED" as const };
+  const target = {
+    id: "bellator",
+    side: "ALLIED" as const,
+    healthModel: "HITS" as const,
+    currentHealth: 2,
+    maximumHealth: 3,
+    subsystems: [{
+      subsystemId: "mobility",
+      state: "DISABLED" as const,
+      damageSourceId: "bug-heavy",
+      damagedRound: 3,
+    }],
+  };
+
+  it("restores exactly one Hit and spends one Small Supply", () => {
+    expect(resolveEngineerRepair({
+      profile,
+      engineer,
+      target,
+      distance: 0,
+      supplyAvailable: 4,
+      choice: { kind: "HIT" },
+    })).toEqual({
+      legal: true,
+      choice: { kind: "HIT" },
+      targetHealthAfter: 3,
+      subsystemsAfter: target.subsystems,
+      supplySpent: 1,
+      supplyAfter: 3,
+    });
+  });
+
+  it("repairs the selected subsystem without restoring a Hit", () => {
+    expect(resolveEngineerRepair({
+      profile,
+      engineer,
+      target,
+      distance: 0,
+      supplyAvailable: 1,
+      choice: { kind: "SUBSYSTEM", subsystemId: "mobility" },
+    })).toEqual({
+      legal: true,
+      choice: { kind: "SUBSYSTEM", subsystemId: "mobility" },
+      targetHealthAfter: 2,
+      subsystemsAfter: [{ subsystemId: "mobility", state: "OPERATIONAL" }],
+      supplySpent: 1,
+      supplyAfter: 0,
+    });
+  });
+
+  it.each([
+    ["enemy target", { target: { ...target, side: "ENEMY" as const } }],
+    ["personnel target", { target: { ...target, healthModel: "FORCE_STRENGTH" as const } }],
+    ["destroyed target", { target: { ...target, currentHealth: 0 } }],
+    ["out of contact", { distance: 1 }],
+    ["no Small Supply", { supplyAvailable: 0 }],
+    ["undamaged Hit", { target: { ...target, currentHealth: 3 } }],
+  ])("rejects %s without spending supply", (_label, changes) => {
+    expect(resolveEngineerRepair({
+      profile,
+      engineer,
+      target,
+      distance: 0,
+      supplyAvailable: 4,
+      choice: { kind: "HIT" },
+      ...changes,
+    })).toMatchObject({ legal: false, supplySpent: 0 });
   });
 });

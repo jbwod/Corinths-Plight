@@ -63,6 +63,7 @@ const eventTypes = new Set([
   "DICE_ROLLED",
   "DAMAGE_APPLIED",
   "UNIT_HEALED",
+  "UNIT_REPAIRED",
   "UNIT_DESTROYED",
   "STRUCTURE_COMPLETED",
   "SUPPLY_TRANSFERRED",
@@ -84,6 +85,8 @@ export interface CampaignActionIntent {
   payload?: {
     cargoDeploymentId?: string;
     mode?: "PARADROP";
+    repairKind?: "HIT" | "SUBSYSTEM";
+    subsystemId?: string;
   };
 }
 
@@ -174,7 +177,7 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     BREAK_OUT: ["targetHex"],
     DEPLOY: [],
     PACK_UP: [],
-    REPAIR: ["targetDeploymentId"],
+    REPAIR: ["targetDeploymentId", "payload"],
     CONSTRUCT: ["targetHex"],
     GARRISON: ["targetHex"],
     LOAD: ["targetDeploymentId"],
@@ -196,6 +199,9 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
   if (type === "HEAL" && parsed.targetDeploymentId === undefined) {
     requestFail(`${path}.targetDeploymentId`, "First Aid requires a target deployment.");
   }
+  if (type === "REPAIR" && parsed.targetDeploymentId === undefined) {
+    requestFail(`${path}.targetDeploymentId`, "Engineer Repair requires a target deployment.");
+  }
   if (value.targetHex !== undefined) parsed.targetHex = coordinate(value.targetHex, `${path}.targetHex`);
   if (value.weaponId !== undefined) parsed.weaponId = identifier(value.weaponId, `${path}.weaponId`);
   if (value.equipmentIds !== undefined) {
@@ -207,9 +213,13 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     parsed.equipmentIds = ids;
   }
   if (value.payload !== undefined) {
-    if (type !== "UNLOAD") requestFail(`${path}.payload`, "This action type does not accept a payload.");
-    if (!isRecord(value.payload)) requestFail(`${path}.payload`, "Expected an unload payload object.");
-    onlyKeys(value.payload, ["cargoDeploymentId", "mode"], `${path}.payload`);
+    if (type !== "UNLOAD" && type !== "REPAIR") requestFail(`${path}.payload`, "This action type does not accept a payload.");
+    if (!isRecord(value.payload)) requestFail(`${path}.payload`, "Expected an action payload object.");
+    onlyKeys(
+      value.payload,
+      type === "REPAIR" ? ["repairKind", "subsystemId"] : ["cargoDeploymentId", "mode"],
+      `${path}.payload`,
+    );
     const payload: NonNullable<CampaignActionIntent["payload"]> = {};
     if (value.payload.cargoDeploymentId !== undefined) {
       payload.cargoDeploymentId = identifier(value.payload.cargoDeploymentId, `${path}.payload.cargoDeploymentId`);
@@ -217,6 +227,16 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     if (value.payload.mode !== undefined) {
       if (value.payload.mode !== "PARADROP") requestFail(`${path}.payload.mode`, "Only PARADROP mode is supported.");
       payload.mode = "PARADROP";
+    }
+    if (value.payload.repairKind !== undefined) {
+      if (type !== "REPAIR" || (value.payload.repairKind !== "HIT" && value.payload.repairKind !== "SUBSYSTEM")) {
+        requestFail(`${path}.payload.repairKind`, "Repair kind must be HIT or SUBSYSTEM.");
+      }
+      payload.repairKind = value.payload.repairKind;
+    }
+    if (value.payload.subsystemId !== undefined) {
+      if (type !== "REPAIR") requestFail(`${path}.payload.subsystemId`, "Only Engineer Repair accepts a subsystem identifier.");
+      payload.subsystemId = identifier(value.payload.subsystemId, `${path}.payload.subsystemId`);
     }
     parsed.payload = payload;
   }
@@ -226,6 +246,15 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
   if (type === "LOAD" && !parsed.targetDeploymentId) requestFail(path, "LOAD requires targetDeploymentId.");
   if (type === "UNLOAD" && !parsed.targetDeploymentId && !parsed.payload?.cargoDeploymentId) {
     requestFail(path, "UNLOAD requires targetDeploymentId or payload.cargoDeploymentId.");
+  }
+  if (type === "REPAIR") {
+    if (!parsed.payload?.repairKind) requestFail(`${path}.payload.repairKind`, "Engineer Repair requires HIT or SUBSYSTEM.");
+    if (parsed.payload.repairKind === "SUBSYSTEM" && !parsed.payload.subsystemId) {
+      requestFail(`${path}.payload.subsystemId`, "Subsystem repair requires subsystemId.");
+    }
+    if (parsed.payload.repairKind === "HIT" && parsed.payload.subsystemId) {
+      requestFail(`${path}.payload.subsystemId`, "Hit repair does not accept subsystemId.");
+    }
   }
   if ((type === "SCAN" || type === "DEPLOY_DRONE") && !parsed.targetHex) {
     requestFail(path, `${type} requires targetHex.`);
@@ -615,6 +644,24 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     stateNumericRecord(deployment.cooldowns, `${path}.cooldowns`);
     stateStringArray(deployment.statuses, `${path}.statuses`);
     stateStringArray(deployment.equipmentIds, `${path}.equipmentIds`);
+    if (deployment.subsystems !== undefined) {
+      const subsystemIds = new Set<string>();
+      const subsystems = stateArray(deployment.subsystems, `${path}.subsystems`);
+      if (subsystems.length > 16) stateFail(`${path}.subsystems`, "too many subsystem states");
+      for (const [subsystemIndex, subsystemValue] of subsystems.entries()) {
+        const subsystemPath = `${path}.subsystems[${subsystemIndex}]`;
+        const subsystem = stateRecord(subsystemValue, subsystemPath);
+        stateOnlyKeys(subsystem, ["subsystemId", "state", "damageSourceId", "damagedRound"], subsystemPath);
+        const subsystemId = stateString(subsystem.subsystemId, `${subsystemPath}.subsystemId`);
+        if (subsystemIds.has(subsystemId)) stateFail(`${subsystemPath}.subsystemId`, "duplicate subsystem identifier");
+        subsystemIds.add(subsystemId);
+        if (!["OPERATIONAL", "DAMAGED", "DISABLED"].includes(String(subsystem.state))) {
+          stateFail(`${subsystemPath}.state`, "invalid subsystem state");
+        }
+        if (subsystem.damageSourceId !== undefined) stateString(subsystem.damageSourceId, `${subsystemPath}.damageSourceId`);
+        if (subsystem.damagedRound !== undefined) stateInteger(subsystem.damagedRound, `${subsystemPath}.damagedRound`, 1);
+      }
+    }
     if (deployment.allowedActions !== undefined) {
       for (const action of stateStringArray(deployment.allowedActions, `${path}.allowedActions`)) {
         if (!actionTypes.has(action as ActionType)) stateFail(`${path}.allowedActions`, `unknown action ${action}`);

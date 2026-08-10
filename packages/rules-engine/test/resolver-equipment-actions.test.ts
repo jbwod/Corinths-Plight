@@ -202,6 +202,81 @@ describe("equipment and transport actions", () => {
     }));
   });
 
+  it("resolves Engineer Repair and persists the vehicle and Small Supply state", () => {
+    const base = createDemoCampaignState(1_000);
+    const target = base.deployments[0];
+    target.persistentUnitId = "force-bellator-test";
+    target.stats = { ...target.stats, healthModel: "HITS", maxHealth: 3 };
+    target.currentHealth = 2;
+    target.subsystems = [{
+      subsystemId: "mobility",
+      state: "DISABLED",
+      damageSourceId: "bug-heavy",
+      damagedRound: 2,
+    }];
+
+    const engineerDefinition = getTacticalUnitClass("unit-engineers");
+    const engineer: CampaignDeployment = {
+      ...structuredClone(target),
+      id: "dep-anvil-test",
+      persistentUnitId: "force-anvil-test",
+      definitionId: engineerDefinition.id,
+      callsign: "ANVIL",
+      stats: engineerDefinition.stats,
+      currentHealth: engineerDefinition.stats.maxHealth,
+      weapons: [],
+      ammunition: {},
+      subsystems: [],
+      equipmentIds: [],
+      supplies: { SMALL_SUPPLY: 4 },
+    };
+    base.deployments.push(engineer);
+    const repairRule = getTacticalActionRule("REPAIR");
+    const repairAction: StructuredAction = {
+      id: "repair-bellator-mobility",
+      type: "REPAIR",
+      economy: repairRule.economy,
+      speedCost: repairRule.speedCost,
+      targetDeploymentId: target.id,
+      payload: { repairKind: "SUBSYSTEM", subsystemId: "mobility" },
+      equipmentIds: [],
+    };
+    const orders = [order(base, engineer, [repairAction])];
+    base.orders = orders;
+
+    const output = resolveRound({ ...input(orders), previousState: base });
+    const resolvedTarget = output.state.deployments.find((unit) => unit.id === target.id)!;
+    const resolvedEngineer = output.state.deployments.find((unit) => unit.id === engineer.id)!;
+
+    expect(resolvedTarget.currentHealth).toBe(2);
+    expect(resolvedTarget.subsystems).toEqual([{ subsystemId: "mobility", state: "OPERATIONAL" }]);
+    expect(resolvedEngineer.supplies?.SMALL_SUPPLY).toBe(3);
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "UNIT_REPAIRED",
+      actor: engineer.id,
+      payload: expect.objectContaining({
+        targetId: target.id,
+        repairKind: "SUBSYSTEM",
+        subsystemId: "mobility",
+      }),
+    }));
+    expect(output.persistentEffects).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: "UNIT_STATE_UPDATED",
+        unitId: target.persistentUnitId,
+        payload: expect.objectContaining({
+          currentHealth: 2,
+          subsystems: [{ subsystemId: "mobility", state: "OPERATIONAL" }],
+        }),
+      }),
+      expect.objectContaining({
+        type: "UNIT_STATE_UPDATED",
+        unitId: engineer.persistentUnitId,
+        payload: expect.objectContaining({ supplies: { SMALL_SUPPLY: 3 } }),
+      }),
+    ]));
+  });
+
   it("rejects Drone until its visibility state effect is implemented", () => {
     const base = createDemoCampaignState(1_000);
     const unit = base.deployments[0];

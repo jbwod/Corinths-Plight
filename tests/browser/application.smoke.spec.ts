@@ -44,7 +44,7 @@ async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<
   for (let index = 0; index < await deployableUnits.count(); index += 1) {
     const checkbox = deployableUnits.nth(index);
     const label = await checkbox.locator("..").innerText();
-    const foundationSupportUnit = ["LONGBOW", "DOC-7", "RAVEN-2", "NOMAD", "BELLATR"].some((callsign) => label.includes(callsign));
+    const foundationSupportUnit = ["LONGBOW", "DOC-7", "RAVEN-2", "ANVIL", "NOMAD", "BELLATR"].some((callsign) => label.includes(callsign));
     if (foundationSupportUnit && ![...deployedCallsigns].some((callsign) => label.includes(callsign))) {
       await checkbox.check();
       selectedForDeployment += 1;
@@ -192,6 +192,49 @@ async function submitRelayDefenceAttack(page: Page): Promise<void> {
   }
 }
 
+async function submitEngineerAdvance(page: Page): Promise<void> {
+  const response = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(response.status()).toBe(200);
+  const state = await response.json() as CampaignView;
+  const engineer = state.deployments.find((deployment) => deployment.callsign === "ANVIL");
+  const relay = state.objectives.find((objective) => objective.id === "objective-outpost");
+  expect(engineer).toBeDefined();
+  expect(relay).toBeDefined();
+  const route = affordableRoute(
+    shortestPath(engineer!.position, relay!.coord, state.map),
+    state.map,
+    engineer!.stats.speed,
+    true,
+  );
+  const moving = route.length > 1;
+  const orderRevision = state.orders.find((order) => order.unitId === engineer!.id && order.round === state.round)?.revision ?? 0;
+  const result = await page.evaluate(async ({ command }) => {
+    const order = await fetch("/api/campaigns/campaign-k17-relay/orders", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-demo-user": "demo-user" },
+      body: JSON.stringify(command),
+    });
+    return { status: order.status, body: await order.text() };
+  }, {
+    command: {
+      commandId: `browser-engineer-advance-${state.round}`,
+      expectedCampaignVersion: state.version,
+      expectedOrderRevision: orderRevision,
+      unitId: engineer!.id,
+      round: state.round,
+      orderType: moving ? "RUSH" : "HOLD",
+      lifecycle: "SUBMITTED",
+      route,
+      facing: engineer!.facing,
+      actions: [],
+      incidentalActions: [],
+    },
+  });
+  expect(result, result.body).toMatchObject({ status: 201 });
+}
+
 test("public landing exposes the signed-out authentication shell", async ({ page }) => {
   const sessionResponse = page.waitForResponse((response) => response.url().endsWith("/api/auth/session"));
 
@@ -297,6 +340,7 @@ test("tactical composer exposes every currently executable action and no catalog
   await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
   await expect(page.getByText(/DOC-7 order submitted to campaign command/)).toBeVisible();
   await submitRelayDefenceOrder(page);
+  await submitEngineerAdvance(page);
   await resolveCurrentK17Round(page);
 
   await expect.poll(async () => {
@@ -321,6 +365,7 @@ test("tactical composer exposes every currently executable action and no catalog
   await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
   await expect(page.getByText(/DOC-7 order submitted to campaign command/)).toBeVisible();
   await submitRelayDefenceAttack(page);
+  await submitEngineerAdvance(page);
   await resolveCurrentK17Round(page);
 
   await expect.poll(async () => {
@@ -353,7 +398,22 @@ test("tactical composer exposes every currently executable action and no catalog
   expect(roundThreeState.phase).toBe("PLANNING");
 
   await submitRelayDefenceAttack(page);
+  await submitEngineerAdvance(page);
   await resolveCurrentK17Round(page);
+
+  await page.reload();
+  await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
+  await page.locator(".unit-roster").getByRole("button", { name: /ANVIL/ }).click();
+  await expect(composer.getByRole("button", { name: "REPAIR", exact: true })).toBeVisible();
+  await composer.getByRole("button", { name: "REPAIR", exact: true }).click();
+  const bellatrOption = composer.getByLabel("DAMAGED VEHICLE").locator("option").filter({ hasText: "BELLATR" });
+  const bellatrDeploymentId = await bellatrOption.getAttribute("value");
+  expect(bellatrDeploymentId).toBeTruthy();
+  await composer.getByLabel("DAMAGED VEHICLE").selectOption(bellatrDeploymentId!);
+  await composer.getByRole("button", { name: "RESTORE 1 HIT" }).click();
+  await expect(composer.getByText(/SMALL SUPPLY: 4/)).toBeVisible();
+  await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
+  await expect(page.getByText(/ANVIL order submitted to campaign command/)).toBeVisible();
   await submitRelayDefenceAttack(page);
   await resolveCurrentK17Round(page);
 
@@ -375,6 +435,14 @@ test("tactical composer exposes every currently executable action and no catalog
     reason: "FINAL_ROUND_PRIMARY_HELD",
     round: 4,
   });
+
+  const repairedStateResponse = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(repairedStateResponse.status()).toBe(200);
+  const repairedState = await repairedStateResponse.json() as CampaignView;
+  expect(repairedState.events).toContainEqual(expect.objectContaining({ type: "UNIT_REPAIRED", actor: expect.stringContaining("force-anvil") }));
+  expect(repairedState.deployments.find((deployment) => deployment.callsign === "ANVIL")?.supplies?.SMALL_SUPPLY).toBe(3);
 
   await expect.poll(async () => {
     const response = await page.request.get("/api/campaigns", {

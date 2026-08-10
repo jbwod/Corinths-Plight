@@ -472,7 +472,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     capacity: 1,
     tags: ["GROUND", "PERSONNEL", "ENGINEER", "BUILDER", "REPAIR"],
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-    allowedActions: ["LOAD", "UNLOAD"],
+    allowedActions: ["REPAIR", "LOAD", "UNLOAD"],
   },
   "unit-infantry-squad": {
     capacity: 1,
@@ -772,11 +772,21 @@ const foundationActionIds = [
   "action-attack",
   "action-first-aid",
   "action-load-cargo",
+  "action-repair",
   "action-reload",
   "action-unload-cargo",
 ] as const;
 
 const implementationCorrections: Record<string, Partial<RuleImplementationOverlayV1> & { explanation: string }> = {
+  "UNIT:unit-engineers": {
+    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: "MISSING_CANONICAL_PRICE",
+    parameters: {
+      implementedSubset: ["FS", "MOVEMENT", "REPAIR_ACTION"],
+      missing: ["CONSTRUCTION_PROJECTS"],
+    },
+    explanation: "The V5 Engineer Repair vertical now restores one vehicle Hit or one subsystem for one Small Supply.",
+  },
   "UNIT:unit-heavy-air-transport": {
     implementationStatus: "PARTIAL", executable: false, handlerId: null,
     reasonCode: "CP_201_CATALOGUE_HANDLER_CUTOVER_PENDING",
@@ -901,6 +911,7 @@ function buildOverlays(snapshot: LegacyCatalogueSnapshot): RuleImplementationOve
       ...changes,
       parameters: {
         ...base.parameters,
+        ...(changes.parameters ?? {}),
         publicationCorrection: {
           reason: explanation,
           seedOverlay,

@@ -5,6 +5,8 @@ import type {
   ConstructionProfile,
   ConstructionProjectState,
   DurabilityProfile,
+  EngineerRepairChoice,
+  EngineerRepairProfile,
   FactionSide,
   HealingProfile,
   MovementProfile,
@@ -248,6 +250,100 @@ export function resolveHealing(input: HealingInput): HealingResult {
     targetHealthAfter: target.currentHealth + amount,
     supplySpent: profile.supplyCost,
     supplyAfter: input.supplyAvailable - profile.supplyCost,
+  };
+}
+
+export interface EngineerRepairParticipant {
+  id: string;
+  side: FactionSide;
+  healthModel: DurabilityProfile["model"];
+  currentHealth: number;
+  maximumHealth: number;
+  subsystems: SubsystemState[];
+}
+
+export interface EngineerRepairInput {
+  profile: EngineerRepairProfile;
+  engineer: Pick<EngineerRepairParticipant, "id" | "side">;
+  target: EngineerRepairParticipant;
+  distance: number;
+  supplyAvailable: number;
+  choice: EngineerRepairChoice;
+}
+
+export interface EngineerRepairResult {
+  legal: boolean;
+  reason?: string;
+  choice: EngineerRepairChoice;
+  targetHealthAfter: number;
+  subsystemsAfter: SubsystemState[];
+  supplySpent: number;
+  supplyAfter: number;
+}
+
+export function resolveEngineerRepair(input: EngineerRepairInput): EngineerRepairResult {
+  const subsystemsAfter = input.target.subsystems.map((subsystem) => ({ ...subsystem }));
+  const rejected = (reason: string): EngineerRepairResult => ({
+    legal: false,
+    reason,
+    choice: input.choice,
+    targetHealthAfter: input.target.currentHealth,
+    subsystemsAfter,
+    supplySpent: 0,
+    supplyAfter: input.supplyAvailable,
+  });
+  if (
+    !validNonNegative(input.profile.maximumRange) ||
+    !Number.isInteger(input.profile.hitRepair) || input.profile.hitRepair <= 0 ||
+    !Number.isInteger(input.profile.supplyCost) || input.profile.supplyCost < 0
+  ) {
+    return rejected("Engineer repair profile is invalid.");
+  }
+  if (
+    !validNonNegative(input.distance) ||
+    !Number.isInteger(input.supplyAvailable) || input.supplyAvailable < 0 ||
+    !validNonNegative(input.target.currentHealth) ||
+    !validNonNegative(input.target.maximumHealth) ||
+    input.target.maximumHealth <= 0 ||
+    input.target.currentHealth > input.target.maximumHealth
+  ) {
+    return rejected("Engineer repair state is invalid.");
+  }
+  if (input.profile.requiresFriendlyTarget && input.engineer.side !== input.target.side) {
+    return rejected("Repair target is not friendly.");
+  }
+  if (input.engineer.id === input.target.id) return rejected("Engineers cannot repair themselves as a vehicle target.");
+  if (!input.profile.targetHealthModels.includes(input.target.healthModel)) return rejected("Repair target is not a vehicle.");
+  if (input.target.currentHealth <= 0) return rejected("Destroyed targets cannot be repaired.");
+  if (input.distance > input.profile.maximumRange) return rejected("Repair target is out of range.");
+  if (input.supplyAvailable < input.profile.supplyCost) return rejected("Engineer repair requires one Small Supply.");
+
+  const choice = input.choice;
+  if (choice.kind === "HIT") {
+    if (input.target.currentHealth >= input.target.maximumHealth) return rejected("Target has no lost Hit to repair.");
+    return {
+      legal: true,
+      choice,
+      targetHealthAfter: Math.min(input.target.maximumHealth, input.target.currentHealth + input.profile.hitRepair),
+      subsystemsAfter,
+      supplySpent: input.profile.supplyCost,
+      supplyAfter: input.supplyAvailable - input.profile.supplyCost,
+    };
+  }
+
+  const subsystem = subsystemsAfter.find((candidate) => candidate.subsystemId === choice.subsystemId);
+  if (!subsystem) return rejected("Repair subsystem does not exist.");
+  if (subsystem.state === "OPERATIONAL") return rejected("Repair subsystem is already operational.");
+  subsystem.state = "OPERATIONAL";
+  delete subsystem.damageSourceId;
+  delete subsystem.damagedRound;
+  return {
+    legal: true,
+    choice,
+    targetHealthAfter: input.target.currentHealth,
+    subsystemsAfter,
+    supplySpent: input.profile.supplyCost,
+    supplyAfter: input.supplyAvailable - input.profile.supplyCost,
   };
 }
 

@@ -200,6 +200,8 @@ export function buildEffectiveUnit(input: EffectiveUnitBuildInput): EffectiveUni
     refitInstanceIds: refits.map((item) => item.instanceId),
     ammunition,
     cooldowns: Object.fromEntries(Object.entries(input.cooldowns ?? {}).sort(([left], [right]) => compareCodePoints(left, right))),
+    subsystems: input.playerUnit?.subsystems?.map((subsystem) => ({ ...subsystem }))
+      .sort((left, right) => compareCodePoints(left.subsystemId, right.subsystemId)),
   };
   const sourceHash = hashSeed(canonicalJson(source)).toString(16).padStart(8, "0");
   return { valid: true, errors, warnings, unit: { ...source, sourceHash } };

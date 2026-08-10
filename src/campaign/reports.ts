@@ -31,6 +31,7 @@ const supportEvents = new Set([
   "WEAPON_RELOADED",
   "MEDICAL_SUPPLY_RELOADED",
   "UNIT_HEALED",
+  "UNIT_REPAIRED",
   "HEX_SCANNED",
   "DRONE_DEPLOYED",
   "STRUCTURE_COMPLETED",
@@ -158,6 +159,10 @@ export function describeCampaignReportEvent(
       return `${actor} restored Medical Supply to ${numberValue(payload.medicalSupplyAfter)}.`;
     case "UNIT_HEALED":
       return `${actor} restored ${numberValue(payload.amount)} strength to ${target}.`;
+    case "UNIT_REPAIRED":
+      return payload.repairKind === "SUBSYSTEM"
+        ? `${actor} restored ${String(payload.subsystemId ?? "a subsystem")} on ${target}.`
+        : `${actor} restored one Hit to ${target} (${numberValue(payload.before)} → ${numberValue(payload.after)}).`;
     case "HEX_SCANNED":
       return `${actor} scanned hex ${coordLabel(payload.targetHex) ?? "unknown"}.`;
     case "DRONE_DEPLOYED":

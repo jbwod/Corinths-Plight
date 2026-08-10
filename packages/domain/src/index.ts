@@ -268,6 +268,21 @@ export interface HealingProfile {
   handlerId?: string;
 }
 
+export type EngineerRepairChoice =
+  | { kind: "HIT" }
+  | { kind: "SUBSYSTEM"; subsystemId: string };
+
+export interface EngineerRepairProfile {
+  id: string;
+  maximumRange: number;
+  requiresFriendlyTarget: boolean;
+  targetHealthModels: HealthModel[];
+  hitRepair: number;
+  supplyType: "SMALL_SUPPLY";
+  supplyCost: number;
+  handlerId?: string;
+}
+
 export interface ConstructionProfile {
   id: string;
   progressRequired: number;
@@ -500,6 +515,7 @@ export interface EffectiveUnit {
   refitInstanceIds: string[];
   ammunition: Record<string, number>;
   cooldowns: Record<string, number>;
+  subsystems?: SubsystemState[];
   sourceHash: string;
 }
 
@@ -794,6 +810,7 @@ export type CampaignEventType =
   | "AIR_DROP_FAILED"
   | "WEAPON_RELOADED"
   | "UNIT_HEALED"
+  | "UNIT_REPAIRED"
   | "MEDICAL_SUPPLY_RELOADED"
   | "HEX_SCANNED"
   | "DRONE_DEPLOYED"

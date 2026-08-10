@@ -67,6 +67,40 @@ describe("campaign order request contracts", () => {
     }).actions).toEqual([{ type: "RELOAD" }]);
   });
 
+  it("accepts only the explicit Engineer Repair choices", () => {
+    expect(parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-allied-engineers",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{
+        type: "REPAIR",
+        targetDeploymentId: "deployment-allied-tank",
+        payload: { repairKind: "HIT" },
+      }],
+    }).actions).toEqual([{
+      type: "REPAIR",
+      targetDeploymentId: "deployment-allied-tank",
+      payload: { repairKind: "HIT" },
+    }]);
+
+    expect(parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-allied-engineers",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{
+        type: "REPAIR",
+        targetDeploymentId: "deployment-allied-tank",
+        payload: { repairKind: "SUBSYSTEM", subsystemId: "mobility" },
+      }],
+    }).actions).toEqual([{
+      type: "REPAIR",
+      targetDeploymentId: "deployment-allied-tank",
+      payload: { repairKind: "SUBSYSTEM", subsystemId: "mobility" },
+    }]);
+  });
+
   it.each([
     ["unknown order field", { unitId: "unit-1", orderType: "HOLD", facing: 0, economy: "STANDARD" }],
     ["invalid campaign version", { unitId: "unit-1", orderType: "HOLD", facing: 0, expectedCampaignVersion: 0 }],
@@ -92,6 +126,22 @@ describe("campaign order request contracts", () => {
       orderType: "HOLD",
       facing: 0,
       actions: [{ type: "HEAL", targetDeploymentId: "unit-2", amount: 99 }],
+    }],
+    ["Engineer Repair without target", {
+      unitId: "unit-1", orderType: "HOLD", facing: 0,
+      actions: [{ type: "REPAIR", payload: { repairKind: "HIT" } }],
+    }],
+    ["Engineer Repair without choice", {
+      unitId: "unit-1", orderType: "HOLD", facing: 0,
+      actions: [{ type: "REPAIR", targetDeploymentId: "unit-2" }],
+    }],
+    ["subsystem Repair without subsystem", {
+      unitId: "unit-1", orderType: "HOLD", facing: 0,
+      actions: [{ type: "REPAIR", targetDeploymentId: "unit-2", payload: { repairKind: "SUBSYSTEM" } }],
+    }],
+    ["client-authored Repair amount", {
+      unitId: "unit-1", orderType: "HOLD", facing: 0,
+      actions: [{ type: "REPAIR", targetDeploymentId: "unit-2", payload: { repairKind: "HIT", amount: 99 } }],
     }],
     ["invalid facing", { unitId: "unit-1", orderType: "HOLD", facing: 6 }],
     ["invalid round", { unitId: "unit-1", round: 0, orderType: "HOLD", facing: 0 }],

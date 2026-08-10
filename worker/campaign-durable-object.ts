@@ -258,6 +258,9 @@ export class CampaignDurableObject extends DurableObject<Env> {
         allowedActions: snapshotActions.filter((action) => execution.allowedActionTypes.includes(action)) as CampaignDeployment["allowedActions"],
         allowedOrders: snapshotOrders.filter((order) => execution.allowedOrderTypes.includes(order)) as CampaignDeployment["allowedOrders"],
         abilities: Array.isArray(snapshot.abilities) ? snapshot.abilities as CampaignDeployment["abilities"] : [],
+        subsystems: Array.isArray(snapshot.subsystems)
+          ? snapshot.subsystems as CampaignDeployment["subsystems"]
+          : [],
         supplies: snapshot.supplies && typeof snapshot.supplies === "object"
           ? snapshot.supplies as CampaignDeployment["supplies"]
           : {},
@@ -424,6 +427,22 @@ export class CampaignDurableObject extends DurableObject<Env> {
             current_quantity = MIN(maximum_quantity, ?1), revision = revision + 1,
             updated_at = unixepoch() WHERE player_unit_id = ?2 AND resource_type = ?3`)
             .bind(amount, effect.unitId, resourceType));
+        }
+        const subsystems = Array.isArray(effect.payload.subsystems)
+          ? effect.payload.subsystems as Array<Record<string, unknown>>
+          : [];
+        for (const subsystem of subsystems) {
+          if (
+            typeof subsystem.subsystemId !== "string" ||
+            !["OPERATIONAL", "DAMAGED", "DISABLED"].includes(String(subsystem.state))
+          ) continue;
+          statements.push(this.env.DB.prepare(`UPDATE player_unit_subsystems SET
+            state=?1,damaged_campaign_id=CASE WHEN ?1='OPERATIONAL' THEN NULL ELSE ?2 END,
+            damaged_round=CASE WHEN ?1='OPERATIONAL' THEN NULL ELSE ?3 END,
+            repaired_at=CASE WHEN ?1='OPERATIONAL' THEN unixepoch() ELSE repaired_at END,
+            revision=revision+1,updated_at=unixepoch()
+            WHERE player_unit_id=?4 AND subsystem_type=?5 AND state<>?1`)
+            .bind(subsystem.state, campaignId, round, effect.unitId, subsystem.subsystemId));
         }
         const cargo = Array.isArray(effect.payload.cargo) ? effect.payload.cargo as Array<Record<string, unknown>> : [];
         statements.push(this.env.DB.prepare(`DELETE FROM unit_cargo_items
@@ -705,6 +724,30 @@ export class CampaignDurableObject extends DurableObject<Env> {
       )
     ) {
       return errorResponse(422, "TARGET_NOT_VISIBLE", "The target is not present in the unit's current battlefield intelligence.");
+    }
+    for (const action of [...actions, ...incidentalActions]) {
+      if (action.type !== "REPAIR") continue;
+      const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+      const repairKind = action.payload?.repairKind;
+      const subsystemId = action.payload?.subsystemId;
+      if (!execution.legacyDefinition.tags.includes("ENGINEER")) {
+        return errorResponse(422, "REPAIR_INELIGIBLE", "Engineer Repair requires an Engineer unit.");
+      }
+      if (!target || target.side !== deployment.side || target.status === "DESTROYED" || target.stats.healthModel !== "HITS") {
+        return errorResponse(422, "REPAIR_TARGET_INVALID", "Engineer Repair requires a friendly operational vehicle.");
+      }
+      if ((deployment.supplies?.SMALL_SUPPLY ?? 0) < 1) {
+        return errorResponse(422, "REPAIR_SUPPLY_REQUIRED", "Engineer Repair requires one Small Supply.");
+      }
+      if (repairKind === "HIT" && target.currentHealth >= target.stats.maxHealth) {
+        return errorResponse(422, "REPAIR_NOT_REQUIRED", "The target has no lost Hit to repair.");
+      }
+      if (
+        repairKind === "SUBSYSTEM" &&
+        !target.subsystems?.some((subsystem) => subsystem.subsystemId === subsystemId && subsystem.state !== "OPERATIONAL")
+      ) {
+        return errorResponse(422, "REPAIR_SUBSYSTEM_INVALID", "The selected subsystem is not damaged.");
+      }
     }
     for (const action of actions) {
       if (action.type !== "ATTACK" || !action.targetDeploymentId) continue;
