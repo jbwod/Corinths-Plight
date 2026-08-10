@@ -107,6 +107,9 @@ function formatEvent(event: CampaignEvent): string {
   const payload = event.payload as Record<string, unknown>;
   if (typeof payload.summary === "string") return payload.summary;
   if (event.type === "ORDER_SUBMITTED") return `Order ${String(payload.lifecycle ?? "saved").toLowerCase()} for ${event.actor ?? "unit"}.`;
+  if (event.type === "ENEMY_INTENTION_DECLARED") return typeof payload.targetId === "string"
+    ? `${event.actor ?? "Enemy formation"} declared ${String(payload.orderType ?? "combat")} against ${payload.targetId}.`
+    : `${event.actor ?? "Enemy formation"} advanced toward ${String(payload.objectiveId ?? "the primary objective")}.`;
   if (event.type === "UNIT_MOVED") return `${event.actor ?? "Unit"} completed its plotted movement.`;
   if (event.type === "UNIT_BLOCKED") {
     const increment = typeof payload.distanceIncrement === "number" ? ` after ${payload.distanceIncrement} distance` : "";

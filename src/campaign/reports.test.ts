@@ -50,6 +50,19 @@ describe("campaign reports", () => {
     expect(campaignReportGroup(event("OBJECTIVE_CAPTURED"))).toBe("OBJECTIVES");
     expect(campaignReportGroup(event("ORDER_REJECTED"))).toBe("COMMAND");
     expect(campaignReportGroup(event("ENEMY_REINFORCEMENTS_ARRIVED"))).toBe("OBJECTIVES");
+    expect(campaignReportGroup(event("ENEMY_INTENTION_DECLARED"))).toBe("COMMAND");
+  });
+
+  it("describes a projected enemy intention without inferring hidden formations", () => {
+    expect(describeCampaignReportEvent(event("ENEMY_INTENTION_DECLARED", {
+      orderType: "ADVANCE",
+      targetId: "dep-tank",
+      targetPreference: "VEHICLE",
+      destination: { q: 1, r: 0 },
+    }, "dep-heavy"), new Map([
+      ["dep-heavy", "BEHEMOTH"],
+      ["dep-tank", "IRON-1"],
+    ]))).toBe("BEHEMOTH declared an advance intention against IRON-1 prioritising vehicle via hex 1.0.");
   });
 
   it("uses projected deployment callsigns in human-readable entries", () => {

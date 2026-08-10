@@ -133,6 +133,16 @@ export function describeCampaignReportEvent(
       : "the objective";
 
   switch (String(event.type)) {
+    case "ENEMY_INTENTION_DECLARED": {
+      const destination = coordLabel(payload.destination);
+      const preference = typeof payload.targetPreference === "string"
+        ? ` prioritising ${payload.targetPreference.toLowerCase()}`
+        : "";
+      if (targetId) {
+        return `${actor} declared an ${String(payload.orderType ?? "attack").toLowerCase()} intention against ${target}${preference}${destination ? ` via hex ${destination}` : ""}.`;
+      }
+      return `${actor} advanced toward ${objective}${destination ? ` at hex ${destination}` : ""}.`;
+    }
     case "UNIT_MOVED": {
       const destination = coordLabel(payload.to);
       return `${actor} moved${destination ? ` to hex ${destination}` : " along its plotted route"}.`;

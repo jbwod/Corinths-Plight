@@ -309,6 +309,21 @@ export function resolveRound(input: RoundInput): RoundOutput {
     validOrders.set(order.unitId, order);
   }
 
+  for (const order of validOrders.values()) {
+    if (!order.enemyIntent) continue;
+    event("ENEMY_INTENTION_DECLARED", order.unitId, {
+      orderId: order.id,
+      orderType: order.orderType,
+      doctrineDefinitionId: order.enemyIntent.doctrineDefinitionId,
+      factionId: order.enemyIntent.factionId,
+      targetPreference: order.enemyIntent.targetPreference,
+      allocation: order.enemyIntent.allocation,
+      objectiveId: order.enemyIntent.objectiveId,
+      targetId: order.targets[0],
+      destination: order.endHex,
+    });
+  }
+
   for (const deployment of state.deployments) {
     deployment.cooldowns = tickCooldowns(deployment.cooldowns);
   }

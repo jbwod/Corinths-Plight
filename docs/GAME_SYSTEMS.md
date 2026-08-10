@@ -185,13 +185,13 @@ An accepted foundation order identifies Hold/Advance/Rush, route/end position, f
 
 ### 3.3 Enemy Intentions Phase
 
-Enemy intentions use the same foundation order grammar and resolver validation. The current deterministic doctrine selects visible targets, prefers vehicles when an enemy has AP, breaks ties by distance then stable ID, and produces Hold/Advance plus an optional Attack. The fuller canonical V5 policy is:
+Enemy intentions use the same generated foundation order grammar and resolver validation as player orders. Each enemy deployment materializes its published @2 faction doctrine. It selects visible legal targets, uses authored target and order preferences, prioritizes vehicles for AP-capable/vehicle-priority profiles, spreads attacks across equally preferred eligible targets before reusing one, then breaks ties by distance and Unicode code-point identifier. If no target is visible, it advances toward the scenario policy's primary objective rather than a hard-coded map ID. The resolver records a fog-projected intention event before movement. The active V5 policy is:
 
 1. AP-capable enemy attacks prefer vehicle targets.
 2. Infantry attacks prefer infantry targets, then progressively heavier targets.
 3. Enemy attacks are spread across eligible targets rather than stacked where possible.
 
-Ties in the canonical policy must be resolved deterministically by scenario AI policy, then stable unit ID (`RC-V5-020`). Round-robin fire spreading and large-game automatic player targeting are not yet implemented.
+Ties in the canonical policy are resolved by the target's current allocation count, distance, then stable identifier (`RC-V5-020`). Formation cohesion, retreat, supply-aware choices, difficulty profiles and large-game automatic player targeting are not yet implemented; no unsourced threshold is inferred from the catalogue's descriptive aggression value.
 
 ### 3.4 Movement and interactions
 
@@ -480,6 +480,6 @@ Activation requires updating this document and the conflict register in the same
 
 ## 9. Verification baseline
 
-At the current local reconciliation point, the full root suite passes **53 test files / 404 tests** (the committed Phase-0 baseline was 32/201). Coverage includes deterministic tactical and strategic helpers, quarter-distance simultaneous movement, generated terrain/structure cover, multiweapon activations, Evasive movement/combat modifiers, redaction, routes/LOS/capacity, combat/ammo/cooldowns, force/auth APIs, campaign contracts, strategic adapters/coordinator boundaries, effective-unit construction, deployment/cargo validation, and migrated equipment/support-action paths. The separate Playwright gameplay baseline passes 5/5 locally, including join/deploy, executable-action coverage, First Aid, Medic field resupply, Engineer vehicle Repair, Artillery deployment and Bombardment, all four K-17 rounds, durable outcome/debrief projection, and a 390px overflow check.
+At the current local reconciliation point, the full root suite passes **55 test files / 412 tests** (the committed Phase-0 baseline was 32/201). Coverage includes deterministic tactical and strategic helpers, quarter-distance simultaneous movement, generated terrain/structure cover, multiweapon activations, Evasive movement/combat modifiers, published enemy-doctrine materialization and permutation-stable target spreading, redaction, routes/LOS/capacity, combat/ammo/cooldowns, force/auth APIs, campaign contracts, strategic adapters/coordinator boundaries, effective-unit construction, deployment/cargo validation, and migrated equipment/support-action paths. The separate Playwright gameplay baseline passes 5/5 locally, including join/deploy, executable-action coverage, First Aid, Medic field resupply, Engineer vehicle Repair, Artillery deployment and Bombardment, all four K-17 rounds, durable outcome/debrief projection, and a 390px overflow check.
 
 This passing baseline proves only the foundation capabilities named in section 1.3. It does not make catalogue-only or foundation-deferred canonical systems executable.

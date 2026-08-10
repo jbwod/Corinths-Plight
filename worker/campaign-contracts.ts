@@ -44,11 +44,20 @@ const orderLifecycles = new Set(["DRAFT", "SUBMITTED", "LOCKED", "RESOLVING", "R
 const sides = new Set(["ALLIED", "ENEMY", "NEUTRAL"]);
 const deploymentStatuses = new Set(["READY", "ACTIVE", "IMMOBILISED", "DESTROYED", "WITHDRAWN"]);
 const eventVisibilities = new Set(["PUBLIC", "ALLIED", "ENEMY", "ADMIN"]);
+const enemyTargetPreferences = new Set([
+  "PERSONNEL",
+  "VEHICLE",
+  "OBJECTIVE",
+  "STRUCTURE",
+  "LOGISTICS",
+  "AEROSPACE",
+]);
 const eventTypes = new Set([
   "ROUND_STARTED",
   "ORDER_SUBMITTED",
   "ORDER_REJECTED",
   "ORDER_LOCKED",
+  "ENEMY_INTENTION_DECLARED",
   "UNIT_MOVED",
   "UNIT_BLOCKED",
   "UNIT_DUG_IN",
@@ -777,6 +786,29 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     stateStringArray(order.targets, `${path}.targets`);
     stateStringArray(order.equipmentUsed, `${path}.equipmentUsed`);
     stateNumericRecord(order.ammoUsed, `${path}.ammoUsed`);
+    if (order.enemyIntent !== undefined) {
+      const enemyIntentPath = `${path}.enemyIntent`;
+      const enemyIntent = stateRecord(order.enemyIntent, enemyIntentPath);
+      stateOnlyKeys(
+        enemyIntent,
+        ["doctrineDefinitionId", "factionId", "targetPreference", "allocation", "objectiveId"],
+        enemyIntentPath,
+      );
+      stateString(enemyIntent.doctrineDefinitionId, `${enemyIntentPath}.doctrineDefinitionId`);
+      stateString(enemyIntent.factionId, `${enemyIntentPath}.factionId`);
+      if (
+        enemyIntent.targetPreference !== undefined &&
+        (typeof enemyIntent.targetPreference !== "string" || !enemyTargetPreferences.has(enemyIntent.targetPreference))
+      ) {
+        stateFail(`${enemyIntentPath}.targetPreference`, "invalid enemy target preference");
+      }
+      if (enemyIntent.allocation !== "SPREAD_BY_PRIORITY") {
+        stateFail(`${enemyIntentPath}.allocation`, "invalid enemy target allocation");
+      }
+      if (enemyIntent.objectiveId !== undefined) {
+        stateString(enemyIntent.objectiveId, `${enemyIntentPath}.objectiveId`);
+      }
+    }
     stateString(order.submittedBy, `${path}.submittedBy`);
     stateNumber(order.submittedAt, `${path}.submittedAt`, 0);
   }

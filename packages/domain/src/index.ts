@@ -718,6 +718,24 @@ export type OrderLifecycle =
   | "FAILED"
   | "CANCELLED";
 export type OrderType = "HOLD" | "ADVANCE" | "RUSH" | "EVASIVE" | "MELEE_CHARGE" | "STEALTH";
+export type EnemyTargetPreference =
+  | "PERSONNEL"
+  | "VEHICLE"
+  | "OBJECTIVE"
+  | "STRUCTURE"
+  | "LOGISTICS"
+  | "AEROSPACE";
+
+export interface EnemyDoctrineProfileV1 {
+  schemaVersion: 1;
+  definitionId: string;
+  factionId: string;
+  preferredTargets: EnemyTargetPreference[];
+  preferredOrderTypes: OrderType[];
+  aggression: number | null;
+  role: string | null;
+  vehiclePriority: boolean;
+}
 export type ActionType =
   | "ATTACK"
   | "ASSAULT"
@@ -773,6 +791,13 @@ export interface UnitOrder {
   ammoUsed: Record<string, number>;
   incidentalActions: StructuredAction[];
   optionalRoleplayText?: string;
+  enemyIntent?: {
+    doctrineDefinitionId: string;
+    factionId: string;
+    targetPreference?: EnemyTargetPreference;
+    allocation: "SPREAD_BY_PRIORITY";
+    objectiveId?: string;
+  };
   submittedBy: string;
   submittedAt: number;
 }
@@ -810,6 +835,7 @@ export type CampaignEventType =
   | "ORDER_SUBMITTED"
   | "ORDER_REJECTED"
   | "ORDER_LOCKED"
+  | "ENEMY_INTENTION_DECLARED"
   | "UNIT_MOVED"
   | "UNIT_BLOCKED"
   | "UNIT_DUG_IN"

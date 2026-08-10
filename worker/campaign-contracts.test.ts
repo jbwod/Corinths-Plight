@@ -251,6 +251,25 @@ describe("versioned campaign Durable Object storage", () => {
     expect(parseCampaignStoredState(stored, CAMPAIGN_ID)).toEqual({ state, legacy: false });
   });
 
+  it("round-trips server-authored enemy intentions and rejects unknown doctrine fields", () => {
+    const state = fixture();
+    state.orders[0]!.enemyIntent = {
+      doctrineDefinitionId: "enemy-bug-heavy",
+      factionId: "bug-swarm",
+      targetPreference: "VEHICLE",
+      allocation: "SPREAD_BY_PRIORITY",
+      objectiveId: "objective-outpost",
+    };
+    expect(parseCampaignStoredState(encodeCampaignStoredState(state), CAMPAIGN_ID)).toEqual({
+      state,
+      legacy: false,
+    });
+
+    const malformed = structuredClone(state);
+    (malformed.orders[0]!.enemyIntent as unknown as Record<string, unknown>).retreatThreshold = 0.5;
+    expect(() => encodeCampaignStoredState(malformed)).toThrow(/enemyIntent.*unknown fields/);
+  });
+
   it("round-trips authored reserve waves without exposing an invalid deployment shape", () => {
     const state = createScenarioCampaignState({
       mapSourceKey: "fixture/outpost-k17",
