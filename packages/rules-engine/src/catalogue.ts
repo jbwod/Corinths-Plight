@@ -8,6 +8,7 @@ import type {
   WeaponProfile,
 } from "../../domain/src";
 import { RULESET_VERSION } from "../../domain/src";
+import { getTacticalActionRule, getTacticalOrderRule } from "./tactical-grammar";
 
 const v5 = (section: string) => `Meta - Core Rules (V5).md — ${section}`;
 const slots = (primary = 0, secondary = 0, internal = 0) => ({ primary, secondary, internal });
@@ -396,11 +397,26 @@ export function getUnitClass(id: string): UnitClassDefinition {
 export function getOrderTypeDefinition(orderType: OrderType): OrderTypeRuleDefinition {
   const definition = orderTypeDefinitions.find((candidate) => candidate.orderType === orderType);
   if (!definition) throw new Error(`Unknown order type: ${orderType}`);
-  return definition;
+  const governed = getTacticalOrderRule(orderType);
+  return {
+    ...definition,
+    id: governed.id,
+    executable: governed.executable,
+    rulesetVersion: governed.catalogueRulesetVersion,
+  };
 }
 
 export function getActionDefinition(actionType: ActionType): ActionRuleDefinition {
   const definition = actionDefinitions.find((candidate) => candidate.actionType === actionType);
   if (!definition) throw new Error(`Unknown action type: ${actionType}`);
-  return definition;
+  const governed = getTacticalActionRule(actionType);
+  return {
+    ...definition,
+    id: governed.id,
+    economy: governed.economy,
+    speedCost: governed.speedCost,
+    usesAttack: governed.usesAttack,
+    executable: governed.executable,
+    rulesetVersion: governed.catalogueRulesetVersion,
+  };
 }

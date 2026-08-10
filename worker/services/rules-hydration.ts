@@ -10,8 +10,8 @@ import type {
 } from "../../packages/domain/src";
 import {
   createRulesCatalogueRuntime,
-  getActionDefinition,
-  getOrderTypeDefinition,
+  getTacticalActionRule,
+  getTacticalOrderRule,
   getUnitClass,
   hydrateGovernedCargoProfile,
   hydrateGovernedSupplyProfile,
@@ -289,7 +289,7 @@ function executableLegacyActions(
 ): Array<{ type: UnitClassDefinition["allowedActions"][number]; id: string }> {
   return definition.allowedActions.flatMap((type) => {
     try {
-      const id = getActionDefinition(type as Parameters<typeof getActionDefinition>[0]).id;
+      const id = getTacticalActionRule(type as Parameters<typeof getTacticalActionRule>[0], mode).id;
       const decision = serverRulesCatalogueRuntime.decide("ACTION", id, mode);
       return decision.availability.allowed && decision.executability.allowed ? [{ type, id }] : [];
     } catch {
@@ -304,7 +304,7 @@ function executableLegacyOrders(
 ): Array<{ type: UnitClassDefinition["allowedOrders"][number]; id: string }> {
   return definition.allowedOrders.flatMap((type) => {
     try {
-      const id = getOrderTypeDefinition(type as Parameters<typeof getOrderTypeDefinition>[0]).id;
+      const id = getTacticalOrderRule(type as Parameters<typeof getTacticalOrderRule>[0], mode).id;
       const decision = serverRulesCatalogueRuntime.decide("ORDER", id, mode);
       return decision.availability.allowed && decision.executability.allowed ? [{ type, id }] : [];
     } catch {
@@ -427,7 +427,7 @@ export function resolveUnitRulesAuthority(
   ]);
   const linkedOrderIds = legacyDefinition
     ? sortedUnique(legacyDefinition.allowedOrders.flatMap((type) => {
-      try { return [getOrderTypeDefinition(type as Parameters<typeof getOrderTypeDefinition>[0]).id]; }
+      try { return [getTacticalOrderRule(type as Parameters<typeof getTacticalOrderRule>[0], mode).id]; }
       catch { return []; }
     }))
     : [];

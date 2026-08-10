@@ -14,5 +14,6 @@ export * from "./scenario";
 export * from "./specialists";
 export * from "./strategic";
 export * from "./supply-profile-hydration";
+export * from "./tactical-grammar";
 export * from "./tactical-supply";
 export * from "./visibility";

@@ -11,8 +11,8 @@ import type {
 import {
   createDemoCampaignState,
   canTarget,
-  getActionDefinition,
-  getOrderTypeDefinition,
+  getTacticalActionRule,
+  getTacticalOrderRule,
   projectCampaignState,
   resolveRound,
   validateOrder,
@@ -482,7 +482,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
     return input.slice(0, 16).map((candidate, index) => {
       if (!candidate.type || !allowedActionTypes.has(candidate.type)) throw new Error("Unknown action type.");
       if (!allowedActions.has(candidate.type)) throw new Error("Unit class is not eligible for this action.");
-      const definition = getActionDefinition(candidate.type);
+      const definition = getTacticalActionRule(candidate.type);
       if (!definition.executable) throw new Error("Action is catalogued but not executable in this engine version.");
       if (candidate.weaponId && !deploymentWeaponIds.has(candidate.weaponId)) {
         throw new Error("Action references a weapon not fitted to the unit.");
@@ -549,7 +549,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
     if (!governedOrders.includes(intent.orderType as UnitOrder["orderType"])) {
       return errorResponse(422, "ORDER_INELIGIBLE", "This unit class cannot use that order type.");
     }
-    if (!getOrderTypeDefinition(intent.orderType as UnitOrder["orderType"]).executable) {
+    if (!getTacticalOrderRule(intent.orderType as UnitOrder["orderType"]).executable) {
       return errorResponse(422, "ORDER_NOT_EXECUTABLE", "This order is catalogued but not executable in the current engine version.");
     }
     const route = intent.route?.slice(0, MAX_ROUTE_LENGTH) ?? [deployment.position];

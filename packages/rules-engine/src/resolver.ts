@@ -17,7 +17,7 @@ import {
 import { cargoSlotsForItem, disembarkCargo, embarkCargo, reloadAmmunition } from "./logistics";
 import { resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
 import { createSeededRandom, hashSeed } from "./rng";
-import { getActionDefinition, getOrderTypeDefinition } from "./catalogue";
+import { getTacticalActionRule, getTacticalOrderRule } from "./tactical-grammar";
 import { evaluateScenarioRoundEnd } from "./scenario";
 
 export const ENGINE_VERSION = "foundation-0.1.0";
@@ -48,7 +48,7 @@ export function validateOrder(
   if (order.route.length === 0 || !sameCoord(order.route[0], order.startHex)) reasons.push("Route must begin at startHex.");
   if (!sameCoord(order.route.at(-1) ?? order.startHex, order.endHex)) reasons.push("Route must end at endHex.");
   if (order.orderType === "HOLD" && order.route.length > 1) reasons.push("HOLD cannot include movement.");
-  const orderDefinition = getOrderTypeDefinition(order.orderType);
+  const orderDefinition = getTacticalOrderRule(order.orderType);
   if (!orderDefinition.executable) {
     reasons.push(`${order.orderType.replaceAll("_", " ")} is catalogued but not executable in this engine version.`);
   }
@@ -64,7 +64,7 @@ export function validateOrder(
   for (const action of [...order.actions, ...order.incidentalActions]) {
     let definition;
     try {
-      definition = getActionDefinition(action.type);
+      definition = getTacticalActionRule(action.type);
     } catch {
       reasons.push(`${action.type.replaceAll("_", " ")} has no active rules definition.`);
       continue;

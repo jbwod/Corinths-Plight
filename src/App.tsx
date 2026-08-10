@@ -12,8 +12,8 @@ import {
   FACING_LABELS,
   calculateRouteCost,
   createDemoCampaignState,
+  getTacticalOrderRule,
   getUnitClass,
-  getOrderTypeDefinition,
   hexDistance,
   projectCampaignState,
   shortestPath,
@@ -216,6 +216,7 @@ function GameApp() {
   const selectedUnit =
     ownUnits.find((deployment) => deployment.id === selectedUnitId) ?? ownUnits.find((unit) => unit.status !== "DESTROYED");
   const selectedDefinition = selectedUnit ? getUnitClass(selectedUnit.definitionId) : undefined;
+  const selectedAllowedOrders = selectedUnit?.allowedOrders ?? selectedDefinition?.allowedOrders ?? [];
   const targetUnit = campaign.deployments.find((deployment) => deployment.id === targetUnitId);
   const selectedWeapon = selectedUnit?.weapons.find((weapon) => weapon.id === selectedWeaponId) ?? selectedUnit?.weapons[0];
   const currentOrder = campaign.orders.find(
@@ -581,8 +582,8 @@ function GameApp() {
                   <button disabled aria-label="Future scheduling unavailable">+</button>
                 </div>
                 <div className="order-types">
-                  {selectedDefinition.allowedOrders.map((type) => {
-                    const definition = getOrderTypeDefinition(type as OrderType);
+                  {selectedAllowedOrders.map((type) => {
+                    const definition = getTacticalOrderRule(type as OrderType);
                     return (
                     <button
                       className={orderType === type ? "active" : ""}

@@ -91,14 +91,20 @@ describe("equipment and transport actions", () => {
     expect(output.state.deployments[0].ammunition["test-ammo"]).toBe(1);
   });
 
-  it("deploys a drone at range and starts the six-round cooldown", () => {
+  it("rejects Drone until its visibility state effect is implemented", () => {
     const base = createDemoCampaignState(1_000);
     const unit = base.deployments[0];
     unit.abilities = [{ abilityId: "ability-deploy-drone", handlerId: "DEPLOY_DRONE" }];
     const orders = [order(base, unit, [action("drone", "DEPLOY_DRONE", { targetHex: { q: 0, r: 0 } })])];
     base.orders = orders;
     const output = resolveRound({ ...input(orders), previousState: base });
-    expect(output.events).toContainEqual(expect.objectContaining({ type: "DRONE_DEPLOYED", actor: unit.id }));
-    expect(output.state.deployments[0].cooldowns["ability-deploy-drone"]).toBe(6);
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "ORDER_REJECTED",
+      actor: unit.id,
+      payload: expect.objectContaining({
+        reasons: ["DEPLOY DRONE is catalogued but not executable in this engine version."],
+      }),
+    }));
+    expect(output.state.deployments[0].cooldowns["ability-deploy-drone"]).toBeUndefined();
   });
 });
