@@ -795,90 +795,104 @@ export function resolveRound(input: RoundInput): RoundOutput {
         continue;
       }
       const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
-      const weapon = attacker.weapons.find((candidate) => candidate.id === action.weaponId);
-      if (!target || !weapon) {
+      if (!target) {
         event("ORDER_REJECTED", attacker.id, {
           orderId: order.id,
           actionId: action.id,
-          reasons: [target ? "Weapon does not exist on unit." : "Target does not exist."],
+          reasons: ["Target does not exist."],
         });
         continue;
       }
-      const result = resolveAttackRoll(attacker, target, weapon, state.map, random, state.deployments);
-      if (!result.legal || !result.roll) {
-        event("ORDER_REJECTED", attacker.id, {
-          orderId: order.id,
-          actionId: action.id,
-          reasons: [result.reason ?? "Attack is illegal."],
-        });
-        continue;
-      }
-      if (result.ammoAfter !== undefined) attacker.ammunition[weapon.id] = result.ammoAfter;
-      if (result.cooldownAfter) attacker.cooldowns[weapon.id] = result.cooldownAfter;
-      event("DICE_ROLLED", attacker.id, {
-        actionId: action.id,
-        weaponId: weapon.id,
-        targetId: target.id,
-        dice: weapon.damage,
-        raw: result.roll.raw,
-        modified: result.roll.modified,
-        capped: result.roll.capped,
-        rapidFireMultiplier: result.rapidFireMultiplier,
-        damageResult: result.damageResult,
-        highGroundModifier: result.highGroundModifier,
-      });
-      const rushMultiplier = rushingUnits.has(target.id) ? 2 : 1;
-      const healthLoss = result.healthLoss * rushMultiplier;
-      event("UNIT_ATTACKED", attacker.id, {
-        actionId: action.id,
-        targetId: target.id,
-        weaponId: weapon.id,
-        armor: result.targetArmor,
-        coverArmor: result.coverArmor,
-        coverSources: result.coverSources,
-        effectiveArmor: result.effectiveArmor,
-        defense: result.targetDefense,
-        digInDefense: result.digInDefense,
-        threshold: result.threshold,
-        rearAttack: result.rearAttack,
-        penetrated: result.penetrated,
-        rushMultiplier,
-        healthLoss,
-        rapidFireMultiplier: result.rapidFireMultiplier,
-        damageResult: result.damageResult,
-        highGroundModifier: result.highGroundModifier,
-      });
-      const subsystemRules = weapon.damage.count === 1 && result.roll
-        ? getTacticalSubsystemRules(target.definitionId)
-        : undefined;
-      if (subsystemRules) {
-        const subsystemResult = resolveSubsystemDamage({
-          profile: {
-            ...subsystemRules.profile,
-            triggers: subsystemRules.profile.triggers.map((trigger) => ({
-              ...trigger,
-              requiresAttackerHealthAtLeastRoll: attacker.stats.healthModel === "FORCE_STRENGTH",
-            })),
-          },
-          definitions: subsystemRules.definitions,
-          states: pendingSubsystemStates.get(target.id) ?? target.subsystems ?? [],
-          penetrated: result.penetrated,
-          naturalRoll: result.roll.raw,
-          attackerCurrentHealth: attacker.currentHealth,
-          sourceId: attacker.id,
-          round: state.round,
-        });
-        if (subsystemResult.triggered) {
-          pendingSubsystemStates.set(target.id, subsystemResult.states);
-          pendingSubsystemEvents.push({
+      let weaponsFired = 0;
+      for (const weapon of [...attacker.weapons].sort((left, right) =>
+        left.id < right.id ? -1 : left.id > right.id ? 1 : 0
+      )) {
+        const result = resolveAttackRoll(attacker, target, weapon, state.map, random, state.deployments);
+        if (!result.legal || !result.roll) {
+          event("WEAPON_SKIPPED", attacker.id, {
+            orderId: order.id,
+            actionId: action.id,
+            weaponId: weapon.id,
             targetId: target.id,
-            sourceId: attacker.id,
-            naturalRoll: result.roll.raw,
-            affectedSubsystemIds: subsystemResult.affectedSubsystemIds,
+            reason: result.reason ?? "Weapon is not eligible for this activation.",
           });
+          continue;
         }
+        weaponsFired += 1;
+        if (result.ammoAfter !== undefined) attacker.ammunition[weapon.id] = result.ammoAfter;
+        if (result.cooldownAfter) attacker.cooldowns[weapon.id] = result.cooldownAfter;
+        event("DICE_ROLLED", attacker.id, {
+          actionId: action.id,
+          weaponId: weapon.id,
+          targetId: target.id,
+          dice: weapon.damage,
+          raw: result.roll.raw,
+          modified: result.roll.modified,
+          capped: result.roll.capped,
+          rapidFireMultiplier: result.rapidFireMultiplier,
+          damageResult: result.damageResult,
+          highGroundModifier: result.highGroundModifier,
+        });
+        const rushMultiplier = rushingUnits.has(target.id) ? 2 : 1;
+        const healthLoss = result.healthLoss * rushMultiplier;
+        event("UNIT_ATTACKED", attacker.id, {
+          actionId: action.id,
+          targetId: target.id,
+          weaponId: weapon.id,
+          armor: result.targetArmor,
+          coverArmor: result.coverArmor,
+          coverSources: result.coverSources,
+          effectiveArmor: result.effectiveArmor,
+          defense: result.targetDefense,
+          digInDefense: result.digInDefense,
+          threshold: result.threshold,
+          rearAttack: result.rearAttack,
+          penetrated: result.penetrated,
+          rushMultiplier,
+          healthLoss,
+          rapidFireMultiplier: result.rapidFireMultiplier,
+          damageResult: result.damageResult,
+          highGroundModifier: result.highGroundModifier,
+        });
+        const subsystemRules = weapon.damage.count === 1
+          ? getTacticalSubsystemRules(target.definitionId)
+          : undefined;
+        if (subsystemRules) {
+          const subsystemResult = resolveSubsystemDamage({
+            profile: {
+              ...subsystemRules.profile,
+              triggers: subsystemRules.profile.triggers.map((trigger) => ({
+                ...trigger,
+                requiresAttackerHealthAtLeastRoll: attacker.stats.healthModel === "FORCE_STRENGTH",
+              })),
+            },
+            definitions: subsystemRules.definitions,
+            states: pendingSubsystemStates.get(target.id) ?? target.subsystems ?? [],
+            penetrated: result.penetrated,
+            naturalRoll: result.roll.raw,
+            attackerCurrentHealth: attacker.currentHealth,
+            sourceId: attacker.id,
+            round: state.round,
+          });
+          if (subsystemResult.triggered) {
+            pendingSubsystemStates.set(target.id, subsystemResult.states);
+            pendingSubsystemEvents.push({
+              targetId: target.id,
+              sourceId: attacker.id,
+              naturalRoll: result.roll.raw,
+              affectedSubsystemIds: subsystemResult.affectedSubsystemIds,
+            });
+          }
+        }
+        if (healthLoss > 0) damage.set(target.id, (damage.get(target.id) ?? 0) + healthLoss);
       }
-      if (healthLoss > 0) damage.set(target.id, (damage.get(target.id) ?? 0) + healthLoss);
+      if (weaponsFired === 0) {
+        event("ORDER_REJECTED", attacker.id, {
+          orderId: order.id,
+          actionId: action.id,
+          reasons: ["No fitted weapon was eligible when the attack resolved."],
+        });
+      }
     }
   }
 

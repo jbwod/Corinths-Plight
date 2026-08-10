@@ -382,6 +382,7 @@ No new conflict ID is introduced by this overlay. Cargo, aerospace, healing, con
 
 - **Evidence:** `V5 > Combat Round` says each unit gets one attack roll, then immediately says a heavy mech with three weapons rolls three dice. `V5 > Damage` says each individual weapon must overcome mitigation.
 - **MVP disposition:** one attack activation per unit; roll once for every eligible weapon in that activation. A Primary Action/Rush consumes the whole activation.
+- **Implementation note:** the active foundation uses one declared target and derives every eligible fitted weapon server-side. Each fires once in stable identifier order; ammo, cooldown, Range and LOS are rechecked at resolution. Split fire remains inactive because the source does not define its declaration policy.
 - **Status:** `PROVISIONAL-MVP`.
 
 ### RC-V5-004 — Meaning of Evasive “-2 to attacks”

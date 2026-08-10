@@ -204,8 +204,8 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(response.status).toBe(201);
     expect(await response.json()).toMatchObject({
       order: {
-        actions: [{ targetHex: { q: -1, r: 1 } }],
-        ammoUsed: { "weapon-infantry-rifle": 1 },
+        actions: [{ targetHex: { q: -1, r: 1 }, weaponIds: ["weapon-infantry-rifle"] }],
+        ammoUsed: {},
       },
     });
   });

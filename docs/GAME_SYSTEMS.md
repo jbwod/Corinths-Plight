@@ -63,8 +63,8 @@ Canonical status MUST NOT be inferred from an implementation flag, and implement
 |---|---|---|
 | Hold, Advance, Rush | `canonical_active` | `foundation_partial`: explicit axial route, Speed budget, quarter-distance simultaneous movement, hostile blocking/contention, partial-route stops, end position/facing, and Rush attack/damage restrictions resolve; Hold applies final facing. Unpinned terrain defaults still prevent a full implementation claim. |
 | Evasive, Melee Charge, Stealth | `canonical_active`/`active_provisional` | `foundation_deferred`: structured definitions exist with `executable=false`; submission and resolver validation reject them. |
-| Attack action | `canonical_active` plus V5 rulings | `foundation_partial`: one seeded weapon Attack per unit implements FS cap, Armor/AP/Defense, axial rear calculation, range, direct LOS, indirect spotting, ammo, cooldown, Rush damage, and simultaneous commit. Rear-attack Armor bypass is not yet correctly category-scoped, and the remaining firing/melee/aerospace rules are deferred. |
-| Multiweapon attack activation | `active_provisional` (`RC-V5-003`) | `foundation_deferred`: the current order contract permits only one Attack action/weapon selection per unit. |
+| Attack action | `canonical_active` plus V5 rulings | `foundation_partial`: one server-owned Attack activation per unit fires every eligible fitted weapon once and implements FS cap, Armor/AP/Defense, governed rear effects, range, direct LOS, indirect spotting, ammo, cooldown, Rush damage, and simultaneous commit. Remaining firing-arc/melee/aerospace rules are deferred. |
+| Multiweapon attack activation | `active_provisional` (`RC-V5-003`) | `foundation_executable`: the player declares one target; the server deterministically derives and revalidates every participating fitted weapon, then resolves each eligible weapon once in stable identifier order. Ineligible weapons emit an auditable skip event. Split fire is not active. |
 | Dig In | `active_provisional` | `foundation_partial`: Infantry, Medics and Engineers can spend their full movement to gain `+2 Defense`; the status persists across rounds and ends after actual movement. |
 | Dynamic cover Armor | `active_provisional` | `foundation_partial`: generated forest/trench profiles and explicit scenario building markers grant personnel one non-stacking `+1 Armor` when attacked from outside. Directional freestanding cover remains deferred. |
 | Evasive modifiers | Canonical or `active_provisional` | `foundation_deferred`: the order and modifier are not yet applied by the resolver. |
@@ -226,7 +226,7 @@ For each weapon attack:
 
 Each eligible weapon rolls once during the attack activation. Spending a Primary Action or using Rush removes the entire activation, not merely one weapon roll (`RC-V5-003`).
 
-The foundation implements the target checks (including the friendly-spotter requirement for indirect fire), seeded roll, high-ground +1, FS cap, Rapid Fire against Horde, Armor/AP/Defense threshold, rear-arc Armor bypass, one-Hit vehicle penetration, Rush loss multiplier, ammo/cooldown updates, simultaneous damage aggregation, and persistent subsystem malfunctions. It currently executes one declared weapon through one Attack action. Evasive modifiers, multiweapon activations, firing-arc/category exceptions, melee, and other special attacks remain deferred even though their canonical decisions are retained below.
+The foundation implements the target checks (including the friendly-spotter requirement for indirect fire), server-derived multiweapon participation, seeded per-weapon rolls, high-ground +1, FS cap, Rapid Fire against Horde, Armor/AP/Defense threshold, governed rear effects, one-Hit vehicle penetration, Rush loss multiplier, ammo/cooldown updates, simultaneous damage aggregation, and persistent subsystem malfunctions. Evasive modifiers, split fire, forward firing arcs, melee, and other special attacks remain deferred even though their canonical decisions are retained below.
 
 ### 3.6 Facing and flanking
 
@@ -466,7 +466,7 @@ Implementation requirements:
 Before a deferred system can become active, it needs the following:
 
 - Special orders/actions: resolver hooks and tests for Evasive, Melee Charge/Brawl, Stealth, Construct, Funnel, general Resupply, Garrison, Assault, and Break Out/profile rejection behavior. Dig In, First Aid, Engineer Repair, and Artillery Deploy/Pack Up/Bombardment are active; Load/Unload and finite-weapon Reload are narrow migrated UI/runtime paths; Scan and Deploy Drone still require authoritative effects/projection before activation.
-- Tactical completeness: multiweapon attack activations, directional freestanding cover, typed firing-arc exclusions, melee timing, and distance-increment hostile route contention.
+- Tactical completeness: split-fire policy, directional freestanding cover, typed firing-arc exclusions, melee timing, and remembered intelligence.
 - Canonical roster: normalized foundation definitions for Medic, Logi Truck, IFV, Light Mech, Fighter, Bomber, VTOL, and Heavy Air Transport without importing legacy same-name statistics.
 - Optional equipment: V5-compatible unit access and slot budgets, action costs, dice semantics, ammo/reload data, durations, stack limits, and Req economy.
 - Expanded classes: conversion from FS vehicle health to Crew/Hits and V5 weapon dice.
@@ -480,6 +480,6 @@ Activation requires updating this document and the conflict register in the same
 
 ## 9. Verification baseline
 
-At the current local reconciliation point, the full root suite passes **53 test files / 398 tests** (the committed Phase-0 baseline was 32/201). Coverage includes deterministic tactical and strategic helpers, quarter-distance simultaneous movement, generated terrain/structure cover, redaction, routes/LOS/capacity, combat/ammo/cooldowns, force/auth APIs, campaign contracts, strategic adapters/coordinator boundaries, effective-unit construction, deployment/cargo validation, and migrated equipment/support-action paths. The separate Playwright gameplay baseline passes 5/5 locally, including join/deploy, executable-action coverage, First Aid, Medic field resupply, Engineer vehicle Repair, Artillery deployment and Bombardment, all four K-17 rounds, durable outcome/debrief projection, and a 390px overflow check.
+At the current local reconciliation point, the full root suite passes **53 test files / 400 tests** (the committed Phase-0 baseline was 32/201). Coverage includes deterministic tactical and strategic helpers, quarter-distance simultaneous movement, generated terrain/structure cover, multiweapon activations, redaction, routes/LOS/capacity, combat/ammo/cooldowns, force/auth APIs, campaign contracts, strategic adapters/coordinator boundaries, effective-unit construction, deployment/cargo validation, and migrated equipment/support-action paths. The separate Playwright gameplay baseline passes 5/5 locally, including join/deploy, executable-action coverage, First Aid, Medic field resupply, Engineer vehicle Repair, Artillery deployment and Bombardment, all four K-17 rounds, durable outcome/debrief projection, and a 390px overflow check.
 
 This passing baseline proves only the foundation capabilities named in section 1.3. It does not make catalogue-only or foundation-deferred canonical systems executable.

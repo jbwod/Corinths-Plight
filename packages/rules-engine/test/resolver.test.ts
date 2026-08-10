@@ -294,6 +294,38 @@ describe("simultaneous combat and capacity resolution", () => {
     }));
   });
 
+  it("fires every eligible fitted weapon once in stable identifier order", () => {
+    const weapons: WeaponProfile[] = [
+      { ...baseWeapon, id: "weapon-zeta", name: "Zeta", ammoCapacity: 2 },
+      { ...baseWeapon, id: "weapon-alpha", name: "Alpha", ammoCapacity: 2 },
+      { ...baseWeapon, id: "weapon-cooling", name: "Cooling", ammoCapacity: 2 },
+    ];
+    const attacker = makeDeployment("multiweapon", { q: 0, r: 0 }, "ALLIED", {
+      weapons,
+      ammunition: { "weapon-zeta": 2, "weapon-alpha": 2, "weapon-cooling": 2 },
+      cooldowns: { "weapon-cooling": 2 },
+    });
+    const target = makeDeployment("multi-target", { q: 1, r: 0 }, "ENEMY", {
+      stats: { maxHealth: 100 },
+      currentHealth: 100,
+    });
+    const order = attackOrder(attacker, target);
+    // A legacy selected weapon must not narrow the server-owned activation.
+    order.actions[0].weaponId = "weapon-zeta";
+    const state = makeState([attacker, target], [makeHex(0, 0), makeHex(1, 0)], [order]);
+
+    const output = resolveRound(makeRoundInput(state, [order], [], { seed: "multiweapon" }));
+    const rolls = output.events.filter((event) => event.type === "DICE_ROLLED");
+
+    expect(rolls.map((event) => event.payload.weaponId)).toEqual(["weapon-alpha", "weapon-zeta"]);
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "WEAPON_SKIPPED",
+      payload: expect.objectContaining({ weaponId: "weapon-cooling", reason: "Weapon is cooling down." }),
+    }));
+    const resolvedAttacker = output.state.deployments.find((deployment) => deployment.id === attacker.id)!;
+    expect(resolvedAttacker.ammunition).toMatchObject({ "weapon-alpha": 1, "weapon-zeta": 1, "weapon-cooling": 2 });
+  });
+
   it("rejects a duplicate ATTACK activation instead of resolving either action", () => {
     const attacker = makeDeployment("attacker", { q: 0, r: 0 });
     const target = makeDeployment("target", { q: 1, r: 0 }, "ENEMY");

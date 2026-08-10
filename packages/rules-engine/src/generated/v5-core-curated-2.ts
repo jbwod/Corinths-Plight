@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "cb29891814786097e7cf95baf595ab47365d0cc6a5bcaa34d86d65cb7e9963ad",
+  "contentHash": "85ec382c48e65118e4c1bb4e3d84dc1595172b395d5a87f6e75548a5271c0c8d",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -766,7 +766,7 @@ const snapshot = {
         ],
         "disposition": "one attack activation per unit; roll once for every eligible weapon in that activation. A Primary Action/Rush consumes the whole activation.",
         "status": "PROVISIONAL-MVP",
-        "notes": "Canonical section: 6. Internal V5 ambiguities\nCanonical status: `PROVISIONAL-MVP`.\n\n\n- **Evidence:** `V5 > Combat Round` says each unit gets one attack roll, then immediately says a heavy mech with three weapons rolls three dice. `V5 > Damage` says each individual weapon must overcome mitigation.\n- **MVP disposition:** one attack activation per unit; roll once for every eligible weapon in that activation. A Primary Action/Rush consumes the whole activation.\n- **Status:** `PROVISIONAL-MVP`."
+        "notes": "Canonical section: 6. Internal V5 ambiguities\nCanonical status: `PROVISIONAL-MVP`.\n\n\n- **Evidence:** `V5 > Combat Round` says each unit gets one attack roll, then immediately says a heavy mech with three weapons rolls three dice. `V5 > Damage` says each individual weapon must overcome mitigation.\n- **MVP disposition:** one attack activation per unit; roll once for every eligible weapon in that activation. A Primary Action/Rush consumes the whole activation.\n- **Implementation note:** the active foundation uses one declared target and derives every eligible fitted weapon server-side. Each fires once in stable identifier order; ammo, cooldown, Range and LOS are rechecked at resolution. Split fire remains inactive because the source does not define its declaration policy.\n- **Status:** `PROVISIONAL-MVP`."
       },
       {
         "id": "RC-V5-004",
@@ -13915,5 +13915,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "cb29891814786097e7cf95baf595ab47365d0cc6a5bcaa34d86d65cb7e9963ad" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "85ec382c48e65118e4c1bb4e3d84dc1595172b395d5a87f6e75548a5271c0c8d" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

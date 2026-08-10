@@ -748,6 +748,8 @@ export interface StructuredAction {
   targetDeploymentId?: string;
   targetHex?: AxialCoord;
   weaponId?: string;
+  /** Server-derived fitted weapons participating in one Attack activation. */
+  weaponIds?: string[];
   equipmentIds: string[];
   ammoRequested?: number;
   payload?: Record<string, unknown>;
@@ -813,6 +815,7 @@ export type CampaignEventType =
   | "UNIT_DUG_IN"
   | "UNIT_DUG_OUT"
   | "UNIT_ATTACKED"
+  | "WEAPON_SKIPPED"
   | "SUBSYSTEM_MALFUNCTIONED"
   | "CARGO_LOADED"
   | "CARGO_UNLOADED"

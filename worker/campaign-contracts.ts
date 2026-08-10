@@ -54,6 +54,7 @@ const eventTypes = new Set([
   "UNIT_DUG_IN",
   "UNIT_DUG_OUT",
   "UNIT_ATTACKED",
+  "WEAPON_SKIPPED",
   "SUBSYSTEM_MALFUNCTIONED",
   "CARGO_LOADED",
   "CARGO_UNLOADED",
@@ -248,8 +249,8 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     }
     parsed.payload = payload;
   }
-  if (type === "ATTACK" && (!parsed.targetDeploymentId || !parsed.weaponId)) {
-    requestFail(path, "ATTACK requires targetDeploymentId and weaponId.");
+  if (type === "ATTACK" && !parsed.targetDeploymentId) {
+    requestFail(path, "ATTACK requires targetDeploymentId.");
   }
   if (type === "LOAD" && !parsed.targetDeploymentId) requestFail(path, "LOAD requires targetDeploymentId.");
   if (type === "UNLOAD" && !parsed.targetDeploymentId && !parsed.payload?.cargoDeploymentId) {
@@ -489,6 +490,10 @@ function validateStoredAction(value: unknown, path: string): string {
   if (action.targetDeploymentId !== undefined) stateString(action.targetDeploymentId, `${path}.targetDeploymentId`);
   if (action.targetHex !== undefined) stateCoordinate(action.targetHex, `${path}.targetHex`);
   if (action.weaponId !== undefined) stateString(action.weaponId, `${path}.weaponId`);
+  if (action.weaponIds !== undefined) {
+    const weaponIds = stateStringArray(action.weaponIds, `${path}.weaponIds`);
+    if (new Set(weaponIds).size !== weaponIds.length) stateFail(`${path}.weaponIds`, "duplicate weapon identifier");
+  }
   if (action.ammoRequested !== undefined) stateInteger(action.ammoRequested, `${path}.ammoRequested`, 1);
   if (action.payload !== undefined) stateRecord(action.payload, `${path}.payload`);
   return id;

@@ -22,7 +22,7 @@ export const CAMPAIGN_REPORT_GROUPS: CampaignReportGroup[] = [
 ];
 
 const movementEvents = new Set(["UNIT_MOVED", "UNIT_BLOCKED", "UNIT_DUG_IN", "UNIT_DUG_OUT"]);
-const combatEvents = new Set(["DICE_ROLLED", "UNIT_ATTACKED", "SUBSYSTEM_MALFUNCTIONED", "DAMAGE_APPLIED", "UNIT_DESTROYED"]);
+const combatEvents = new Set(["DICE_ROLLED", "UNIT_ATTACKED", "WEAPON_SKIPPED", "SUBSYSTEM_MALFUNCTIONED", "DAMAGE_APPLIED", "UNIT_DESTROYED"]);
 const supportEvents = new Set([
   "CARGO_LOADED",
   "CARGO_UNLOADED",
@@ -155,6 +155,8 @@ export function describeCampaignReportEvent(
     }
     case "UNIT_ATTACKED":
       return `${actor} attacked ${target}: ${numberValue(payload.healthLoss)} damage${payload.highGroundModifier === 1 ? ", high ground added +1" : ""}${payload.coverArmor === 1 ? ", cover added +1 Armor" : ""}${payload.digInDefense === 2 ? ", Dig In added +2 Defense" : ""}${payload.rapidFireMultiplier === 2 ? ", Rapid Fire doubled the damage result" : ""}${payload.penetrated === true ? ", armour penetrated" : ""}.`;
+    case "WEAPON_SKIPPED":
+      return `${actor}'s ${String(payload.weaponId ?? "weapon")} did not fire at ${target}: ${String(payload.reason ?? "not eligible")}`;
     case "SUBSYSTEM_MALFUNCTIONED": {
       const affected = Array.isArray(payload.affectedSubsystemIds)
         ? payload.affectedSubsystemIds.map(String).join(" and ")

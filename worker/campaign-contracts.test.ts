@@ -36,7 +36,6 @@ describe("campaign order request contracts", () => {
       actions: [{
         type: "ATTACK",
         targetDeploymentId: "deployment-enemy-warrior",
-        weaponId: "rifle",
         equipmentIds: ["equipment-optics"],
       }],
     })).toEqual({
@@ -50,7 +49,6 @@ describe("campaign order request contracts", () => {
       actions: [{
         type: "ATTACK",
         targetDeploymentId: "deployment-enemy-warrior",
-        weaponId: "rifle",
         equipmentIds: ["equipment-optics"],
       }],
       incidentalActions: undefined,
@@ -112,6 +110,12 @@ describe("campaign order request contracts", () => {
       orderType: "HOLD",
       facing: 0,
       actions: [{ type: "ATTACK", targetDeploymentId: "unit-2", weaponId: "rifle", ammoRequested: 99 }],
+    }],
+    ["client-selected attack weapon set", {
+      unitId: "unit-1",
+      orderType: "HOLD",
+      facing: 0,
+      actions: [{ type: "ATTACK", targetDeploymentId: "unit-2", weaponIds: ["rifle", "launcher"] }],
     }],
     ["unrelated weapon field", {
       unitId: "unit-1",

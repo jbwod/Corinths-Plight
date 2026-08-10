@@ -11,6 +11,7 @@ import type {
 import {
   FACING_LABELS,
   calculateRouteCost,
+  canTarget,
   createDemoCampaignState,
   getTacticalActionRule,
   getTacticalOrderRule,
@@ -118,6 +119,7 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "UNIT_DUG_IN") return `${event.actor ?? "Unit"} dug in for +2 Defense.`;
   if (event.type === "UNIT_DUG_OUT") return `${event.actor ?? "Unit"} left its prepared position and lost Dig In Defense.`;
   if (event.type === "UNIT_ATTACKED") return `${event.actor ?? "Unit"} engaged ${String(payload.targetId ?? "a hostile")}${payload.coverArmor === 1 ? "; cover added +1 Armor" : ""}${payload.digInDefense === 2 ? "; Dig In added +2 Defense" : ""}.`;
+  if (event.type === "WEAPON_SKIPPED") return `${event.actor ?? "Unit"}'s ${String(payload.weaponId ?? "weapon")} did not fire: ${String(payload.reason ?? "not eligible")}.`;
   if (event.type === "DAMAGE_APPLIED") return `${event.actor ?? "Unit"} lost ${String(payload.loss ?? "?")} strength.`;
   if (event.type === "UNIT_HEALED") return `${event.actor ?? "Medic"} restored ${String(payload.amount ?? "?")} strength to ${String(payload.targetId ?? "an allied unit")}.`;
   if (event.type === "UNIT_REPAIRED") return `${event.actor ?? "Engineer"} repaired ${String(payload.targetId ?? "an allied vehicle")}.`;
@@ -316,9 +318,24 @@ function GameApp() {
     weapon.ammoCapacity !== undefined &&
     (selectedUnit.ammunition[weapon.id] ?? 0) < weapon.ammoCapacity
   ) ?? [];
-  const actionWeapons = actionMode === "RELOAD" ? reloadableWeapons : selectedUnit?.weapons ?? [];
-  const selectedWeapon = actionWeapons.find((weapon) => weapon.id === selectedWeaponId) ?? actionWeapons[0];
-  const rapidFireReady = selectedWeapon?.tags.includes("RAPID_FIRE") === true;
+  const selectedWeapon = reloadableWeapons.find((weapon) => weapon.id === selectedWeaponId) ?? reloadableWeapons[0];
+  const intendedAttacker = selectedUnit
+    ? { ...selectedUnit, position: draftedRoute.at(-1) ?? selectedUnit.position }
+    : undefined;
+  const attackWeaponChecks = selectedUnit?.weapons.map((weapon) => {
+    if (!intendedAttacker || !targetUnit) return { weapon, legal: false, reason: "Choose a target." };
+    const targeting = canTarget(intendedAttacker, targetUnit, weapon, campaign.map, campaign.deployments);
+    const ammoAvailable = weapon.ammoCapacity === undefined || (selectedUnit.ammunition[weapon.id] ?? 0) > 0;
+    // The resolver ticks an existing cooldown once before this attack phase.
+    const cooldownReady = (selectedUnit.cooldowns[weapon.id] ?? 0) <= 1;
+    return {
+      weapon,
+      legal: targeting.legal && ammoAvailable && cooldownReady,
+      reason: targeting.reason ?? (!ammoAvailable ? "No ammunition." : !cooldownReady ? "Cooling down." : undefined),
+    };
+  }) ?? [];
+  const participatingWeapons = attackWeaponChecks.filter((check) => check.legal).map((check) => check.weapon);
+  const rapidFireReady = participatingWeapons.some((weapon) => weapon.tags.includes("RAPID_FIRE"));
   const attackerHex = selectedUnit ? campaign.map.find((hex) => coordinatesEqual(hex.coord, draftedRoute.at(-1) ?? selectedUnit.position)) : undefined;
   const targetHex = targetUnit ? campaign.map.find((hex) => coordinatesEqual(hex.coord, targetUnit.position)) : undefined;
   const attackerIsGround = selectedUnit ? !selectedUnit.tags?.some((tag) => tag === "AEROSPACE" || tag === "VTOL" || tag === "ORBITAL") : false;
@@ -435,12 +452,10 @@ function GameApp() {
   const lockCountdown = manualClock ? "operator controlled" : formatCountdown(campaign.clock.lockAt - now);
   const routeOverBudget = Boolean(selectedUnit && routeResult.total > selectedUnit.stats.speed);
   const deployedArtilleryMoving = Boolean(isArtilleryUnit && artilleryDeployed && draftedRoute.length > 1);
-  const targetOutOfRange = Boolean(
-    actionMode === "ATTACK" && targetUnit && selectedWeapon && targetRange !== undefined && targetRange > selectedWeapon.range,
-  );
+  const noEligibleAttackWeapon = actionMode === "ATTACK" && Boolean(targetUnit) && participatingWeapons.length === 0;
   const actionReady =
     actionMode === "NONE" ||
-    (actionMode === "ATTACK" && Boolean(targetUnit && selectedWeapon && orderType !== "RUSH" && !targetOutOfRange && !weaponSystemsDisabled)) ||
+    (actionMode === "ATTACK" && Boolean(targetUnit && participatingWeapons.length > 0 && orderType !== "RUSH" && !weaponSystemsDisabled)) ||
     (actionMode === "RELOAD" && Boolean(
       (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0 &&
       (isMedicalUnit
@@ -471,8 +486,8 @@ function GameApp() {
       !locked &&
       actionReady,
   );
-  const actionSummary = actionMode === "ATTACK" && targetUnit && selectedWeapon
-    ? `engage ${targetUnit.callsign} with ${selectedWeapon.name}`
+  const actionSummary = actionMode === "ATTACK" && targetUnit && participatingWeapons.length > 0
+    ? `engage ${targetUnit.callsign} with ${participatingWeapons.map((weapon) => weapon.name).join(" + ")}`
     : actionMode === "RELOAD" && isMedicalUnit
       ? "restore Medical Supply using one Small Supply"
       : actionMode === "RELOAD" && selectedWeapon
@@ -584,12 +599,11 @@ function GameApp() {
   async function submitOrder(lifecycle: "DRAFT" | "SUBMITTED" = "SUBMITTED") {
     if (!campaignId || !selectedUnit || (lifecycle === "SUBMITTED" && !canSubmit)) return;
     const actions: Array<Partial<StructuredAction>> = [];
-    if (actionMode === "ATTACK" && targetUnit && selectedWeapon && orderType !== "RUSH") {
+    if (actionMode === "ATTACK" && targetUnit && participatingWeapons.length > 0 && orderType !== "RUSH") {
       actions.push({
         type: "ATTACK",
         targetDeploymentId: targetUnit.id,
         targetHex: targetUnit.position,
-        weaponId: selectedWeapon!.id,
         equipmentIds: [],
       });
     } else if (actionMode === "RELOAD" && isMedicalUnit) {
@@ -1026,16 +1040,20 @@ function GameApp() {
                 </div>
                 {actionMode === "ATTACK" && selectedUnit.weapons.length > 0 ? (
                   <>
-                    <label className="field-label" htmlFor="weapon">WEAPON</label>
-                    <select id="weapon" value={selectedWeapon?.id ?? ""} onChange={(event) => setSelectedWeaponId(event.target.value)} disabled={orderType === "RUSH"}>
-                      {selectedUnit.weapons.map((weapon) => <option value={weapon.id} key={weapon.id}>{weapon.name} · D{weapon.damage.sides} · R{weapon.range} · AP{weapon.armorPiercing}</option>)}
-                    </select>
+                    <label className="field-label">WEAPONS IN ACTIVATION</label>
+                    <div className="weapon-activation-list" aria-label="Attack weapon participation">
+                      {attackWeaponChecks.map(({ weapon, legal, reason }) => (
+                        <p className={`validation ${targetUnit && !legal ? "danger" : ""}`} key={weapon.id}>
+                          <strong>{weapon.name}</strong> · D{weapon.damage.sides} · R{weapon.range} · AP{weapon.armorPiercing} · {legal ? "FIRES" : reason ?? "SKIPPED"}
+                        </p>
+                      ))}
+                    </div>
                     <div className={`target-card ${targetUnit ? "acquired" : ""}`}>
                       <Glyph name="target" size={18} />
                       {targetUnit ? <div><strong>{targetUnit.callsign}</strong><small>{definitionLabel(targetUnit)} · RANGE {targetRange}</small></div> : <div><strong>NO TARGET</strong><small>Click a visible hostile on the map</small></div>}
                       {targetUnit && <button onClick={() => setTargetUnitId(undefined)}>CLEAR</button>}
                     </div>
-                    {targetOutOfRange && <p className="validation danger">Target is beyond the selected weapon's range.</p>}
+                    {noEligibleAttackWeapon && <p className="validation danger">No fitted weapon can engage this target from the planned position.</p>}
                     {highGroundAdvantage && <p className="validation">HIGH GROUND: this attack gains +1 to its damage result before mitigation.</p>}
                     {targetCover.armor === 1 && <p className="validation">TARGET IN COVER: +1 Armor applies from {targetCover.sources.map((source) => source.replaceAll("-", " ")).join(" + ")}.</p>}
                     {rapidFireReady && targetIsHorde && <p className="validation">RAPID FIRE: modified damage doubles against this Horde target before mitigation.</p>}

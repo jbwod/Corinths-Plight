@@ -632,7 +632,10 @@ export class CampaignDurableObject extends DurableObject<Env> {
         speedCost: definition.speedCost,
         targetDeploymentId: candidate.targetDeploymentId,
         targetHex: candidate.targetHex,
-        weaponId: candidate.weaponId,
+        // ATTACK participation is always derived from the fitted weapons. A
+        // legacy client may still send weaponId, but it cannot narrow or forge
+        // the authoritative activation.
+        weaponId: candidate.type === "ATTACK" ? undefined : candidate.weaponId,
         equipmentIds: candidate.equipmentIds ?? [],
         payload: candidate.payload ? { ...candidate.payload } : undefined,
       };
@@ -873,14 +876,31 @@ export class CampaignDurableObject extends DurableObject<Env> {
     for (const action of actions) {
       if (action.type !== "ATTACK" || !action.targetDeploymentId) continue;
       const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
-      const weapon = deployment.weapons.find((candidate) => candidate.id === action.weaponId);
-      if (!target || !weapon) continue;
+      if (!target) continue;
       const intendedAttacker = { ...deployment, position: { ...route.at(-1)! } };
-      const targeting = canTarget(intendedAttacker, target, weapon, state.map, state.deployments);
-      if (!targeting.legal) {
-        return errorResponse(422, "TARGET_ILLEGAL", targeting.reason ?? "The attack target is not legal.");
+      const checks = [...deployment.weapons]
+        .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
+        .map((weapon) => {
+          const targeting = canTarget(intendedAttacker, target, weapon, state.map, state.deployments);
+          const ammoAvailable = weapon.ammoCapacity === undefined || (deployment.ammunition[weapon.id] ?? 0) > 0;
+          // Resolution ticks existing cooldowns once before the attack phase.
+          const cooldownReady = (deployment.cooldowns[weapon.id] ?? 0) <= 1;
+          return {
+            weapon,
+            legal: targeting.legal && ammoAvailable && cooldownReady,
+            reason: targeting.reason ?? (!ammoAvailable ? "Weapon has no ammunition." : !cooldownReady ? "Weapon is cooling down." : undefined),
+          };
+        });
+      const participating = checks.filter((check) => check.legal).map((check) => check.weapon);
+      if (participating.length === 0) {
+        return errorResponse(
+          422,
+          "TARGET_ILLEGAL",
+          checks.map((check) => `${check.weapon.name}: ${check.reason ?? "not eligible"}`).join(" ") || "No fitted weapon can engage that target.",
+        );
       }
       action.targetHex = { ...target.position };
+      action.weaponIds = participating.map((weapon) => weapon.id);
     }
     const existingIndex = state.orders.findIndex(
       (candidate) => candidate.unitId === deployment.id && candidate.round === round,
@@ -912,9 +932,13 @@ export class CampaignDurableObject extends DurableObject<Env> {
       targets: actions.flatMap((action) => (action.targetDeploymentId ? [action.targetDeploymentId] : [])),
       equipmentUsed: [...new Set(actions.flatMap((action) => action.equipmentIds))],
       ammoUsed: Object.fromEntries(
-        actions
-          .filter((action) => action.type === "ATTACK" && action.weaponId)
-          .map((action) => [action.weaponId!, 1]),
+        actions.flatMap((action) => action.type === "ATTACK"
+          ? (action.weaponIds ?? []).flatMap((weaponId) =>
+              deployment.weapons.find((weapon) => weapon.id === weaponId)?.ammoCapacity === undefined
+                ? []
+                : [[weaponId, 1] as const]
+            )
+          : []),
       ),
       incidentalActions,
       optionalRoleplayText: intent.optionalRoleplayText,

@@ -64,11 +64,15 @@ export function generateEnemyOrders(state: CampaignRuntimeState, now: number): U
       const target = chooseTarget(enemy, state);
       const route = routeWithinBudget(enemy, target, state);
       const projected = { ...enemy, position: route.at(-1)! };
-      const weapon = target
-        ? enemy.weapons.find((candidate) => canTarget(projected, target, candidate, state.map).legal)
-        : undefined;
+      const weapons = target
+        ? enemy.weapons.filter((candidate) =>
+            canTarget(projected, target, candidate, state.map).legal &&
+            (candidate.ammoCapacity === undefined || (enemy.ammunition[candidate.id] ?? 0) > 0) &&
+            (enemy.cooldowns[candidate.id] ?? 0) <= 1
+          )
+        : [];
       const action: StructuredAction[] =
-        target && weapon
+        target && weapons.length > 0
           ? [
               {
                 id: `action:${state.round}:${enemy.id}:attack`,
@@ -77,9 +81,8 @@ export function generateEnemyOrders(state: CampaignRuntimeState, now: number): U
                 speedCost: 0,
                 targetDeploymentId: target.id,
                 targetHex: target.position,
-                weaponId: weapon.id,
+                weaponIds: weapons.map((weapon) => weapon.id).sort(),
                 equipmentIds: [],
-                ammoRequested: weapon.ammoCapacity === undefined ? undefined : 1,
               },
             ]
           : [];
@@ -98,7 +101,9 @@ export function generateEnemyOrders(state: CampaignRuntimeState, now: number): U
         actions: action,
         targets: target ? [target.id] : [],
         equipmentUsed: [],
-        ammoUsed: weapon?.ammoCapacity === undefined ? {} : { [weapon.id]: 1 },
+        ammoUsed: Object.fromEntries(
+          weapons.flatMap((weapon) => weapon.ammoCapacity === undefined ? [] : [[weapon.id, 1] as const]),
+        ),
         incidentalActions: [],
         optionalRoleplayText: "Deterministic swarm doctrine: close with the nearest visible priority target.",
         submittedBy: "enemy-doctrine",
