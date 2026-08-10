@@ -431,6 +431,19 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(database.appliedQueries.some((query) => query.includes("UPDATE battlegroups SET status='RECOVERING'"))).toBe(true);
     expect(storage.alarm).toBeNull();
 
+    const reportIndex = await campaign.fetch(request("/reports"));
+    expect(reportIndex.status).toBe(200);
+    expect(await reportIndex.json()).toMatchObject({
+      campaignId: CAMPAIGN_ID,
+      reports: [{
+        round: 21,
+        status: "RESOLVED",
+        eventCount: expect.any(Number),
+        digest: expect.any(String),
+        terminal: { result: "VICTORY", round: 21 },
+      }],
+    });
+
     const pause = await campaign.fetch(request("/pause", { method: "POST" }));
     expect(pause.status).toBe(409);
     expect(await pause.json()).toMatchObject({ error: { code: "CAMPAIGN_COMPLETE" } });

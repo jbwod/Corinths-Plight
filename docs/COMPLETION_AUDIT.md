@@ -58,7 +58,7 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 | Strategic resolution | implemented foundation | High | `worker/strategic-map-durable-object.ts`; `resolveStrategicMapRound` | Approval-gated resolution hydrates D1, runs the pure engine and atomically applies formation/supply/operation updates, events, receipts and the next round. PREPARED/crypto/alarm/failure-injection work remains: CP-302. |
 | Ship identity/modules/cargo/supply | partial/read-only | High | D1 schema and `GET /api/ships/primary`; `ShipView.tsx` | Acquisition/configuration/movement/transfers/combat deferred: CP-300/CP-301/CP-305. |
 | Campaign discovery/join | implemented foundation | High | `GET /api/campaigns` and idempotent `POST /api/campaigns/:id/join` drive the authenticated K-17 entry and deployment flow. Withdrawal, reinforcement administration and general authoring remain open. | CP-401/CP-405. |
-| Reports library/replay | partial UI and API | High | Report-by-round DO endpoint; `src/components/CampaignReports.tsx`; `src/campaign/reports.ts` | Local report selection/detail and terminal results work; index API, event-time redaction, playback/export and strategic consequences remain CP-403/CP-700. |
+| Reports library/replay | partial UI and API | High | Report index/detail DO endpoints; `src/components/CampaignReports.tsx`; `src/campaign/reports.ts` | The archive lists durable resolved rounds and shows grouped detail/terminal results. Event-time redaction, playback/export and strategic-consequence presentation remain CP-403/CP-700. |
 | Multi-planet living war | partial | High | One development strategic fixture now contains a playable three-operation chain: Iron Rain applies Kestrel control/route/operation consequences, Broken Road continues at Junction 7, and its victory activates Night Glass at New Carthage. Each uses server-authoritative travel, one-Battlegroup deployment, tactical resolution, survivor recovery and idempotent follow-on activation. Production content, travel supply, branching outcomes and additional worlds remain open. | CP-302–CP-305/CP-600–CP-604. |
 | CI, preview, recovery, SLOs, legal/a11y/performance | missing release evidence | High | Config/docs/workflow inventory | CP-001–CP-107/CP-702/CP-800–CP-805. |
 
@@ -161,7 +161,8 @@ No public campaign directory/create/join/leave, profile/settings/session-managem
 | `POST /pause` | Admin pause | partial |
 | `POST /resume` | Admin resume | partial |
 | `GET /ws` upgrade | Read-only hibernating per-audience invalidations and bounded reconnect catch-up | partial; event-time fog proof remains |
-| `GET /reports/:round` | Viewer round detail consumed by the Reports screen | partial; no index, event-time knowledge, playback or export |
+| `GET /reports` | Viewer-authorized durable round index consumed by the Reports screen | implemented foundation; playback/export absent |
+| `GET /reports/:round` | Viewer round detail consumed by the Reports screen | partial; no event-time knowledge, playback or export |
 | alarm | Locks/resolves or processes scheduled transition | partial; no durable schedule lifecycle/recovery |
 
 ### Strategic Map Durable Object

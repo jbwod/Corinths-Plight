@@ -758,6 +758,9 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (url.pathname === "/ws" && request.headers.get("upgrade")?.toLowerCase() === "websocket") {
         return await this.handleWebSocket(request);
       }
+      if (url.pathname === "/reports" && request.method === "GET") {
+        return await this.handleReportIndex(request);
+      }
       if (url.pathname.startsWith("/reports/") && request.method === "GET") {
         return await this.handleReport(request, Number(url.pathname.slice("/reports/".length)));
       }
@@ -1661,6 +1664,29 @@ export class CampaignDurableObject extends DurableObject<Env> {
       Date.now(),
     );
     return json({ resolution: this.publicResolution(record), events: projected.events });
+  }
+
+  private async handleReportIndex(request: Request): Promise<Response> {
+    const viewer = this.viewer(request);
+    const state = await this.getState();
+    const records = await this.ctx.storage.list<ResolutionRecord>({ prefix: "resolution/" });
+    const reports = [...records.values()]
+      .sort((left, right) => left.round - right.round)
+      .map((record) => ({
+        round: record.round,
+        status: record.status ?? "RESOLVED",
+        resolvedAt: record.resolvedAt ?? record.committedAt,
+        eventCount: record.eventIds.length,
+        digest: record.stateDigest,
+        terminal: state.outcome?.round === record.round ? state.outcome : undefined,
+      }));
+    return json({
+      campaignId: state.campaignId,
+      scenarioId: state.scenarioId,
+      scenarioVersion: state.scenarioVersion,
+      reports,
+      viewer: { userId: viewer.userId, side: viewer.side, role: viewer.role },
+    });
   }
 
   private publicResolution(record: ResolutionRecord): Omit<ResolutionRecord, "seed"> {

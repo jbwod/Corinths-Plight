@@ -13,6 +13,16 @@ interface CampaignReportResponse {
   events: CampaignEvent[];
 }
 
+interface CampaignReportIndexResponse {
+  reports: Array<{
+    round: number;
+    status: "EFFECTS_PENDING" | "RESOLVED" | "FAILED";
+    resolvedAt: number;
+    eventCount: number;
+    digest: string;
+  }>;
+}
+
 interface CampaignReportsProps {
   campaign: CampaignView;
   campaignId: string;
@@ -34,7 +44,12 @@ function eventTime(event: CampaignEvent): string {
 }
 
 export function CampaignReports({ campaign, campaignId, demoUser, onReturnToCampaign }: CampaignReportsProps) {
-  const resolvedRounds = useMemo(() => {
+  const [reportIndex, setReportIndex] = useState<{
+    campaignId: string;
+    reports: CampaignReportIndexResponse["reports"];
+  }>();
+  const indexedReports = reportIndex?.campaignId === campaignId ? reportIndex.reports : undefined;
+  const locallyResolvedRounds = useMemo(() => {
     const scenarioStart = campaign.scenarioPolicy?.startRound ?? 1;
     const rounds = new Set(
       campaign.events
@@ -45,6 +60,7 @@ export function CampaignReports({ campaign, campaignId, demoUser, onReturnToCamp
     if (typeof outcome?.round === "number") rounds.add(outcome.round);
     return [...rounds].sort((left, right) => left - right);
   }, [campaign]);
+  const resolvedRounds = indexedReports?.map((report) => report.round) ?? locallyResolvedRounds;
   const [selectedRound, setSelectedRound] = useState<number>();
   const activeRound = selectedRound !== undefined && resolvedRounds.includes(selectedRound)
     ? selectedRound
@@ -55,6 +71,24 @@ export function CampaignReports({ campaign, campaignId, demoUser, onReturnToCamp
     error?: string;
   }>();
   const [reload, setReload] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`/api/campaigns/${encodeURIComponent(campaignId)}/reports`, {
+      headers: demoUser ? { "x-demo-user": demoUser } : undefined,
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(await reportError(response));
+        return response.json() as Promise<CampaignReportIndexResponse>;
+      })
+      .then((index) => setReportIndex({
+        campaignId,
+        reports: [...index.reports].sort((left, right) => left.round - right.round),
+      }))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [campaignId, demoUser]);
 
   useEffect(() => {
     if (activeRound === undefined) return;
@@ -130,6 +164,7 @@ export function CampaignReports({ campaign, campaignId, demoUser, onReturnToCamp
               {resolvedRounds.map((round) => (
                   <button className={activeRound === round ? "active" : ""} key={round} onClick={() => setSelectedRound(round)}>
                   <small>ROUND</small><strong>{round}</strong>
+                  {indexedReports?.find((report) => report.round === round)?.status === "EFFECTS_PENDING" ? <em>SYNCING</em> : null}
                 </button>
               ))}
             </div>
