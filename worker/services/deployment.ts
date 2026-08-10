@@ -184,6 +184,13 @@ async function materialize(
     if (!unit || unit.authority === "NONE") {
       throw new ForceServiceError(404, "UNIT_NOT_FOUND", "A selected unit is outside the actor's Battalion authority.");
     }
+    if (!["ACTIVE", "DAMAGED"].includes(unit.unit_status) || !["RESERVE", "ON_SHIP"].includes(unit.location_state)) {
+      throw new ForceServiceError(409, "UNIT_LOCATION_UNAVAILABLE", `Unit ${requested.unitId} is not available from its current persistent location.`);
+    }
+    if (!authority.operation_id && authority.campaign_node_id && unit.location_state === "RESERVE" &&
+        unit.location_id && unit.location_id !== authority.campaign_node_id) {
+      throw new ForceServiceError(409, "UNIT_STRATEGIC_LOCATION_MISMATCH", `Unit ${requested.unitId} must travel to the campaign node before deployment.`);
+    }
     if (unit.loadout_id !== requested.loadoutId || unit.unit_version !== requested.expectedUnitVersion || unit.loadout_revision !== requested.expectedLoadoutRevision) {
       throw new ForceServiceError(409, "DEPLOYMENT_UNIT_VERSION_CONFLICT", `Unit ${requested.unitId} or its loadout changed.`);
     }

@@ -92,6 +92,8 @@ The Operation briefing links directly to its campaign deployment planner. A link
 
 The same terminal effect batch now performs the first recovery handoff. It closes every active campaign deployment, leaves destroyed persistent units destroyed, returns survivors to `RESERVE` at the operation node with their resolved health, ammunition and tactical supplies intact, unlocks their campaign loadouts, closes any active carrier assignment, and marks participating Battlegroups `RECOVERING`. Survivors are deliberately not teleported back aboard CSV Resolute: re-embarkation, resupply and onward movement remain separate strategic actions.
 
+When a ground Battlegroup subsequently arrives at another strategic node, its active/damaged reserve members move to that same persistent node in the strategic resolution batch. Campaign deployment accepts an unlocated first-muster reserve, but a reserve unit with a known node must match the campaign's strategic node. This lets newly onboarded commanders enter their first campaign while preventing recovered veterans from teleporting between Kestrel Ridge and K-17.
+
 ## 7. Strategic clock, orders, and events
 
 `strategic_rounds` is separate from tactical `round_metadata`. It pins a ruleset and resolver version and records open/lock/resolve timestamps, hashes, a resolution key, lifecycle, and revision. A resolved or failed row cannot omit its journal hashes.

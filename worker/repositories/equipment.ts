@@ -307,6 +307,7 @@ export interface DeploymentAuthorityRow {
   operation_id: string | null;
   operation_node_id: string | null;
   operation_status: string | null;
+  campaign_node_id: string | null;
 }
 
 export async function getDeploymentAuthority(
@@ -319,7 +320,7 @@ export async function getDeploymentAuthority(
       campaigns.ruleset_id AS campaign_ruleset_id,
       campaign_memberships.side, campaign_memberships.role AS campaign_role,
       operations.id AS operation_id, operations.node_id AS operation_node_id,
-      operations.status AS operation_status
+      operations.status AS operation_status, campaigns.strategic_node_id AS campaign_node_id
     FROM campaign_memberships
     JOIN campaigns ON campaigns.id = campaign_memberships.campaign_id
     LEFT JOIN strategic_operations AS operations ON operations.campaign_id = campaigns.id
@@ -379,6 +380,9 @@ export interface DeploymentUnitRow {
   unit_version: number;
   loadout_revision: number;
   battlegroup_id: string | null;
+  unit_status: string;
+  location_state: string;
+  location_id: string | null;
   authority: "OWNER" | "DELEGATED" | "COMMAND" | "NONE";
 }
 
@@ -392,6 +396,7 @@ export async function getDeploymentUnit(
   return db.prepare(`SELECT units.id AS unit_id, units.owner_id,
       loadouts.id AS loadout_id, units.version AS unit_version,
       loadouts.revision AS loadout_revision, links.battlegroup_id,
+      units.status AS unit_status,units.location_state,units.location_id,
       CASE
         WHEN units.owner_id = ?1 THEN 'OWNER'
         WHEN memberships.command_role IN ('ADMIN','BATTALION_COMMAND') THEN 'COMMAND'

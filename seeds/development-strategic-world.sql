@@ -304,6 +304,10 @@ UPDATE campaigns
        strategic_status = 'RESOLVED'
  WHERE id = 'outpost-k17';
 
+UPDATE campaigns
+   SET strategic_node_id = 'node-outpost-k17'
+ WHERE id = 'campaign-k17-relay';
+
 INSERT INTO strategic_operations (
   id, map_id, node_id, campaign_id, ruleset_id, code, name,
   role_summary, status, threat_level, objectives_json,

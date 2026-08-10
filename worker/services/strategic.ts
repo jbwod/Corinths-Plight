@@ -1441,6 +1441,13 @@ export async function resolveStrategicMapRound(
       .bind(group.id, group.status, group.currentNodeId, group.currentOperationId,
         group.currentCarrierTaskForceId, group.version, now, group.battalionId));
     const previous = hydrated.state.battlegroups.find((candidate) => candidate.id === group.id);
+    if (group.currentNodeId && previous?.currentNodeId !== group.currentNodeId) {
+      statements.push(env.DB.prepare(`UPDATE player_units SET location_id=?2,version=version+1,updated_at=?3
+        WHERE status IN ('ACTIVE','DAMAGED') AND location_kind='RESERVE' AND location_state='RESERVE'
+          AND EXISTS (SELECT 1 FROM battlegroup_units AS links
+            WHERE links.battlegroup_id=?1 AND links.player_unit_id=player_units.id)`)
+        .bind(group.id, group.currentNodeId, now));
+    }
     if (group.currentCarrierTaskForceId) {
       statements.push(env.DB.prepare(`INSERT INTO task_force_battlegroups (
                                         id, task_force_id, battalion_id, battlegroup_id,
