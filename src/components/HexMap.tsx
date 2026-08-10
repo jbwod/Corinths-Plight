@@ -257,6 +257,24 @@ export function HexMap({
         }
         ctx.restore();
       }
+      if (
+        hex.visibility !== "UNKNOWN" &&
+        hex.structureIds.some((id) => id === "structure-trench" || id.startsWith("structure-trench:"))
+      ) {
+        ctx.save();
+        ctx.translate(point.x, point.y + 10);
+        ctx.strokeStyle = "rgba(143, 213, 192, .95)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-21, -5);
+        ctx.lineTo(-12, 3);
+        ctx.lineTo(-3, -5);
+        ctx.lineTo(6, 3);
+        ctx.lineTo(15, -5);
+        ctx.lineTo(22, 2);
+        ctx.stroke();
+        ctx.restore();
+      }
       if (hex.visibility === "UNKNOWN") {
         polygon(ctx, point, 2);
         ctx.fillStyle = "rgba(2,7,9,.73)";

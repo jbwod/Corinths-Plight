@@ -315,25 +315,26 @@ export const orderTypeDefinitions: OrderTypeRuleDefinition[] = (
   }));
 
 const actionProfiles: Record<
-  "ATTACK" | "DIG_IN" | "DEPLOY" | "PACK_UP" | "REPAIR" | "CONSTRUCT" | "BOMBARDMENT" | "RELOAD" | "LOAD" | "UNLOAD" | "SCAN" | "DEPLOY_DRONE",
+  "ATTACK" | "DIG_IN" | "DEPLOY" | "PACK_UP" | "REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "BOMBARDMENT" | "RELOAD" | "LOAD" | "UNLOAD" | "SCAN" | "DEPLOY_DRONE",
   { economy: ActionEconomy; speedCost: number; usesAttack: boolean; executable: boolean }
 > = {
   ATTACK: { economy: "STANDARD", speedCost: 0, usesAttack: true, executable: true },
-  DIG_IN: { economy: "STANDARD", speedCost: 1, usesAttack: false, executable: false },
-  DEPLOY: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
-  PACK_UP: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
-  REPAIR: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
-  CONSTRUCT: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
-  BOMBARDMENT: { economy: "PRIMARY", speedCost: 0, usesAttack: true, executable: false },
+  DIG_IN: { economy: "STANDARD", speedCost: 1, usesAttack: false, executable: true },
+  DEPLOY: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  PACK_UP: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  REPAIR: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  CONSTRUCT: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  TRENCH_UPGRADE: { economy: "PRIMARY", speedCost: 0, usesAttack: true, executable: true },
+  BOMBARDMENT: { economy: "PRIMARY", speedCost: 0, usesAttack: true, executable: true },
   RELOAD: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
   LOAD: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
   UNLOAD: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
-  SCAN: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
-  DEPLOY_DRONE: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  SCAN: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
+  DEPLOY_DRONE: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
 };
 
 export const actionDefinitions: ActionRuleDefinition[] = (
-  ["ATTACK", "DIG_IN", "DEPLOY", "PACK_UP", "REPAIR", "CONSTRUCT", "BOMBARDMENT", "RELOAD", "LOAD", "UNLOAD", "SCAN", "DEPLOY_DRONE"] as const
+  ["ATTACK", "DIG_IN", "DEPLOY", "PACK_UP", "REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "BOMBARDMENT", "RELOAD", "LOAD", "UNLOAD", "SCAN", "DEPLOY_DRONE"] as const
 ).map((name) => ({
     id: name === "LOAD"
       ? "action-load-cargo"
@@ -377,10 +378,11 @@ export const supportingDefinitions: GameDefinition[] = [
     status: "active" as const,
   })),
   ...[
-    ["structure-trench", "Trench Line"],
-    ["structure-supply-depot", "Supply Depot"],
-    ["structure-sensor-tower", "Sensor Tower"],
-  ].map(([id, name]) => ({
+    ["structure-sandbag-line", "Sandbag Line", "active"],
+    ["structure-trench", "Trench Line", "active"],
+    ["structure-supply-depot", "Supply Depot", "experimental"],
+    ["structure-sensor-tower", "Sensor Tower", "experimental"],
+  ].map(([id, name, status]) => ({
     id,
     kind: "structure" as const,
     name,
@@ -388,8 +390,10 @@ export const supportingDefinitions: GameDefinition[] = [
     tags: ["STRUCTURE"],
     rulesetVersion: RULESET_VERSION,
     source: "Build and Supply System.html",
-    status: "experimental" as const,
-    notes: "Health/build conversion remains unresolved; see RULE_CONFLICTS.md.",
+    status: status as "active" | "experimental",
+    notes: status === "active"
+      ? "Executable V5 fieldwork; durability remains unresolved under RC-BUILD-006."
+      : "Health/build conversion remains unresolved; see RULE_CONFLICTS.md.",
   })),
 ];
 

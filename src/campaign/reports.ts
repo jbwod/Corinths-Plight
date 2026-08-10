@@ -40,6 +40,7 @@ const supportEvents = new Set([
   "HEX_SCANNED",
   "DRONE_DEPLOYED",
   "STRUCTURE_COMPLETED",
+  "STRUCTURE_UPGRADED",
   "SUPPLY_TRANSFERRED",
 ]);
 const objectiveEvents = new Set([
@@ -201,6 +202,8 @@ export function describeCampaignReportEvent(
         : `${actor} restored one Hit to ${target} (${numberValue(payload.before)} → ${numberValue(payload.after)}).`;
     case "STRUCTURE_COMPLETED":
       return `${actor} completed a Sandbag Line at hex ${coordLabel(payload.targetHex) ?? "unknown"}, spending one Small Supply.`;
+    case "STRUCTURE_UPGRADED":
+      return `${actor} upgraded the Sandbag Line at hex ${coordLabel(payload.targetHex) ?? "unknown"} into a Trench.`;
     case "ARTILLERY_DEPLOYED":
       return `${actor} deployed and unhitched the artillery platform.`;
     case "ARTILLERY_PACKED":

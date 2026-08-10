@@ -30,6 +30,7 @@ describe("generated tactical grammar", () => {
     expect(getTacticalActionRule("LOAD")).toMatchObject({ speedCost: 0.5, executable: true });
     expect(getTacticalActionRule("UNLOAD")).toMatchObject({ speedCost: 0.5, executable: true });
     expect(getTacticalActionRule("HEAL")).toMatchObject({ economy: "PRIMARY", executable: true });
+    expect(getTacticalActionRule("TRENCH_UPGRADE")).toMatchObject({ economy: "PRIMARY", usesAttack: true, executable: true });
     expect(getTacticalActionRule("DEPLOY")).toMatchObject({ speedCost: 0.5, executable: true });
     expect(getTacticalActionRule("PACK_UP")).toMatchObject({ speedCost: 0.5, executable: true });
     expect(getTacticalActionRule("BOMBARDMENT")).toMatchObject({ economy: "PRIMARY", executable: true });
@@ -48,7 +49,7 @@ describe("generated tactical grammar", () => {
       category: "INFANTRY",
       stats: { maxHealth: 6, speed: 1, sensors: 4, capacity: 1 },
       allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-      allowedActions: ["ATTACK", "DIG_IN", "LOAD", "UNLOAD"],
+      allowedActions: ["ATTACK", "DIG_IN", "TRENCH_UPGRADE", "LOAD", "UNLOAD"],
     });
     expect(infantry.weapons).toEqual([
       expect.objectContaining({ id: "weapon-infantry-rifle", range: 1, armorPiercing: 0 }),

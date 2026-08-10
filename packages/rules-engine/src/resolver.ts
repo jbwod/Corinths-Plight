@@ -162,6 +162,15 @@ export function validateOrder(
       reasons.push(`${action.type.replaceAll("_", " ")} economy or speed cost does not match the pinned ruleset.`);
     }
   }
+  const attackActivations = [...order.actions, ...order.incidentalActions]
+    .filter((action) => {
+      try {
+        return getTacticalActionRule(action.type).usesAttack;
+      } catch {
+        return false;
+      }
+    }).length;
+  if (attackActivations > 1) reasons.push("A unit receives one attack activation per round.");
   if (order.orderType === "RUSH" && order.actions.some((action) => action.type === "ATTACK")) {
     reasons.push("RUSH units cannot attack.");
   }
@@ -342,7 +351,11 @@ export function resolveRound(input: RoundInput): RoundOutput {
     const moved = outcome.traversedRoute.length > 1;
     if (moved) deployment.position = { ...outcome.to };
     if (deployment.statuses.includes("DUG_IN")) {
-      if (moved) {
+      const startedInTrench = state.map.find((hex) => sameCoord(hex.coord, outcome.from))?.structureIds
+        .some((id) => id === "structure-trench" || id.startsWith("structure-trench:")) ?? false;
+      const endedInTrench = state.map.find((hex) => sameCoord(hex.coord, outcome.to))?.structureIds
+        .some((id) => id === "structure-trench" || id.startsWith("structure-trench:")) ?? false;
+      if (moved && !(startedInTrench && endedInTrench)) {
         deployment.statuses = deployment.statuses.filter((status) => status !== "DUG_IN");
         event("UNIT_DUG_OUT", deployment.id, {
           orderId: outcome.orderId,
@@ -360,6 +373,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         route: outcome.traversedRoute,
         declaredDestination: order.endHex,
         orderType: order.orderType,
+        digInPreserved: deployment.statuses.includes("DUG_IN"),
       });
     }
     if (outcome.block) {
@@ -462,6 +476,44 @@ export function resolveRound(input: RoundInput): RoundOutput {
           targetHex,
           smallSupplySpent: 1,
           infantryArmor: 1,
+        }, actorVisibility);
+      }
+      if (action.type === "TRENCH_UPGRADE") {
+        const targetHex = action.targetHex;
+        const targetMapHex = targetHex && state.map.find((hex) => sameCoord(hex.coord, targetHex));
+        const sandbagIndex = targetMapHex?.structureIds.findIndex((id) =>
+          id === "structure-sandbag-line" || id.startsWith("structure-sandbag-line:")
+        ) ?? -1;
+        if (
+          !(actor.tags ?? []).includes("INFANTRY") ||
+          !targetHex ||
+          !sameCoord(actor.position, targetHex) ||
+          !targetMapHex ||
+          sandbagIndex < 0
+        ) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [
+              !(actor.tags ?? []).includes("INFANTRY")
+                ? "Trench Upgrade requires an Infantry unit."
+                : "Trench Upgrade requires the Infantry unit to occupy a Sandbag Line.",
+            ],
+          }, actorVisibility);
+          continue;
+        }
+        const previousStructureId = targetMapHex.structureIds[sandbagIndex]!;
+        const structureInstanceId = `structure-trench:${state.campaignId}:${state.round}:${actor.id}:${targetHex.q},${targetHex.r}`;
+        targetMapHex.structureIds[sandbagIndex] = structureInstanceId;
+        event("STRUCTURE_UPGRADED", actor.id, {
+          actionId: action.id,
+          fromStructureDefinitionId: "structure-sandbag-line",
+          toStructureDefinitionId: "structure-trench",
+          previousStructureInstanceId: previousStructureId,
+          structureInstanceId,
+          targetHex,
+          smallSupplySpent: 0,
+          preservesDigIn: true,
         }, actorVisibility);
       }
       if (action.type === "DEPLOY" || action.type === "PACK_UP") {

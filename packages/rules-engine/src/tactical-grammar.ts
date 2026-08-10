@@ -35,6 +35,7 @@ const actionIds: Partial<Record<ActionType, string>> = {
   PACK_UP: "action-pack-platform",
   REPAIR: "action-repair",
   CONSTRUCT: "action-construct",
+  TRENCH_UPGRADE: "action-trench-upgrade",
   LOAD: "action-load-cargo",
   UNLOAD: "action-unload-cargo",
   RESUPPLY: "action-transfer-supply",

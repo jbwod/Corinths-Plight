@@ -61,6 +61,7 @@ const allowedActionTypes = new Set([
   "PACK_UP",
   "REPAIR",
   "CONSTRUCT",
+  "TRENCH_UPGRADE",
   "GARRISON",
   "LOAD",
   "UNLOAD",
@@ -921,7 +922,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
     if (!incidentalValidation.legal) {
       return errorResponse(422, "ACTION_INELIGIBLE", incidentalValidation.reason);
     }
-    if ([...actions, ...incidentalActions].filter((action) => action.type === "ATTACK").length > 1) {
+    if ([...actions, ...incidentalActions].filter((action) => getTacticalActionRule(action.type).usesAttack).length > 1) {
       return errorResponse(422, "ATTACK_LIMIT", "A unit receives one attack activation per round.");
     }
     const artillery = execution.legacyDefinition.tags.includes("ARTILLERY");
@@ -1063,6 +1064,22 @@ export class CampaignDurableObject extends DurableObject<Env> {
       }
       if (targetMapHex.structureIds.some((id) => id === "structure-sandbag-line" || id.startsWith("structure-sandbag-line:"))) {
         return errorResponse(409, "STRUCTURE_ALREADY_PRESENT", "That hex already contains a Sandbag Line.");
+      }
+    }
+    for (const action of [...actions, ...incidentalActions]) {
+      if (action.type !== "TRENCH_UPGRADE") continue;
+      const targetHex = action.targetHex;
+      const targetMapHex = targetHex && state.map.find((hex) =>
+        hex.coord.q === targetHex.q && hex.coord.r === targetHex.r
+      );
+      if (!execution.legacyDefinition.tags.includes("INFANTRY")) {
+        return errorResponse(422, "TRENCH_UPGRADE_INELIGIBLE", "Trench Upgrade requires an Infantry unit.");
+      }
+      if (!targetHex || targetHex.q !== route.at(-1)!.q || targetHex.r !== route.at(-1)!.r) {
+        return errorResponse(422, "TRENCH_UPGRADE_HEX_INVALID", "The Infantry unit must finish on the Sandbag Line it upgrades.");
+      }
+      if (!targetMapHex?.structureIds.some((id) => id === "structure-sandbag-line" || id.startsWith("structure-sandbag-line:"))) {
+        return errorResponse(422, "SANDBAG_LINE_REQUIRED", "Trench Upgrade requires an existing Sandbag Line.");
       }
     }
     for (const action of [...actions, ...incidentalActions]) {

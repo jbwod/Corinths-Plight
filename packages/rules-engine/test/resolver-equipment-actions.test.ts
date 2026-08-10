@@ -413,6 +413,63 @@ describe("equipment and transport actions", () => {
     });
   });
 
+  it("upgrades Sandbags into a Trench and preserves Dig In along connected Trench hexes", () => {
+    const base = createDemoCampaignState(1_000);
+    const infantry = base.deployments.find((unit) => unit.definitionId === "unit-infantry-squad")!;
+    const startHex = base.map.find((hex) => hex.coord.q === infantry.position.q && hex.coord.r === infantry.position.r)!;
+    startHex.structureIds.push("structure-sandbag-line:existing");
+    const upgradeRule = getTacticalActionRule("TRENCH_UPGRADE");
+    const upgradeAction: StructuredAction = {
+      id: "upgrade-trench",
+      type: "TRENCH_UPGRADE",
+      economy: upgradeRule.economy,
+      speedCost: upgradeRule.speedCost,
+      targetHex: { ...infantry.position },
+      equipmentIds: [],
+    };
+    const upgradeOrder = order(base, infantry, [upgradeAction]);
+    base.orders = [upgradeOrder];
+
+    const upgraded = resolveRound({ ...input([upgradeOrder]), previousState: base });
+    const upgradedHex = upgraded.state.map.find((hex) =>
+      hex.coord.q === infantry.position.q && hex.coord.r === infantry.position.r
+    )!;
+    expect(upgradedHex.structureIds).toContainEqual(expect.stringMatching(/^structure-trench:/));
+    expect(upgradedHex.structureIds.some((id) => id.startsWith("structure-sandbag-line:"))).toBe(false);
+    expect(upgraded.events).toContainEqual(expect.objectContaining({
+      type: "STRUCTURE_UPGRADED",
+      actor: infantry.id,
+      payload: expect.objectContaining({
+        fromStructureDefinitionId: "structure-sandbag-line",
+        toStructureDefinitionId: "structure-trench",
+        smallSupplySpent: 0,
+      }),
+    }));
+
+    const movementState = createDemoCampaignState(3_000);
+    const movingInfantry = movementState.deployments.find((unit) => unit.definitionId === "unit-infantry-squad")!;
+    const destination = { q: -2, r: 1 };
+    movementState.map.find((hex) => hex.coord.q === movingInfantry.position.q && hex.coord.r === movingInfantry.position.r)!
+      .structureIds.push("structure-trench:start");
+    movementState.map.find((hex) => hex.coord.q === destination.q && hex.coord.r === destination.r)!
+      .structureIds.push("structure-trench:end");
+    movingInfantry.statuses.push("DUG_IN");
+    const moveOrder = order(movementState, movingInfantry, []);
+    moveOrder.orderType = "ADVANCE";
+    moveOrder.route = [{ ...movingInfantry.position }, destination];
+    moveOrder.endHex = destination;
+    movementState.orders = [moveOrder];
+
+    const moved = resolveRound({ ...input([moveOrder]), previousState: movementState });
+    expect(moved.state.deployments.find((unit) => unit.id === movingInfantry.id)?.statuses).toContain("DUG_IN");
+    expect(moved.events).toContainEqual(expect.objectContaining({
+      type: "UNIT_MOVED",
+      actor: movingInfantry.id,
+      payload: expect.objectContaining({ digInPreserved: true }),
+    }));
+    expect(moved.events.some((event) => event.type === "UNIT_DUG_OUT" && event.actor === movingInfantry.id)).toBe(false);
+  });
+
   it("queues weapon malfunctions without cancelling the target's simultaneous attack", () => {
     const base = createDemoCampaignState(1_000);
     const attacker = structuredClone(base.deployments.find((unit) => unit.definitionId === "unit-infantry-squad")!);

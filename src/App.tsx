@@ -80,9 +80,9 @@ interface CampaignDirectoryEntry {
   };
 }
 type Notice = { tone: "info" | "success" | "danger"; message: string };
-type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "CONSTRUCT" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
+type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
 type RepairKind = "HIT" | "SUBSYSTEM";
-const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "RELOAD", "LOAD", "UNLOAD", "HEAL", "REPAIR", "CONSTRUCT", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
+const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "RELOAD", "LOAD", "UNLOAD", "HEAL", "REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
 
 function initialCampaign(): CampaignView {
   const now = Date.now();
@@ -130,6 +130,7 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "UNIT_HEALED") return `${event.actor ?? "Medic"} restored ${String(payload.amount ?? "?")} strength to ${String(payload.targetId ?? "an allied unit")}.`;
   if (event.type === "UNIT_REPAIRED") return `${event.actor ?? "Engineer"} repaired ${String(payload.targetId ?? "an allied vehicle")}.`;
   if (event.type === "STRUCTURE_COMPLETED") return `${event.actor ?? "Engineer"} completed a Sandbag Line at ${String((payload.targetHex as AxialCoord | undefined)?.q ?? "?")}.${String((payload.targetHex as AxialCoord | undefined)?.r ?? "?")}.`;
+  if (event.type === "STRUCTURE_UPGRADED") return `${event.actor ?? "Infantry"} upgraded a Sandbag Line into a Trench.`;
   if (event.type === "ARTILLERY_DEPLOYED") return `${event.actor ?? "Artillery"} deployed and is ready to fire.`;
   if (event.type === "ARTILLERY_PACKED") return `${event.actor ?? "Artillery"} packed up for movement.`;
   if (event.type === "ARTILLERY_BOMBARDED") return `${event.actor ?? "Artillery"} fired a suppression mission.`;
@@ -485,6 +486,10 @@ function GameApp() {
   const selectedConstructionHex = constructionHexes.find((hex) =>
     constructionTargetHex && coordinatesEqual(hex.coord, constructionTargetHex)
   )?.coord ?? constructionHexes[0]?.coord;
+  const plannedEndHex = draftedRoute.at(-1) ?? selectedUnit?.position;
+  const sandbagAtPlannedEnd = Boolean(plannedEndHex && campaign.map.find((hex) =>
+    coordinatesEqual(hex.coord, plannedEndHex)
+  )?.structureIds.some((id) => id === "structure-sandbag-line" || id.startsWith("structure-sandbag-line:")));
   const currentOrder = campaign.orders.find(
     (order) => order.unitId === selectedUnit?.id && order.round === scheduledRound && order.lifecycle !== "CANCELLED",
   );
@@ -539,6 +544,9 @@ function GameApp() {
     (actionMode === "CONSTRUCT" && Boolean(
       isEngineerUnit && selectedConstructionHex && (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0
     )) ||
+    (actionMode === "TRENCH_UPGRADE" && Boolean(
+      selectedUnit?.tags?.includes("INFANTRY") && plannedEndHex && sandbagAtPlannedEnd
+    )) ||
     (actionMode === "DIG_IN" && !dugIn && orderType === "HOLD" && draftedRoute.length === 1) ||
     (actionMode === "DEPLOY" && isArtilleryUnit && !artilleryDeployed) ||
     (actionMode === "PACK_UP" && isArtilleryUnit && artilleryDeployed) ||
@@ -575,6 +583,8 @@ function GameApp() {
               : `repair ${selectedRepairSubsystem?.subsystemId ?? "a subsystem"} on ${supportTarget.callsign}`
           : actionMode === "CONSTRUCT" && selectedConstructionHex
             ? `build a Sandbag Line at ${selectedConstructionHex.q}.${selectedConstructionHex.r}`
+          : actionMode === "TRENCH_UPGRADE" && plannedEndHex
+            ? `upgrade the Sandbag Line at ${plannedEndHex.q}.${plannedEndHex.r} into a Trench`
           : actionMode === "DIG_IN"
             ? "prepare this position for +2 Defense"
           : actionMode === "DEPLOY"
@@ -721,6 +731,8 @@ function GameApp() {
         structureDefinitionId: "structure-sandbag-line",
         equipmentIds: [],
       });
+    } else if (actionMode === "TRENCH_UPGRADE" && plannedEndHex) {
+      actions.push({ type: "TRENCH_UPGRADE", targetHex: plannedEndHex, equipmentIds: [] });
     } else if (actionMode === "DIG_IN") {
       actions.push({ type: "DIG_IN", equipmentIds: [] });
     } else if (actionMode === "DEPLOY" || actionMode === "PACK_UP") {
@@ -1334,6 +1346,12 @@ function GameApp() {
                     </p>
                     <p className="validation">STANDARD ACTION · 0.5 SPEED · Infantry in the hex gain +1 Armor against fire from outside it.</p>
                     {constructionHexes.length === 0 && <p className="validation danger">No current or adjacent known hex can accept another Sandbag Line.</p>}
+                  </>
+                ) : actionMode === "TRENCH_UPGRADE" ? (
+                  <>
+                    <p className="validation">PRIMARY ACTION · No additional Supply · converts the occupied Sandbag Line into a Trench.</p>
+                    <p className="validation">Infantry that are Dug In preserve the +2 Defense while moving between connected Trench hexes.</p>
+                    {!sandbagAtPlannedEnd && <p className="validation danger">End the plotted route on a Sandbag Line to upgrade it.</p>}
                   </>
                 ) : actionMode === "DIG_IN" ? (
                   <>

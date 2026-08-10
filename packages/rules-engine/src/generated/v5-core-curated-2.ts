@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "ca0a5fae48cd4b66d250ee6661893e80a07a632c3e93364f7a51d60816cca1d1",
+  "contentHash": "898ae7448cf47317fd6f7e8bb6272a99b804001429b831aee42c0976aee532b8",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1649,6 +1649,7 @@ const snapshot = {
             "allowedActions": [
               "ATTACK",
               "DIG_IN",
+              "TRENCH_UPGRADE",
               "LOAD",
               "UNLOAD"
             ],
@@ -4162,6 +4163,40 @@ const snapshot = {
         }
       },
       {
+        "id": "action-trench-upgrade",
+        "kind": "ACTION",
+        "name": "Trench Upgrade",
+        "definitionStatus": "active",
+        "sourceId": "source-v5-core",
+        "sourcePath": null,
+        "sourceLocator": "V5 / Engineers / Sandbag Line",
+        "notes": "Infantry convert an existing Sandbag Line; no additional Supply cost is stated.",
+        "sourcedNumbers": {
+          "speedCostQuarters": {
+            "status": "PUBLISHED",
+            "value": 0
+          }
+        },
+        "references": [
+          {
+            "definitionKind": "STRUCTURE",
+            "definitionId": "structure-sandbag-line"
+          },
+          {
+            "definitionKind": "STRUCTURE",
+            "definitionId": "structure-trench"
+          }
+        ],
+        "parameters": {
+          "definition": {
+            "requiresStructure": "structure-sandbag-line",
+            "resultStructure": "structure-trench",
+            "usesAttack": true
+          },
+          "economy": "PRIMARY"
+        }
+      },
+      {
         "id": "action-unload-cargo",
         "kind": "ACTION",
         "name": "Unload Cargo",
@@ -4405,11 +4440,11 @@ const snapshot = {
         "id": "structure-trench",
         "kind": "STRUCTURE",
         "name": "Trench Line",
-        "definitionStatus": "experimental",
+        "definitionStatus": "active",
         "sourceId": "source-v5-core",
         "sourcePath": null,
-        "sourceLocator": "V5 Engineers plus Build sheet row 12",
-        "notes": "RC-009/RC-041: build conversion and health unresolved.",
+        "sourceLocator": "V5 Engineers / Trench Upgrade",
+        "notes": "V5 conversion is active; durability remains unresolved under RC-BUILD-006.",
         "sourcedNumbers": {
           "buildPoints": {
             "status": "BALANCE_REQUIRED",
@@ -4420,14 +4455,18 @@ const snapshot = {
             "value": null
           }
         },
-        "references": [],
+        "references": [
+          {
+            "definitionKind": "STRUCTURE",
+            "definitionId": "structure-sandbag-line"
+          }
+        ],
         "parameters": {
-          "buildCost": {
-            "smallSupply": 1
-          },
+          "buildCost": {},
           "definition": {
             "infantryArmor": 1,
-            "preservesDigIn": true
+            "preservesDigIn": true,
+            "upgradeFrom": "structure-sandbag-line"
           }
         }
       }
@@ -7541,6 +7580,7 @@ const snapshot = {
             "action-deploy-platform",
             "action-dig-in",
             "action-first-aid",
+            "action-trench-upgrade",
             "action-load-cargo",
             "action-pack-platform",
             "action-repair",
@@ -7723,6 +7763,22 @@ const snapshot = {
       {
         "definitionKind": "ACTION",
         "definitionId": "action-repair",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-trench-upgrade",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
         "availabilityStatus": "AVAILABLE",
@@ -8338,7 +8394,6 @@ const snapshot = {
             "SANDBAG_LINE_CONSTRUCTION"
           ],
           "missing": [
-            "TRENCH_UPGRADE",
             "RAZOR_WIRE",
             "TANK_TRAPS",
             "BRIDGES"
@@ -8438,14 +8493,15 @@ const snapshot = {
             "ATTACK",
             "MOVEMENT",
             "FACING",
-            "DIG_IN"
+            "DIG_IN",
+            "TRENCH_UPGRADE"
           ],
           "missing": [
             "GARRISON",
             "ACTIVE_EQUIPMENT"
           ],
           "publicationCorrection": {
-            "reason": "The V5 Dig In action now consumes the Infantry unit's total movement, grants +2 Defense, and ends on actual movement.",
+            "reason": "V5 Dig In and Sandbag-to-Trench upgrade execute, including preserving Dig In along connected Trench hexes.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": true,
@@ -13986,5 +14042,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "ca0a5fae48cd4b66d250ee6661893e80a07a632c3e93364f7a51d60816cca1d1" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "898ae7448cf47317fd6f7e8bb6272a99b804001429b831aee42c0976aee532b8" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

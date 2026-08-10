@@ -87,6 +87,7 @@ INSERT INTO action_definitions (id, ruleset_id, name, economy, speed_cost_quarte
   ('action-dig-in', 'ruleset-v5-core-curated-1', 'Dig In', 'STANDARD', 4, 'active', 'V5 / Infantry Squad', 'Consumes Infantry total movement and grants +2 Defense.', '{"defenseModifier":2,"endsOnMove":true}'),
   ('action-repair', 'ruleset-v5-core-curated-1', 'Repair', 'STANDARD', 2, 'active', 'V5 / Engineers', '', '{"smallSupplyCost":1,"repairsHits":1}'),
   ('action-construct', 'ruleset-v5-core-curated-1', 'Construct', 'STANDARD', 2, 'active', 'V5 / Engineers', 'Structure-specific values may be experimental.', '{"builderTag":"BUILDER"}'),
+  ('action-trench-upgrade', 'ruleset-v5-core-curated-1', 'Trench Upgrade', 'PRIMARY', 0, 'active', 'V5 / Engineers / Sandbag Line', 'Infantry convert an existing Sandbag Line; no additional Supply cost is stated.', '{"usesAttack":true,"requiresStructure":"structure-sandbag-line","resultStructure":"structure-trench"}'),
   ('action-bombardment', 'ruleset-v5-core-curated-1', 'Bombardment', 'PRIMARY', 0, 'active', 'V5 / Artillery', 'One Small Supply provisionally consumed per fire mission.', '{"usesAttack":true,"defenseModifier":-1,"areaRadius":1,"smallSupplyCost":1}'),
   ('action-reload', 'ruleset-v5-core-curated-1', 'Reload', 'STANDARD', 2, 'active', 'V5 / Actions and unit descriptions', '', '{"requiresSupply":true}')
 ON CONFLICT(id, ruleset_id) DO UPDATE SET definition_status = excluded.definition_status, definition_json = excluded.definition_json, notes = excluded.notes;
@@ -115,7 +116,7 @@ INSERT INTO structure_definitions (
   definition_status, source, notes, definition_json
 ) VALUES
   ('structure-sandbag-line', 'ruleset-v5-core-curated-1', 'Sandbag Line', '{"smallSupply":1}', NULL, NULL, 'active', 'V5 / Engineers / Action Construct: Sandbag Line', 'Immediate V5 field construction; other structures remain separately gated.', '{"infantryArmor":1,"capacityInfantrySquads":2,"constructRange":"ADJACENT_OR_CURRENT"}'),
-  ('structure-trench', 'ruleset-v5-core-curated-1', 'Trench Line', '{"smallSupply":1}', NULL, NULL, 'experimental', 'V5 Engineers plus Build sheet row 12', 'RC-009/RC-041: build conversion and health unresolved.', '{"infantryArmor":1,"preservesDigIn":true}'),
+  ('structure-trench', 'ruleset-v5-core-curated-1', 'Trench Line', '{}', NULL, NULL, 'active', 'V5 Engineers / Trench Upgrade', 'V5 conversion is active; durability remains unresolved under RC-BUILD-006.', '{"infantryArmor":1,"preservesDigIn":true,"upgradeFrom":"structure-sandbag-line"}'),
   ('structure-supply-depot', 'ruleset-v5-core-curated-1', 'Supply Depot', '{}', 12, NULL, 'experimental', 'Build sheet row 15', 'Health and V5 supply conversion unresolved.', '{"stores":["SMALL_SUPPLY"]}'),
   ('structure-sensor-tower', 'ruleset-v5-core-curated-1', 'Sensor Tower', '{}', 7, NULL, 'experimental', 'Build sheet row 22', 'Reveal radius and health unresolved.', '{"ability":"REVEAL_AREA"}')
 ON CONFLICT(id, ruleset_id) DO UPDATE SET definition_status = excluded.definition_status, build_cost_json = excluded.build_cost_json, build_points = excluded.build_points, health = excluded.health, notes = excluded.notes, definition_json = excluded.definition_json;

@@ -478,7 +478,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     capacity: 1,
     tags: ["GROUND", "PERSONNEL", "INFANTRY", "DIG_IN"],
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-    allowedActions: ["ATTACK", "DIG_IN", "LOAD", "UNLOAD"],
+    allowedActions: ["ATTACK", "DIG_IN", "TRENCH_UPGRADE", "LOAD", "UNLOAD"],
   },
   "unit-light-vehicle": {
     capacity: 1,
@@ -776,6 +776,7 @@ const foundationActionIds = [
   "action-deploy-platform",
   "action-dig-in",
   "action-first-aid",
+  "action-trench-upgrade",
   "action-load-cargo",
   "action-pack-platform",
   "action-repair",
@@ -797,17 +798,17 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["FS", "ATTACK", "MOVEMENT", "FACING", "DIG_IN"],
+      implementedSubset: ["FS", "ATTACK", "MOVEMENT", "FACING", "DIG_IN", "TRENCH_UPGRADE"],
       missing: ["GARRISON", "ACTIVE_EQUIPMENT"],
     },
-    explanation: "The V5 Dig In action now consumes the Infantry unit's total movement, grants +2 Defense, and ends on actual movement.",
+    explanation: "V5 Dig In and Sandbag-to-Trench upgrade execute, including preserving Dig In along connected Trench hexes.",
   },
   "UNIT:unit-engineers": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
       implementedSubset: ["FS", "MOVEMENT", "REPAIR_ACTION", "SANDBAG_LINE_CONSTRUCTION"],
-      missing: ["TRENCH_UPGRADE", "RAZOR_WIRE", "TANK_TRAPS", "BRIDGES"],
+      missing: ["RAZOR_WIRE", "TANK_TRAPS", "BRIDGES"],
     },
     explanation: "Engineer Repair and immediate V5 Sandbag Line construction execute end to end; edge and upgrade structures remain gated.",
   },
@@ -1130,7 +1131,7 @@ export async function buildCanonicalCatalogueEnvelope(root = repositoryRoot): Pr
     readLegacyCatalogueSnapshot(root),
     readCanonicalConflictRegister(root),
   ]);
-  if (legacyTopLevelDefinitionCount(snapshot) !== 97) throw new Error("The final seed snapshot must contain exactly 97 top-level definitions.");
+  if (legacyTopLevelDefinitionCount(snapshot) !== 98) throw new Error("The final seed snapshot must contain exactly 98 top-level definitions.");
   if (canonicalConflicts.length !== 72) throw new Error("The canonical conflict register must contain exactly 72 records.");
   const sourceMismatches = await legacySourceHashMismatches(snapshot, root);
   if (sourceMismatches.length > 0) throw new Error(`Rules source hashes drifted: ${canonicalJson(sourceMismatches)}`);
@@ -1184,8 +1185,8 @@ export async function buildCanonicalCatalogueEnvelope(root = repositoryRoot): Pr
 async function bootstrapLegacySnapshot(destination: string): Promise<void> {
   const snapshot = await readLegacyCatalogueSnapshot();
   const topLevelDefinitions = legacyTopLevelDefinitionCount(snapshot);
-  if (topLevelDefinitions !== 97) {
-    throw new Error(`Expected 97 final seeded top-level definitions; received ${topLevelDefinitions}.`);
+  if (topLevelDefinitions !== 98) {
+    throw new Error(`Expected 98 final seeded top-level definitions; received ${topLevelDefinitions}.`);
   }
   await writeFile(destination, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
   console.log(`Bootstrapped ${topLevelDefinitions} definitions to ${relative(repositoryRoot, destination)}.`);

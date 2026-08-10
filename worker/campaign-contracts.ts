@@ -19,6 +19,7 @@ const actionTypes = new Set<ActionType>([
   "PACK_UP",
   "REPAIR",
   "CONSTRUCT",
+  "TRENCH_UPGRADE",
   "GARRISON",
   "LOAD",
   "UNLOAD",
@@ -85,6 +86,7 @@ const eventTypes = new Set([
   "BOMBARDMENT_RECOVERED",
   "UNIT_DESTROYED",
   "STRUCTURE_COMPLETED",
+  "STRUCTURE_UPGRADED",
   "SUPPLY_TRANSFERRED",
   "ENEMY_REINFORCEMENTS_ARRIVED",
   "OBJECTIVE_CAPTURED",
@@ -199,6 +201,7 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     PACK_UP: [],
     REPAIR: ["targetDeploymentId", "payload"],
     CONSTRUCT: ["targetHex", "structureDefinitionId"],
+    TRENCH_UPGRADE: ["targetHex"],
     GARRISON: ["targetHex"],
     LOAD: ["targetDeploymentId"],
     UNLOAD: ["targetDeploymentId", "targetHex", "payload"],
@@ -284,6 +287,9 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
   }
   if (type === "CONSTRUCT" && (!parsed.targetHex || !parsed.structureDefinitionId)) {
     requestFail(path, "CONSTRUCT requires targetHex and structureDefinitionId.");
+  }
+  if (type === "TRENCH_UPGRADE" && !parsed.targetHex) {
+    requestFail(path, "TRENCH_UPGRADE requires targetHex.");
   }
   return parsed;
 }
