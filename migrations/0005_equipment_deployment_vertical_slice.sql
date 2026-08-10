@@ -187,7 +187,7 @@ CREATE TRIGGER deployment_plans_prevent_duplicate_commit
 BEFORE UPDATE OF status ON deployment_plans
 WHEN NEW.status IN ('COMMITTED', 'DEPLOYING')
 BEGIN
-  SELECT CASE WHEN EXISTS (
+  SELECT RAISE(ABORT, 'player unit already reserved for deployment') WHERE EXISTS (
     SELECT 1
     FROM deployment_plan_units AS selected
     JOIN deployment_plan_units AS other ON other.player_unit_id = selected.player_unit_id
@@ -195,7 +195,7 @@ BEGIN
     WHERE selected.deployment_plan_id = NEW.id
       AND other.deployment_plan_id <> NEW.id
       AND other_plan.status IN ('COMMITTED', 'DEPLOYING')
-  ) THEN RAISE(ABORT, 'player unit already reserved for deployment') END;
+  );
 END;
 
 CREATE TABLE deployment_transport_assignments (

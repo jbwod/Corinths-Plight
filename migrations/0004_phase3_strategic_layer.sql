@@ -257,9 +257,9 @@ BEGIN
       JOIN ancestors ON locations.id = ancestors.parent_id
      WHERE ancestors.parent_id IS NOT NULL
   )
-  SELECT CASE WHEN EXISTS (
+  SELECT RAISE(ABORT, 'strategic location hierarchy cycle') WHERE EXISTS (
     SELECT 1 FROM ancestors WHERE id = NEW.id
-  ) THEN RAISE(ABORT, 'strategic location hierarchy cycle') END;
+  );
 END;
 
 ALTER TABLE planets ADD COLUMN strategic_location_id TEXT
