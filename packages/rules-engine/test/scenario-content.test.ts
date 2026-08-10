@@ -4,6 +4,7 @@ import { createDemoCampaignState } from "../src/demo";
 import {
   createScenarioCampaignState,
   OUTPOST_K17_SCENARIO_ID,
+  OUTPOST_K17_SCENARIO_VERSION,
 } from "../src/scenario-content";
 
 describe("authored scenario content", () => {
@@ -25,13 +26,14 @@ describe("authored scenario content", () => {
     expect(state).toMatchObject({
       campaignId: "campaign-live",
       scenarioId: OUTPOST_K17_SCENARIO_ID,
-      scenarioVersion: 2,
+      scenarioVersion: OUTPOST_K17_SCENARIO_VERSION,
       round: 1,
       phase: "PLANNING",
       scenarioPolicy: { startRound: 1, maxRounds: 4, primaryObjectiveId: "objective-outpost" },
     });
     expect(state.deployments.filter((deployment) => deployment.side === "ALLIED")).toHaveLength(2);
     expect(state.deployments.filter((deployment) => deployment.side === "ENEMY" && deployment.status === "ACTIVE")).toHaveLength(3);
+    expect(state.deployments.find((deployment) => deployment.callsign === "SKITTER-9")?.position).toEqual({ q: 3, r: -2 });
     expect(state.deployments.filter((deployment) => deployment.locationState === "RESERVE")).toHaveLength(6);
     expect(state.reinforcementWaves).toEqual([
       expect.objectContaining({ id: "k17-wave-2", arrivesAfterRound: 1, status: "PENDING" }),
@@ -41,7 +43,7 @@ describe("authored scenario content", () => {
     expect(state.objectives).toHaveLength(3);
     expect(state.events[0]).toMatchObject({
       type: "ROUND_STARTED",
-      payload: { scenarioId: OUTPOST_K17_SCENARIO_ID, scenarioVersion: 2 },
+      payload: { scenarioId: OUTPOST_K17_SCENARIO_ID, scenarioVersion: OUTPOST_K17_SCENARIO_VERSION },
     });
   });
 

@@ -207,7 +207,7 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 | Class | D1 | Generated tactical class | End-to-end status | Principal gap |
 |---|---:|---:|---:|---|
 | Infantry | yes | yes | partial | Dig In, cover, melee/stealth and price missing |
-| Medic | yes | yes | partial/playable | First Aid is connected through generated catalogue, order contract, resolver, D1 effects, report event and tactical UI. Medical reload and MASH remain deferred. |
+| Medic | yes | yes | partial/playable | First Aid and field resupply are connected through generated catalogue, order contract, resolver, D1 effects, report events and tactical UI. Field resupply spends one Small Supply and restores Medical Supply to current Medic FS; MASH remains deferred. |
 | Engineer | yes | yes | misleading partial | Construct/repair absent; adapter loses action truth |
 | Artillery | yes | yes | experimental partial | Deploy/pack/bombard/control/reload path incomplete; damage provisional |
 | Logi Truck | yes, legacy seed marks executable | no | safely blocked | Generated authority rejects the unsupported handler; tow/supply absent |
@@ -223,7 +223,7 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 ### Orders, actions, equipment and deployment
 
 - Generated executable orders: Hold, Advance and Rush only.
-- Generated executable action grammar and tactical UI: Attack, Reload, Load, Unload and First Aid; Scan and Drone are rejected and unadvertised until their visibility state effects exist.
+- Generated executable action grammar and tactical UI: Attack, finite-weapon Reload, Medic field resupply, Load, Unload and First Aid; Scan and Drone are rejected and unadvertised until their visibility state effects exist.
 - D1 has 22 action definitions. CP-201 preserves their audit links but exposes only action/order types backed by a registered generated foundation handler. MASH, artillery deployment/funnel, supply transfer, crew repair, flight operations, airdrop and sabotage remain non-executable end to end.
 - The executable equipment subset is narrow: Flak Vests and Light AT currently have proven handlers. Generated corrections fail closed on Optics and Drone Operator because their visibility effects are not implemented; Orbital Drop Training and the remaining items stay partial, blocked or hidden.
 - Standard, Vehicle, VTOL, HAT and Paradrop deployment rows are marked implemented, but planner/scenario/aerospace integration is incomplete; Orbital remains partial and unresolved.

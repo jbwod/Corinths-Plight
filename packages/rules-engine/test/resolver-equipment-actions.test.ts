@@ -159,6 +159,49 @@ describe("equipment and transport actions", () => {
     ]));
   });
 
+  it("restores Medical Supply to current Medic FS using one Small Supply", () => {
+    const base = createDemoCampaignState(1_000);
+    const medicDefinition = getTacticalUnitClass("unit-combat-medic");
+    const medic: CampaignDeployment = {
+      ...structuredClone(base.deployments[0]),
+      id: "dep-doc-reload",
+      persistentUnitId: "force-doc-reload",
+      definitionId: medicDefinition.id,
+      callsign: "DOC-R",
+      stats: medicDefinition.stats,
+      currentHealth: 3,
+      weapons: [],
+      ammunition: {},
+      equipmentIds: [],
+      supplies: { MEDICAL_SUPPLY: 1, SMALL_SUPPLY: 1 },
+    };
+    base.deployments.push(medic);
+    const reloadRule = getTacticalActionRule("RELOAD");
+    const reloadAction: StructuredAction = {
+      id: "reload-medical-supply",
+      type: "RELOAD",
+      economy: reloadRule.economy,
+      speedCost: reloadRule.speedCost,
+      equipmentIds: [],
+    };
+    const orders = [order(base, medic, [reloadAction])];
+    base.orders = orders;
+
+    const output = resolveRound({ ...input(orders), previousState: base });
+    const resolvedMedic = output.state.deployments.find((unit) => unit.id === medic.id)!;
+
+    expect(resolvedMedic.supplies).toMatchObject({ MEDICAL_SUPPLY: 3, SMALL_SUPPLY: 0 });
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "MEDICAL_SUPPLY_RELOADED",
+      actor: medic.id,
+      payload: expect.objectContaining({
+        medicalSupplyBefore: 1,
+        medicalSupplyAfter: 3,
+        smallSupplySpent: 1,
+      }),
+    }));
+  });
+
   it("rejects Drone until its visibility state effect is implemented", () => {
     const base = createDemoCampaignState(1_000);
     const unit = base.deployments[0];

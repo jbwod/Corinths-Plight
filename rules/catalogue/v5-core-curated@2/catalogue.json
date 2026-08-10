@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "ee79d110fa8c7a2bf55f58ddbe9953ac344f0bfc09ddf210c8b8f62a4ef412b4",
+  "contentHash": "c6f3ddfbb1b7ffd69e375836b4e7ef1f17fb2da460818e74d101fcbb2c844d15",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1344,6 +1344,7 @@
           "execution": {
             "allowedActions": [
               "HEAL",
+              "RELOAD",
               "LOAD",
               "UNLOAD"
             ],
@@ -8119,7 +8120,7 @@
         "parameters": {
           "implementedSubset": [
             "FIRST_AID",
-            "MEDICAL_SUPPLY"
+            "MEDICAL_SUPPLY_RELOAD"
           ],
           "missing": [
             "MASH"

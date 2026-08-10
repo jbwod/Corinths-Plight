@@ -101,6 +101,7 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "UNIT_ATTACKED") return `${event.actor ?? "Unit"} engaged ${String(payload.targetId ?? "a hostile")}.`;
   if (event.type === "DAMAGE_APPLIED") return `${event.actor ?? "Unit"} lost ${String(payload.loss ?? "?")} strength.`;
   if (event.type === "UNIT_HEALED") return `${event.actor ?? "Medic"} restored ${String(payload.amount ?? "?")} strength to ${String(payload.targetId ?? "an allied unit")}.`;
+  if (event.type === "MEDICAL_SUPPLY_RELOADED") return `${event.actor ?? "Medic"} restored Medical Supply to ${String(payload.medicalSupplyAfter ?? "?")}.`;
   if (event.type === "UNIT_DESTROYED") return `${event.actor ?? "Unit"} was destroyed.`;
   if (event.type === "ROUND_FINISHED") return `Round ${event.round} resolved and archived.`;
   return event.type.replaceAll("_", " ").toLowerCase();
@@ -263,6 +264,8 @@ function GameApp() {
   const selectedDefinition = selectedUnit ? getUnitClass(selectedUnit.definitionId) : undefined;
   const selectedAllowedOrders = selectedUnit?.allowedOrders ?? selectedDefinition?.allowedOrders ?? [];
   const selectedAllowedActions = selectedUnit?.allowedActions ?? selectedDefinition?.allowedActions ?? [];
+  const isMedicalUnit = selectedDefinition?.tags.includes("MEDICAL") ?? false;
+  const medicalSupplyCapacity = selectedUnit ? Math.max(0, Math.floor(selectedUnit.currentHealth)) : 0;
   const executableComposerActions = composerActionModes.filter(
     (type) => selectedAllowedActions.includes(type) && getTacticalActionRule(type).executable,
   );
@@ -348,7 +351,12 @@ function GameApp() {
   const actionReady =
     actionMode === "NONE" ||
     (actionMode === "ATTACK" && Boolean(targetUnit && selectedWeapon && orderType !== "RUSH" && !targetOutOfRange)) ||
-    (actionMode === "RELOAD" && Boolean(selectedWeapon && (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0)) ||
+    (actionMode === "RELOAD" && Boolean(
+      (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0 &&
+      (isMedicalUnit
+        ? (selectedUnit?.supplies?.MEDICAL_SUPPLY ?? 0) < medicalSupplyCapacity
+        : selectedWeapon),
+    )) ||
     (actionMode === "HEAL" && Boolean(supportTarget && (selectedUnit?.supplies?.MEDICAL_SUPPLY ?? 0) > 0)) ||
     ((actionMode === "LOAD" || actionMode === "UNLOAD") && Boolean(supportTarget));
   const canSubmit = Boolean(
@@ -361,8 +369,10 @@ function GameApp() {
   );
   const actionSummary = actionMode === "ATTACK" && targetUnit && selectedWeapon
     ? `engage ${targetUnit.callsign} with ${selectedWeapon.name}`
-    : actionMode === "RELOAD" && selectedWeapon
-      ? `reload ${selectedWeapon.name} using one Small Supply`
+    : actionMode === "RELOAD" && isMedicalUnit
+      ? "restore Medical Supply using one Small Supply"
+      : actionMode === "RELOAD" && selectedWeapon
+        ? `reload ${selectedWeapon.name} using one Small Supply`
       : actionMode === "LOAD" && supportTarget
         ? `coordinate loading with ${supportTarget.callsign}`
         : actionMode === "UNLOAD" && supportTarget
@@ -454,6 +464,8 @@ function GameApp() {
         weaponId: selectedWeapon!.id,
         equipmentIds: [],
       });
+    } else if (actionMode === "RELOAD" && isMedicalUnit) {
+      actions.push({ type: "RELOAD", equipmentIds: [] });
     } else if (actionMode === "RELOAD" && selectedWeapon) {
       actions.push({ type: "RELOAD", weaponId: selectedWeapon.id, equipmentIds: [] });
     } else if (actionMode === "LOAD" && supportTarget) {
@@ -858,6 +870,16 @@ function GameApp() {
                   </>
                 ) : actionMode === "ATTACK" ? (
                   <p className="validation danger">This unit has no executable weapon profile.</p>
+                ) : actionMode === "RELOAD" && isMedicalUnit ? (
+                  <>
+                    <p className={`validation ${(selectedUnit.supplies?.SMALL_SUPPLY ?? 0) < 1 ? "danger" : ""}`}>
+                      SMALL SUPPLY: {selectedUnit.supplies?.SMALL_SUPPLY ?? 0} · medical reload consumes 1
+                    </p>
+                    <p className={`validation ${(selectedUnit.supplies?.MEDICAL_SUPPLY ?? 0) >= medicalSupplyCapacity ? "danger" : ""}`}>
+                      MEDICAL SUPPLY: {selectedUnit.supplies?.MEDICAL_SUPPLY ?? 0}/{medicalSupplyCapacity} · capacity follows current Medic Force Strength
+                    </p>
+                    <p className="validation">Restore all Medical Supply up to this Medic's current Force Strength.</p>
+                  </>
                 ) : actionMode === "RELOAD" ? (
                   <>
                     <label className="field-label" htmlFor="reload-weapon">WEAPON TO RELOAD</label>

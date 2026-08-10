@@ -57,6 +57,16 @@ describe("campaign order request contracts", () => {
     });
   });
 
+  it("accepts weaponless Reload intent for server-authorized resource reload handlers", () => {
+    expect(parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-allied-medic",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{ type: "RELOAD" }],
+    }).actions).toEqual([{ type: "RELOAD" }]);
+  });
+
   it.each([
     ["unknown order field", { unitId: "unit-1", orderType: "HOLD", facing: 0, economy: "STANDARD" }],
     ["invalid campaign version", { unitId: "unit-1", orderType: "HOLD", facing: 0, expectedCampaignVersion: 0 }],

@@ -330,6 +330,46 @@ export function resolveRound(input: RoundInput): RoundOutput {
         }, actorVisibility);
       }
       if (action.type === "RELOAD") {
+        const medicalUnit = (() => {
+          try {
+            return getTacticalUnitClass(actor.definitionId).tags.includes("MEDICAL");
+          } catch {
+            return false;
+          }
+        })();
+        if (medicalUnit && action.weaponId === undefined) {
+          const currentMedicalSupply = actor.supplies?.MEDICAL_SUPPLY ?? 0;
+          const medicalSupplyCapacity = Math.max(0, Math.floor(actor.currentHealth));
+          const smallSupply = actor.supplies?.SMALL_SUPPLY ?? 0;
+          if (currentMedicalSupply >= medicalSupplyCapacity) {
+            event("ORDER_REJECTED", actor.id, {
+              orderId: order.id,
+              actionId: action.id,
+              reasons: ["Medical Supply is already at the medic's current capacity."],
+            }, actorVisibility);
+            continue;
+          }
+          if (smallSupply < 1) {
+            event("ORDER_REJECTED", actor.id, {
+              orderId: order.id,
+              actionId: action.id,
+              reasons: ["Medic reload requires one Small Supply."],
+            }, actorVisibility);
+            continue;
+          }
+          actor.supplies = {
+            ...(actor.supplies ?? {}),
+            MEDICAL_SUPPLY: medicalSupplyCapacity,
+            SMALL_SUPPLY: smallSupply - 1,
+          };
+          event("MEDICAL_SUPPLY_RELOADED", actor.id, {
+            actionId: action.id,
+            medicalSupplyBefore: currentMedicalSupply,
+            medicalSupplyAfter: medicalSupplyCapacity,
+            smallSupplySpent: 1,
+          }, actorVisibility);
+          continue;
+        }
         const weapon = actor.weapons.find((candidate) => candidate.id === action.weaponId);
         if (!weapon) {
           event("ORDER_REJECTED", actor.id, { orderId: order.id, actionId: action.id, reasons: ["Reload weapon is not fitted."] }, actorVisibility);

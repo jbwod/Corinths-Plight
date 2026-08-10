@@ -528,6 +528,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
     deploymentWeaponIds: Set<string>,
     equipmentIds: Set<string>,
     allowedActions: Set<string>,
+    allowsMedicalReload: boolean,
   ): StructuredAction[] {
     if (!input) return [];
     return input.slice(0, 16).map((candidate, index) => {
@@ -535,6 +536,9 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (!allowedActions.has(candidate.type)) throw new Error("Unit class is not eligible for this action.");
       const definition = getTacticalActionRule(candidate.type);
       if (!definition.executable) throw new Error("Action is catalogued but not executable in this engine version.");
+      if (candidate.type === "RELOAD" && !candidate.weaponId && !allowsMedicalReload) {
+        throw new Error("Weapon reload requires a fitted weapon.");
+      }
       if (candidate.weaponId && !deploymentWeaponIds.has(candidate.weaponId)) {
         throw new Error("Action references a weapon not fitted to the unit.");
       }
@@ -617,16 +621,18 @@ export class CampaignDurableObject extends DurableObject<Env> {
       (deployment.allowedActions ?? execution.allowedActionTypes)
         .filter((action) => execution.allowedActionTypes.includes(action)),
     );
+    const allowsMedicalReload = execution.legacyDefinition.tags.includes("MEDICAL");
     let actions: StructuredAction[];
     let incidentalActions: StructuredAction[];
     try {
-      actions = this.sanitiseActions(intent.actions, deployment.id, weaponIds, equipmentIds, allowedActions);
+      actions = this.sanitiseActions(intent.actions, deployment.id, weaponIds, equipmentIds, allowedActions, allowsMedicalReload);
       incidentalActions = this.sanitiseActions(
         intent.incidentalActions,
         deployment.id,
         weaponIds,
         equipmentIds,
         allowedActions,
+        allowsMedicalReload,
       );
     } catch (error) {
       return errorResponse(

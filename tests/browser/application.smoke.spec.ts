@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import type { CampaignView } from "../../packages/domain/src";
+import { shortestPath } from "../../packages/rules-engine/src";
 
 async function expectNoDocumentOverflow(page: Page): Promise<void> {
   const dimensions = await page.evaluate(() => ({
@@ -42,7 +44,7 @@ async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<
   for (let index = 0; index < await deployableUnits.count(); index += 1) {
     const checkbox = deployableUnits.nth(index);
     const label = await checkbox.locator("..").innerText();
-    const foundationSupportUnit = ["ANVIL", "LONGBOW", "DOC-7", "RAVEN-2"].some((callsign) => label.includes(callsign));
+    const foundationSupportUnit = ["LONGBOW", "DOC-7", "RAVEN-2", "NOMAD"].some((callsign) => label.includes(callsign));
     if (foundationSupportUnit && ![...deployedCallsigns].some((callsign) => label.includes(callsign))) {
       await checkbox.check();
       selectedForDeployment += 1;
@@ -56,6 +58,58 @@ async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<
   }
   await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Campaigns" }).click();
   await expect(map).toBeVisible();
+}
+
+async function resolveCurrentK17Round(page: Page): Promise<void> {
+  const resolution = await page.evaluate(async () => {
+    const headers = { "x-demo-user": "demo-user" };
+    const current = await fetch("/api/campaigns/campaign-k17-relay/state", { headers });
+    const state = await current.json() as { round: number };
+    const resolved = await fetch("/api/campaigns/campaign-k17-relay/resolve", {
+      method: "POST",
+      headers: { ...headers, "x-expected-round": String(state.round) },
+    });
+    return { status: resolved.status, body: await resolved.text() };
+  });
+  expect(resolution, resolution.body).toMatchObject({ status: 200 });
+}
+
+async function submitRelayDefenceOrder(page: Page): Promise<void> {
+  const response = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(response.status()).toBe(200);
+  const state = await response.json() as CampaignView;
+  const defender = state.deployments.find((deployment) => deployment.callsign === "NOMAD");
+  const relay = state.objectives.find((objective) => objective.id === "objective-outpost");
+  expect(defender).toBeDefined();
+  expect(relay).toBeDefined();
+  const route = shortestPath(defender!.position, relay!.coord, state.map);
+  expect(route.length).toBeGreaterThan(1);
+  const orderRevision = state.orders.find((order) => order.unitId === defender!.id && order.round === state.round)?.revision ?? 0;
+  const status = await page.evaluate(async ({ command }) => {
+    const result = await fetch("/api/campaigns/campaign-k17-relay/orders", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-demo-user": "demo-user" },
+      body: JSON.stringify(command),
+    });
+    return { status: result.status, body: await result.text() };
+  }, {
+    command: {
+      commandId: `browser-defend-relay-${state.round}`,
+      expectedCampaignVersion: state.version,
+      expectedOrderRevision: orderRevision,
+      unitId: defender!.id,
+      round: state.round,
+      orderType: "RUSH",
+      lifecycle: "SUBMITTED",
+      route,
+      facing: defender!.facing,
+      actions: [],
+      incidentalActions: [],
+    },
+  });
+  expect(status, status.body).toMatchObject({ status: 201 });
 }
 
 test("public landing exposes the signed-out authentication shell", async ({ page }) => {
@@ -161,17 +215,8 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(composer.getByText(/MEDICAL SUPPLY:/)).toBeVisible();
   await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
   await expect(page.getByText(/DOC-7 order submitted to campaign command/)).toBeVisible();
-  const resolution = await page.evaluate(async () => {
-    const headers = { "x-demo-user": "demo-user" };
-    const current = await fetch("/api/campaigns/campaign-k17-relay/state", { headers });
-    const state = await current.json() as { round: number };
-    const resolved = await fetch("/api/campaigns/campaign-k17-relay/resolve", {
-      method: "POST",
-      headers: { ...headers, "x-expected-round": String(state.round) },
-    });
-    return { status: resolved.status, body: await resolved.text() };
-  });
-  expect(resolution, resolution.body).toMatchObject({ status: 200 });
+  await submitRelayDefenceOrder(page);
+  await resolveCurrentK17Round(page);
 
   await expect.poll(async () => {
     const response = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
@@ -184,6 +229,30 @@ test("tactical composer exposes every currently executable action and no catalog
     };
     const medic = state.deployments?.find((deployment) => deployment.callsign === "DOC-7");
     return medic?.supplies?.MEDICAL_SUPPLY === 3 && state.events?.some((event) => event.type === "UNIT_HEALED") === true;
+  }).toBe(true);
+
+  await page.reload();
+  await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
+  await page.locator(".unit-roster").getByRole("button", { name: /DOC-7/ }).click();
+  await composer.getByRole("button", { name: "RELOAD", exact: true }).click();
+  await expect(composer.getByText("MEDICAL SUPPLY: 3/4", { exact: false })).toBeVisible();
+  await expect(composer.getByText(/SMALL SUPPLY: 1/)).toBeVisible();
+  await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
+  await expect(page.getByText(/DOC-7 order submitted to campaign command/)).toBeVisible();
+  await resolveCurrentK17Round(page);
+
+  await expect.poll(async () => {
+    const response = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
+      headers: { "x-demo-user": "demo-user" },
+    });
+    if (!response.ok()) return false;
+    const state = await response.json() as {
+      deployments?: Array<{ callsign: string; supplies?: Record<string, number> }>;
+      events?: Array<{ type: string }>;
+    };
+    const medic = state.deployments?.find((deployment) => deployment.callsign === "DOC-7");
+    return medic?.supplies?.MEDICAL_SUPPLY === 4 && medic.supplies.SMALL_SUPPLY === 0 &&
+      state.events?.some((event) => event.type === "MEDICAL_SUPPLY_RELOADED") === true;
   }).toBe(true);
 });
 

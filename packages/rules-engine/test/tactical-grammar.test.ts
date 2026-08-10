@@ -54,7 +54,7 @@ describe("generated tactical grammar", () => {
     expect(getTacticalUnitClass("unit-combat-medic")).toMatchObject({
       category: "SUPPORT",
       stats: { maxHealth: 4, speed: 1, capacity: 1 },
-      allowedActions: ["HEAL", "LOAD", "UNLOAD"],
+      allowedActions: ["HEAL", "RELOAD", "LOAD", "UNLOAD"],
     });
     expect(() => getTacticalUnitClass("unit-logi-truck")).toThrow("Unit class is not executable");
   });

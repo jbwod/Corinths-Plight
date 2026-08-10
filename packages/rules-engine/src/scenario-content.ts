@@ -5,7 +5,7 @@ import { createOutpostMap } from "./demo";
 import { ENGINE_VERSION } from "./resolver";
 
 export const OUTPOST_K17_SCENARIO_ID = "scenario-outpost-k17-hold-relay" as const;
-export const OUTPOST_K17_SCENARIO_VERSION = 2 as const;
+export const OUTPOST_K17_SCENARIO_VERSION = 3 as const;
 
 export interface ScenarioCampaignInput {
   mapSourceKey: string;
@@ -114,7 +114,7 @@ export function createScenarioCampaignState(input: ScenarioCampaignInput): Campa
     map: createOutpostMap(),
     deployments: [
       ...input.alliedDeployments.map((deployment) => structuredClone(deployment)),
-      enemy(input.campaignId, "bug-drone-1", "enemy-bug-drone", "SKITTER-9", { q: 1, r: -1 }, 5),
+      enemy(input.campaignId, "bug-drone-1", "enemy-bug-drone", "SKITTER-9", { q: 3, r: -2 }, 5),
       enemy(input.campaignId, "bug-warrior-1", "enemy-bug-warrior", "CHITIN-4", { q: 3, r: -1 }, 5),
       enemy(input.campaignId, "bug-heavy-1", "enemy-bug-heavy", "BEHEMOTH", { q: 4, r: -2 }, 4),
       enemy(input.campaignId, "wave-2-drone", "enemy-bug-drone", "RAZOR-2", { q: 5, r: -2 }, 4, true),

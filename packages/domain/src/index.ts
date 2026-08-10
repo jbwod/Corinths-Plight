@@ -794,6 +794,7 @@ export type CampaignEventType =
   | "AIR_DROP_FAILED"
   | "WEAPON_RELOADED"
   | "UNIT_HEALED"
+  | "MEDICAL_SUPPLY_RELOADED"
   | "HEX_SCANNED"
   | "DRONE_DEPLOYED"
   | "DICE_ROLLED"

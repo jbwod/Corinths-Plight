@@ -57,6 +57,7 @@ const eventTypes = new Set([
   "AIR_DROP_COMPLETED",
   "AIR_DROP_FAILED",
   "WEAPON_RELOADED",
+  "MEDICAL_SUPPLY_RELOADED",
   "HEX_SCANNED",
   "DRONE_DEPLOYED",
   "DICE_ROLLED",
@@ -222,7 +223,6 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
   if (type === "ATTACK" && (!parsed.targetDeploymentId || !parsed.weaponId)) {
     requestFail(path, "ATTACK requires targetDeploymentId and weaponId.");
   }
-  if (type === "RELOAD" && !parsed.weaponId) requestFail(path, "RELOAD requires weaponId.");
   if (type === "LOAD" && !parsed.targetDeploymentId) requestFail(path, "LOAD requires targetDeploymentId.");
   if (type === "UNLOAD" && !parsed.targetDeploymentId && !parsed.payload?.cargoDeploymentId) {
     requestFail(path, "UNLOAD requires targetDeploymentId or payload.cargoDeploymentId.");

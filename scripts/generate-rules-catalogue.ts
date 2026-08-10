@@ -466,7 +466,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     capacity: 1,
     tags: ["GROUND", "PERSONNEL", "INFANTRY", "MEDICAL"],
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-    allowedActions: ["HEAL", "LOAD", "UNLOAD"],
+    allowedActions: ["HEAL", "RELOAD", "LOAD", "UNLOAD"],
   },
   "unit-engineers": {
     capacity: 1,

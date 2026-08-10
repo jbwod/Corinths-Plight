@@ -259,14 +259,16 @@ ON CONFLICT(id) DO UPDATE SET
   destroyed_round = excluded.destroyed_round,
   destroyed_cause = excluded.destroyed_cause;
 
+DELETE FROM player_unit_equipment
+ WHERE equipment_definition_id = 'equipment-vehicle-optics'
+   AND player_unit_id IN ('force-nomad', 'force-bellator');
+
 INSERT INTO player_unit_equipment (
   player_unit_id, ruleset_id, equipment_definition_id,
   slot_type, slot_index, state_json
 ) VALUES
   ('force-raven-2', 'ruleset-v5-core-curated-1', 'equipment-flak-vests', 'SECONDARY', 0, '{}'),
-  ('force-raven-2', 'ruleset-v5-core-curated-1', 'equipment-light-at', 'PRIMARY', 0, '{"ammunition":2}'),
-  ('force-nomad', 'ruleset-v5-core-curated-1', 'equipment-vehicle-optics', 'INTERNAL', 0, '{}'),
-  ('force-bellator', 'ruleset-v5-core-curated-1', 'equipment-vehicle-optics', 'INTERNAL', 0, '{}')
+  ('force-raven-2', 'ruleset-v5-core-curated-1', 'equipment-light-at', 'PRIMARY', 0, '{"ammunition":2}')
 ON CONFLICT(player_unit_id, slot_type, slot_index) DO UPDATE SET
   equipment_definition_id = excluded.equipment_definition_id,
   ruleset_id = excluded.ruleset_id,
@@ -298,6 +300,7 @@ INSERT INTO player_unit_supplies (
   player_unit_id, resource_type, current_quantity, maximum_quantity
 ) VALUES
   ('force-doc-7', 'MEDICAL_SUPPLY', 4, 4),
+  ('force-doc-7', 'SMALL_SUPPLY', 1, 1),
   ('force-anvil', 'SMALL_SUPPLY', 4, 4),
   ('force-longbow', 'SMALL_SUPPLY', 2, 2),
   ('force-vulture-1', 'MAIN_AMMUNITION', 1, 1),

@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "ee79d110fa8c7a2bf55f58ddbe9953ac344f0bfc09ddf210c8b8f62a4ef412b4",
+  "contentHash": "c6f3ddfbb1b7ffd69e375836b4e7ef1f17fb2da460818e74d101fcbb2c844d15",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1361,6 +1361,7 @@ const snapshot = {
           "execution": {
             "allowedActions": [
               "HEAL",
+              "RELOAD",
               "LOAD",
               "UNLOAD"
             ],
@@ -8136,7 +8137,7 @@ const snapshot = {
         "parameters": {
           "implementedSubset": [
             "FIRST_AID",
-            "MEDICAL_SUPPLY"
+            "MEDICAL_SUPPLY_RELOAD"
           ],
           "missing": [
             "MASH"
@@ -13762,5 +13763,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "ee79d110fa8c7a2bf55f58ddbe9953ac344f0bfc09ddf210c8b8f62a4ef412b4" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "c6f3ddfbb1b7ffd69e375836b4e7ef1f17fb2da460818e74d101fcbb2c844d15" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;
