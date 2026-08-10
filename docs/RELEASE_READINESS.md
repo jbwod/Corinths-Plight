@@ -135,7 +135,7 @@ No external state was changed during this Phase-0 assessment.
 | Control | Status | Required evidence |
 |---|---:|---|
 | Tactical deterministic pure resolver | partial pass | Golden/permutation tests exist for narrow mechanics; hashes/journal not release grade. |
-| Tactical PREPARED→effects→ACK→COMMITTED | fail | CP-402 with failure injection at every boundary. |
+| Tactical PREPARED→effects→ACK→COMMITTED | partial | The effect→ACK→next-round gate and retry path are implemented for supported effects; PREPARED/crypto/full crash-boundary evidence remains CP-402. |
 | Strategic pure resolver | foundation pass | No runtime caller/journal/alarm; public execution blocked. |
 | Strategic PREPARED→effects→ACK→COMMITTED | missing | CP-302. |
 | Durable schedule lifecycle/recovery | missing | CP-109. |
@@ -160,7 +160,7 @@ No external state was changed during this Phase-0 assessment.
 | Choose operation and create scenario campaign | missing | CP-400/CP-401/CP-601 |
 | Submit/edit/cancel/schedule tactical orders | partial | CP-406 and general campaign UI |
 | Resolve deterministic PvE combined arms | narrow partial | CP-500–CP-507 |
-| Persist effects before next round | fail | CP-402 |
+| Persist effects before next round | narrow pass | Supported tactical effects hold `EFFECTS_PENDING` and acknowledge before one next round; broaden under CP-402. |
 | Audience-safe reconnect/report/replay | partial/fail | A local report-detail UI consumes projected round events, but event-time redaction, reconnect catch-up, index/playback/export and browser evidence remain CP-403/CP-700. |
 | Apply tactical result to living war | missing | CP-600–CP-603 |
 | Withdraw/re-embark/redeploy | missing | CP-603 |

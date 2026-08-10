@@ -63,7 +63,46 @@ class MemoryStorage {
   }
 }
 
-function campaignObject(): { campaign: CampaignDurableObject; storage: MemoryStorage } {
+class EffectStatement {
+  constructor(
+    readonly database: EffectDatabase,
+    readonly query: string,
+    readonly bindings: unknown[] = [],
+  ) {}
+
+  bind(...bindings: unknown[]): D1PreparedStatement {
+    return new EffectStatement(this.database, this.query, bindings) as unknown as D1PreparedStatement;
+  }
+
+  async first(): Promise<Record<string, unknown> | null> {
+    if (this.query.includes("FROM campaign_effect_receipts")) {
+      return this.database.receipts.has(String(this.bindings[0])) ? { applied: 1 } : null;
+    }
+    return null;
+  }
+}
+
+class EffectDatabase {
+  fail = true;
+  readonly receipts = new Set<string>();
+
+  prepare(query: string): D1PreparedStatement {
+    return new EffectStatement(this, query) as unknown as D1PreparedStatement;
+  }
+
+  async batch(statements: D1PreparedStatement[]): Promise<D1Result[]> {
+    if (this.fail) throw new Error("D1_EFFECT_WRITE_FAILED");
+    for (const raw of statements) {
+      const statement = raw as unknown as EffectStatement;
+      if (statement.query.includes("INSERT INTO campaign_effect_receipts")) {
+        this.receipts.add(String(statement.bindings[0]));
+      }
+    }
+    return statements.map(() => ({ success: true, meta: {} })) as D1Result[];
+  }
+}
+
+function campaignObject(database?: EffectDatabase): { campaign: CampaignDurableObject; storage: MemoryStorage } {
   const storage = new MemoryStorage();
   const context = {
     id: { name: CAMPAIGN_ID, toString: () => CAMPAIGN_ID },
@@ -74,7 +113,8 @@ function campaignObject(): { campaign: CampaignDurableObject; storage: MemorySto
     ENVIRONMENT: "development",
     DEFAULT_ROUND_DURATION_MS: "300000",
     ORDER_LOCK_LEAD_MS: "30000",
-  } as Env;
+    DB: database,
+  } as unknown as Env;
   return { campaign: new CampaignDurableObject(context, env), storage };
 }
 
@@ -325,6 +365,70 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(pause.status).toBe(409);
     expect(await pause.json()).toMatchObject({ error: { code: "CAMPAIGN_COMPLETE" } });
     expect(parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state.phase).toBe("COMPLETE");
+  });
+
+  it("keeps the round closed until persistent effects succeed, then advances exactly once", async () => {
+    const database = new EffectDatabase();
+    const { campaign, storage } = campaignObject(database);
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    const completedRound = seeded.round;
+    const allied = seeded.deployments.find((deployment) => deployment.id === UNIT_ID)!;
+    allied.persistentUnitId = "player-unit-rook-7";
+    seeded.deployments.forEach((deployment) => {
+      if (deployment.side === "ENEMY") {
+        deployment.status = "DESTROYED";
+        deployment.locationState = "DESTROYED";
+        deployment.currentHealth = 0;
+      }
+    });
+    storage.values.set("state/current", encodeCampaignStoredState(seeded));
+
+    const first = await campaign.fetch(request("/resolve", {
+      method: "POST",
+      headers: { "x-expected-round": String(completedRound) },
+    }));
+    expect(first.status).toBe(200);
+    const firstBody = await first.json() as {
+      nextRound: number | null;
+      phase: string;
+      resolution: { status: string; effectCount: number; appliedEffectCount: number };
+    };
+    expect(firstBody).toMatchObject({
+      nextRound: null,
+      phase: "EFFECTS_PENDING",
+      resolution: { status: "EFFECTS_PENDING", appliedEffectCount: 0 },
+    });
+    expect(firstBody.resolution.effectCount).toBeGreaterThan(0);
+    const pending = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    expect(pending).toMatchObject({ round: completedRound, phase: "EFFECTS_PENDING" });
+    expect(pending.events).not.toContainEqual(expect.objectContaining({ type: "ROUND_STARTED", round: completedRound + 1 }));
+    expect([...storage.values.keys()].filter((key) => key.startsWith("pending-effect/"))).toHaveLength(
+      firstBody.resolution.effectCount,
+    );
+    expect(storage.alarm).not.toBeNull();
+
+    database.fail = false;
+    await campaign.alarm();
+    const advanced = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    expect(advanced).toMatchObject({ round: completedRound + 1, phase: "PLANNING" });
+    expect(advanced.events.filter((event) => event.type === "ROUND_STARTED" && event.round === completedRound + 1)).toHaveLength(1);
+    expect([...storage.values.keys()].filter((key) => key.startsWith("pending-effect/"))).toHaveLength(0);
+    expect(database.receipts.size).toBe(firstBody.resolution.effectCount);
+    expect(storage.values.get(`resolution/${completedRound}`)).toMatchObject({
+      status: "RESOLVED",
+      effectCount: firstBody.resolution.effectCount,
+      appliedEffectCount: firstBody.resolution.effectCount,
+    });
+
+    const replay = await campaign.fetch(request("/resolve", {
+      method: "POST",
+      headers: { "x-expected-round": String(completedRound) },
+    }));
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({ duplicate: true, nextRound: completedRound + 1 });
+    expect(parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state.round).toBe(completedRound + 1);
+    expect(database.receipts.size).toBe(firstBody.resolution.effectCount);
   });
 
   it("commits clock commands once and rejects replay collisions or stale versions", async () => {

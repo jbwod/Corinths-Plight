@@ -2,9 +2,9 @@
 
 **Status:** Reconciled implemented foundation and target retry protocol (2026-08-10)
 
-**Implemented subset:** deterministic Hold, Advance, Rush, Attack, Load/Unload, Reload, Scan, Deploy Drone, constrained airdrop, strict current-round order/clock command envelopes, SHA-256 command receipts with optimistic concurrency, versioned DO state/snapshots, clock/alarm coordination, DO-local result deduplication, and idempotent D1 effect receipts
+**Implemented subset:** deterministic Hold, Advance, Rush, Attack, Load/Unload, Reload and constrained airdrop; strict current-round order/clock command envelopes; SHA-256 command receipts with optimistic concurrency; versioned DO state/snapshots; clock/alarm coordination; DO-local result deduplication; idempotent D1 effect receipts; and an `EFFECTS_PENDING` retry gate before the next planning round
 
-**Not yet implemented:** PREPARED/hash journal, server-secret seed commitment, cryptographic effect payload journal, acknowledgement-gated next-round transition, separate persisted schedule records
+**Not yet implemented:** PREPARED/input-hash journal, server-secret seed commitment, cryptographic output/effect payload hashes and collision handling, durable attempt diagnostics, separate persisted schedule records, and complete effect-type coverage
 
 ## 1. Guarantees: current versus target
 
@@ -13,12 +13,12 @@
 | Pure deterministic computation | Fixed `RoundInput` uses seeded RNG and ordered processing; regression tests cover the implemented subset | Version/hash-pinned engine and byte/canonical replay evidence |
 | One DO result per round | `resolution/{round}` prevents a second committed result | PREPARED input hash, cryptographic output hash, attempts/statuses, mismatch incident handling |
 | Order/clock command retry | Actor-scoped command receipt, canonical SHA-256 request hash, campaign/order revision compare-and-swap, and replay of the original response | Extend the same versioned command protocol to cancel, pause, resume, resolve and every later tactical mutation; retain immutable order revisions |
-| Permanent consequences exactly once | Resolver emits effects; the DO applies supported unit/resource effects in D1 with an idempotency receipt, then removes the pending record | Add payload-hash collision detection, status/attempt journal, automatic reconciliation, and acknowledgement gating |
-| Next round waits for effects | No; the DO increments/open the next round in the result transaction | Remain `EFFECTS_PENDING` until every required D1 effect is applied |
+| Permanent consequences exactly once | Resolver emits effects; the DO applies supported unit/resource effects in D1 with an idempotency receipt, removes acknowledged pending records and retries failed batches by alarm | Add payload-hash collision detection, full status/attempt journal and operator reconciliation |
+| Next round waits for effects | Yes for the supported tactical effects: result commit enters `EFFECTS_PENDING`; only a fully acknowledged set creates the next `ROUND_STARTED` | Extend the gate to every future effect type and forced crash boundary |
 | Scheduling survives eviction | Clock and pending items are inside `state/current`; next DO alarm is derived from them | Separate status-bearing `schedule/{id}` records and consumed/recovery history |
 | Reports/fog | Current state and report events use the projector; seed is removed | Event-time field-level projections and per-audience socket/report/replay DTOs |
 
-The current code establishes a deterministic engine skeleton, DO-local duplicate guard, and receipt-idempotent D1 application for the narrow effect set. It does not yet prove the full acknowledgement-gated exactly-once protocol across Durable Object storage and D1.
+The current code establishes a deterministic engine skeleton, DO-local duplicate guard, receipt-idempotent D1 application, and the critical next-round acknowledgement gate for the narrow effect set. It does not yet prove the full cryptographically bound exactly-once protocol across every crash boundary.
 
 ## 2. Current pure contract
 
@@ -154,11 +154,17 @@ interface ResolutionRecord {
   committedAt: number;
   eventIds: string[];
   stateDigest: string;
+  status?: "EFFECTS_PENDING" | "RESOLVED" | "FAILED";
+  effectCount?: number;
+  appliedEffectCount?: number;
+  resolvedAt?: number;
 }
 ```
 
-6. atomically stores next state, `resolution/{round}`, result events, `pending-effect/{idempotencyKey}`, and the next round's `ROUND_STARTED` event;
-7. increments the round, sets phase back to `PLANNING`, installs the next clock, and arms the next alarm.
+6. atomically stores the result state in `EFFECTS_PENDING`, `resolution/{round}`, result events, and `pending-effect/{idempotencyKey}` records without opening the next round;
+7. applies each supported effect through its D1 receipt-backed batch, deleting the DO pending key only after confirmation;
+8. after all keys acknowledge, atomically marks the resolution `RESOLVED`, increments exactly one round, creates `ROUND_STARTED`, installs the next clock, and arms its alarm;
+9. on D1 failure, retains the same round and pending keys and arms a short retry alarm; duplicate manual resolution and alarm delivery resume rather than recompute.
 
 This transaction avoids a partial DO result. A repeated call for a completed round returns the stored record and does not rerun effects. However:
 
@@ -167,9 +173,9 @@ This transaction avoids a partial DO result. A repeated call for a completed rou
 - the seed is predictable and stored in plaintext (although report responses remove it);
 - a determinism mismatch cannot be detected against a committed output hash;
 - supported pending effects are applied to D1 with `campaign_effect_receipts`, but receipts do not yet bind a cryptographic payload hash or attempt state;
-- the next round opens before permanent consequences acknowledge, and automatic failed-effect recovery remains incomplete.
+- failure-at-every-instruction-boundary coverage, attempt diagnostics and operator reconciliation are incomplete.
 
-Consequently a successful DO commit can expose the next planning round before D1 application completes. A failed D1 batch leaves the pending DO record, but the consumed alarm is not re-armed and the duplicate manual-resolution response does not retry effects. There is no public recovery/reconciliation or acknowledgement-gating protocol yet.
+The shipped gate prevents a successful result commit from exposing the next planning round before D1 application completes. A failed batch leaves the campaign visibly in `EFFECTS_PENDING`; the alarm and duplicate resolution path retry stable effect IDs. Full PREPARED/hash/collision semantics and operator-facing reconciliation remain open.
 
 ## 7. Target resolution journal
 
@@ -208,7 +214,7 @@ campaignId:round:destroy:persistentUnitId
 campaignId:round:damage:persistentUnitId
 ```
 
-Current DO records contain an ID, type, optional unit ID, payload, and status. The landed campaign applier records `campaign_effect_receipts` and applies its supported unit/resource/cargo/history consequences transactionally. It does not yet provide the target cryptographic payload binding, status/attempt journal, mismatch incident path, acknowledgement-gated round transition, or complete effect-type coverage. The older generic `persistent_effects` table is not the authoritative landed campaign applier.
+Current DO records contain an ID, type, optional unit ID, payload, and status. The landed campaign applier records `campaign_effect_receipts`, applies its supported unit/resource/cargo/history consequences transactionally, and gates/finalises the next round only after acknowledgement. It does not yet provide cryptographic payload binding, a complete attempt journal, a mismatch incident path, or complete effect-type coverage. The older generic `persistent_effects` table is not the authoritative landed campaign applier.
 
 The target applier must:
 
@@ -268,7 +274,7 @@ Sockets are read-only for commands; gameplay correctness does not depend on rece
 | Before DO result transaction commits | No result should persist; retry re-enters current round | PREPARED input makes recovery explicit |
 | During pure compute | DO transaction fails/retries; no attempt journal exists | Recompute immutable prepared input and count attempts |
 | After DO result commit | Existing `resolution/{round}` returns duplicate; result/events are not duplicated | Also verify input/output hashes |
-| Before/during D1 effects | Supported effects use receipt-idempotent D1 batches; a failed application leaves the pending record, the next round is already open, and the consumed alarm is not re-armed | Cryptographic transactional applier plus `EFFECTS_PENDING` gate and reconciliation |
+| Before/during D1 effects | Supported effects use receipt-idempotent D1 batches; failure leaves the round in `EFFECTS_PENDING`, retains unapplied keys and arms a retry; confirmed receipts are safe after lost acknowledgement | Add cryptographic payload collision checks, complete attempt journal and operator reconciliation |
 | Duplicate/late alarm | Round/phase/journal generally makes it a no-op | Persist consumed schedule record and integration-test all crash points |
 | WebSocket disconnect | Authoritative DO state remains | Filtered snapshot plus events-after-sequence catch-up |
 
@@ -341,4 +347,4 @@ The resolver now executes a narrow server-authoritative action phase before atta
 
 The Campaign Durable Object applies these effects to D1 in transactional batches keyed by `campaign_effect_receipts`, updates weapon mounts/Supply/cargo/persistent locations, and appends owner-visible unit history. Duplicate effects return the existing receipt.
 
-This is not yet the target protocol in ADR-R03: the current round result advances the DO before D1 acknowledgement. A D1 outage leaves pending DO records without an automatic/public retry path and can leave the next clock unarmed; planning is not held in `EFFECTS_PENDING`.
+ADR-R03's gameplay gate is now implemented for the supported effects: a D1 outage holds the current round in `EFFECTS_PENDING`, automatic alarm/manual replay retries the stable keys, and planning opens once after all receipts confirm. PREPARED input hashing, protected seed policy, cryptographic output/effect binding, comprehensive crash injection and operator reconciliation remain CP-402 work.

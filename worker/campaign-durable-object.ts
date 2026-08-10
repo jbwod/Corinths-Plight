@@ -47,6 +47,7 @@ import { LEGACY_RULESET_ID, resolveUnitExecutionAdapter } from "./services/rules
 const STATE_KEY = "state/current";
 const FOUNDATION_CAMPAIGN_ID = "outpost-k17";
 const MAX_ROUTE_LENGTH = 128;
+const EFFECT_RETRY_DELAY_MS = 5_000;
 const allowedActionTypes = new Set([
   "ATTACK",
   "ASSAULT",
@@ -296,6 +297,12 @@ export class CampaignDurableObject extends DurableObject<Env> {
   }
 
   private async scheduleNextAlarm(state: CampaignRuntimeState): Promise<void> {
+    if (state.phase === "EFFECTS_PENDING") {
+      const retryAt = Date.now() + EFFECT_RETRY_DELAY_MS;
+      const current = await this.ctx.storage.getAlarm();
+      if (current === null || current < Date.now() || current > retryAt) await this.ctx.storage.setAlarm(retryAt);
+      return;
+    }
     const next = nextScheduledTime(state);
     if (next === null) {
       await this.ctx.storage.deleteAlarm();
@@ -305,18 +312,26 @@ export class CampaignDurableObject extends DurableObject<Env> {
     if (current === null || current !== next) await this.ctx.storage.setAlarm(next);
   }
 
-  private async applyPendingPersistentEffects(): Promise<void> {
+  private effectRound(effect: { payload: Record<string, unknown> }): number | undefined {
+    const round = Number(effect.payload.round);
+    return Number.isInteger(round) && round > 0 ? round : undefined;
+  }
+
+  private async applyPendingPersistentEffects(targetRound: number): Promise<number> {
     const pending = await this.ctx.storage.list<{
       idempotencyKey: string;
       type: string;
       unitId?: string;
       payload: Record<string, unknown>;
     }>({ prefix: "pending-effect/" });
+    let appliedCount = 0;
     for (const [storageKey, effect] of pending) {
+      if (this.effectRound(effect) !== targetRound) continue;
       const prior = await this.env.DB.prepare(`SELECT 1 FROM campaign_effect_receipts
         WHERE idempotency_key = ?1 LIMIT 1`).bind(effect.idempotencyKey).first();
       if (prior) {
         await this.ctx.storage.delete(storageKey);
+        appliedCount += 1;
         continue;
       }
       const campaignId = typeof effect.payload.campaignId === "string" ? effect.payload.campaignId : this.campaignId();
@@ -393,7 +408,9 @@ export class CampaignDurableObject extends DurableObject<Env> {
         WHERE idempotency_key = ?1 LIMIT 1`).bind(effect.idempotencyKey).first();
       if (!applied) throw new Error("PERSISTENT_EFFECT_NOT_APPLIED");
       await this.ctx.storage.delete(storageKey);
+      appliedCount += 1;
     }
+    return appliedCount;
   }
 
   private viewer(request: Request): ViewerContext {
@@ -802,6 +819,101 @@ export class CampaignDurableObject extends DurableObject<Env> {
     return state;
   }
 
+  private async remainingPersistentEffectCount(round: number): Promise<number> {
+    const pending = await this.ctx.storage.list<{ payload: Record<string, unknown> }>({ prefix: "pending-effect/" });
+    return [...pending.values()].filter((effect) => this.effectRound(effect) === round).length;
+  }
+
+  private async finaliseResolvedRound(
+    round: number,
+    now: number,
+  ): Promise<{ state: CampaignRuntimeState; record: ResolutionRecord; complete: boolean }> {
+    if (await this.remainingPersistentEffectCount(round) > 0) {
+      const state = await this.getState();
+      const record = await this.ctx.storage.get<ResolutionRecord>(`resolution/${round}`);
+      if (!record) throw new Error("RESOLUTION_RECORD_MISSING");
+      await this.scheduleNextAlarm(state);
+      return { state, record, complete: false };
+    }
+
+    let roundStarted: CampaignEvent | undefined;
+    const fallback = await this.getState();
+    const result = await this.ctx.storage.transaction(async (transaction) => {
+      const state = this.storedState(await transaction.get<unknown>(STATE_KEY), fallback);
+      const record = await transaction.get<ResolutionRecord>(`resolution/${round}`);
+      if (!record) throw new Error("RESOLUTION_RECORD_MISSING");
+      if (record.status === "RESOLVED" || state.round !== round || state.phase !== "EFFECTS_PENDING") {
+        return { state, record, complete: record.status === "RESOLVED" || state.round !== round };
+      }
+
+      state.pendingPersistentEffects = state.pendingPersistentEffects.filter(
+        (effect) => this.effectRound(effect) !== round,
+      );
+      state.orders = state.orders.filter((order) => order.round > round);
+      record.status = "RESOLVED";
+      record.appliedEffectCount = record.effectCount ?? 0;
+      record.resolvedAt = now;
+      state.resolutions[record.key] = record;
+
+      if (state.outcome) {
+        const { pausedAt: _pausedAt, phaseBeforePause: _phaseBeforePause, ...terminalClock } = state.clock;
+        void _pausedAt;
+        void _phaseBeforePause;
+        state.phase = "COMPLETE";
+        state.clock = { ...terminalClock, durationMs: 0, lockLeadMs: 0, lockAt: 0, resolvesAt: 0, schedule: [] };
+      } else {
+        state.round = round + 1;
+        state.phase = "PLANNING";
+        state.clock = makeRoundClock(
+          state.campaignId,
+          state.round,
+          now,
+          fallback.clock.durationMs,
+          fallback.clock.lockLeadMs || this.configuredLockLead(),
+        );
+        const sequence = eventSequence(state);
+        roundStarted = {
+          eventId: `${state.campaignId}:${state.round}:${String(sequence).padStart(4, "0")}:ROUND_STARTED`,
+          campaignId: state.campaignId,
+          round: state.round,
+          sequence,
+          type: "ROUND_STARTED",
+          payload: { previousRound: round, deadline: state.clock.resolvesAt },
+          timestamp: now,
+          visibility: "PUBLIC",
+        };
+        state.events.push(roundStarted);
+      }
+      state.version += 1;
+      await transaction.put(STATE_KEY, encodeCampaignStoredState(state));
+      await transaction.put(`resolution/${round}`, record);
+      if (roundStarted) await transaction.put(`event/${state.round}/${String(roundStarted.sequence).padStart(6, "0")}`, roundStarted);
+      return { state, record, complete: true };
+    });
+    await this.scheduleNextAlarm(result.state);
+    return result;
+  }
+
+  private async resumePersistentEffects(
+    round: number,
+    now: number,
+  ): Promise<{ state: CampaignRuntimeState; record: ResolutionRecord; complete: boolean }> {
+    try {
+      await this.applyPendingPersistentEffects(round);
+      return await this.finaliseResolvedRound(round, now);
+    } catch (error) {
+      const state = await this.getState();
+      const record = await this.ctx.storage.get<ResolutionRecord>(`resolution/${round}`);
+      if (!record) throw error;
+      await this.scheduleNextAlarm(state);
+      this.log("round.effects.retry_scheduled", {
+        round,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return { state, record, complete: false };
+    }
+  }
+
   private async resolveCurrentRound(
     now = Date.now(),
     expectedRound?: number,
@@ -813,6 +925,14 @@ export class CampaignDurableObject extends DurableObject<Env> {
       const prior = await this.ctx.storage.get<ResolutionRecord>(`resolution/${expectedRound}`);
       if (prior) return { state: fallback, record: prior, duplicate: true };
       throw new Error(`Expected round ${expectedRound}, but campaign is on round ${fallback.round}.`);
+    }
+    const priorRecord = await this.ctx.storage.get<ResolutionRecord>(`resolution/${fallback.round}`);
+    if (priorRecord) {
+      if (fallback.phase === "EFFECTS_PENDING" && priorRecord.status !== "RESOLVED") {
+        const resumed = await this.resumePersistentEffects(fallback.round, now);
+        return { state: resumed.state, record: resumed.record, duplicate: true };
+      }
+      return { state: fallback, record: priorRecord, duplicate: true };
     }
     const nextState = await this.ctx.storage.transaction(async (transaction) => {
       const state = this.storedState(await transaction.get<unknown>(STATE_KEY), fallback);
@@ -867,40 +987,17 @@ export class CampaignDurableObject extends DurableObject<Env> {
         committedAt: now,
         eventIds: output.events.map((event) => event.eventId),
         stateDigest: output.digest,
+        status: "EFFECTS_PENDING",
+        effectCount: output.persistentEffects.length,
+        appliedEffectCount: 0,
       };
       output.state.resolutions[resolutionKey] = record;
       const completedRound = output.state.round;
-      const terminal = output.state.phase === "COMPLETE" || output.state.outcome !== undefined;
-      let roundStarted: CampaignEvent | undefined;
-      output.state.orders = output.state.orders.filter((order) => order.round > completedRound);
-      if (terminal) {
-        const { pausedAt: _pausedAt, phaseBeforePause: _phaseBeforePause, ...terminalClock } = output.state.clock;
-        void _pausedAt;
-        void _phaseBeforePause;
-        output.state.phase = "COMPLETE";
-        output.state.clock = { ...terminalClock, lockAt: 0, resolvesAt: 0, schedule: [] };
-      } else {
-        output.state.round += 1;
-        output.state.phase = "PLANNING";
-        output.state.clock = makeRoundClock(
-          output.state.campaignId,
-          output.state.round,
-          now,
-          state.clock.durationMs,
-          state.clock.lockLeadMs || this.configuredLockLead(),
-        );
-        roundStarted = {
-          eventId: `${output.state.campaignId}:${output.state.round}:0001:ROUND_STARTED`,
-          campaignId: output.state.campaignId,
-          round: output.state.round,
-          sequence: 1,
-          type: "ROUND_STARTED",
-          payload: { previousRound: completedRound, deadline: output.state.clock.resolvesAt },
-          timestamp: now,
-          visibility: "PUBLIC",
-        };
-        output.state.events.push(roundStarted);
-      }
+      output.state.phase = "EFFECTS_PENDING";
+      output.state.clock = {
+        ...state.clock,
+        schedule: [],
+      };
       output.state.version += 1;
       await transaction.put(STATE_KEY, encodeCampaignStoredState(output.state));
       await transaction.put(`resolution/${completedRound}`, record);
@@ -910,7 +1007,6 @@ export class CampaignDurableObject extends DurableObject<Env> {
           resolvedEvent,
         );
       }
-      if (roundStarted) await transaction.put(`event/${output.state.round}/000001`, roundStarted);
       for (const effect of output.persistentEffects) {
         await transaction.put(`pending-effect/${effect.idempotencyKey}`, effect);
       }
@@ -919,19 +1015,20 @@ export class CampaignDurableObject extends DurableObject<Env> {
     });
 
     if (!committedRecord) throw new Error("Resolution transaction completed without a record.");
-    await this.applyPendingPersistentEffects();
-    await this.scheduleNextAlarm(nextState);
-    this.broadcast(duplicate ? "round-resolution-replayed" : "round-resolved", nextState, {
-      resolutionKey: committedRecord.key,
-      digest: committedRecord.stateDigest,
+    const settled = committedRecord.status === "RESOLVED"
+      ? { state: nextState, record: committedRecord, complete: true }
+      : await this.resumePersistentEffects(committedRecord.round, now);
+    this.broadcast(settled.complete ? (duplicate ? "round-resolution-replayed" : "round-resolved") : "round-effects-pending", settled.state, {
+      resolutionKey: settled.record.key,
+      digest: settled.record.stateDigest,
     });
-    this.log("round.resolved", {
-      round: committedRecord.round,
-      resolutionKey: committedRecord.key,
-      digest: committedRecord.stateDigest,
+    this.log(settled.complete ? "round.resolved" : "round.effects_pending", {
+      round: settled.record.round,
+      resolutionKey: settled.record.key,
+      digest: settled.record.stateDigest,
       duplicate,
     });
-    return { state: nextState, record: committedRecord, duplicate };
+    return { state: settled.state, record: settled.record, duplicate };
   }
 
   private async handleManualResolve(request: Request): Promise<Response> {
@@ -958,7 +1055,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
     return json({
       resolution: this.publicResolution(result.record),
       duplicate: result.duplicate,
-      nextRound: result.state.phase === "COMPLETE" ? null : result.state.round,
+      nextRound: ["COMPLETE", "EFFECTS_PENDING"].includes(result.state.phase) ? null : result.state.round,
       phase: result.state.phase,
       outcome: result.state.outcome,
     });
@@ -1057,6 +1154,9 @@ export class CampaignDurableObject extends DurableObject<Env> {
     if (fallback.phase === "COMPLETE" || fallback.phase === "FAILED") {
       return errorResponse(409, "CAMPAIGN_COMPLETE", "A completed campaign cannot be paused.");
     }
+    if (fallback.phase === "EFFECTS_PENDING") {
+      return errorResponse(409, "EFFECTS_PENDING", "Campaign persistence must finish before the clock can be paused.");
+    }
     const { state, changed, terminal } = await this.ctx.storage.transaction(async (transaction) => {
       const current = this.storedState(await transaction.get<unknown>(STATE_KEY), fallback);
       if (current.phase === "COMPLETE" || current.phase === "FAILED") {
@@ -1133,6 +1233,13 @@ export class CampaignDurableObject extends DurableObject<Env> {
     let state = await this.getState();
     if (state.phase === "PAUSED") return;
     const now = Date.now();
+    if (state.phase === "EFFECTS_PENDING") {
+      const record = await this.ctx.storage.get<ResolutionRecord>(`resolution/${state.round}`);
+      if (!record) throw new Error("RESOLUTION_RECORD_MISSING");
+      state = (await this.resumePersistentEffects(state.round, now)).state;
+      await this.scheduleNextAlarm(state);
+      return;
+    }
     const due = state.clock.schedule
       .filter((event) => event.runAt <= now)
       .sort((left, right) => left.runAt - right.runAt || (left.type < right.type ? -1 : left.type > right.type ? 1 : 0));

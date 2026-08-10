@@ -752,7 +752,14 @@ export interface UnitOrder {
   submittedAt: number;
 }
 
-export type CampaignPhase = "PLANNING" | "LOCKED" | "RESOLVING" | "PAUSED" | "COMPLETE" | "FAILED";
+export type CampaignPhase =
+  | "PLANNING"
+  | "LOCKED"
+  | "RESOLVING"
+  | "EFFECTS_PENDING"
+  | "PAUSED"
+  | "COMPLETE"
+  | "FAILED";
 export type ScheduledEventType = "ORDER_LOCK" | "ROUND_RESOLVE" | "CAMPAIGN_END";
 
 export interface ScheduledCampaignEvent {
@@ -873,6 +880,10 @@ export interface ResolutionRecord {
   committedAt: number;
   eventIds: string[];
   stateDigest: string;
+  status?: "EFFECTS_PENDING" | "RESOLVED" | "FAILED";
+  effectCount?: number;
+  appliedEffectCount?: number;
+  resolvedAt?: number;
 }
 
 export interface CampaignRuntimeState {

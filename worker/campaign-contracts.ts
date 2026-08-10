@@ -31,7 +31,15 @@ const actionTypes = new Set<ActionType>([
   "BOMBARDMENT",
   "AIR_SUPPORT",
 ]);
-const campaignPhases = new Set(["PLANNING", "LOCKED", "RESOLVING", "PAUSED", "COMPLETE", "FAILED"]);
+const campaignPhases = new Set([
+  "PLANNING",
+  "LOCKED",
+  "RESOLVING",
+  "EFFECTS_PENDING",
+  "PAUSED",
+  "COMPLETE",
+  "FAILED",
+]);
 const orderLifecycles = new Set(["DRAFT", "SUBMITTED", "LOCKED", "RESOLVING", "RESOLVED", "FAILED", "CANCELLED"]);
 const sides = new Set(["ALLIED", "ENEMY", "NEUTRAL"]);
 const deploymentStatuses = new Set(["READY", "ACTIVE", "IMMOBILISED", "DESTROYED", "WITHDRAWN"]);
@@ -526,7 +534,9 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     if (scheduled.type === "ROUND_RESOLVE" && runAt !== resolvesAt) stateFail(`$.clock.schedule[${index}].runAt`, "resolution schedule does not match resolvesAt");
   }
   if (durationMs === 0 && scheduleIds.size > 0) stateFail("$.clock.schedule", "manual clocks cannot schedule alarms");
-  if (durationMs > 0 && !scheduleTypes.has("ROUND_RESOLVE")) stateFail("$.clock.schedule", "timed clocks require round resolution");
+  if (durationMs > 0 && state.phase !== "EFFECTS_PENDING" && !scheduleTypes.has("ROUND_RESOLVE")) {
+    stateFail("$.clock.schedule", "timed clocks require round resolution");
+  }
 
   const mapKeys = new Set<string>();
   for (const [index, hexValue] of stateArray(state.map, "$.map").entries()) {
@@ -723,7 +733,9 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
 
   if (state.outcome !== undefined) {
     if (state.scenarioPolicy === undefined) stateFail("$.outcome", "scenario outcome requires a scenario policy");
-    if (state.phase !== "COMPLETE") stateFail("$.phase", "scenario outcome requires COMPLETE phase");
+    if (state.phase !== "COMPLETE" && state.phase !== "EFFECTS_PENDING") {
+      stateFail("$.phase", "scenario outcome requires COMPLETE or EFFECTS_PENDING phase");
+    }
     const campaignOutcome = stateRecord(state.outcome, "$.outcome");
     stateOnlyKeys(campaignOutcome, ["result", "round", "reason", "objectives"], "$.outcome");
     if (campaignOutcome.result !== "VICTORY" && campaignOutcome.result !== "DEFEAT") {
@@ -772,6 +784,17 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     stateNumber(resolution.committedAt, `${path}.committedAt`, 0);
     stateStringArray(resolution.eventIds, `${path}.eventIds`);
     stateString(resolution.stateDigest, `${path}.stateDigest`);
+    if (
+      resolution.status !== undefined &&
+      !new Set(["EFFECTS_PENDING", "RESOLVED", "FAILED"]).has(resolution.status as string)
+    ) {
+      stateFail(`${path}.status`, "invalid resolution status");
+    }
+    if (resolution.effectCount !== undefined) stateInteger(resolution.effectCount, `${path}.effectCount`, 0);
+    if (resolution.appliedEffectCount !== undefined) {
+      stateInteger(resolution.appliedEffectCount, `${path}.appliedEffectCount`, 0);
+    }
+    if (resolution.resolvedAt !== undefined) stateNumber(resolution.resolvedAt, `${path}.resolvedAt`, 0);
   }
 
   for (const [index, effectValue] of stateArray(state.pendingPersistentEffects, "$.pendingPersistentEffects").entries()) {
