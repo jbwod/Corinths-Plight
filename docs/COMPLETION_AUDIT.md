@@ -30,14 +30,14 @@ The audit began with only two unrelated untracked user paths, which were preserv
 | Seed/content validator | Pass | `npm run seed:check`: 34 definitions, 28 active, 95 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 3 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
 | TypeScript | Pass | `npm run typecheck`. |
 | ESLint | Pass | `npm run lint`. |
-| Unit/contract tests | Pass | `npm test`: 48 files, 335 tests, Vitest 4.1.10. |
+| Unit/contract tests | Pass | `npm test`: 51 files, 388 tests, Vitest 4.1.10. |
 | Worker/client build | Pass | `npm run build`; Worker 969.77 kB, client JS 431.21 kB, CSS 129.97 kB. Wrangler's sandboxed debug-log write warns but the build exits successfully. |
 | Production-mode build | Pass | `WRANGLER_WRITE_LOGS=false npm run build:production`. |
 | Empty D1 migration replay | Pass | All eight migrations applied in isolated Wrangler state. |
 | Repeat seed replay | Pass | All seven seeds applied twice. |
 | D1 integrity | Pass | SQLite `integrity_check=ok`; `foreign_key_check` empty; 10 migration records and 117 application tables. |
 | Application CI | Local baseline implemented; remote proof pending | The application workflow now runs locked install, advisory audit, seed validation, typecheck, lint, Vitest, empty-D1 replay, production build and Playwright, then retains bundle/browser evidence. It has not run on GitHub or been made a protected required check. See CP-001. |
-| Browser/a11y/performance tests | Browser baseline partial | `CI=1 npm run test:browser`: 4/4 pass for the signed-out auth/enlist shell, authenticated live local strategic/tactical reads without showcase fallback, forged tactical economy rejection, and 390px document overflow. Full onboarding/game E2E, Axe/manual accessibility, performance and load remain CP-800/CP-702/CP-802. |
+| Browser/a11y/performance tests | Browser baseline partial | `npm run test:browser`: 5/5 pass for the signed-out auth/enlist shell, authenticated live local strategic/tactical reads without showcase fallback, forged tactical economy rejection, executable-action composer coverage, and 390px document overflow. Full onboarding/game E2E, Axe/manual accessibility, performance and load remain CP-800/CP-702/CP-802. |
 
 The passing unit suite proves the tested helpers and contracts only. It does not activate catalogue-only content, validate real D1/DO crash boundaries, or prove a production browser workflow.
 
@@ -206,9 +206,9 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 
 | Class | D1 | Generated tactical class | End-to-end status | Principal gap |
 |---|---:|---:|---:|---|
-| Infantry | yes | yes | partial | Dig In, cover, melee/stealth and price missing |
-| Medic | yes | yes | partial/playable | First Aid and field resupply are connected through generated catalogue, order contract, resolver, D1 effects, report events and tactical UI. Field resupply spends one Small Supply and restores Medical Supply to current Medic FS; MASH remains deferred. |
-| Engineer | yes | yes | partial/playable | Vehicle Repair is connected through generated catalogue, strict order contract, resolver, D1 health/Supply/subsystem effects, reports and tactical UI. It restores one Hit or one selected subsystem for one Small Supply in base contact. Construct and Dig In remain deferred. |
+| Infantry | yes | yes | partial/playable | Attack, movement, facing and persistent Dig In are connected through generated grammar, resolver, reports and UI. Cover Armor, melee/stealth and price remain open. |
+| Medic | yes | yes | partial/playable | First Aid, field resupply and self Dig In are connected through generated catalogue, order contract, resolver, report events and tactical UI. Field resupply spends one Small Supply and restores Medical Supply to current Medic FS; MASH remains deferred. |
+| Engineer | yes | yes | partial/playable | Vehicle Repair and self Dig In are connected through generated catalogue, strict order contract, resolver, reports and tactical UI. Repair restores one Hit or one selected subsystem for one Small Supply in base contact. Construct remains deferred. |
 | Artillery | yes | yes | partial/playable | Deploy/Pack Up and Bombardment are connected through generated grammar, strict orders, resolver, reports and tactical UI. Bombardment requires deployment, spotting, range and Small Supply, applies capped/recovering Defense stacks, and changes combat calculations. Funnel and anti-orbital paths remain deferred; direct damage remains experimental. |
 | Logi Truck | yes, legacy seed marks executable | no | safely blocked | Generated authority rejects the unsupported handler; tow/supply absent |
 | Light Vehicle | yes | yes | partial/playable | HITS combat, Rapid Fire against Horde, and persistent natural-5/6 weapon/mobility subsystem malfunctions are active. Evasive and cargo remain absent. |

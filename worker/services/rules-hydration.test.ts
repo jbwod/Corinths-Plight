@@ -90,7 +90,7 @@ describe("server rules hydration", () => {
       "action-load-cargo",
       "action-unload-cargo",
     ]));
-    expect(result.authority.links.allowedActionTypes).not.toContain("DIG_IN");
+    expect(result.authority.links.allowedActionTypes).toContain("DIG_IN");
     expect(result.authority.links.orderDefinitionIds).toEqual(expect.arrayContaining([
       "order-advance",
       "order-hold",

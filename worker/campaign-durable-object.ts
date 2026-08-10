@@ -737,6 +737,16 @@ export class CampaignDurableObject extends DurableObject<Env> {
     const artillery = execution.legacyDefinition.tags.includes("ARTILLERY");
     const artilleryDeployed = deployment.artilleryDeployment === "DEPLOYED" || deployment.statuses.includes("DEPLOYED");
     const platformActions = actions.filter((action) => action.type === "DEPLOY" || action.type === "PACK_UP");
+    const digInActions = actions.filter((action) => action.type === "DIG_IN");
+    if (digInActions.length > 1) {
+      return errorResponse(422, "DIG_IN_LIMIT", "A unit may Dig In once per round.");
+    }
+    if (digInActions.length > 0 && route.length > 1) {
+      return errorResponse(422, "DIG_IN_REQUIRES_HOLD", "Dig In consumes all movement and requires the unit to hold position.");
+    }
+    if (digInActions.length > 0 && deployment.statuses.includes("DUG_IN")) {
+      return errorResponse(409, "ALREADY_DUG_IN", "This unit is already dug in.");
+    }
     if (platformActions.length > 1) {
       return errorResponse(422, "ARTILLERY_STATE_CONFLICT", "Artillery may change platform state once per round.");
     }

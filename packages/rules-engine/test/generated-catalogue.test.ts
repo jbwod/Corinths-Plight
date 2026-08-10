@@ -126,6 +126,7 @@ describe("rules catalogue bootstrap", () => {
       "ACTION:action-attack",
       "ACTION:action-bombardment",
       "ACTION:action-deploy-platform",
+      "ACTION:action-dig-in",
       "ACTION:action-first-aid",
       "ACTION:action-load-cargo",
       "ACTION:action-pack-platform",

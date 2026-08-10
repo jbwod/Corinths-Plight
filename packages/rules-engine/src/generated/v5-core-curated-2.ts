@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "f56dd98c31f35984f58fe3c2b039f77b9327f052683430e88b0e02608cc5210c",
+  "contentHash": "cb29891814786097e7cf95baf595ab47365d0cc6a5bcaa34d86d65cb7e9963ad",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1363,6 +1363,7 @@ const snapshot = {
           },
           "execution": {
             "allowedActions": [
+              "DIG_IN",
               "HEAL",
               "RELOAD",
               "LOAD",
@@ -1434,6 +1435,7 @@ const snapshot = {
           },
           "execution": {
             "allowedActions": [
+              "DIG_IN",
               "REPAIR",
               "LOAD",
               "UNLOAD"
@@ -1645,6 +1647,7 @@ const snapshot = {
           "execution": {
             "allowedActions": [
               "ATTACK",
+              "DIG_IN",
               "LOAD",
               "UNLOAD"
             ],
@@ -7501,6 +7504,7 @@ const snapshot = {
             "action-attack",
             "action-bombardment",
             "action-deploy-platform",
+            "action-dig-in",
             "action-first-aid",
             "action-load-cargo",
             "action-pack-platform",
@@ -7572,6 +7576,22 @@ const snapshot = {
       {
         "definitionKind": "ACTION",
         "definitionId": "action-deploy-platform",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-dig-in",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
         "availabilityStatus": "AVAILABLE",
@@ -8346,13 +8366,24 @@ const snapshot = {
             "FS",
             "ATTACK",
             "MOVEMENT",
-            "FACING"
+            "FACING",
+            "DIG_IN"
           ],
           "missing": [
-            "DIG_IN",
             "GARRISON",
             "ACTIVE_EQUIPMENT"
-          ]
+          ],
+          "publicationCorrection": {
+            "reason": "The V5 Dig In action now consumes the Infantry unit's total movement, grants +2 Defense, and ends on actual movement.",
+            "seedOverlay": {
+              "availabilityStatus": "DEV_ONLY",
+              "executable": true,
+              "implementationStatus": "PARTIAL",
+              "purchasable": false,
+              "reasonCode": "MISSING_CANONICAL_PRICE",
+              "requisitionStatus": "BALANCE_REQUIRED"
+            }
+          }
         }
       },
       {
@@ -13884,5 +13915,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "f56dd98c31f35984f58fe3c2b039f77b9327f052683430e88b0e02608cc5210c" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "cb29891814786097e7cf95baf595ab47365d0cc6a5bcaa34d86d65cb7e9963ad" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

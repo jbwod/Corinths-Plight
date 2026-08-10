@@ -810,6 +810,8 @@ export type CampaignEventType =
   | "ORDER_LOCKED"
   | "UNIT_MOVED"
   | "UNIT_BLOCKED"
+  | "UNIT_DUG_IN"
+  | "UNIT_DUG_OUT"
   | "UNIT_ATTACKED"
   | "SUBSYSTEM_MALFUNCTIONED"
   | "CARGO_LOADED"

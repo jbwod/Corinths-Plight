@@ -466,19 +466,19 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     capacity: 1,
     tags: ["GROUND", "PERSONNEL", "INFANTRY", "MEDICAL"],
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-    allowedActions: ["HEAL", "RELOAD", "LOAD", "UNLOAD"],
+    allowedActions: ["DIG_IN", "HEAL", "RELOAD", "LOAD", "UNLOAD"],
   },
   "unit-engineers": {
     capacity: 1,
     tags: ["GROUND", "PERSONNEL", "ENGINEER", "BUILDER", "REPAIR"],
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-    allowedActions: ["REPAIR", "LOAD", "UNLOAD"],
+    allowedActions: ["DIG_IN", "REPAIR", "LOAD", "UNLOAD"],
   },
   "unit-infantry-squad": {
     capacity: 1,
     tags: ["GROUND", "PERSONNEL", "INFANTRY", "DIG_IN"],
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-    allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+    allowedActions: ["ATTACK", "DIG_IN", "LOAD", "UNLOAD"],
   },
   "unit-light-vehicle": {
     capacity: 1,
@@ -772,6 +772,7 @@ const foundationActionIds = [
   "action-attack",
   "action-bombardment",
   "action-deploy-platform",
+  "action-dig-in",
   "action-first-aid",
   "action-load-cargo",
   "action-pack-platform",
@@ -789,6 +790,15 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
       missing: ["FUNNEL", "ANTI_ORBITAL"],
     },
     explanation: "Artillery can deploy/pack and use the V5 Bombardment defense-suppression action while Funnel remains deferred.",
+  },
+  "UNIT:unit-infantry-squad": {
+    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: "MISSING_CANONICAL_PRICE",
+    parameters: {
+      implementedSubset: ["FS", "ATTACK", "MOVEMENT", "FACING", "DIG_IN"],
+      missing: ["GARRISON", "ACTIVE_EQUIPMENT"],
+    },
+    explanation: "The V5 Dig In action now consumes the Infantry unit's total movement, grants +2 Defense, and ends on actual movement.",
   },
   "UNIT:unit-engineers": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",

@@ -22,6 +22,7 @@ describe("generated tactical grammar", () => {
       executable: true,
       catalogueContentHash: V5_CORE_CURATED_2_CONTENT_HASH,
     });
+    expect(getTacticalActionRule("DIG_IN")).toMatchObject({ economy: "STANDARD", speedCost: 1, executable: true });
     expect(getTacticalActionRule("RELOAD")).toMatchObject({ speedCost: 0.5, executable: true });
     expect(getTacticalActionRule("LOAD")).toMatchObject({ speedCost: 0.5, executable: true });
     expect(getTacticalActionRule("UNLOAD")).toMatchObject({ speedCost: 0.5, executable: true });
@@ -44,7 +45,7 @@ describe("generated tactical grammar", () => {
       category: "INFANTRY",
       stats: { maxHealth: 6, speed: 1, sensors: 4, capacity: 1 },
       allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-      allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+      allowedActions: ["ATTACK", "DIG_IN", "LOAD", "UNLOAD"],
     });
     expect(infantry.weapons).toEqual([
       expect.objectContaining({ id: "weapon-infantry-rifle", range: 1, armorPiercing: 0 }),
@@ -56,7 +57,7 @@ describe("generated tactical grammar", () => {
     expect(getTacticalUnitClass("unit-combat-medic")).toMatchObject({
       category: "SUPPORT",
       stats: { maxHealth: 4, speed: 1, capacity: 1 },
-      allowedActions: ["HEAL", "RELOAD", "LOAD", "UNLOAD"],
+      allowedActions: ["DIG_IN", "HEAL", "RELOAD", "LOAD", "UNLOAD"],
     });
     expect(() => getTacticalUnitClass("unit-logi-truck")).toThrow("Unit class is not executable");
   });

@@ -27,6 +27,7 @@ export interface AttackCalculation {
   targetArmor: number;
   effectiveArmor: number;
   targetDefense: number;
+  digInDefense: 0 | 2;
   threshold: number;
   penetrated: boolean;
   healthLoss: number;
@@ -130,7 +131,8 @@ export function resolveAttackRoll(
   const rearAttack = groundVehicleRear || groundInfantryRear;
   const targetArmor = target.stats.armor;
   const effectiveArmor = groundVehicleRear ? 0 : Math.max(0, targetArmor - weapon.armorPiercing);
-  const baseDefense = groundInfantryRear && target.statuses.includes("DUG_IN") ? 0 : target.stats.defense;
+  const digInDefense: 0 | 2 = groundTarget && !groundInfantryRear && (targetTags.has("INFANTRY") || targetTags.has("PERSONNEL")) && target.statuses.includes("DUG_IN") ? 2 : 0;
+  const baseDefense = target.stats.defense + digInDefense;
   const targetDefense = Math.max(0, baseDefense - (target.bombardmentSuppression?.stacks ?? 0));
   const threshold = effectiveArmor + targetDefense;
   const rapidFireMultiplier = weapon.tags.includes("RAPID_FIRE") && target.tags?.includes("HORDE") === true ? 2 : 1;
@@ -141,6 +143,7 @@ export function resolveAttackRoll(
       targetArmor,
       effectiveArmor,
       targetDefense,
+      digInDefense,
       threshold,
       penetrated: false,
       healthLoss: 0,
@@ -172,6 +175,7 @@ export function resolveAttackRoll(
     targetArmor,
     effectiveArmor,
     targetDefense,
+    digInDefense,
     threshold,
     penetrated,
     healthLoss,

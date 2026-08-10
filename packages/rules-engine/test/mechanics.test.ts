@@ -228,7 +228,7 @@ describe("armor, AP, rear arcs, Hits, and FS caps", () => {
       facing: 0,
       tags: ["GROUND", "PERSONNEL", "INFANTRY"],
       statuses: ["DUG_IN"],
-      stats: { healthModel: "FORCE_STRENGTH", maxHealth: 6, armor: 2, defense: 2 },
+      stats: { healthModel: "FORCE_STRENGTH", maxHealth: 6, armor: 2, defense: 0 },
       currentHealth: 6,
     });
 
@@ -237,7 +237,27 @@ describe("armor, AP, rear arcs, Hits, and FS caps", () => {
       targetArmor: 2,
       effectiveArmor: 1,
       targetDefense: 0,
+      digInDefense: 0,
       threshold: 1,
+      penetrated: false,
+    });
+  });
+
+  it("adds two Defense for dug-in ground infantry outside the rear arc", () => {
+    const attacker = makeDeployment("attacker", { q: 0, r: -1 });
+    const target = makeDeployment("target", { q: 0, r: 0 }, "ENEMY", {
+      facing: 0,
+      tags: ["GROUND", "PERSONNEL", "INFANTRY"],
+      statuses: ["DUG_IN"],
+      stats: { healthModel: "FORCE_STRENGTH", maxHealth: 6, armor: 1, defense: 0 },
+      currentHealth: 6,
+    });
+
+    expect(resolveAttackRoll(attacker, target, cannon, map, fixedRandom(2))).toMatchObject({
+      rearAttack: false,
+      digInDefense: 2,
+      targetDefense: 2,
+      threshold: 2,
       penetrated: false,
     });
   });

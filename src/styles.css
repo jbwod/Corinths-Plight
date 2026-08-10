@@ -1449,6 +1449,12 @@ summary:focus-visible {
   letter-spacing: 0.06em;
 }
 
+.subsystem-alert-strip.dug-in-strip span {
+  border-color: rgba(121, 210, 167, 0.5);
+  background: rgba(38, 96, 69, 0.2);
+  color: var(--success);
+}
+
 .summary-identity {
   display: flex;
   gap: 11px;

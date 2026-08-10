@@ -159,6 +159,10 @@ export function validateOrder(
   }
   const deployActions = order.actions.filter((action) => action.type === "DEPLOY");
   const packActions = order.actions.filter((action) => action.type === "PACK_UP");
+  const digInActions = order.actions.filter((action) => action.type === "DIG_IN");
+  if (digInActions.length > 1) reasons.push("A unit may Dig In once per round.");
+  if (digInActions.length > 0 && order.route.length > 1) reasons.push("Dig In consumes all movement and requires the unit to hold position.");
+  if (digInActions.length > 0 && deployment.statuses.includes("DUG_IN")) reasons.push("The unit is already dug in.");
   if (deployActions.length + packActions.length > 1) reasons.push("Artillery may change platform state once per round.");
   if ((deployActions.length > 0 || packActions.length > 0) && !artillery) {
     reasons.push("Deploy and Pack Up require an Artillery unit.");
@@ -342,6 +346,14 @@ export function resolveRound(input: RoundInput): RoundOutput {
     }
     const from = { ...deployment.position };
     deployment.position = { ...order.endHex };
+    if (deployment.statuses.includes("DUG_IN")) {
+      deployment.statuses = deployment.statuses.filter((status) => status !== "DUG_IN");
+      event("UNIT_DUG_OUT", deployment.id, {
+        orderId: order.id,
+        from,
+        reason: "MOVED_FROM_POSITION",
+      });
+    }
     event("UNIT_MOVED", deployment.id, {
       orderId: order.id,
       from,
@@ -362,6 +374,23 @@ export function resolveRound(input: RoundInput): RoundOutput {
       )
       .map(({ action }) => action);
     for (const action of supportActions) {
+      if (action.type === "DIG_IN") {
+        if (actor.statuses.includes("DUG_IN")) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: ["The unit is already dug in."],
+          }, actorVisibility);
+          continue;
+        }
+        actor.statuses.push("DUG_IN");
+        event("UNIT_DUG_IN", actor.id, {
+          actionId: action.id,
+          position: actor.position,
+          defenseModifier: 2,
+          speedCost: action.speedCost,
+        }, actorVisibility);
+      }
       if (action.type === "DEPLOY" || action.type === "PACK_UP") {
         if (!isArtilleryDeployment(actor)) {
           event("ORDER_REJECTED", actor.id, {
@@ -823,6 +852,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         armor: result.targetArmor,
         effectiveArmor: result.effectiveArmor,
         defense: result.targetDefense,
+        digInDefense: result.digInDefense,
         threshold: result.threshold,
         rearAttack: result.rearAttack,
         penetrated: result.penetrated,

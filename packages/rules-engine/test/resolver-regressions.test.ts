@@ -25,6 +25,41 @@ function storedEvent(round: number, sequence: number): CampaignEvent {
 }
 
 describe("resolver review regressions", () => {
+  it("applies Dig In while holding and clears it only after actual movement", () => {
+    const unit = makeDeployment("infantry", { q: 0, r: 0 }, "ALLIED", {
+      definitionId: "unit-infantry-squad",
+      tags: ["GROUND", "PERSONNEL", "INFANTRY", "DIG_IN"],
+      stats: { speed: 1 },
+    });
+    const digInRule = { economy: "STANDARD" as const, speedCost: 1 };
+    const digInOrder = makeOrder(unit, {
+      actions: [makeAction("dig-in", { type: "DIG_IN", ...digInRule })],
+    });
+    const first = resolveRound(makeRoundInput(
+      makeState([unit], [makeHex(0, 0), makeHex(1, 0)], [digInOrder]),
+      [digInOrder],
+    ));
+    expect(first.state.deployments[0]?.statuses).toContain("DUG_IN");
+    expect(first.events).toContainEqual(expect.objectContaining({ type: "UNIT_DUG_IN", actor: unit.id }));
+
+    const nextState = structuredClone(first.state);
+    nextState.round = 2;
+    nextState.phase = "LOCKED";
+    nextState.orders = [];
+    const movedUnit = nextState.deployments[0]!;
+    const moveOrder = makeOrder(movedUnit, {
+      id: "move-after-dig-in",
+      round: 2,
+      route: [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+      endHex: { q: 1, r: 0 },
+      orderType: "ADVANCE",
+    });
+    nextState.orders = [moveOrder];
+    const second = resolveRound(makeRoundInput(nextState, [moveOrder]));
+    expect(second.state.deployments[0]?.statuses).not.toContain("DUG_IN");
+    expect(second.events).toContainEqual(expect.objectContaining({ type: "UNIT_DUG_OUT", actor: unit.id }));
+  });
+
   it("continues event IDs and sequences after the highest existing event in the same round", () => {
     const unit = makeDeployment("unit", { q: 0, r: 0 });
     const order = makeOrder(unit);

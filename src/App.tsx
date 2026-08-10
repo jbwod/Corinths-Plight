@@ -78,9 +78,9 @@ interface CampaignDirectoryEntry {
   };
 }
 type Notice = { tone: "info" | "success" | "danger"; message: string };
-type ComposerActionMode = "NONE" | "ATTACK" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
+type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
 type RepairKind = "HIT" | "SUBSYSTEM";
-const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "RELOAD", "LOAD", "UNLOAD", "HEAL", "REPAIR", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
+const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "RELOAD", "LOAD", "UNLOAD", "HEAL", "REPAIR", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
 
 function initialCampaign(): CampaignView {
   const now = Date.now();
@@ -106,6 +106,8 @@ function formatEvent(event: CampaignEvent): string {
   if (typeof payload.summary === "string") return payload.summary;
   if (event.type === "ORDER_SUBMITTED") return `Order ${String(payload.lifecycle ?? "saved").toLowerCase()} for ${event.actor ?? "unit"}.`;
   if (event.type === "UNIT_MOVED") return `${event.actor ?? "Unit"} completed its plotted movement.`;
+  if (event.type === "UNIT_DUG_IN") return `${event.actor ?? "Unit"} dug in for +2 Defense.`;
+  if (event.type === "UNIT_DUG_OUT") return `${event.actor ?? "Unit"} left its prepared position and lost Dig In Defense.`;
   if (event.type === "UNIT_ATTACKED") return `${event.actor ?? "Unit"} engaged ${String(payload.targetId ?? "a hostile")}.`;
   if (event.type === "DAMAGE_APPLIED") return `${event.actor ?? "Unit"} lost ${String(payload.loss ?? "?")} strength.`;
   if (event.type === "UNIT_HEALED") return `${event.actor ?? "Medic"} restored ${String(payload.amount ?? "?")} strength to ${String(payload.targetId ?? "an allied unit")}.`;
@@ -288,6 +290,7 @@ function GameApp() {
   const weaponSystemsDisabled = disabledSubsystems.some((subsystem) => subsystem.subsystemId.toUpperCase() === "WEAPONS");
   const mobilityDisabled = disabledSubsystems.some((subsystem) => subsystem.subsystemId.toUpperCase() === "MOBILITY");
   const artilleryDeployed = selectedUnit?.artilleryDeployment === "DEPLOYED" || selectedUnit?.statuses.includes("DEPLOYED") === true;
+  const dugIn = selectedUnit?.statuses.includes("DUG_IN") === true;
   const artilleryWeapon = selectedUnit?.weapons.find((weapon) => weapon.indirect) ?? selectedUnit?.weapons[0];
   const medicalSupplyCapacity = selectedUnit ? Math.max(0, Math.floor(selectedUnit.currentHealth)) : 0;
   const executableComposerActions = composerActionModes.filter((type) =>
@@ -295,7 +298,8 @@ function GameApp() {
     getTacticalActionRule(type).executable &&
     (type !== "DEPLOY" || !artilleryDeployed) &&
     (type !== "PACK_UP" || artilleryDeployed) &&
-    (type !== "BOMBARDMENT" || artilleryDeployed),
+    (type !== "BOMBARDMENT" || artilleryDeployed) &&
+    (type !== "DIG_IN" || !dugIn),
   );
   const targetUnit = campaign.deployments.find((deployment) => deployment.id === targetUnitId);
   const targetIsHorde = targetUnit?.tags?.includes("HORDE") === true;
@@ -434,6 +438,7 @@ function GameApp() {
       (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0 &&
       (repairKind === "HIT" ? supportTarget.currentHealth < supportTarget.stats.maxHealth : selectedRepairSubsystem),
     )) ||
+    (actionMode === "DIG_IN" && !dugIn && orderType === "HOLD" && draftedRoute.length === 1) ||
     (actionMode === "DEPLOY" && isArtilleryUnit && !artilleryDeployed) ||
     (actionMode === "PACK_UP" && isArtilleryUnit && artilleryDeployed) ||
     (actionMode === "BOMBARDMENT" && Boolean(
@@ -466,6 +471,8 @@ function GameApp() {
             ? repairKind === "HIT"
               ? `restore one Hit to ${supportTarget.callsign}`
               : `repair ${selectedRepairSubsystem?.subsystemId ?? "a subsystem"} on ${supportTarget.callsign}`
+          : actionMode === "DIG_IN"
+            ? "prepare this position for +2 Defense"
           : actionMode === "DEPLOY"
             ? "deploy and unhitch the artillery platform"
           : actionMode === "PACK_UP"
@@ -593,6 +600,8 @@ function GameApp() {
           ? { repairKind: "HIT" }
           : { repairKind: "SUBSYSTEM", subsystemId: selectedRepairSubsystem?.subsystemId },
       });
+    } else if (actionMode === "DIG_IN") {
+      actions.push({ type: "DIG_IN", equipmentIds: [] });
     } else if (actionMode === "DEPLOY" || actionMode === "PACK_UP") {
       actions.push({ type: actionMode, equipmentIds: [] });
     } else if (actionMode === "BOMBARDMENT" && selectedBombardmentHex) {
@@ -897,6 +906,7 @@ function GameApp() {
                     ))}
                   </div>
                 )}
+                {dugIn && <div className="subsystem-alert-strip dug-in-strip" role="status"><span>DUG IN · +2 DEFENSE</span></div>}
                 <div className="stat-grid">
                   <span><small>SPEED</small><b>{selectedUnit.stats.speed}</b></span>
                   <span><small>ARMOUR</small><b>{selectedUnit.stats.armor}</b></span>
@@ -970,6 +980,10 @@ function GameApp() {
                       disabled={type === "ATTACK" && (orderType === "RUSH" || weaponSystemsDisabled)}
                       onClick={() => {
                         setActionMode(type);
+                        if (type === "DIG_IN") {
+                          setOrderType("HOLD");
+                          setDraftedRoute([{ ...selectedUnit.position }]);
+                        }
                         if (type !== "ATTACK") setTargetUnitId(undefined);
                         if (type === "RELOAD") setSelectedWeaponId(reloadableWeapons[0]?.id);
                         setSupportTargetUnitId(
@@ -1123,6 +1137,12 @@ function GameApp() {
                     </p>
                     <p className="validation">Restore one vehicle Hit or one damaged subsystem to a friendly vehicle in base contact.</p>
                     {repairTargets.length === 0 && <p className="validation danger">No damaged friendly vehicle is in base contact at the planned destination.</p>}
+                  </>
+                ) : actionMode === "DIG_IN" ? (
+                  <>
+                    <p className="validation">Prepare this hex and gain +2 Defense. The bonus stacks with one Cover Armor source.</p>
+                    <p className="validation">STANDARD ACTION · ALL SPEED · ends after this unit actually moves from the position.</p>
+                    {dugIn && <p className="validation danger">This unit is already dug in.</p>}
                   </>
                 ) : actionMode === "DEPLOY" || actionMode === "PACK_UP" ? (
                   <>

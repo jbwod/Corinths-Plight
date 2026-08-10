@@ -20,6 +20,7 @@ This document records the narrow decisions used by the equipment/loadout/deploym
 14. Rapid Fire checks governed attacker and target tags. Against Horde, it doubles the capped modified damage result before Armor and Defense mitigation, preserves the undoubled natural die for subsystem checks, and still converts a penetrating attack against a Hits target to one lost Hit before other received-damage multipliers.
 15. Rear geometry only creates a flanking benefit for tagged ground targets. A ground vehicle ignores Armor from the direct rear but retains unrelated Defense. Dug-in ground infantry retains Armor and loses only Dig In Defense. Aerospace, VTOL and orbital targets neither gain nor suffer rear-attack benefits.
 16. Terrain Advantage compares authoritative scenario-map elevation at the firing and target hexes. A ground attacker strictly above a ground target adds +1 to the damage result before the current-FS cap and mitigation. Equal/lower elevation and aerospace, VTOL or orbital participation give no modifier.
+17. Dig In is a server-owned Standard Action for the governed Infantry, Medic and Engineer profiles. It costs the unit's full Speed, therefore requires a Hold route, applies `DUG_IN` for `+2 Defense`, survives a blocked movement attempt, and ends only after the unit actually changes hex. A direct rear ground attack excludes only this `+2` source.
 
 ## Explicitly unresolved
 
