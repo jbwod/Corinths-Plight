@@ -84,7 +84,11 @@ class EffectStatement {
     if (this.query.includes("FROM strategic_operations AS operations")) {
       return this.database.linkedOperation;
     }
-    if (this.query.includes("SELECT 1 FROM strategic_nodes") || this.query.includes("SELECT 1 FROM strategic_routes")) {
+    if (
+      this.query.includes("SELECT 1 FROM strategic_nodes") ||
+      this.query.includes("SELECT 1 FROM strategic_routes") ||
+      this.query.includes("SELECT 1 FROM strategic_operations")
+    ) {
       return { exists: 1 };
     }
     return null;
@@ -366,6 +370,7 @@ describe("CampaignDurableObject campaign contracts", () => {
         effects: [
           { type: "STRATEGIC_NODE_CAPTURED", nodeId: "node-outpost-k17", control: "FRIENDLY" },
           { type: "ROUTE_UNLOCKED", routeId: "route-kestrel-outpost-k17" },
+          { type: "OPERATION_ACTIVATED", operationId: "strategic-operation-broken-road" },
         ],
       }]),
     };
@@ -413,10 +418,12 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(completed.events).not.toContainEqual(expect.objectContaining({ type: "ROUND_STARTED", round: 22 }));
     expect(storage.values.has("resolution/21")).toBe(true);
     expect(database.results.get(CAMPAIGN_ID)).toBe(`${CAMPAIGN_ID}:21:campaign-result`);
-    expect(database.appliedQueries.filter((query) => query.includes("INSERT INTO strategic_effect_receipts"))).toHaveLength(2);
-    expect(database.appliedQueries.filter((query) => query.includes("INSERT INTO strategic_events"))).toHaveLength(2);
+    expect(database.appliedQueries.filter((query) => query.includes("INSERT INTO strategic_effect_receipts"))).toHaveLength(3);
+    expect(database.appliedQueries.filter((query) => query.includes("INSERT INTO strategic_events"))).toHaveLength(3);
     expect(database.appliedQueries.some((query) => query.includes("UPDATE strategic_nodes SET control_status"))).toBe(true);
     expect(database.appliedQueries.some((query) => query.includes("UPDATE strategic_routes SET status='OPEN'"))).toBe(true);
+    expect(database.appliedQueries.some((query) => query.includes("UPDATE strategic_operations SET status='MUSTERING'"))).toBe(true);
+    expect(database.appliedQueries.some((query) => query.includes("UPDATE campaigns SET status='RECRUITING'"))).toBe(true);
     expect(database.appliedQueries.some((query) => query.includes("location_kind='RESERVE'"))).toBe(true);
     expect(database.appliedQueries.some((query) => query.includes("UPDATE player_unit_loadouts SET locked_at=NULL"))).toBe(true);
     expect(database.appliedQueries.some((query) => query.includes("status='CANCELLED'"))).toBe(true);

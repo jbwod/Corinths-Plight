@@ -84,9 +84,9 @@ The seeded operations are:
 |---|---|---|---|
 | Iron Rain | Kestrel Ridge | `MUSTERING` | Existing `operation-iron-rain` campaign |
 | Night Glass | New Carthage | `ANNOUNCED` | Not bootstrapped |
-| Broken Road | Junction 7 | `ANNOUNCED` | Not bootstrapped |
+| Broken Road | Junction 7 | `ANNOUNCED` → `MUSTERING` | Authored campaign begins locked and activates after Iron Rain victory |
 
-Iron Rain contains an authored victory rule keyed to the tactical `objective-kestrel-airfield` result. When a terminal campaign result reports Allied control, the campaign effect batch changes Kestrel Ridge to `FRIENDLY`, opens `route-kestrel-outpost-k17`, increments the map, appends Battalion activity, and records both targets in `strategic_effect_receipts`. A failed or unmet objective applies neither consequence; unknown configured effect types fail closed.
+Iron Rain contains an authored victory rule keyed to the tactical `objective-kestrel-airfield` result. When a terminal campaign result reports Allied control, the campaign effect batch changes Kestrel Ridge to `FRIENDLY`, opens `route-kestrel-outpost-k17`, changes Broken Road and its linked campaign to `MUSTERING`/`RECRUITING`, increments the map, appends Battalion activity, and records all three targets in `strategic_effect_receipts`. A failed or unmet objective applies no consequence; unknown configured effect types fail closed. Broken Road then uses the ordinary strategic move, campaign join and deployment-plan flows before loading its own Junction 7 map, objectives and waves.
 
 The Operation briefing links directly to its campaign deployment planner. A linked operation plan must contain units from one Battalion Battlegroup. Commit locks the exact persistent loadout revisions, inserts the campaign snapshots and deployments, closes any active carrier link, places the Battlegroup at the operation node as `DEPLOYED`, and changes the campaign and operation to `ACTIVE` in the same D1 batch. The local Iron Rain verification commits Hammer's six executable foundation units and the Campaign Durable Object then loads those exact callsigns rather than a substitute fixture roster.
 

@@ -38,7 +38,7 @@ interface PublicCampaignRow {
 }
 
 const joinPath = /^\/api\/campaigns\/([a-z0-9][a-z0-9-]{0,63})\/join$/;
-const [outpostMapSource, ironRainMapSource] = AUTHORED_SCENARIO_MAP_SOURCES;
+const [outpostMapSource, ironRainMapSource, brokenRoadMapSource] = AUTHORED_SCENARIO_MAP_SOURCES;
 
 function scenarioBriefing(mapSourceKey: string): Record<string, unknown> | undefined {
   if (mapSourceKey === "fixture/outpost-k17") {
@@ -55,6 +55,14 @@ function scenarioBriefing(mapSourceKey: string): Record<string, unknown> | undef
       objectives: ["Hold Airfield", "Destroy Hive"],
       durationRounds: 6,
       recommendedCapabilities: ["GROUND_COMBAT", "ARMOURED", "ENGINEERING", "ARTILLERY"],
+    };
+  }
+  if (mapSourceKey === "fixture/operation-broken-road") {
+    return {
+      threat: "MODERATE",
+      objectives: ["Hold Junction 7", "Protect Supply Cache"],
+      durationRounds: 5,
+      recommendedCapabilities: ["GROUND_COMBAT", "ENGINEERING", "LOGISTICS", "ARTILLERY"],
     };
   }
   return undefined;
@@ -96,10 +104,10 @@ async function joinCampaign(request: Request, env: Env, campaignId: string): Pro
       SELECT campaigns.id,?1,active.battalion_id,'ALLIED','PLAYER'
       FROM campaigns JOIN user_active_battalions AS active ON active.user_id=?1
       WHERE campaigns.id=?2 AND campaigns.status='RECRUITING'
-        AND campaigns.map_source_key IN (?3,?4)
+        AND campaigns.map_source_key IN (?3,?4,?5)
         AND (SELECT COUNT(*) FROM campaign_memberships WHERE campaign_id=campaigns.id) < campaigns.maximum_players
       ON CONFLICT(campaign_id,user_id) DO NOTHING`)
-      .bind(userId, campaignId, outpostMapSource, ironRainMapSource),
+      .bind(userId, campaignId, outpostMapSource, ironRainMapSource, brokenRoadMapSource),
     env.DB.prepare(`INSERT INTO campaign_join_receipts
       (user_id,command_id,campaign_id,request_hash,response_json)
       SELECT ?1,?2,?3,?4,?5 WHERE EXISTS (
@@ -153,13 +161,13 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
         campaigns.maximum_players,(SELECT COUNT(*) FROM campaign_memberships AS members
           WHERE members.campaign_id=campaigns.id) AS member_count
       FROM campaigns JOIN planets ON planets.id=campaigns.planet_id
-      WHERE campaigns.status='RECRUITING' AND campaigns.map_source_key IN (?2,?3)
+      WHERE campaigns.status='RECRUITING' AND campaigns.map_source_key IN (?2,?3,?4)
         AND NOT EXISTS (SELECT 1 FROM campaign_memberships AS mine
           WHERE mine.campaign_id=campaigns.id AND mine.user_id=?1)
         AND (SELECT COUNT(*) FROM campaign_memberships AS members
           WHERE members.campaign_id=campaigns.id) < campaigns.maximum_players
       ORDER BY campaigns.name,campaigns.id`)
-      .bind(userId, outpostMapSource, ironRainMapSource).all<PublicCampaignRow>(),
+      .bind(userId, outpostMapSource, ironRainMapSource, brokenRoadMapSource).all<PublicCampaignRow>(),
   ]);
   return json({
     campaigns: result.results.map((row) => ({

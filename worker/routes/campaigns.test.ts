@@ -116,4 +116,43 @@ describe("campaign directory", () => {
       availableCampaigns: [],
     });
   });
+
+  it("advertises the unlocked Broken Road follow-on briefing", async () => {
+    const response = await routeCampaignDirectoryRequest(new Request("https://game.test/api/campaigns", {
+      headers: { "x-demo-user": "demo-user" },
+    }), env([{
+      campaign_id: "operation-broken-road",
+      name: "Operation Broken Road",
+      status: "RECRUITING",
+      planet_name: "Corinth",
+      map_source_key: "fixture/operation-broken-road",
+      side: "ALLIED",
+      role: "PLAYER",
+      joined_at: 1,
+      minimum_players: 1,
+      maximum_players: 8,
+      member_count: 1,
+      deployment_count: 0,
+      result: null,
+      outcome_reason: null,
+      result_round: null,
+      rewards_json: null,
+      resolved_at: null,
+    }]));
+
+    expect(response?.status).toBe(200);
+    expect(await response?.json()).toEqual({
+      campaigns: [expect.objectContaining({
+        campaignId: "operation-broken-road",
+        scenarioAvailable: true,
+        briefing: {
+          threat: "MODERATE",
+          objectives: ["Hold Junction 7", "Protect Supply Cache"],
+          durationRounds: 5,
+          recommendedCapabilities: ["GROUND_COMBAT", "ENGINEERING", "LOGISTICS", "ARTILLERY"],
+        },
+      })],
+      availableCampaigns: [],
+    });
+  });
 });

@@ -299,6 +299,35 @@ ON CONFLICT(id) DO UPDATE SET
   strategic_status = excluded.strategic_status,
   force_policy_json = excluded.force_policy_json;
 
+INSERT INTO campaigns (
+  id, planet_id, ruleset_id, name, status, round_duration_ms,
+  map_source_key, minimum_players, maximum_players, created_by,
+  force_policy_json, strategic_node_id, strategic_status, strategic_revision
+) VALUES (
+  'operation-broken-road', 'planet-corinth', 'ruleset-v5-core-curated-1',
+  'Operation Broken Road', 'DRAFT', 300000,
+  'fixture/operation-broken-road', 1, 8, 'demo-user',
+  '{"allowedCategories":["INFANTRY","SUPPORT","ENGINEER","ARTILLERY","ARMOUR","MECH"],"requiresShip":false}',
+  'node-junction-7', 'ANNOUNCED', 1
+)
+ON CONFLICT(id) DO UPDATE SET
+  strategic_node_id = excluded.strategic_node_id,
+  strategic_status = excluded.strategic_status,
+  force_policy_json = excluded.force_policy_json;
+
+INSERT INTO campaign_insertion_zones (
+  id, campaign_id, hex_q, hex_r, allowed_methods_json, status, environment_json
+) VALUES (
+  'broken-road-western-muster', 'operation-broken-road', -5, 1,
+  '["STANDARD_GROUND","VEHICLE_TRANSPORT"]', 'OPEN', '["CLEAR_APPROACH","ROAD_ACCESS"]'
+)
+ON CONFLICT(id) DO UPDATE SET
+  hex_q = excluded.hex_q,
+  hex_r = excluded.hex_r,
+  allowed_methods_json = excluded.allowed_methods_json,
+  status = excluded.status,
+  environment_json = excluded.environment_json;
+
 UPDATE campaigns
    SET strategic_node_id = 'node-outpost-k17',
        strategic_status = 'RESOLVED'
@@ -324,7 +353,7 @@ INSERT INTO strategic_operations (
     '{"methods":["STANDARD_LANDING","VTOL_DEPLOYMENT","AEROSPACE_TRANSPORT","ORBITAL_DROP"],"methodAvailability":"CAPABILITY_DERIVED"}',
     '{"mode":"CAMPAIGN_CONFIGURED","status":"OPEN"}',
     '{"faction":"BUG_SWARM","detail":"KNOWN_ONLY"}',
-    '[{"when":{"objectiveId":"objective-kestrel-airfield","owner":"ALLIED"},"effects":[{"type":"STRATEGIC_NODE_CAPTURED","nodeId":"node-kestrel-ridge","control":"FRIENDLY"},{"type":"ROUTE_UNLOCKED","routeId":"route-kestrel-outpost-k17"}]}]',
+    '[{"when":{"objectiveId":"objective-kestrel-airfield","owner":"ALLIED"},"effects":[{"type":"STRATEGIC_NODE_CAPTURED","nodeId":"node-kestrel-ridge","control":"FRIENDLY"},{"type":"ROUTE_UNLOCKED","routeId":"route-kestrel-outpost-k17"},{"type":"OPERATION_ACTIVATED","operationId":"strategic-operation-broken-road"}]}]',
     NULL, 1, 'source-phase3-brief-2026-08-09',
     'Initial Strategic Scenario: OPERATION IRON RAIN; Strategic-to-Tactical Test'
   ),
@@ -341,11 +370,11 @@ INSERT INTO strategic_operations (
   ),
   (
     'strategic-operation-broken-road', 'strategic-map-corinth', 'node-junction-7',
-    NULL, 'ruleset-v5-core-curated-1', 'BROKEN_ROAD',
-    'Operation Broken Road', 'Logistics defence', 'ANNOUNCED', 'UNKNOWN',
-    '[]', '["GROUND_COMBAT","ENGINEERING","LOGISTICS"]',
-    '{"methods":[],"methodAvailability":"CAPABILITY_DERIVED"}',
-    '{"mode":"CAMPAIGN_CONFIGURED","status":"UNPUBLISHED"}',
+    'operation-broken-road', 'ruleset-v5-core-curated-1', 'BROKEN_ROAD',
+    'Operation Broken Road', 'Logistics defence', 'ANNOUNCED', 'MODERATE',
+    '[{"key":"HOLD_JUNCTION_7","label":"Hold Junction 7"},{"key":"PROTECT_SUPPLY_CACHE","label":"Protect Supply Cache"}]', '["GROUND_COMBAT","ENGINEERING","LOGISTICS","ARTILLERY"]',
+    '{"methods":["STANDARD_LANDING"],"methodAvailability":"CAPABILITY_DERIVED"}',
+    '{"mode":"CAMPAIGN_CONFIGURED","status":"LOCKED"}',
     '{"faction":"BUG_SWARM","detail":"KNOWN_ONLY"}', '[]',
     NULL, 1, 'source-phase3-brief-2026-08-09',
     'Initial Strategic Scenario: OPERATION BROKEN ROAD'

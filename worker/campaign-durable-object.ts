@@ -406,9 +406,16 @@ export class CampaignDurableObject extends DurableObject<Env> {
         for (const consequence of consequences) {
           const targetId = consequence.type === "STRATEGIC_NODE_CAPTURED"
             ? consequence.nodeId
-            : consequence.routeId;
-          const table = consequence.type === "STRATEGIC_NODE_CAPTURED" ? "strategic_nodes" : "strategic_routes";
-          const exists = await this.env.DB.prepare(`SELECT 1 FROM ${table} WHERE id=?1 AND map_id=?2 LIMIT 1`)
+            : consequence.type === "ROUTE_UNLOCKED"
+              ? consequence.routeId
+              : consequence.operationId;
+          const table = consequence.type === "STRATEGIC_NODE_CAPTURED"
+            ? "strategic_nodes"
+            : consequence.type === "ROUTE_UNLOCKED"
+              ? "strategic_routes"
+              : "strategic_operations";
+          const campaignRequirement = consequence.type === "OPERATION_ACTIVATED" ? " AND campaign_id IS NOT NULL" : "";
+          const exists = await this.env.DB.prepare(`SELECT 1 FROM ${table} WHERE id=?1 AND map_id=?2${campaignRequirement} LIMIT 1`)
             .bind(targetId, linkedOperation!.map_id).first();
           if (!exists) throw new Error(`CAMPAIGN_STRATEGIC_EFFECT_TARGET_MISSING:${targetId}`);
         }
@@ -416,26 +423,47 @@ export class CampaignDurableObject extends DurableObject<Env> {
         for (const [index, consequence] of consequences.entries()) {
           const targetId = consequence.type === "STRATEGIC_NODE_CAPTURED"
             ? consequence.nodeId
-            : consequence.routeId;
-          const targetType = consequence.type === "STRATEGIC_NODE_CAPTURED" ? "STRATEGIC_NODE" : "STRATEGIC_ROUTE";
+            : consequence.type === "ROUTE_UNLOCKED"
+              ? consequence.routeId
+              : consequence.operationId;
+          const targetType = consequence.type === "STRATEGIC_NODE_CAPTURED"
+            ? "STRATEGIC_NODE"
+            : consequence.type === "ROUTE_UNLOCKED"
+              ? "STRATEGIC_ROUTE"
+              : "STRATEGIC_OPERATION";
           const strategicEffectKey = `${effect.idempotencyKey}:strategic:${index}`;
           const strategicPayload = { campaignId, round, result, operationId: linkedOperation!.id, consequence };
           const payloadHash = await campaignCommandHash(strategicPayload);
           const summary = consequence.type === "STRATEGIC_NODE_CAPTURED"
             ? `${campaignId} secured ${consequence.nodeId}; control is now ${consequence.control}.`
-            : `${campaignId} unlocked strategic route ${consequence.routeId}.`;
+            : consequence.type === "ROUTE_UNLOCKED"
+              ? `${campaignId} unlocked strategic route ${consequence.routeId}.`
+              : `${campaignId} opened ${consequence.operationId} for Battalion deployment.`;
           if (consequence.type === "STRATEGIC_NODE_CAPTURED") {
             strategicStatements.push(this.env.DB.prepare(`UPDATE strategic_nodes SET control_status=?1,
               revision=revision+CASE WHEN control_status<>?1 THEN 1 ELSE 0 END,
               updated_at=CASE WHEN control_status<>?1 THEN unixepoch() ELSE updated_at END
               WHERE id=?2 AND map_id=?3`)
               .bind(consequence.control, consequence.nodeId, linkedOperation!.map_id));
-          } else {
+          } else if (consequence.type === "ROUTE_UNLOCKED") {
             strategicStatements.push(this.env.DB.prepare(`UPDATE strategic_routes SET status='OPEN',
               revision=revision+CASE WHEN status<>'OPEN' THEN 1 ELSE 0 END,
               updated_at=CASE WHEN status<>'OPEN' THEN unixepoch() ELSE updated_at END
               WHERE id=?1 AND map_id=?2`)
               .bind(consequence.routeId, linkedOperation!.map_id));
+          } else {
+            strategicStatements.push(
+              this.env.DB.prepare(`UPDATE strategic_operations SET status='MUSTERING',
+                revision=revision+CASE WHEN status='ANNOUNCED' THEN 1 ELSE 0 END,
+                updated_at=CASE WHEN status='ANNOUNCED' THEN unixepoch() ELSE updated_at END
+                WHERE id=?1 AND map_id=?2 AND status IN ('ANNOUNCED','MUSTERING')`)
+                .bind(consequence.operationId, linkedOperation!.map_id),
+              this.env.DB.prepare(`UPDATE campaigns SET status='RECRUITING',strategic_status='MUSTERING',
+                strategic_revision=strategic_revision+CASE WHEN status='DRAFT' OR strategic_status='ANNOUNCED' THEN 1 ELSE 0 END
+                WHERE id=(SELECT campaign_id FROM strategic_operations WHERE id=?1 AND map_id=?2)
+                  AND status IN ('DRAFT','RECRUITING')`)
+                .bind(consequence.operationId, linkedOperation!.map_id),
+            );
           }
           strategicStatements.push(
             this.env.DB.prepare(`INSERT INTO strategic_effect_receipts (
@@ -452,7 +480,11 @@ export class CampaignDurableObject extends DurableObject<Env> {
               COALESCE((SELECT MAX(sequence)+1 FROM strategic_events WHERE map_id=?2 AND round_number=?3),0),
               ?4,?5,NULL,'BATTALION',?6,?7,?8,?9,?10,?11)`)
               .bind(`${strategicEffectKey}:event`, linkedOperation!.map_id, linkedOperation!.current_round,
-                consequence.type === "STRATEGIC_NODE_CAPTURED" ? "STRATEGIC_NODE_CONTROL_CHANGED" : "STRATEGIC_ROUTE_STATUS_CHANGED",
+                consequence.type === "STRATEGIC_NODE_CAPTURED"
+                  ? "STRATEGIC_NODE_CONTROL_CHANGED"
+                  : consequence.type === "ROUTE_UNLOCKED"
+                    ? "STRATEGIC_ROUTE_STATUS_CHANGED"
+                    : "STRATEGIC_OPERATION_STATUS_CHANGED",
                 linkedOperation!.battalion_id, targetType, targetId, summary,
                 JSON.stringify(strategicPayload), payloadHash, `${strategicEffectKey}:event`),
           );

@@ -1,6 +1,7 @@
 export type CampaignStrategicConsequence =
   | { type: "STRATEGIC_NODE_CAPTURED"; nodeId: string; control: "FRIENDLY" | "ENEMY" | "CONTESTED" | "NEUTRAL" | "UNKNOWN" }
-  | { type: "ROUTE_UNLOCKED"; routeId: string };
+  | { type: "ROUTE_UNLOCKED"; routeId: string }
+  | { type: "OPERATION_ACTIVATED"; operationId: string };
 
 interface ObjectiveResult {
   id: string;
@@ -67,6 +68,10 @@ export function configuredCampaignStrategicConsequences(
         exactKeys(effect, ["type", "routeId"], `rule.${ruleIndex}.effect.${effectIndex}`);
         if (typeof effect.routeId !== "string") throw new Error(`CAMPAIGN_STRATEGIC_EFFECT_INVALID:rule.${ruleIndex}.effect.${effectIndex}`);
         consequences.push({ type: "ROUTE_UNLOCKED", routeId: effect.routeId });
+      } else if (effect.type === "OPERATION_ACTIVATED") {
+        exactKeys(effect, ["type", "operationId"], `rule.${ruleIndex}.effect.${effectIndex}`);
+        if (typeof effect.operationId !== "string") throw new Error(`CAMPAIGN_STRATEGIC_EFFECT_INVALID:rule.${ruleIndex}.effect.${effectIndex}`);
+        consequences.push({ type: "OPERATION_ACTIVATED", operationId: effect.operationId });
       } else {
         throw new Error(`CAMPAIGN_STRATEGIC_EFFECT_UNSUPPORTED:${String(effect.type)}`);
       }
@@ -74,7 +79,11 @@ export function configuredCampaignStrategicConsequences(
   }
   const unique = new Map<string, CampaignStrategicConsequence>();
   for (const effect of consequences) {
-    const targetId = effect.type === "STRATEGIC_NODE_CAPTURED" ? effect.nodeId : effect.routeId;
+    const targetId = effect.type === "STRATEGIC_NODE_CAPTURED"
+      ? effect.nodeId
+      : effect.type === "ROUTE_UNLOCKED"
+        ? effect.routeId
+        : effect.operationId;
     unique.set(`${effect.type}:${targetId}`, effect);
   }
   return [...unique.values()];

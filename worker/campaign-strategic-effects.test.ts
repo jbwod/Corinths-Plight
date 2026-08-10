@@ -7,6 +7,7 @@ const rules = JSON.stringify([{
   effects: [
     { type: "STRATEGIC_NODE_CAPTURED", nodeId: "node-kestrel-ridge", control: "FRIENDLY" },
     { type: "ROUTE_UNLOCKED", routeId: "route-kestrel-outpost-k17" },
+    { type: "OPERATION_ACTIVATED", operationId: "strategic-operation-broken-road" },
   ],
 }]);
 
@@ -17,6 +18,7 @@ describe("campaign strategic consequences", () => {
     ])).toEqual([
       { type: "STRATEGIC_NODE_CAPTURED", nodeId: "node-kestrel-ridge", control: "FRIENDLY" },
       { type: "ROUTE_UNLOCKED", routeId: "route-kestrel-outpost-k17" },
+      { type: "OPERATION_ACTIVATED", operationId: "strategic-operation-broken-road" },
     ]);
   });
 
