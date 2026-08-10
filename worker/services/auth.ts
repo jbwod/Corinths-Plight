@@ -293,12 +293,35 @@ export function clearSessionCookie(env: Env): string {
   return `corinth_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
 }
 
+function verificationCookie(token: string, env: Env): string {
+  const secure = env.ENVIRONMENT === "development" ? "" : "; Secure";
+  return `corinth_auth_verify=${encodeURIComponent(token)}; Path=/api/auth/verify; HttpOnly; SameSite=Lax; Max-Age=300${secure}`;
+}
+
 function cookie(request: Request, name: string): string | undefined {
   for (const part of (request.headers.get("cookie") ?? "").split(";")) {
     const [key, ...rest] = part.trim().split("=");
     if (key === name) return rest.join("=");
   }
   return undefined;
+}
+
+export async function stageAuthChallenge(env: Env, token: string): Promise<string> {
+  if (!TOKEN_PATTERN.test(token)) throw new AuthServiceError(400, "AUTH_LINK_INVALID", "This access link is invalid or has expired.");
+  const tokenHash = await sha256(token);
+  const challenge = await env.DB.prepare(`SELECT 1 FROM auth_email_challenges
+    WHERE token_hash=?1 AND status IN ('PENDING','SENT') AND expires_at>unixepoch() LIMIT 1`)
+    .bind(tokenHash).first();
+  if (!challenge) throw new AuthServiceError(400, "AUTH_LINK_INVALID", "This access link is invalid or has expired.");
+  return verificationCookie(token, env);
+}
+
+export async function consumeStagedAuthChallenge(request: Request, env: Env): Promise<{ cookie: string; redirect: string }> {
+  const rawToken = cookie(request, "corinth_auth_verify");
+  if (!rawToken) throw new AuthServiceError(400, "AUTH_LINK_INVALID", "This access link is invalid or has expired.");
+  let token: string;
+  try { token = decodeURIComponent(rawToken); } catch { throw new AuthServiceError(400, "AUTH_LINK_INVALID", "This access link is invalid or has expired."); }
+  return consumeAuthChallenge(request, env, token);
 }
 
 export async function consumeAuthChallenge(request: Request, env: Env, token: string): Promise<{ cookie: string; redirect: string }> {
@@ -318,7 +341,9 @@ export async function consumeAuthChallenge(request: Request, env: Env, token: st
   const sessionTtl = seconds(env.AUTH_SESSION_TTL_SECONDS, 2_592_000, 3600, 7_776_000);
   const providerSubjectHash = await hmac(`email:${challenge.email}`, hashSecret(env));
   const statements: D1PreparedStatement[] = [];
+  let userId = challenge.proposed_user_id;
   if (challenge.purpose === "REGISTER") {
+    if (!userId) throw new AuthServiceError(400, "AUTH_LINK_INVALID", "This access link is invalid or has expired.");
     statements.push(
       env.DB.prepare(`INSERT INTO users (id,email,username,status,email_verified_at)
         SELECT proposed_user_id,email,proposed_username,'ACTIVE',?1 FROM auth_email_challenges
@@ -328,6 +353,10 @@ export async function consumeAuthChallenge(request: Request, env: Env, token: st
         WHERE id=?1 AND status IN ('PENDING','SENT') AND expires_at>?2`).bind(challenge.id, now),
     );
   } else {
+    const existingUser = await env.DB.prepare(`SELECT id FROM users
+      WHERE email=?1 COLLATE NOCASE AND status='ACTIVE' LIMIT 1`).bind(challenge.email).first<{ id: string }>();
+    if (!existingUser) throw new AuthServiceError(400, "AUTH_LINK_INVALID", "This access link is invalid or has expired.");
+    userId = existingUser.id;
     statements.push(env.DB.prepare(`UPDATE users SET email_verified_at=COALESCE(email_verified_at,?1),
       updated_at=?1 WHERE email=?2 COLLATE NOCASE AND status='ACTIVE'`).bind(now, challenge.email));
   }
@@ -358,10 +387,7 @@ export async function consumeAuthChallenge(request: Request, env: Env, token: st
     }
     throw error;
   }
-  const created = await env.DB.prepare(`SELECT user_id FROM user_sessions WHERE id=?1 AND token_hash=?2 LIMIT 1`)
-    .bind(sessionId, sessionHash).first<{ user_id: string }>();
-  if (!created) throw new AuthServiceError(400, "AUTH_LINK_INVALID", "This access link is invalid or has expired.");
-  await audit(env, { userId: created.user_id, eventType: "AUTH_LINK_CONSUMED", outcome: "SUCCESS", subjectHash: challenge.email_hash, ipHash, userAgentHash, metadata: { purpose: challenge.purpose } }).catch(() => undefined);
+  await audit(env, { userId, eventType: "AUTH_LINK_CONSUMED", outcome: "SUCCESS", subjectHash: challenge.email_hash, ipHash, userAgentHash, metadata: { purpose: challenge.purpose } }).catch(() => undefined);
   return { cookie: sessionCookie(sessionToken, env), redirect: "/?auth=verified" };
 }
 

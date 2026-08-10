@@ -3,10 +3,11 @@ import { errorResponse, json, readJson } from "../http";
 import {
   AuthServiceError,
   clearSessionCookie,
-  consumeAuthChallenge,
+  consumeStagedAuthChallenge,
   currentSession,
   logout,
   requestAuthLink,
+  stageAuthChallenge,
   validateLoginInput,
   validateRegistrationInput,
 } from "../services/auth";
@@ -48,15 +49,21 @@ export async function routeAuthRequest(request: Request, env: Env): Promise<Resp
       return json(await requestAuthLink(request, env, "LOGIN", input), { status: 202 });
     }
     if (url.pathname === "/api/auth/verify") {
-      if (request.method !== "GET") return errorResponse(405, "METHOD_NOT_ALLOWED", "Use GET for this endpoint.");
-      const token = url.searchParams.get("token") ?? "";
-      try {
-        const result = await consumeAuthChallenge(request, env, token);
-        return redirect(result.redirect, result.cookie);
-      } catch (error) {
-        if (error instanceof AuthServiceError) return redirect("/?auth=invalid", clearSessionCookie(env));
-        throw error;
+      if (request.method === "GET") {
+        const token = url.searchParams.get("token") ?? "";
+        try {
+          const stagedCookie = await stageAuthChallenge(env, token);
+          return redirect(env.ENVIRONMENT === "development" ? "/?auth=confirm&signedout=1" : "/?auth=confirm", stagedCookie);
+        } catch (error) {
+          if (error instanceof AuthServiceError) return redirect("/?auth=invalid", clearSessionCookie(env));
+          throw error;
+        }
       }
+      if (request.method === "POST") {
+        const result = await consumeStagedAuthChallenge(request, env);
+        return json({ verified: true }, { headers: { "set-cookie": result.cookie } });
+      }
+      return errorResponse(405, "METHOD_NOT_ALLOWED", "Use GET or POST for this endpoint.");
     }
     if (url.pathname === "/api/auth/logout") {
       if (request.method !== "POST") return errorResponse(405, "METHOD_NOT_ALLOWED", "Use POST for this endpoint.");

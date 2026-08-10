@@ -3,7 +3,7 @@ import type { AuthLinkRequestedDto, AuthSessionDto } from "../../packages/domain
 import brandMark from "../../app/static/img/brand-icon.gif";
 import background from "../../app/static/img/background.png";
 
-type AuthMode = "HOME" | "LOGIN" | "REGISTER" | "CHECK_EMAIL";
+type AuthMode = "HOME" | "LOGIN" | "REGISTER" | "CHECK_EMAIL" | "VERIFY";
 
 async function responseError(response: Response): Promise<string> {
   try {
@@ -60,6 +60,20 @@ function SignedOutHome({ authAvailable, initialMode }: { authAvailable: boolean;
     }
   }
 
+  async function confirmEmail() {
+    setBusy(true);
+    setError(undefined);
+    try {
+      const response = await fetch("/api/auth/verify", { method: "POST" });
+      if (!response.ok) throw new Error(await responseError(response));
+      const localSignedOut = new URLSearchParams(window.location.search).get("signedout") === "1";
+      window.location.assign(localSignedOut ? "/?auth=verified&signedout=1" : "/?auth=verified");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "This access link could not be confirmed.");
+      setBusy(false);
+    }
+  }
+
   return (
     <main className="public-shell" style={{ "--public-background": `url(${background})` } as CSSProperties}>
       <header className="public-header">
@@ -91,7 +105,16 @@ function SignedOutHome({ authAvailable, initialMode }: { authAvailable: boolean;
 
         {mode !== "HOME" && (
           <aside ref={authCard} className="auth-card" aria-labelledby="auth-title">
-            {mode === "CHECK_EMAIL" ? (
+            {mode === "VERIFY" ? (
+              <div className="auth-confirmation">
+                <span className="auth-status-mark">→</span>
+                <span className="eyebrow">EMAIL VERIFICATION</span>
+                <h2 id="auth-title">Confirm command access</h2>
+                <p>Complete this final browser confirmation to verify your email and create the secure session.</p>
+                {error && <p className="auth-error" role="alert">{error}</p>}
+                <button className="primary" disabled={busy} onClick={() => void confirmEmail()}>{busy ? "CONFIRMING…" : "CONFIRM EMAIL"}</button>
+              </div>
+            ) : mode === "CHECK_EMAIL" ? (
               <div className="auth-confirmation" role="status">
                 <span className="auth-status-mark">✓</span>
                 <span className="eyebrow">SECURE LINK REQUESTED</span>
@@ -110,7 +133,7 @@ function SignedOutHome({ authAvailable, initialMode }: { authAvailable: boolean;
                     <label htmlFor="display-name">DISPLAY NAME</label>
                     <input id="display-name" name="displayName" autoComplete="name" minLength={2} maxLength={48} required value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
                     <label htmlFor="username">USERNAME</label>
-                    <input id="username" name="username" autoComplete="username" pattern="[a-z0-9][a-z0-9_-]{2,23}" required value={username} onChange={(event) => setUsername(event.target.value.toLowerCase())} aria-describedby="username-help" />
+                    <input id="username" name="username" autoComplete="username" pattern={"[a-z0-9][a-z0-9_\\-]{2,23}"} required value={username} onChange={(event) => setUsername(event.target.value.toLowerCase())} aria-describedby="username-help" />
                     <small id="username-help">3–24 lowercase letters, numbers, hyphens or underscores.</small>
                   </>
                 )}
@@ -164,7 +187,7 @@ export function AuthGateway({ children }: { children: ReactNode }) {
     return <main className="auth-loading" aria-busy="true"><img src={brandMark} alt="" /><p>ESTABLISHING SECURE COMMAND LINK…</p></main>;
   }
   if (!session?.signedIn) {
-    const initialMode: AuthMode = authResult === "invalid" ? "LOGIN" : "HOME";
+    const initialMode: AuthMode = authResult === "confirm" ? "VERIFY" : authResult === "invalid" ? "LOGIN" : "HOME";
     return (
       <>
         {authResult === "invalid" && <div className="public-auth-alert" role="alert">That access link is invalid, expired, or already used. Request a new one.</div>}

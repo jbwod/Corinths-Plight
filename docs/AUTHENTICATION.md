@@ -13,18 +13,20 @@ The application now has a public home page and passwordless email registration/l
 | `GET /api/auth/session` | Returns the current session projection or a signed-out/auth-availability result |
 | `POST /api/auth/register` | Validates email, username, and display name; rate-limits; stores a challenge; asks Resend to deliver the link |
 | `POST /api/auth/login` | Validates email; rate-limits; does not disclose unknown addresses; asks Resend to deliver eligible links |
-| `GET /api/auth/verify?token=…` | Consumes one unexpired challenge, creates/verifies the account as needed, issues an opaque session, and redirects |
+| `GET /api/auth/verify?token=…` | Validates an unexpired link, stages it in a five-minute HttpOnly cookie, and redirects to explicit confirmation without consuming it |
+| `POST /api/auth/verify` | Consumes the staged challenge, creates/verifies the account as needed, and issues the opaque session |
 | `POST /api/auth/logout` | Revokes the matching D1 session and expires the browser cookie |
 
-The public React gateway presents the home page while signed out and mounts the existing game workspace only after `/api/auth/session` returns a valid identity. Local development retains the explicit demo path; append `?signedout=1` to exercise the public and passwordless flows without the demo identity.
+The public React gateway presents the home page while signed out and mounts the existing game workspace only after `/api/auth/session` returns a valid identity. The email GET stages its token in a five-minute HttpOnly cookie and presents an explicit browser confirmation; the same-origin confirmation POST performs the account/session mutation. Local development retains the explicit demo path; append `?signedout=1` to exercise the public and passwordless flows without the demo identity.
 
 ## 2. Security contract
 
-- Access links use 32 random bytes, are stored only as SHA-256 hashes, expire after 15 minutes by default, and can be consumed once. Issuing a newer link revokes older pending links for the same HMAC-pseudonymized email identity.
+- Access links use 32 random bytes, are stored only as SHA-256 hashes, expire after 15 minutes by default, and can be consumed once. Issuing a newer link revokes older pending links for the same HMAC-pseudonymized email identity. GET is non-destructive so mail-security prefetch cannot consume the link; confirmation requires the staged HttpOnly cookie and a browser POST.
 - Browser sessions use a separate 32-byte opaque token. D1 stores only its SHA-256 hash. The host-only cookie is `HttpOnly`, `SameSite=Lax`, `Secure` outside development, and expires after 30 days by default.
 - Registration is committed atomically only when the link is consumed. The User, Profile, identity link, session, and consumed challenge transition share one D1 batch.
 - Email, IP address, and User-Agent rate/audit keys are HMAC-pseudonymized with `AUTH_HASH_KEY`. Tokens and raw email addresses are never written to application logs.
 - Authentication mutations remain protected by the Worker's exact same-origin policy. Verification responses use `Referrer-Policy: no-referrer` so the query token is not forwarded while redirecting.
+- Wrangler sets `assets.run_worker_first` for `/api/*`; otherwise SPA navigation fallback can serve `index.html` before an email verification GET reaches the Worker.
 - Five requests per email and per IP are accepted in each 15-minute window; further requests are blocked for the window.
 - Production fails email access closed unless the Resend key, HMAC key, HTTPS base URL, and sender are configured. Development without Resend returns the link in the JSON response for local testing only.
 

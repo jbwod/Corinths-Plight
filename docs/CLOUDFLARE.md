@@ -33,7 +33,7 @@ flowchart TD
 
 All public traffic passes through the Worker. Campaign traffic resolves D1 campaign membership before a named Campaign DO lookup. Strategic traffic resolves the caller's active Battalion, permissions, map, and stable `coordinator_key` before a named Strategic Map DO lookup. Strategic order submission is serialized by the map coordinator; development resolution remains fail-closed until its authoritative D1 journal/effect applier is implemented.
 
-`vite.config.ts` uses React and `@cloudflare/vite-plugin`. Wrangler's `assets.not_found_handling = "single-page-application"` supplies the SPA asset behavior. There is no separately named `ASSETS` binding in the current environment type/config.
+`vite.config.ts` uses React and `@cloudflare/vite-plugin`. Wrangler's `assets.not_found_handling = "single-page-application"` supplies the SPA asset behavior, while `assets.run_worker_first = ["/api/*"]` prevents navigation requests such as email verification from being swallowed by the SPA fallback. There is no separately named `ASSETS` binding in the current environment type/config.
 
 ## 3. Actual repository/runtime mapping
 
