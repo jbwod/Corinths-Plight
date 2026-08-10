@@ -1110,6 +1110,25 @@ export interface EnemyContactInspectionDto {
   confidence: "EXACT" | "ESTIMATED" | "UNKNOWN";
 }
 
+export interface AuthUserDto {
+  userId: string;
+  email: string;
+  username: string;
+  displayName: string;
+  callsign?: string | null;
+  emailVerified: boolean;
+}
+
+export type AuthSessionDto =
+  | { signedIn: false; authAvailable: boolean }
+  | { signedIn: true; authAvailable: true; user: AuthUserDto; demo: boolean };
+
+export interface AuthLinkRequestedDto {
+  accepted: true;
+  message: string;
+  developmentVerificationUrl?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Phase 3: persistent organisations and the strategic layer
 // ---------------------------------------------------------------------------

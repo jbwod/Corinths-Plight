@@ -42,6 +42,7 @@ All public traffic passes through the Worker. Campaign traffic resolves D1 campa
 | `src/` | Vite-built React application |
 | `worker/index.ts` | Worker fetch handler, security headers, API routing, D1 policy lookup, named-DO proxy |
 | `worker/auth.ts` | Demo/session authentication, same-origin helpers, D1 campaign authorization, trusted viewer headers |
+| `worker/routes/auth.ts`, `worker/services/auth.ts` | Passwordless registration/login/session/logout boundary and Resend delivery adapter |
 | `worker/env.ts` | Typed `DB`, `CAMPAIGN`, environment, auth, and clock bindings |
 | `worker/http.ts` | JSON response/body-size/parse helpers |
 | `worker/campaign-clock.ts` | Pure clock, schedule, pause, and resume transitions |
@@ -54,6 +55,7 @@ All public traffic passes through the Worker. Campaign traffic resolves D1 campa
 | `migrations/0003_phase2_persistent_forces.sql` | Phase 2 force identity, profile, loadout, cargo, supply, status, service, and ship-capability schema |
 | `migrations/0004_phase3_strategic_layer.sql` | Phase 3 identity/org evolution, locations, maps/routes, operations, Task Forces, supply, rounds, orders, events, receipts, and war variables |
 | `migrations/0005_equipment_deployment_vertical_slice.sql` | Equipment effects/refits, owner inventory, loadout locks, deployment plans/transports/snapshots, campaign resource state, and effect receipts |
+| `migrations/0006_production_identity.sql` | Verified-email challenges, session activity, HMAC-keyed rate limits, and auth audit events |
 | `seeds/v5-core-curated.sql` | Idempotent D1 SQL rules seed |
 | `seeds/v5-phase2-combined-arms.sql` | Provenance-bearing Phase 2 combined-arms catalogue |
 | `seeds/v5-equipment-deployment.sql` | Canonical executable equipment/action/deployment-method overlays for the narrow vertical slice |
@@ -120,8 +122,8 @@ The default Wrangler configuration deliberately enables the local demo. It must 
 
 ### 6.2 Open controls
 
-- No production identity provider/login, passwordless flow, session issuance/rotation/logout/recovery, or account-linking workflow exists. The code can validate a pre-existing D1 session row only.
-- There is no CSRF token mechanism; the current cookie-auth mitigation is strict same-origin Origin enforcement. Deployment/proxy policy must preserve the Origin signal, and a formal session/CSRF decision is required with the production provider.
+- The passwordless Resend flow, opaque session issuance, current-session projection, and logout are implemented locally, but production remains on migration `0005` until `0006`, the verified sending domain, and the `RESEND_API_KEY`/`AUTH_HASH_KEY` Worker secrets are explicitly released. See [AUTHENTICATION.md](./AUTHENTICATION.md).
+- There is no separate synchronizer-token mechanism; the current cookie-auth mitigation is exact same-origin Origin enforcement plus `SameSite=Lax`. Deployment/proxy policy must preserve the Origin signal.
 - `readJson` enforces size and parses JSON but does not require JSON content type or apply general runtime schemas.
 - A non-K-17 campaign bootstraps only when authorised D1 deployment snapshots exist; otherwise the DO fails `CAMPAIGN_NOT_INITIALISED` rather than inventing forces.
 - The compiled rules endpoint is separate from D1 seed rows; a campaign is not yet loaded from a D1 content hash.
@@ -233,7 +235,7 @@ Implemented:
 
 Still required:
 
-- production identity/session lifecycle and managed provider secrets;
+- production application of migration `0006`, verified Resend DNS/sender, and managed `RESEND_API_KEY`/`AUTH_HASH_KEY` secrets;
 - runtime request/response schemas and content-type policy;
 - server-secret seed/HMAC or equivalent commitment protocol;
 - cryptographic input/output/effect hashes;

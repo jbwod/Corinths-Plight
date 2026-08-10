@@ -24,6 +24,7 @@ import { DeploymentPlanner } from "./components/DeploymentPlanner";
 import { Glyph } from "./components/Glyph";
 import { HexMap } from "./components/HexMap";
 import { StrategicWorkspace, type StrategicView } from "./components/StrategicWorkspace";
+import { AuthGateway } from "./components/AuthGateway";
 
 const DEMO_USER = "demo-user";
 const CAMPAIGN_ID = "outpost-k17";
@@ -112,7 +113,7 @@ async function errorMessage(response: Response): Promise<string> {
   }
 }
 
-export default function App() {
+function GameApp() {
   const [campaign, setCampaign] = useState<CampaignView>(initialCampaign);
   const [connection, setConnection] = useState<ConnectionState>("CONNECTING");
   const [now, setNow] = useState(() => Date.now());
@@ -651,4 +652,8 @@ export default function App() {
       )}
     </div>
   );
+}
+
+export default function App() {
+  return <AuthGateway><GameApp /></AuthGateway>;
 }

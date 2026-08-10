@@ -12,6 +12,7 @@ import { CampaignDurableObject } from "./campaign-durable-object";
 import type { Env } from "./env";
 import { errorResponse, json } from "./http";
 import { routeForcesRequest } from "./routes/forces";
+import { routeAuthRequest } from "./routes/auth";
 import { routeDeploymentRequest } from "./routes/deployment";
 import { routeStrategicRequest } from "./routes/strategic";
 import { StrategicMapDurableObject } from "./strategic-map-durable-object";
@@ -23,7 +24,7 @@ const campaignPath = /^\/api\/campaigns\/([a-z0-9][a-z0-9-]{0,63})(\/.*)?$/;
 function withSecurityHeaders(response: Response, requestId: string): Response {
   const headers = new Headers(response.headers);
   headers.set("x-content-type-options", "nosniff");
-  headers.set("referrer-policy", "strict-origin-when-cross-origin");
+  if (!headers.has("referrer-policy")) headers.set("referrer-policy", "strict-origin-when-cross-origin");
   headers.set("permissions-policy", "camera=(), microphone=(), geolocation=()");
   headers.set("cross-origin-opener-policy", "same-origin");
   headers.set("x-frame-options", "DENY");
@@ -70,6 +71,9 @@ async function route(request: Request, env: Env, requestId: string): Promise<Res
       },
     });
   }
+
+  const authResponse = await routeAuthRequest(request, env);
+  if (authResponse) return authResponse;
 
   const forcesResponse = await routeForcesRequest(request, env);
   if (forcesResponse) return forcesResponse;

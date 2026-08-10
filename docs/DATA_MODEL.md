@@ -28,17 +28,19 @@ The current K-17 DO is authoritative only for its demo battlefield. It must not 
 
 ## 3. Implemented D1 schema
 
-The five migrations create the following exact table families. Field lists below reflect landed SQL, not a claim that every service workflow is executable.
+The six migrations create the following exact table families. Field lists below reflect landed SQL, not a claim that every service workflow is executable.
 
 ### 3.1 Identity and sessions
 
 | Table | Implemented fields | Enforced constraints |
 |---|---|---|
-| `users` | `id`, `email`, `username`, `status`, `created_at`, `updated_at` | PK `id`; case-insensitive unique email/username; status is `ACTIVE`, `SUSPENDED`, or `DELETED`; no password column |
+| `users` | `id`, `email`, `username`, `status`, `email_verified_at`, `created_at`, `updated_at` | PK `id`; case-insensitive unique email/username; status is `ACTIVE`, `SUSPENDED`, or `DELETED`; no password column |
 | `profiles` | `user_id`, `display_name`, `callsign`, `image_key`, `biography`, `created_at`, `updated_at` | One row per user; cascade on user delete |
-| `user_sessions` | `id`, `user_id`, `token_hash`, `created_at`, `expires_at`, `revoked_at`, `ip_hash`, `user_agent_hash` | Unique token hash; expiry after creation; active-session partial index |
+| `user_sessions` | `id`, `user_id`, `token_hash`, `created_at`, `expires_at`, `revoked_at`, `ip_hash`, `user_agent_hash`, `last_seen_at` | Unique token hash; expiry after creation; active-session partial index |
 
-`worker/auth.ts` hashes the `corinth_session` cookie with SHA-256 and accepts only an unexpired, unrevoked row joined to an `ACTIVE` user. No code currently issues, rotates, revokes, or recovers sessions, and there is no production login/provider flow.
+`worker/auth.ts` hashes the `corinth_session` cookie with SHA-256 and accepts only an unexpired, unrevoked row joined to an `ACTIVE` user. `worker/services/auth.ts` now issues and revokes opaque sessions through verified single-use Resend links; passwordless email access is also the recovery path for this slice.
+
+Migration `0006_production_identity.sql` adds `auth_email_challenges`, `auth_rate_limits`, and `auth_audit_events`. Challenges store a normalized destination email because a registration User does not exist yet, but store only a SHA-256 token hash and HMAC-pseudonymized email/IP/User-Agent keys for lookup, rate limiting, and audit. See [AUTHENTICATION.md](./AUTHENTICATION.md).
 
 ### 3.2 Rulesets, provenance, and conflicts
 
@@ -122,7 +124,7 @@ Migration 0004 adds `users.last_active_at`, `profiles.timezone`, Battalion short
 
 | Table | Implemented fields and constraints |
 |---|---|
-| `auth_identities` | Provider-neutral identity link with hashed provider subject, private provider JSON, lifecycle, and unique provider/subject pair. No provider callback is implemented by schema alone. |
+| `auth_identities` | Provider-neutral identity link with hashed provider subject, private provider JSON, lifecycle, and unique provider/subject pair. The passwordless service writes `resend_magic_link` identities after verified link consumption. |
 | `account_recovery_challenges` | Hashed recovery token, expiry, lifecycle, and consumed time. Delivery/issuance is deferred. |
 | `battalion_permission_definitions` | Permission vocabulary plus `ACTIVE`, `SCHEMA_ONLY`, or `DEFERRED` implementation status. Triggers reject unknown new rank permissions. |
 | `battalion_invites` | Persistent invitation lifecycle, Battalion-local rank, inviter/invitee, expiry, revision, request hash, and inviter-scoped command ID. One pending invite per Battalion/User. |

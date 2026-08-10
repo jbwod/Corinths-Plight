@@ -25,7 +25,7 @@ The current repository is a deployed Phase 3/equipment foundation with local K-1
 | Deliverable | Repository evidence | Status |
 |---|---|---|
 | Foundation and Phase 3 design/audit documents | Original seven documents plus `STRATEGIC_LAYER.md`, `BATTALION_MODEL.md`, `SHIP_SYSTEM.md`, and `STRATEGIC_RESOLUTION.md` | Implemented |
-| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0005_equipment_deployment_vertical_slice.sql` | Implemented as additive schema artifacts |
+| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0006_production_identity.sql` | Implemented as additive schema artifacts; production is currently applied through `0005` |
 | Ruleset seed | `seeds/v5-core-curated.sql`; consistency check in `scripts/validate-seed.ts` | Implemented as an idempotent SQL seed |
 | Domain contracts | `packages/domain/src/index.ts` | Implemented TypeScript interfaces; runtime schemas are not yet present |
 | Pure rules engine | `packages/rules-engine/src/` and `packages/rules-engine/test/` | Implemented foundation subset |
@@ -36,6 +36,7 @@ The current repository is a deployed Phase 3/equipment foundation with local K-1
 | Phase 3 strategic schema/world | `0004`, `development-strategic-world.sql`, and the four Phase 3 design documents | Implemented local checkpoint |
 | Strategic resolver/API/UI | Domain, pure-engine, Worker, and responsive strategic workspace files | Checkpoint work; verify landed tests before release |
 | Equipment/loadout/deployment slice | `0005`, canonical equipment seed, pure engine, Worker services, planner/force UI, and Spearhead fixture | Implemented release candidate; broader Store content remains blocked |
+| Public home and production identity slice | Public React gateway, Resend passwordless services/routes, opaque sessions, and `0006` | Implemented locally; Resend DNS/secrets and production migration/deploy pending |
 | Successful remote foundation deployment | Production D1 is migrated through `0005`; Phase 3/equipment Worker and UI are available at `corinthplight.qnetica.com.au` | Implemented on 2026-08-10; production identity/scenario data remains open |
 
 The full Phase 3 scenario—production account creation, invitation, purchase, ship travel, deployment into a tactical campaign, exact-once permanent strategic consequences, recovery, and redeployment—is the product definition of success, not a claim about this checkpoint.
