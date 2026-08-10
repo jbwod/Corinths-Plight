@@ -224,6 +224,7 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 
 - Generated executable orders: Hold, Advance and Rush only.
 - Generated executable action grammar and tactical UI: Attack, finite-weapon Reload, Medic field resupply, Load, Unload, First Aid, Engineer Repair, and Artillery Deploy/Pack Up/Bombardment; Scan and Drone are rejected and unadvertised until their visibility state effects exist.
+- The active Attack calculation now uses authoritative map elevation for the ground-only Terrain Advantage +1, governed weapon/target tags for Rapid Fire versus Horde, governed target domains for rear effects, and persistent natural-5/6 vehicle subsystem failures. Multiweapon, Evasive, melee and firing arcs remain incomplete.
 - D1 has 22 action definitions. CP-201 preserves their audit links but exposes only action/order types backed by a registered generated foundation handler. MASH, Funnel, supply transfer, crew repair, flight operations, airdrop and sabotage remain non-executable end to end.
 - The executable equipment subset is narrow: Flak Vests and Light AT currently have proven handlers. Generated corrections fail closed on Optics and Drone Operator because their visibility effects are not implemented; Orbital Drop Training and the remaining items stay partial, blocked or hidden.
 - Standard, Vehicle, VTOL, HAT and Paradrop deployment rows are marked implemented, but planner/scenario/aerospace integration is incomplete; Orbital remains partial and unresolved.

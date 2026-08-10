@@ -812,6 +812,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         capped: result.roll.capped,
         rapidFireMultiplier: result.rapidFireMultiplier,
         damageResult: result.damageResult,
+        highGroundModifier: result.highGroundModifier,
       });
       const rushMultiplier = rushingUnits.has(target.id) ? 2 : 1;
       const healthLoss = result.healthLoss * rushMultiplier;
@@ -829,6 +830,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         healthLoss,
         rapidFireMultiplier: result.rapidFireMultiplier,
         damageResult: result.damageResult,
+        highGroundModifier: result.highGroundModifier,
       });
       const subsystemRules = weapon.damage.count === 1 && result.roll
         ? getTacticalSubsystemRules(target.definitionId)

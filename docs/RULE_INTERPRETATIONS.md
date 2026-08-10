@@ -19,6 +19,7 @@ This document records the narrow decisions used by the equipment/loadout/deploym
 13. Subsystem malfunctions use the attack's natural single-die result, not modified or capped damage. Only a penetrating natural 5 or 6 triggers; Infantry must have current FS at least equal to that result. Natural 5 disables all weapon systems, natural 6 disables mobility, repeated identical results do not stack, and the new failure takes effect after the round's already-committed simultaneous attacks.
 14. Rapid Fire checks governed attacker and target tags. Against Horde, it doubles the capped modified damage result before Armor and Defense mitigation, preserves the undoubled natural die for subsystem checks, and still converts a penetrating attack against a Hits target to one lost Hit before other received-damage multipliers.
 15. Rear geometry only creates a flanking benefit for tagged ground targets. A ground vehicle ignores Armor from the direct rear but retains unrelated Defense. Dug-in ground infantry retains Armor and loses only Dig In Defense. Aerospace, VTOL and orbital targets neither gain nor suffer rear-attack benefits.
+16. Terrain Advantage compares authoritative scenario-map elevation at the firing and target hexes. A ground attacker strictly above a ground target adds +1 to the damage result before the current-FS cap and mitigation. Equal/lower elevation and aerospace, VTOL or orbital participation give no modifier.
 
 ## Explicitly unresolved
 

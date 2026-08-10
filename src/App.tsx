@@ -306,6 +306,11 @@ function GameApp() {
   const actionWeapons = actionMode === "RELOAD" ? reloadableWeapons : selectedUnit?.weapons ?? [];
   const selectedWeapon = actionWeapons.find((weapon) => weapon.id === selectedWeaponId) ?? actionWeapons[0];
   const rapidFireReady = selectedWeapon?.tags.includes("RAPID_FIRE") === true;
+  const attackerHex = selectedUnit ? campaign.map.find((hex) => coordinatesEqual(hex.coord, draftedRoute.at(-1) ?? selectedUnit.position)) : undefined;
+  const targetHex = targetUnit ? campaign.map.find((hex) => coordinatesEqual(hex.coord, targetUnit.position)) : undefined;
+  const attackerIsGround = selectedUnit ? !selectedUnit.tags?.some((tag) => tag === "AEROSPACE" || tag === "VTOL" || tag === "ORBITAL") : false;
+  const targetIsGround = targetUnit ? !targetUnit.tags?.some((tag) => tag === "AEROSPACE" || tag === "VTOL" || tag === "ORBITAL") : false;
+  const highGroundAdvantage = Boolean(attackerIsGround && targetIsGround && attackerHex && targetHex && attackerHex.elevation > targetHex.elevation);
   const coLocatedAllies = selectedUnit ? campaign.deployments.filter((deployment) =>
     deployment.id !== selectedUnit.id &&
     deployment.side === selectedUnit.side &&
@@ -1001,6 +1006,7 @@ function GameApp() {
                       {targetUnit && <button onClick={() => setTargetUnitId(undefined)}>CLEAR</button>}
                     </div>
                     {targetOutOfRange && <p className="validation danger">Target is beyond the selected weapon's range.</p>}
+                    {highGroundAdvantage && <p className="validation">HIGH GROUND: this attack gains +1 to its damage result before mitigation.</p>}
                     {rapidFireReady && targetIsHorde && <p className="validation">RAPID FIRE: modified damage doubles against this Horde target before mitigation.</p>}
                     {weaponSystemsDisabled && <p className="validation danger">Weapon systems offline. An Engineer must repair this unit before it can fire.</p>}
                     {orderType === "RUSH" && <p className="validation">Rush doubles received damage and forbids attacks.</p>}

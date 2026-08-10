@@ -506,6 +506,39 @@ describe("equipment and transport actions", () => {
     expect(output.state.deployments.find((unit) => unit.id === horde.id)?.status).toBe("DESTROYED");
   });
 
+  it("applies the K-17 ridge elevation through the normal attack pipeline", () => {
+    const base = createDemoCampaignState(1_000);
+    const attacker = base.deployments.find((unit) => unit.definitionId === "unit-infantry-squad")!;
+    const target = base.deployments.find((unit) => unit.definitionId === "enemy-bug-warrior")!;
+    attacker.position = { q: 1, r: 3 };
+    target.position = { q: 1, r: 2 };
+    expect(base.map.find((hex) => hex.coord.q === 1 && hex.coord.r === 3)?.elevation).toBe(1);
+    expect(base.map.find((hex) => hex.coord.q === 1 && hex.coord.r === 2)?.elevation).toBe(0);
+    const attackOrder = order(base, attacker, [action("ridge-fire", "ATTACK", {
+      targetDeploymentId: target.id,
+      weaponId: attacker.weapons[0].id,
+    })]);
+    base.orders = [attackOrder];
+
+    const output = resolveRound({
+      previousState: base,
+      rulesetVersion: base.rulesetVersion,
+      playerOrders: [attackOrder],
+      enemyOrders: [],
+      seed: "high-ground",
+      resolutionTime: 2_000,
+    });
+
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "UNIT_ATTACKED",
+      actor: attacker.id,
+      payload: expect.objectContaining({
+        targetId: target.id,
+        highGroundModifier: 1,
+      }),
+    }));
+  });
+
   it("rejects Drone until its visibility state effect is implemented", () => {
     const base = createDemoCampaignState(1_000);
     const unit = base.deployments[0];

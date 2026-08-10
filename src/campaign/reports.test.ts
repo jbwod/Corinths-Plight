@@ -79,6 +79,21 @@ describe("campaign reports", () => {
     )).toBe("LANTERN attacked SKITTER-9: 4 damage, Rapid Fire doubled the damage result, armour penetrated.");
   });
 
+  it("explains the high-ground damage modifier", () => {
+    expect(describeCampaignReportEvent(
+      event("UNIT_ATTACKED", {
+        targetId: "dep-target",
+        healthLoss: 3,
+        highGroundModifier: 1,
+        penetrated: true,
+      }, "dep-attacker"),
+      new Map([
+        ["dep-attacker", "ROOK-7"],
+        ["dep-target", "CHITIN-4"],
+      ]),
+    )).toBe("ROOK-7 attacked CHITIN-4: 3 damage, high ground added +1, armour penetrated.");
+  });
+
   it("names an arriving enemy wave from its public event payload", () => {
     expect(describeCampaignReportEvent(event("ENEMY_REINFORCEMENTS_ARRIVED", {
       waveId: "k17-wave-2",

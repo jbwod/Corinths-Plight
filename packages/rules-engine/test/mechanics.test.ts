@@ -275,6 +275,49 @@ describe("armor, AP, rear arcs, Hits, and FS caps", () => {
     expect(result.healthLoss).toBe(2);
   });
 
+  it("adds one damage from higher ground before the personnel FS cap", () => {
+    const elevatedMap = [
+      makeHex(0, -1, { elevation: 1 }),
+      makeHex(0, 0, { elevation: 0 }),
+    ];
+    const attacker = makeDeployment("attacker", { q: 0, r: -1 }, "ALLIED", {
+      tags: ["GROUND", "PERSONNEL"],
+      currentHealth: 3,
+      stats: { healthModel: "FORCE_STRENGTH", maxHealth: 6 },
+    });
+    const target = makeDeployment("target", { q: 0, r: 0 }, "ENEMY", {
+      tags: ["GROUND", "PERSONNEL"],
+      currentHealth: 6,
+    });
+
+    expect(resolveAttackRoll(attacker, target, baseWeapon, elevatedMap, fixedRandom(2))).toMatchObject({
+      roll: { raw: 2, modified: 3, capped: 3 },
+      highGroundModifier: 1,
+      damageResult: 3,
+      healthLoss: 3,
+    });
+    attacker.currentHealth = 2;
+    expect(resolveAttackRoll(attacker, target, baseWeapon, elevatedMap, fixedRandom(6))).toMatchObject({
+      roll: { raw: 6, modified: 7, capped: 2 },
+      highGroundModifier: 1,
+      damageResult: 2,
+    });
+  });
+
+  it("does not grant the high-ground modifier to aerospace fire", () => {
+    const elevatedMap = [
+      makeHex(0, -1, { elevation: 2 }),
+      makeHex(0, 0, { elevation: 0 }),
+    ];
+    const attacker = makeDeployment("air", { q: 0, r: -1 }, "ALLIED", { tags: ["AEROSPACE", "VEHICLE"] });
+    const target = makeDeployment("ground", { q: 0, r: 0 }, "ENEMY", { tags: ["GROUND", "VEHICLE"] });
+
+    expect(resolveAttackRoll(attacker, target, baseWeapon, elevatedMap, fixedRandom(2))).toMatchObject({
+      roll: { raw: 2, modified: 2 },
+      highGroundModifier: 0,
+    });
+  });
+
   it("doubles a Rapid Fire damage result against Horde before mitigation", () => {
     const attacker = makeDeployment("rapid", { q: 0, r: 0 }, "ALLIED", {
       tags: ["VEHICLE", "RAPID_FIRE"],

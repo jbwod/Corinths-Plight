@@ -32,6 +32,7 @@ export interface AttackCalculation {
   healthLoss: number;
   rapidFireMultiplier: 1 | 2;
   damageResult: number;
+  highGroundModifier: 0 | 1;
   ammoAfter?: number;
   cooldownAfter?: number;
 }
@@ -119,6 +120,11 @@ export function resolveAttackRoll(
   const rearGeometry = isRearAttack(attacker.position, target.position, target.facing);
   const targetTags = new Set(target.tags ?? []);
   const groundTarget = !targetTags.has("AEROSPACE") && !targetTags.has("VTOL") && !targetTags.has("ORBITAL");
+  const attackerTags = new Set(attacker.tags ?? []);
+  const groundAttacker = !attackerTags.has("AEROSPACE") && !attackerTags.has("VTOL") && !attackerTags.has("ORBITAL");
+  const attackerElevation = hexes.find((hex) => hex.coord.q === attacker.position.q && hex.coord.r === attacker.position.r)?.elevation;
+  const targetElevation = hexes.find((hex) => hex.coord.q === target.position.q && hex.coord.r === target.position.r)?.elevation;
+  const highGroundModifier: 0 | 1 = groundAttacker && groundTarget && attackerElevation !== undefined && targetElevation !== undefined && attackerElevation > targetElevation ? 1 : 0;
   const groundVehicleRear = rearGeometry && groundTarget && targetTags.has("VEHICLE");
   const groundInfantryRear = rearGeometry && groundTarget && (targetTags.has("INFANTRY") || targetTags.has("PERSONNEL"));
   const rearAttack = groundVehicleRear || groundInfantryRear;
@@ -140,12 +146,13 @@ export function resolveAttackRoll(
       healthLoss: 0,
       rapidFireMultiplier,
       damageResult: 0,
+      highGroundModifier,
     };
   }
 
   const rolls = Array.from({ length: weapon.damage.count }, () => random.die(weapon.damage.sides));
   const raw = rolls.reduce((total, value) => total + value, 0);
-  const modified = raw + (weapon.damage.modifier ?? 0);
+  const modified = raw + (weapon.damage.modifier ?? 0) + highGroundModifier;
   const capped =
     attacker.stats.healthModel === "FORCE_STRENGTH"
       ? Math.min(modified, attacker.currentHealth)
@@ -170,6 +177,7 @@ export function resolveAttackRoll(
     healthLoss,
     rapidFireMultiplier,
     damageResult,
+    highGroundModifier,
     ammoAfter:
       weapon.ammoCapacity === undefined
         ? undefined
