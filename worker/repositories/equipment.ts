@@ -304,6 +304,9 @@ export interface DeploymentAuthorityRow {
   campaign_ruleset_id: string;
   side: string;
   campaign_role: string;
+  operation_id: string | null;
+  operation_node_id: string | null;
+  operation_status: string | null;
 }
 
 export async function getDeploymentAuthority(
@@ -314,15 +317,48 @@ export async function getDeploymentAuthority(
   return db.prepare(`SELECT battalion_memberships.battalion_id, battalion_memberships.command_role,
       campaigns.id AS campaign_id, campaigns.status AS campaign_status,
       campaigns.ruleset_id AS campaign_ruleset_id,
-      campaign_memberships.side, campaign_memberships.role AS campaign_role
+      campaign_memberships.side, campaign_memberships.role AS campaign_role,
+      operations.id AS operation_id, operations.node_id AS operation_node_id,
+      operations.status AS operation_status
     FROM campaign_memberships
     JOIN campaigns ON campaigns.id = campaign_memberships.campaign_id
+    LEFT JOIN strategic_operations AS operations ON operations.campaign_id = campaigns.id
     JOIN battalion_memberships
       ON battalion_memberships.battalion_id = campaign_memberships.battalion_id
      AND battalion_memberships.user_id = campaign_memberships.user_id
     WHERE campaign_memberships.campaign_id = ?1 AND campaign_memberships.user_id = ?2
       AND campaign_memberships.side = 'ALLIED' AND battalion_memberships.status = 'ACTIVE'
     LIMIT 1`).bind(campaignId, userId).first<DeploymentAuthorityRow>();
+}
+
+export interface DeploymentFormationRow {
+  id: string;
+  battalion_id: string;
+  status: string;
+  current_node_id: string | null;
+  current_operation_id: string | null;
+  current_carrier_task_force_id: string | null;
+  revision: number;
+  carrier_node_id: string | null;
+  carrier_link_status: string | null;
+}
+
+export async function getDeploymentFormation(
+  db: D1Database,
+  battalionId: string,
+  battlegroupId: string,
+): Promise<DeploymentFormationRow | null> {
+  return db.prepare(`SELECT groups.id,groups.battalion_id,groups.status,groups.current_node_id,
+      groups.current_operation_id,groups.current_carrier_task_force_id,groups.revision,
+      carriers.current_node_id AS carrier_node_id,links.status AS carrier_link_status
+    FROM battlegroups AS groups
+    LEFT JOIN task_forces AS carriers ON carriers.id=groups.current_carrier_task_force_id
+    LEFT JOIN task_force_battlegroups AS links
+      ON links.task_force_id=groups.current_carrier_task_force_id
+     AND links.battlegroup_id=groups.id
+     AND links.status IN ('EMBARKING','EMBARKED','DISEMBARKING')
+    WHERE groups.id=?1 AND groups.battalion_id=?2 LIMIT 1`)
+    .bind(battlegroupId, battalionId).first<DeploymentFormationRow>();
 }
 
 export interface InsertionZoneRow {

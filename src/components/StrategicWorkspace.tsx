@@ -10,7 +10,7 @@ export type StrategicView = "Command" | "Battalion" | "Ship" | "Galactic";
 
 interface StrategicWorkspaceProps {
   view: StrategicView;
-  onNavigate: (view: StrategicView | "Forces" | "Campaigns") => void;
+  onNavigate: (view: StrategicView | "Forces" | "Campaigns" | "Deployment") => void;
   onNotice: (notice: { tone: "info" | "success" | "danger"; message: string }) => void;
 }
 

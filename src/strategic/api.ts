@@ -295,6 +295,7 @@ function normalizeOperations(payload: JsonRecord): OperationView[] {
     const campaign = firstRecord(record, "campaign");
     return [{
       id: identifier(record, "id", "operationId") || `operation-${index + 1}`,
+      campaignId: identifier(record, "campaignId") || undefined,
       name: asString(record.name, `Operation ${index + 1}`),
       location: asString(record.locationName, asString(location.name, "Location pending")),
       nodeId: identifier(record, "nodeId", "strategicNodeId") || identifier(location, "id", "nodeId"),

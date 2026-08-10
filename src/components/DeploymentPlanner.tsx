@@ -5,11 +5,11 @@ import { Glyph } from "./Glyph";
 const DEMO_USER = "demo-user";
 const headers = import.meta.env.DEV ? { "x-demo-user": DEMO_USER } : undefined;
 
-type Unit = { unitId: string; callsign: string; name: string; definitionId: string; status: string; locationState: string };
+type Unit = { unitId: string; callsign: string; name: string; definitionId: string; status: string; locationState: string; battlegroups: Array<{ id: string; name: string }> };
 type Loadout = { unitId: string; unitVersion: number; loadout: { id: string; revision: number; status: string }; effectiveUnit: EffectiveUnit | null; validation: { valid: boolean; errors: Array<{ code: string; message: string }> } };
 type Method = { id: DeploymentMethodId; name: string; implementation_status: string };
 type Zone = { id: string; hex: { q: number; r: number }; allowedMethods: DeploymentMethodId[]; environment: string[] };
-type Context = { campaignId: string; battalionId: string; canCommit: boolean; methods: Method[]; insertionZones: Zone[] };
+type Context = { campaignId: string; battalionId: string; canCommit: boolean; strategicOperation: { id: string; nodeId: string; status: string } | null; methods: Method[]; insertionZones: Zone[] };
 type PlanResponse = { planId: string; campaignId?: string; revision: number; status: string; validation: { valid: boolean; errors: Array<{ code: string; message: string; entityId?: string }>; warnings: Array<{ code: string; message: string }> } };
 type CampaignOption = {
   campaignId: string;
@@ -49,7 +49,7 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
   const [carrierId, setCarrierId] = useState("");
   const [plan, setPlan] = useState<PlanResponse>();
   const [busy, setBusy] = useState(false);
-  const [campaignId, setCampaignId] = useState("");
+  const [campaignId, setCampaignId] = useState(() => new URLSearchParams(window.location.search).get("campaign") ?? "");
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
   const [planId] = useState(() => `deployment-plan-${crypto.randomUUID()}`);
 
@@ -73,7 +73,7 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
       const forcePayload: unknown = await forcesResponse.json();
       const nextUnits = collection(forcePayload).flatMap((value): Unit[] => {
         const item = value as Partial<Unit>;
-        return item.unitId && item.callsign ? [{ unitId: item.unitId, callsign: item.callsign, name: item.name ?? item.callsign, definitionId: item.definitionId ?? "unit", status: item.status ?? "ACTIVE", locationState: item.locationState ?? "RESERVE" }] : [];
+        return item.unitId && item.callsign ? [{ unitId: item.unitId, callsign: item.callsign, name: item.name ?? item.callsign, definitionId: item.definitionId ?? "unit", status: item.status ?? "ACTIVE", locationState: item.locationState ?? "RESERVE", battlegroups: Array.isArray(item.battlegroups) ? item.battlegroups : [] }] : [];
       }).filter((unit) => !["DESTROYED", "RETIRED", "DEPLOYED"].includes(unit.status));
       const nextLoadouts = new Map<string, Loadout>();
       await Promise.all(nextUnits.map(async (unit) => {
@@ -85,6 +85,9 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
       const current = plans.plans?.find((candidate) => candidate.campaignId === selectedCampaignId && candidate.status !== "COMMITTED");
       setCampaigns(options);
       setCampaignId(selectedCampaignId);
+      const url = new URL(window.location.href);
+      url.searchParams.set("campaign", selectedCampaignId);
+      window.history.replaceState({}, "", url);
       setUnits(nextUnits);
       setLoadouts(nextLoadouts);
       setContext(nextContext);
@@ -107,6 +110,10 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
     return effective?.cargoProfile ? [{ id, callsign: units.find((unit) => unit.unitId === id)?.callsign ?? id, effective }] : [];
   }), [loadouts, selected, units]);
   const selectedUnits = selected.map((id) => ({ unit: units.find((unit) => unit.unitId === id)!, loadout: loadouts.get(id) })).filter((item) => item.unit && item.loadout);
+  const selectedBattlegroupIds = [...new Set(selectedUnits.flatMap(({ unit }) => unit.battlegroups.map((group) => group.id)))];
+  const selectedBattlegroupId = selectedBattlegroupIds.length === 1 && selectedUnits.every(({ unit }) => unit.battlegroups.some((group) => group.id === selectedBattlegroupIds[0]))
+    ? selectedBattlegroupIds[0]
+    : undefined;
   const selectedCampaign = campaigns.find((campaign) => campaign.campaignId === campaignId);
 
   async function save() {
@@ -115,6 +122,7 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
     try {
       const carrier = transportRequired ? carriers.find((candidate) => candidate.id === carrierId) : undefined;
       if (transportRequired && !carrier) throw new Error("Select an authoritative transport from the force package.");
+      if (context.strategicOperation && !selectedBattlegroupId) throw new Error("Select units from one Battlegroup for this strategic operation.");
       const cargoUnits = carrier ? selectedUnits.filter((item) => item.unit.unitId !== carrier.id) : [];
       const response = await fetch("/api/deployment-plans", {
         method: "POST",
@@ -124,6 +132,7 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
           expectedRevision: plan?.revision ?? 0,
           planId: plan?.planId ?? planId,
           campaignId,
+          battlegroupId: selectedBattlegroupId,
           method,
           insertionZoneId: zoneId,
           route: method === "PARADROP" ? [{ q: -5, r: 2 }, zones.find((zone) => zone.id === zoneId)?.hex, { q: 2, r: -2 }].filter(Boolean) : [],
@@ -154,7 +163,9 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
       if (!response.ok) throw new Error(await message(response));
       const committed = await response.json() as { revision: number; status: string };
       setPlan((current) => current ? { ...current, revision: committed.revision, status: committed.status } : current);
-      onNotice({ tone: "success", message: "Campaign loadouts locked and deployment snapshots committed." });
+      onNotice({ tone: "success", message: context.strategicOperation
+        ? "Battlegroup reserved, campaign snapshots committed, and the operation is active."
+        : "Campaign loadouts locked and deployment snapshots committed." });
     } catch (error) { onNotice({ tone: "danger", message: error instanceof Error ? error.message : "Deployment commit failed." }); }
     finally { setBusy(false); }
   }
@@ -166,7 +177,7 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
       <div className="deployment-verdict"><small>PLAN STATE</small><strong>{plan?.status ?? "UNSAVED"}</strong><span>{plan?.validation.valid ? "ALL GATES SATISFIED" : `${plan?.validation.errors.length ?? 0} BLOCKERS`}</span></div>
     </header>
     {campaigns.length > 1 ? <label className="panel" style={{ padding: "1rem" }}>CAMPAIGN
-      <select value={campaignId} onChange={(event) => { setCampaignId(event.target.value); setPlan(undefined); setSelected([]); }}>
+      <select value={campaignId} onChange={(event) => { const nextCampaign = event.target.value; setCampaignId(nextCampaign); setPlan(undefined); setSelected([]); const url = new URL(window.location.href); url.searchParams.set("campaign", nextCampaign); window.history.replaceState({}, "", url); }}>
         {campaigns.map((campaign) => <option key={campaign.campaignId} value={campaign.campaignId}>{campaign.name}</option>)}
       </select>
     </label> : null}
@@ -186,7 +197,7 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
       <div>{units.map((unit) => {
         const loadout = loadouts.get(unit.unitId);
         const checked = selected.includes(unit.unitId);
-        return <label key={unit.unitId} className={checked ? "selected" : ""}><input type="checkbox" checked={checked} disabled={mode !== "LIVE" || !loadout?.validation.valid} onChange={() => setSelected((current) => checked ? current.filter((id) => id !== unit.unitId) : [...current, unit.unitId])} /><span><strong>{unit.callsign}</strong><small>{unit.name} · {unit.locationState.replaceAll("_", " ")}</small></span><b>{loadout?.validation.valid ? `v${loadout.unitVersion}/${loadout.loadout.revision}` : "BLOCKED"}</b></label>;
+        return <label key={unit.unitId} className={checked ? "selected" : ""}><input type="checkbox" checked={checked} disabled={mode !== "LIVE" || !loadout?.validation.valid} onChange={() => setSelected((current) => checked ? current.filter((id) => id !== unit.unitId) : [...current, unit.unitId])} /><span><strong>{unit.callsign}</strong><small>{unit.name} · {unit.locationState.replaceAll("_", " ")} · {unit.battlegroups[0]?.name ?? "UNASSIGNED"}</small></span><b>{loadout?.validation.valid ? `v${loadout.unitVersion}/${loadout.loadout.revision}` : "BLOCKED"}</b></label>;
       })}</div>
     </section>
     <section className="deployment-lift panel">
@@ -203,8 +214,9 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
     <aside className="deployment-summary panel">
       <span className="eyebrow">AUTHORITATIVE VALIDATION</span><h2>{plan?.validation.valid ? "Ready for command" : "Deployment gates"}</h2>
       <div>{plan?.validation.errors.map((error) => <p className="blocked" key={`${error.code}:${error.entityId}`}><b>{error.code.replaceAll("_", " ")}</b>{error.message}</p>)}{plan?.validation.warnings.map((warning) => <p className="warning" key={warning.code}><b>{warning.code.replaceAll("_", " ")}</b>{warning.message}</p>)}</div>
+      {context?.strategicOperation && !selectedBattlegroupId && selectedUnits.length > 0 && <p className="blocked"><b>BATTLEGROUP REQUIRED</b>Choose units belonging to one Battlegroup so the strategic formation can be reserved with the campaign.</p>}
       {!plan && <p>Select a package and ask the server to validate it.</p>}
-      <button onClick={() => void save()} disabled={mode !== "LIVE" || busy || selectedUnits.length === 0 || !zoneId}>{busy ? "WORKING…" : plan ? "REVALIDATE PLAN" : "VALIDATE PLAN"}</button>
+      <button onClick={() => void save()} disabled={mode !== "LIVE" || busy || selectedUnits.length === 0 || !zoneId || Boolean(context?.strategicOperation && !selectedBattlegroupId)}>{busy ? "WORKING…" : plan ? "REVALIDATE PLAN" : "VALIDATE PLAN"}</button>
       <button className="primary" onClick={() => void commit()} disabled={mode !== "LIVE" || busy || !plan?.validation.valid || !context?.canCommit || plan.status === "COMMITTED"}>COMMIT DEPLOYMENT</button>
       <small>Commit locks each loadout, freezes ammo/cooldowns/effects, and reserves every selected unit exactly once.</small>
     </aside>

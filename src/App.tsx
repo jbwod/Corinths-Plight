@@ -721,6 +721,9 @@ function GameApp() {
       });
       if (!response.ok) throw new Error(await errorMessage(response));
       await loadCampaignDirectory();
+      const url = new URL(window.location.href);
+      url.searchParams.set("campaign", joinCampaignId);
+      window.history.replaceState({}, "", url);
       navigate("Deployment");
       setNotice({ tone: "success", message: "Campaign joined. Deploy a force to open your tactical command channel." });
     } catch (error) {
@@ -756,7 +759,7 @@ function GameApp() {
     Battalion: { eyebrow: "COOPERATIVE ORGANISATION // ACTIVE MEMBERSHIP", title: "Battalion Command" },
     Ship: { eyebrow: "PRIMARY ORBITAL // BATTALION HOME", title: "CSV Resolute" },
     Forces: { eyebrow: "33RD EXPEDITIONARY BATTALION // MUSTER", title: "Persistent Force Registry" },
-    Deployment: { eyebrow: "OPERATION SPEARHEAD // FORCE PROJECTION", title: "Deployment Planner" },
+    Deployment: { eyebrow: "TACTICAL MUSTER // FORCE PROJECTION", title: "Deployment Planner" },
     Campaigns: { eyebrow: `ACTIVE OPERATION // ${campaign.planetName.toUpperCase()}`, title: campaign.campaignName },
     Reports: { eyebrow: `AFTER-ACTION ARCHIVE // ${campaign.planetName.toUpperCase()}`, title: "Campaign Reports" },
   };

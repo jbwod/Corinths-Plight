@@ -150,6 +150,7 @@ export type OperationStatus = "ACTIVE" | "MUSTERING" | "AVAILABLE" | "RESOLVED" 
 
 export interface OperationView {
   id: string;
+  campaignId?: string;
   name: string;
   location: string;
   nodeId: string;
@@ -356,6 +357,7 @@ export const SHOWCASE_STRATEGIC_SNAPSHOT: StrategicSnapshot = {
   operations: [
     {
       id: "strategic-operation-iron-rain",
+      campaignId: "operation-iron-rain",
       name: "Operation Iron Rain",
       location: "Kestrel Ridge",
       nodeId: "node-kestrel-ridge",

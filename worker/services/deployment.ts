@@ -13,6 +13,7 @@ import type { SaveDeploymentPlanCommand } from "../equipment-validation";
 import { commandHash } from "../forces-validation";
 import {
   getDeploymentAuthority,
+  getDeploymentFormation,
   getDeploymentMethod,
   getDeploymentPlan,
   getDeploymentReceipt,
@@ -106,6 +107,11 @@ export async function getPlanningContext(env: Env, userId: string, campaignId: s
     campaignId,
     battalionId: authority.battalion_id,
     canCommit: canCommand(authority.command_role, authority.campaign_role),
+    strategicOperation: authority.operation_id ? {
+      id: authority.operation_id,
+      nodeId: authority.operation_node_id,
+      status: authority.operation_status,
+    } : null,
     methods: methods.results.map((method) => ({ ...method, requirements: parseJson(method.requirements_json, {}) })),
     insertionZones: zones.map((zone) => ({ id: zone.id, hex: { q: zone.hex_q, r: zone.hex_r }, allowedMethods: parseJson(zone.allowed_methods_json, []), environment: parseJson(zone.environment_json, []) })),
   };
@@ -152,6 +158,26 @@ async function materialize(
     throw new ForceServiceError(422, "INSERTION_METHOD_UNAVAILABLE", "The insertion zone does not permit this method.");
   }
   const commandAuthority = canCommand(authority.command_role, authority.campaign_role);
+  if (authority.operation_id && !command.battlegroupId) {
+    throw new ForceServiceError(422, "BATTLEGROUP_REQUIRED", "A strategic operation deployment must reserve one Battlegroup.");
+  }
+  if (authority.operation_id && !["MUSTERING", "ACTIVE"].includes(authority.operation_status ?? "")) {
+    throw new ForceServiceError(409, "OPERATION_NOT_ACCEPTING_DEPLOYMENTS", "The linked strategic operation is not accepting deployments.");
+  }
+  if (command.battlegroupId) {
+    const formation = await getDeploymentFormation(env.DB, authority.battalion_id, command.battlegroupId);
+    if (!formation) throw new ForceServiceError(404, "BATTLEGROUP_NOT_FOUND", "The selected Battlegroup is outside this Battalion.");
+    if (!["READY", "EMBARKED", "RECOVERING"].includes(formation.status)) {
+      throw new ForceServiceError(409, "BATTLEGROUP_UNAVAILABLE", `Battlegroup ${command.battlegroupId} is ${formation.status.toLowerCase()} and cannot deploy.`);
+    }
+    if (formation.current_operation_id && formation.current_operation_id !== authority.operation_id) {
+      throw new ForceServiceError(409, "BATTLEGROUP_ALREADY_ASSIGNED", "The selected Battlegroup is assigned to another operation.");
+    }
+    if (formation.status === "EMBARKED" &&
+        (formation.carrier_link_status !== "EMBARKED" || !formation.current_carrier_task_force_id || !formation.carrier_node_id)) {
+      throw new ForceServiceError(409, "BATTLEGROUP_LOCATION_INVALID", "The embarked Battlegroup has no active carrier location.");
+    }
+  }
   const selected: MaterializedPlan["selected"] = [];
   for (const requested of command.units) {
     const unit = await getDeploymentUnit(env.DB, actorId, authority.battalion_id, command.campaignId, requested.unitId);
@@ -351,6 +377,15 @@ export async function commitPlan(
   if (!authority || !canCommand(authority.command_role, authority.campaign_role)) {
     throw new ForceServiceError(403, "DEPLOYMENT_COMMAND_APPROVAL_REQUIRED", "Battalion Command must commit deployment plans.");
   }
+  const formation = row.battlegroup_id
+    ? await getDeploymentFormation(env.DB, row.battalion_id, row.battlegroup_id)
+    : null;
+  if (authority.operation_id && (!formation || !row.battlegroup_id)) {
+    throw new ForceServiceError(409, "BATTLEGROUP_REQUIRED", "The linked strategic operation requires a current Battlegroup reservation.");
+  }
+  if (formation && !["READY", "EMBARKED", "RECOVERING"].includes(formation.status)) {
+    throw new ForceServiceError(409, "BATTLEGROUP_UNAVAILABLE", `Battlegroup ${formation.id} is no longer available for deployment.`);
+  }
   const units = await listDeploymentPlanUnits(env.DB, planId);
   if (units.some((unit) => unit.owner_approval !== "APPROVED" || unit.command_approval !== "APPROVED")) {
     throw new ForceServiceError(409, "DEPLOYMENT_APPROVAL_REQUIRED", "Every unit requires owner and command approval.");
@@ -443,7 +478,35 @@ export async function commitPlan(
       ) VALUES (?1,?2,1,'{}')`).bind(snapshotId, ability.abilityId));
     }
   }
-  const response = { planId, revision: row.revision + 1, status: "COMMITTED", campaignId: row.campaign_id, snapshotIds };
+  if (formation && authority.operation_id && authority.operation_node_id) {
+    statements.push(
+      env.DB.prepare(`UPDATE task_force_battlegroups SET status='CANCELLED',revision=revision+1,updated_at=unixepoch()
+        WHERE battlegroup_id=?1 AND status='EMBARKING'`).bind(formation.id),
+      env.DB.prepare(`UPDATE task_force_battlegroups SET status='DISEMBARKED',
+        disembarked_at=COALESCE(disembarked_at,unixepoch()),revision=revision+1,updated_at=unixepoch()
+        WHERE battlegroup_id=?1 AND status IN ('EMBARKED','DISEMBARKING') AND embarked_at IS NOT NULL`)
+        .bind(formation.id),
+      env.DB.prepare(`UPDATE battlegroups SET status='DEPLOYED',current_node_id=?1,
+        current_operation_id=?2,current_carrier_task_force_id=NULL,revision=revision+1,updated_at=unixepoch()
+        WHERE id=?3 AND battalion_id=?4 AND revision=?5 AND status IN ('READY','EMBARKED','RECOVERING')`)
+        .bind(authority.operation_node_id, authority.operation_id, formation.id, row.battalion_id, formation.revision),
+      env.DB.prepare(`UPDATE strategic_operations SET status='ACTIVE',starts_at=COALESCE(starts_at,unixepoch()),
+        revision=revision+1,updated_at=unixepoch() WHERE id=?1 AND status='MUSTERING'`)
+        .bind(authority.operation_id),
+      env.DB.prepare(`UPDATE campaigns SET status='ACTIVE',strategic_status='ACTIVE',
+        strategic_revision=strategic_revision+1 WHERE id=?1 AND status IN ('DRAFT','RECRUITING','ACTIVE')`)
+        .bind(row.campaign_id),
+    );
+  }
+  const response = {
+    planId,
+    revision: row.revision + 1,
+    status: "COMMITTED",
+    campaignId: row.campaign_id,
+    battlegroupId: row.battlegroup_id,
+    operationId: authority.operation_id,
+    snapshotIds,
+  };
   statements.push(
     env.DB.prepare(`UPDATE deployment_plans SET status = 'COMMITTED', committed_at = ?1,
       revision = revision + 1, updated_at = unixepoch() WHERE id = ?2 AND revision = ?3 AND status = 'VALID'`)

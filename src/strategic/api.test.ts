@@ -26,7 +26,7 @@ function payloads(): StrategicApiPayloads {
       supply: { balances: [{ size: "LARGE", quantity: 2, capacity: 4 }], suppliedThroughRound: 6, facilities: [] },
       taskForce: { id: "tf-1", name: "Test Task Force", status: "READY", currentNodeId: "node-1", supply: { suppliedThroughRound: 6, facilities: [] } },
     },
-    operations: { operations: [{ id: "op-1", name: "Operation Test", strategicNodeId: "node-2", status: "ANNOUNCED", objectiveSummaries: ["Hold the ridge"], reinforcementStatus: "OPEN" }] },
+    operations: { operations: [{ id: "op-1", campaignId: "campaign-1", name: "Operation Test", strategicNodeId: "node-2", status: "ANNOUNCED", objectiveSummaries: ["Hold the ridge"], reinforcementStatus: "OPEN" }] },
     map: {
       map: { id: "map-1", name: "Test Theatre", scope: "THEATRE", version: 7 },
       round: { number: 4 },
@@ -79,7 +79,7 @@ describe("strategic API view normalization", () => {
       timezone: "Australia/Sydney",
     });
     expect("email" in snapshot.profile).toBe(false);
-    expect(snapshot.operations[0]).toMatchObject({ location: "Test Ridge", objectives: ["Hold the ridge"], reinforcementState: "OPEN" });
+    expect(snapshot.operations[0]).toMatchObject({ campaignId: "campaign-1", location: "Test Ridge", objectives: ["Hold the ridge"], reinforcementState: "OPEN" });
   });
 
   it("uses deterministic graph positions when visual metadata is absent", () => {

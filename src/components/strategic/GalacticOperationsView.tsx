@@ -11,7 +11,7 @@ import type { StrategicView } from "../StrategicWorkspace";
 interface GalacticOperationsViewProps {
   snapshot: StrategicSnapshot;
   mode: StrategicDataMode;
-  onNavigate: (view: StrategicView | "Forces" | "Campaigns") => void;
+  onNavigate: (view: StrategicView | "Forces" | "Campaigns" | "Deployment") => void;
   onNotice: (notice: { tone: "info" | "success" | "danger"; message: string }) => void;
   onRequestOperationDetail: (operationId: string) => Promise<void>;
   onStrategicChanged: () => Promise<void>;
@@ -374,9 +374,14 @@ export function GalacticOperationsView({
                   <div><small>ENVIRONMENT</small><strong>{selectedOperation.environment.join(" · ") || "No modifiers disclosed"}</strong></div>
                 </section>
                 <div className="deployment-boundary">
-                  <strong>STRATEGIC → TACTICAL DEPLOYMENT DEFERRED</strong>
-                  <p>This checkpoint does not yet bootstrap persistent units into the tactical Campaign Durable Object or reconcile their return. No teleporting “join campaign” action is offered.</p>
-                  <button type="button" onClick={() => onNotice({ tone: "info", message: "Deployment remains blocked until location, transport, ship facilities, supply, reinforcement rules, and unit exclusivity are validated end to end." })}>WHY DEPLOYMENT IS BLOCKED</button>
+                  <strong>STRATEGIC → TACTICAL DEPLOYMENT LIVE</strong>
+                  <p>The deployment planner validates one Battlegroup package, locks exact persistent loadouts, creates the tactical presence, closes its carrier assignment, and marks this operation active in one commit.</p>
+                  <button type="button" disabled={!selectedOperation.campaignId || !["MUSTERING", "ACTIVE"].includes(selectedOperation.status)} onClick={() => {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set("campaign", selectedOperation.campaignId!);
+                    window.history.replaceState({}, "", url);
+                    onNavigate("Deployment");
+                  }}>PLAN TACTICAL DEPLOYMENT</button>
                 </div>
               </>
             ) : <p className="strategic-empty-copy">Select an operation to read its briefing.</p>}
@@ -386,7 +391,7 @@ export function GalacticOperationsView({
 
       <footer className="operations-footer-note">
         <span>WORLD EFFECTS</span>
-        <p>Tactical results can be configured to change nodes, routes, pressure, and operation availability, but automatic result persistence is deferred until the idempotent effect applier is verified.</p>
+        <p>Committed deployments reserve their Battlegroup and terminal tactical results return survivors to recovery while applying authored node and route consequences.</p>
         <button type="button" onClick={() => onNavigate("Campaigns")}>OPEN EXISTING TACTICAL CAMPAIGN</button>
       </footer>
     </div>
