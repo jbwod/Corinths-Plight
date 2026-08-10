@@ -169,6 +169,8 @@ export function createDemoCampaignState(
     campaignId,
     campaignName: "Outpost K-17",
     planetName: "Corinth",
+    scenarioId: "scenario-demo-outpost-k17",
+    scenarioVersion: 1,
     rulesetVersion: RULESET_VERSION,
     engineVersion: ENGINE_VERSION,
     round,

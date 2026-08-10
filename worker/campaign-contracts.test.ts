@@ -251,6 +251,32 @@ describe("versioned campaign Durable Object storage", () => {
     });
   });
 
+  it("upgrades a previously stored terminal outcome with the fail-closed reward disposition", () => {
+    const previousState = fixture();
+    previousState.round = 21;
+    previousState.clock.schedule.forEach((scheduled) => { scheduled.round = 21; });
+    const state = resolveRound({
+      previousState,
+      rulesetVersion: previousState.rulesetVersion,
+      playerOrders: [],
+      enemyOrders: [],
+      seed: "legacy-terminal-reward-upgrade",
+      resolutionTime: 110_000,
+    }).state;
+    const stored = structuredClone(encodeCampaignStoredState(state)) as unknown as {
+      schemaVersion: number;
+      state: { outcome: Record<string, unknown> };
+    };
+    delete stored.state.outcome.rewards;
+
+    const parsed = parseCampaignStoredState(stored, CAMPAIGN_ID);
+    expect(parsed.legacy).toBe(true);
+    expect(parsed.state.outcome?.rewards).toEqual({
+      serviceHistory: "RECORDED",
+      requisition: { status: "BALANCE_REQUIRED", amount: null, rulesDecisionId: "RC-V5-016" },
+    });
+  });
+
   it("fails closed on malformed scenario policies and outcomes", () => {
     const badDuration = fixture();
     (badDuration.scenarioPolicy as unknown as Record<string, unknown>).maxRounds = 0;

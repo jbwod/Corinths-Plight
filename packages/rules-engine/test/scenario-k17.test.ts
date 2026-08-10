@@ -106,6 +106,10 @@ describe("declarative Outpost K-17 scenario policy", () => {
         { id: "objective-outpost", owner: "ALLIED", status: "ACTIVE" },
         { id: "objective-supply-route", owner: "ENEMY", status: "ACTIVE" },
       ],
+      rewards: {
+        serviceHistory: "RECORDED",
+        requisition: { status: "BALANCE_REQUIRED", amount: null, rulesDecisionId: "RC-V5-016" },
+      },
     });
   });
 
@@ -135,6 +139,14 @@ describe("declarative Outpost K-17 scenario policy", () => {
     expect(output.state.phase).toBe("COMPLETE");
     expect(output.state.outcome?.reason).toBe("FINAL_ROUND_PRIMARY_HELD");
     expect(output.persistentEffects.filter((effect) => effect.type === "CAMPAIGN_HISTORY")).toHaveLength(5);
+    expect(output.persistentEffects.find((effect) => effect.type === "CAMPAIGN_RESULT")?.payload).toMatchObject({
+      result: "VICTORY",
+      reason: "FINAL_ROUND_PRIMARY_HELD",
+      rewards: {
+        serviceHistory: "RECORDED",
+        requisition: { status: "BALANCE_REQUIRED", amount: null, rulesDecisionId: "RC-V5-016" },
+      },
+    });
     expect(output.persistentEffects.find((effect) => effect.type === "CAMPAIGN_HISTORY")?.payload).toMatchObject({
       campaignCompleted: true,
       result: "VICTORY",

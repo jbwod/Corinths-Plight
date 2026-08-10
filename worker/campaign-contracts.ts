@@ -799,7 +799,7 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
       stateFail("$.phase", "scenario outcome requires COMPLETE or EFFECTS_PENDING phase");
     }
     const campaignOutcome = stateRecord(state.outcome, "$.outcome");
-    stateOnlyKeys(campaignOutcome, ["result", "round", "reason", "objectives"], "$.outcome");
+    stateOnlyKeys(campaignOutcome, ["result", "round", "reason", "objectives", "rewards"], "$.outcome");
     if (campaignOutcome.result !== "VICTORY" && campaignOutcome.result !== "DEFEAT") {
       stateFail("$.outcome.result", "invalid campaign outcome");
     }
@@ -832,6 +832,17 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
       }
     }
     if (summaryIds.size !== objectiveState.size) stateFail("$.outcome.objectives", "must summarize every objective");
+    const rewards = stateRecord(campaignOutcome.rewards, "$.outcome.rewards");
+    stateOnlyKeys(rewards, ["serviceHistory", "requisition"], "$.outcome.rewards");
+    if (rewards.serviceHistory !== "RECORDED") stateFail("$.outcome.rewards.serviceHistory", "invalid service history status");
+    const requisition = stateRecord(rewards.requisition, "$.outcome.rewards.requisition");
+    stateOnlyKeys(requisition, ["status", "amount", "rulesDecisionId"], "$.outcome.rewards.requisition");
+    if (
+      requisition.status !== "BALANCE_REQUIRED" || requisition.amount !== null ||
+      requisition.rulesDecisionId !== "RC-V5-016"
+    ) {
+      stateFail("$.outcome.rewards.requisition", "unpublished requisition reward must remain blocked");
+    }
   }
 
   const resolutions = stateRecord(state.resolutions, "$.resolutions");
@@ -863,7 +874,7 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     const path = `$.pendingPersistentEffects[${index}]`;
     const effect = stateRecord(effectValue, path);
     stateString(effect.idempotencyKey, `${path}.idempotencyKey`);
-    if (!new Set(["UNIT_DESTROYED", "UNIT_DAMAGED", "UNIT_STATE_UPDATED", "REQUISITION_AWARDED", "CAMPAIGN_HISTORY"]).has(effect.type as string)) {
+    if (!new Set(["UNIT_DESTROYED", "UNIT_DAMAGED", "UNIT_STATE_UPDATED", "REQUISITION_AWARDED", "CAMPAIGN_HISTORY", "CAMPAIGN_RESULT"]).has(effect.type as string)) {
       stateFail(`${path}.type`, "invalid persistent effect type");
     }
     stateRecord(effect.payload, `${path}.payload`);
@@ -885,11 +896,28 @@ export function parseCampaignStoredState(value: unknown, campaignId: string): Pa
   if (candidate.schemaVersion === CAMPAIGN_STORAGE_SCHEMA_VERSION) {
     const keys = Object.keys(candidate);
     if (keys.length !== 2 || !keys.includes("state")) stateFail("$storage", "version 1 envelope must contain only schemaVersion and state");
+    const storedState = structuredClone(stateRecord(candidate.state, "$storage.state"));
+    const outcome = storedState.outcome;
+    const rewardUpgradeRequired = Boolean(outcome && typeof outcome === "object" && !Array.isArray(outcome) && !("rewards" in outcome));
+    if (rewardUpgradeRequired) {
+      (outcome as Record<string, unknown>).rewards = {
+        serviceHistory: "RECORDED",
+        requisition: { status: "BALANCE_REQUIRED", amount: null, rulesDecisionId: "RC-V5-016" },
+      };
+    }
     return {
-      state: validateCampaignState(stateRecord(candidate.state, "$storage.state"), campaignId),
-      legacy: false,
+      state: validateCampaignState(storedState, campaignId),
+      legacy: rewardUpgradeRequired,
     };
   }
   if (candidate.schemaVersion !== undefined) stateFail("$storage.schemaVersion", "unsupported storage schema version");
-  return { state: validateCampaignState(candidate, campaignId), legacy: true };
+  const legacyState = structuredClone(candidate);
+  const legacyOutcome = legacyState.outcome;
+  if (legacyOutcome && typeof legacyOutcome === "object" && !Array.isArray(legacyOutcome) && !("rewards" in legacyOutcome)) {
+    (legacyOutcome as Record<string, unknown>).rewards = {
+      serviceHistory: "RECORDED",
+      requisition: { status: "BALANCE_REQUIRED", amount: null, rulesDecisionId: "RC-V5-016" },
+    };
+  }
+  return { state: validateCampaignState(legacyState, campaignId), legacy: true };
 }

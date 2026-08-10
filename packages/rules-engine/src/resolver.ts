@@ -641,6 +641,18 @@ export function resolveRound(input: RoundInput): RoundOutput {
       undefined,
       { ...scenario.outcome },
     );
+    effects.push({
+      idempotencyKey: `${state.campaignId}:${state.round}:campaign-result`,
+      type: "CAMPAIGN_RESULT",
+      payload: {
+        campaignId: state.campaignId,
+        scenarioId: state.scenarioId,
+        scenarioVersion: state.scenarioVersion,
+        resolutionKey: `${state.campaignId}:${state.round}`,
+        ...scenario.outcome,
+      },
+      status: "PENDING",
+    });
   }
   for (const persistentUnitId of participatingPersistentUnitIds) {
     effects.push({

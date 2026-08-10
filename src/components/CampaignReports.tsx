@@ -144,10 +144,16 @@ export function CampaignReports({ campaign, campaignId, demoUser, onReturnToCamp
           ) : report ? (
             <>
               {terminalEvent && (
-                <section className={`campaign-outcome ${terminalVictory ? "victory" : "defeat"}`}>
-                  <span>{terminalVictory ? "MISSION ACCOMPLISHED" : "MISSION FAILED"}</span>
-                  <strong>{describeCampaignReportEvent(terminalEvent, names)}</strong>
-                </section>
+                <>
+                  <section className={`campaign-outcome ${terminalVictory ? "victory" : "defeat"}`}>
+                    <span>{terminalVictory ? "MISSION ACCOMPLISHED" : "MISSION FAILED"}</span>
+                    <strong>{describeCampaignReportEvent(terminalEvent, names)}</strong>
+                  </section>
+                  <section className="campaign-rewards panel" aria-label="Campaign rewards">
+                    <div><small>SERVICE HISTORY</small><strong>RECORDED</strong><span>Every participating persistent unit received campaign credit.</span></div>
+                    <div><small>REQUISITION AWARD</small><strong>BALANCE REQUIRED</strong><span>No Req was granted because campaign reward values remain unpublished under RC-V5-016.</span></div>
+                  </section>
+                </>
               )}
 
               <section className="report-metrics panel" aria-label={`Round ${activeRound} summary`}>

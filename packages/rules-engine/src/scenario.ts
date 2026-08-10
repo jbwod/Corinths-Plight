@@ -61,6 +61,14 @@ function outcome(
     round: state.round,
     reason,
     objectives: objectiveSummaries(objectives),
+    rewards: {
+      serviceHistory: "RECORDED",
+      requisition: {
+        status: "BALANCE_REQUIRED",
+        amount: null,
+        rulesDecisionId: "RC-V5-016",
+      },
+    },
   };
 }
 

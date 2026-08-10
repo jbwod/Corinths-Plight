@@ -163,7 +163,7 @@ interface ResolutionRecord {
 
 6. atomically stores the result state in `EFFECTS_PENDING`, `resolution/{round}`, result events, and `pending-effect/{idempotencyKey}` records without opening the next round;
 7. applies each supported effect through its D1 receipt-backed batch, deleting the DO pending key only after confirmation;
-8. after all keys acknowledge, atomically marks the resolution `RESOLVED`, increments exactly one round, creates `ROUND_STARTED`, installs the next clock, and arms its alarm;
+8. after all keys acknowledge, atomically marks the resolution `RESOLVED`; a non-terminal result increments exactly one round, creates `ROUND_STARTED`, installs the next clock, and arms its alarm, while a terminal result stays on its completed round with no schedule;
 9. on D1 failure, retains the same round and pending keys and arms a short retry alarm; duplicate manual resolution and alarm delivery resume rather than recompute.
 
 This transaction avoids a partial DO result. A repeated call for a completed round returns the stored record and does not rerun effects. However:
@@ -176,6 +176,8 @@ This transaction avoids a partial DO result. A repeated call for a completed rou
 - failure-at-every-instruction-boundary coverage, attempt diagnostics and operator reconciliation are incomplete.
 
 The shipped gate prevents a successful result commit from exposing the next planning round before D1 application completes. A failed batch leaves the campaign visibly in `EFFECTS_PENDING`; the alarm and duplicate resolution path retry stable effect IDs. Full PREPARED/hash/collision semantics and operator-facing reconciliation remain open.
+
+For K-17, the terminal resolver output includes one `CAMPAIGN_RESULT` effect. Migration `0010` applies it transactionally to `campaign_results`, closes the D1 campaign (and a linked strategic operation when present), and writes the existing effect receipt. The campaign directory and after-action report then expose the persisted outcome, per-unit service credit, and the explicitly unpublished Req reward disposition.
 
 ## 7. Target resolution journal
 

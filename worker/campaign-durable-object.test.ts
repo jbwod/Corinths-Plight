@@ -78,6 +78,9 @@ class EffectStatement {
     if (this.query.includes("FROM campaign_effect_receipts")) {
       return this.database.receipts.has(String(this.bindings[0])) ? { applied: 1 } : null;
     }
+    if (this.query.includes("FROM campaign_results")) {
+      return this.database.results.get(String(this.bindings[0])) === String(this.bindings[1]) ? { applied: 1 } : null;
+    }
     return null;
   }
 }
@@ -85,6 +88,7 @@ class EffectStatement {
 class EffectDatabase {
   fail = true;
   readonly receipts = new Set<string>();
+  readonly results = new Map<string, string>();
   readonly appliedQueries: string[] = [];
 
   prepare(query: string): D1PreparedStatement {
@@ -98,6 +102,9 @@ class EffectDatabase {
       this.appliedQueries.push(statement.query);
       if (statement.query.includes("INSERT INTO campaign_effect_receipts")) {
         this.receipts.add(String(statement.bindings[0]));
+      }
+      if (statement.query.includes("INSERT INTO campaign_results")) {
+        this.results.set(String(statement.bindings[0]), String(statement.bindings[9]));
       }
     }
     return statements.map(() => ({ success: true, meta: {} })) as D1Result[];
@@ -318,7 +325,9 @@ describe("CampaignDurableObject campaign contracts", () => {
   });
 
   it("keeps a terminal scenario on its completed round and clears the alarm", async () => {
-    const { campaign, storage } = campaignObject();
+    const database = new EffectDatabase();
+    database.fail = false;
+    const { campaign, storage } = campaignObject(database);
     expect((await campaign.fetch(request("/state"))).status).toBe(200);
     const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
     seeded.round = 21;
@@ -361,6 +370,7 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(completed.events).toContainEqual(expect.objectContaining({ type: "CAMPAIGN_COMPLETED", round: 21 }));
     expect(completed.events).not.toContainEqual(expect.objectContaining({ type: "ROUND_STARTED", round: 22 }));
     expect(storage.values.has("resolution/21")).toBe(true);
+    expect(database.results.get(CAMPAIGN_ID)).toBe(`${CAMPAIGN_ID}:21:campaign-result`);
     expect(storage.alarm).toBeNull();
 
     const pause = await campaign.fetch(request("/pause", { method: "POST" }));

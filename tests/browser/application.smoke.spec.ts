@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { CampaignView } from "../../packages/domain/src";
-import { shortestPath } from "../../packages/rules-engine/src";
+import { calculateRouteCost, canTarget, shortestPath } from "../../packages/rules-engine/src";
 
 async function expectNoDocumentOverflow(page: Page): Promise<void> {
   const dimensions = await page.evaluate(() => ({
@@ -44,7 +44,7 @@ async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<
   for (let index = 0; index < await deployableUnits.count(); index += 1) {
     const checkbox = deployableUnits.nth(index);
     const label = await checkbox.locator("..").innerText();
-    const foundationSupportUnit = ["LONGBOW", "DOC-7", "RAVEN-2", "NOMAD"].some((callsign) => label.includes(callsign));
+    const foundationSupportUnit = ["LONGBOW", "DOC-7", "RAVEN-2", "NOMAD", "BELLATR"].some((callsign) => label.includes(callsign));
     if (foundationSupportUnit && ![...deployedCallsigns].some((callsign) => label.includes(callsign))) {
       await checkbox.check();
       selectedForDeployment += 1;
@@ -74,42 +74,122 @@ async function resolveCurrentK17Round(page: Page): Promise<void> {
   expect(resolution, resolution.body).toMatchObject({ status: 200 });
 }
 
+function affordableRoute(
+  path: CampaignView["map"][number]["coord"][],
+  map: CampaignView["map"],
+  speed: number,
+  rush: boolean,
+) {
+  const route = [path[0]!];
+  for (const step of path.slice(1)) {
+    const candidate = [...route, step];
+    if (calculateRouteCost(candidate, map, { rush }).total > speed) break;
+    route.push(step);
+  }
+  return route;
+}
+
 async function submitRelayDefenceOrder(page: Page): Promise<void> {
-  const response = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
-    headers: { "x-demo-user": "demo-user" },
-  });
-  expect(response.status()).toBe(200);
-  const state = await response.json() as CampaignView;
-  const defender = state.deployments.find((deployment) => deployment.callsign === "NOMAD");
-  const relay = state.objectives.find((objective) => objective.id === "objective-outpost");
-  expect(defender).toBeDefined();
-  expect(relay).toBeDefined();
-  const route = shortestPath(defender!.position, relay!.coord, state.map);
-  expect(route.length).toBeGreaterThan(1);
-  const orderRevision = state.orders.find((order) => order.unitId === defender!.id && order.round === state.round)?.revision ?? 0;
-  const status = await page.evaluate(async ({ command }) => {
-    const result = await fetch("/api/campaigns/campaign-k17-relay/orders", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-demo-user": "demo-user" },
-      body: JSON.stringify(command),
+  for (const callsign of ["NOMAD", "BELLATR"]) {
+    const response = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
+      headers: { "x-demo-user": "demo-user" },
     });
-    return { status: result.status, body: await result.text() };
-  }, {
-    command: {
-      commandId: `browser-defend-relay-${state.round}`,
-      expectedCampaignVersion: state.version,
-      expectedOrderRevision: orderRevision,
-      unitId: defender!.id,
-      round: state.round,
-      orderType: "RUSH",
-      lifecycle: "SUBMITTED",
-      route,
-      facing: defender!.facing,
-      actions: [],
-      incidentalActions: [],
-    },
-  });
-  expect(status, status.body).toMatchObject({ status: 201 });
+    expect(response.status()).toBe(200);
+    const state = await response.json() as CampaignView;
+    const defender = state.deployments.find((deployment) => deployment.callsign === callsign);
+    const relay = state.objectives.find((objective) => objective.id === "objective-outpost");
+    expect(defender).toBeDefined();
+    expect(relay).toBeDefined();
+    const route = affordableRoute(
+      shortestPath(defender!.position, relay!.coord, state.map),
+      state.map,
+      defender!.stats.speed,
+      true,
+    );
+    expect(route.length).toBeGreaterThan(1);
+    const orderRevision = state.orders.find((order) => order.unitId === defender!.id && order.round === state.round)?.revision ?? 0;
+    const status = await page.evaluate(async ({ command }) => {
+      const result = await fetch("/api/campaigns/campaign-k17-relay/orders", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-demo-user": "demo-user" },
+        body: JSON.stringify(command),
+      });
+      return { status: result.status, body: await result.text() };
+    }, {
+      command: {
+        commandId: `browser-defend-relay-${callsign.toLowerCase()}-${state.round}`,
+        expectedCampaignVersion: state.version,
+        expectedOrderRevision: orderRevision,
+        unitId: defender!.id,
+        round: state.round,
+        orderType: "RUSH",
+        lifecycle: "SUBMITTED",
+        route,
+        facing: defender!.facing,
+        actions: [],
+        incidentalActions: [],
+      },
+    });
+    expect(status, status.body).toMatchObject({ status: 201 });
+  }
+}
+
+async function submitRelayDefenceAttack(page: Page): Promise<void> {
+  for (const callsign of ["NOMAD", "BELLATR"]) {
+    const response = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
+      headers: { "x-demo-user": "demo-user" },
+    });
+    expect(response.status()).toBe(200);
+    const state = await response.json() as CampaignView;
+    const defender = state.deployments.find((deployment) => deployment.callsign === callsign);
+    const relay = state.objectives.find((objective) => objective.id === "objective-outpost");
+    expect(defender).toBeDefined();
+    expect(relay).toBeDefined();
+    if (defender!.status === "DESTROYED") continue;
+    const route = affordableRoute(
+      shortestPath(defender!.position, relay!.coord, state.map),
+      state.map,
+      defender!.stats.speed,
+      true,
+    );
+    const moving = route.length > 1;
+    const projectedDefender = { ...defender!, position: route.at(-1)! };
+    const engagement = state.deployments
+      .filter((deployment) => deployment.side === "ENEMY" && deployment.status === "ACTIVE")
+      .flatMap((target) => defender!.weapons.map((weapon) => ({ target, weapon, legality: canTarget(projectedDefender, target, weapon, state.map) })))
+      .find(({ legality }) => legality.legal);
+    if (!moving) expect(engagement, `${callsign} should have a legal contact while defending the relay`).toBeDefined();
+    const orderRevision = state.orders.find((order) => order.unitId === defender!.id && order.round === state.round)?.revision ?? 0;
+    const status = await page.evaluate(async ({ command }) => {
+      const result = await fetch("/api/campaigns/campaign-k17-relay/orders", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-demo-user": "demo-user" },
+        body: JSON.stringify(command),
+      });
+      return { status: result.status, body: await result.text() };
+    }, {
+      command: {
+        commandId: `browser-defend-relay-attack-${callsign.toLowerCase()}-${state.round}`,
+        expectedCampaignVersion: state.version,
+        expectedOrderRevision: orderRevision,
+        unitId: defender!.id,
+        round: state.round,
+        orderType: moving ? "RUSH" : "HOLD",
+        lifecycle: "SUBMITTED",
+        route,
+        facing: defender!.facing,
+        actions: moving || !engagement ? [] : [{
+          type: "ATTACK",
+          targetDeploymentId: engagement.target.id,
+          targetHex: engagement.target.position,
+          weaponId: engagement.weapon.id,
+          equipmentIds: [],
+        }],
+        incidentalActions: [],
+      },
+    });
+    expect(status, status.body).toMatchObject({ status: 201 });
+  }
 }
 
 test("public landing exposes the signed-out authentication shell", async ({ page }) => {
@@ -198,6 +278,7 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
   const composer = page.locator(".right-panel");
 
+  await page.locator(".unit-roster").getByRole("button", { name: /DOC-7/ }).click();
   await expect(composer.getByRole("button", { name: "LOAD", exact: true })).toBeVisible();
   await expect(composer.getByRole("button", { name: "UNLOAD", exact: true })).toBeVisible();
   await expect(composer.getByRole("button", { name: "SCAN", exact: true })).toHaveCount(0);
@@ -239,6 +320,7 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(composer.getByText(/SMALL SUPPLY: 1/)).toBeVisible();
   await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
   await expect(page.getByText(/DOC-7 order submitted to campaign command/)).toBeVisible();
+  await submitRelayDefenceAttack(page);
   await resolveCurrentK17Round(page);
 
   await expect.poll(async () => {
@@ -254,6 +336,81 @@ test("tactical composer exposes every currently executable action and no catalog
     return medic?.supplies?.MEDICAL_SUPPLY === 4 && medic.supplies.SMALL_SUPPLY === 0 &&
       state.events?.some((event) => event.type === "MEDICAL_SUPPLY_RELOADED") === true;
   }).toBe(true);
+
+  const roundThree = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(roundThree.status()).toBe(200);
+  const roundThreeState = await roundThree.json() as CampaignView;
+  const roundThreeDiagnostic = {
+    round: roundThreeState.round,
+    phase: roundThreeState.phase,
+    outcome: roundThreeState.outcome,
+    nomad: roundThreeState.deployments.find((deployment) => deployment.callsign === "NOMAD"),
+    recentEvents: roundThreeState.events.filter((event) => event.round === 2),
+  };
+  expect(roundThreeState.round, JSON.stringify(roundThreeDiagnostic)).toBe(3);
+  expect(roundThreeState.phase).toBe("PLANNING");
+
+  await submitRelayDefenceAttack(page);
+  await resolveCurrentK17Round(page);
+  await submitRelayDefenceAttack(page);
+  await resolveCurrentK17Round(page);
+
+  await expect.poll(async () => {
+    const response = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
+      headers: { "x-demo-user": "demo-user" },
+    });
+    if (!response.ok()) return undefined;
+    const state = await response.json() as CampaignView;
+    return {
+      phase: state.phase,
+      result: state.outcome?.result,
+      reason: state.outcome?.reason,
+      round: state.outcome?.round,
+    };
+  }).toEqual({
+    phase: "COMPLETE",
+    result: "VICTORY",
+    reason: "FINAL_ROUND_PRIMARY_HELD",
+    round: 4,
+  });
+
+  await expect.poll(async () => {
+    const response = await page.request.get("/api/campaigns", {
+      headers: { "x-demo-user": "demo-user" },
+    });
+    if (!response.ok()) return undefined;
+    const directory = await response.json() as {
+      campaigns?: Array<{
+        campaignId: string;
+        status: string;
+        outcome?: CampaignView["outcome"];
+      }>;
+    };
+    const completed = directory.campaigns?.find((entry) => entry.campaignId === "campaign-k17-relay");
+    return completed && {
+      status: completed.status,
+      result: completed.outcome?.result,
+      rewardStatus: completed.outcome?.rewards.requisition.status,
+      rewardAmount: completed.outcome?.rewards.requisition.amount,
+    };
+  }).toEqual({
+    status: "COMPLETE",
+    result: "VICTORY",
+    rewardStatus: "BALANCE_REQUIRED",
+    rewardAmount: null,
+  });
+
+  await page.reload();
+  await expect(page.getByText("MISSION ACCOMPLISHED", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "OPEN AFTER-ACTION REPORT" }).click();
+  await expect(page.getByRole("heading", { name: "Campaign Reports" })).toBeVisible();
+  await expect(page.getByText("MISSION ACCOMPLISHED", { exact: true })).toBeVisible();
+  const rewards = page.getByRole("region", { name: "Campaign rewards" });
+  await expect(rewards.getByText("RECORDED", { exact: true })).toBeVisible();
+  await expect(rewards.getByText("BALANCE REQUIRED", { exact: true })).toBeVisible();
+  await expect(rewards).toContainText("RC-V5-016");
 });
 
 test("public and authenticated shells do not overflow a 390px viewport", async ({ page }) => {

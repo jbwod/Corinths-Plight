@@ -69,6 +69,13 @@ interface CampaignDirectoryEntry {
   scenarioAvailable: boolean;
   canEnter: boolean;
   canJoin?: boolean;
+  outcome?: {
+    result: "VICTORY" | "DEFEAT";
+    reason: string;
+    round: number;
+    rewards?: NonNullable<CampaignView["outcome"]>["rewards"];
+    resolvedAt: number;
+  };
 }
 type Notice = { tone: "info" | "success" | "danger"; message: string };
 type ComposerActionMode = "NONE" | "ATTACK" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL";
@@ -739,6 +746,7 @@ function GameApp() {
               <span>{campaign.outcome.result === "VICTORY" ? "MISSION ACCOMPLISHED" : "MISSION FAILED"}</span>
               <strong>{campaignOutcomeMessage(campaign)}</strong>
               <small>Round {campaign.outcome.round} · campaign state locked</small>
+              <small>Unit service records updated · Req reward remains balance required</small>
               <button onClick={() => navigate("Reports")}>OPEN AFTER-ACTION REPORT</button>
             </div>
           )}

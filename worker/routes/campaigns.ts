@@ -15,6 +15,11 @@ interface CampaignDirectoryRow {
   maximum_players: number;
   member_count: number;
   deployment_count: number;
+  result: "VICTORY" | "DEFEAT" | null;
+  outcome_reason: string | null;
+  result_round: number | null;
+  rewards_json: string | null;
+  resolved_at: number | null;
 }
 
 interface PublicCampaignRow {
@@ -101,6 +106,8 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
       campaigns.status, planets.name AS planet_name, campaigns.map_source_key,
       memberships.side, memberships.role, memberships.joined_at,
       campaigns.minimum_players, campaigns.maximum_players,
+      results.result,results.reason AS outcome_reason,results.round_number AS result_round,
+      results.rewards_json,results.resolved_at,
       (SELECT COUNT(*) FROM campaign_memberships AS members
         WHERE members.campaign_id = campaigns.id) AS member_count,
       (SELECT COUNT(*) FROM deployments
@@ -109,6 +116,7 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
     FROM campaign_memberships AS memberships
     JOIN campaigns ON campaigns.id = memberships.campaign_id
     JOIN planets ON planets.id = campaigns.planet_id
+    LEFT JOIN campaign_results AS results ON results.campaign_id=campaigns.id
     WHERE memberships.user_id = ?1
       AND campaigns.status IN ('RECRUITING','ACTIVE','PAUSED','COMPLETE','FAILED')
     ORDER BY CASE campaigns.status
@@ -141,6 +149,13 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
       scenarioAvailable: row.map_source_key === "fixture/outpost-k17",
       canEnter: row.map_source_key === "fixture/outpost-k17" && Number(row.deployment_count) > 0 &&
         ["RECRUITING", "ACTIVE", "PAUSED", "COMPLETE", "FAILED"].includes(row.status),
+      outcome: row.result ? {
+        result: row.result,
+        reason: row.outcome_reason,
+        round: Number(row.result_round),
+        rewards: row.rewards_json ? JSON.parse(row.rewards_json) : undefined,
+        resolvedAt: Number(row.resolved_at),
+      } : undefined,
     })),
     availableCampaigns: available.results.map((row) => ({
       campaignId: row.campaign_id,

@@ -40,10 +40,10 @@ This is the live release checklist. A checked local build item is not permission
 | `npm test` | local | PASS | Vitest 4.1.10; 48 files / 335 tests. |
 | `npm run build` | local development config | PASS | Worker 969.77 kB; client JS 431.21 kB; CSS 129.97 kB; Wrangler emitted only its known sandboxed debug-log warning. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
-| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0009 applied. |
+| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0010 applied. |
 | Seven seeds, twice | same isolated D1 | PASS | Core, Phase 2, equipment, onboarding and three development fixtures replayed twice. |
 | SQLite integrity | isolated D1 database | PASS | `integrity_check=ok`; `foreign_key_check` empty. |
-| `npm run ci:verify:d1` | isolated local D1 | PASS | Eight migrations; seven seeds twice; stable table fingerprints/counts; 115 checked application tables. |
+| `npm run ci:verify:d1` | isolated local D1 | PASS | Ten migrations; seven seeds twice; stable table fingerprints/counts; 117 checked application tables. |
 | `CI=1 npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 4/4 canaries; local demo identity/fixtures only, not production E2E evidence. |
 | `git diff --check` | local Phase-1 tree | PASS | No whitespace errors at final gate. |
 | `npm audit --audit-level=high` | npm advisory service | PASS | Zero known vulnerabilities at assessment time; the result is time-sensitive. |

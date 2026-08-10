@@ -3644,6 +3644,12 @@ summary:focus-visible {
 .campaign-outcome.victory span { color: var(--success); }
 .campaign-outcome.defeat { border-color: rgba(230, 109, 82, 0.48); background: rgba(91, 31, 22, 0.28); }
 .campaign-outcome.defeat span { color: var(--danger); }
+.campaign-rewards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: -1px 0 12px; border: 1px solid var(--line); }
+.campaign-rewards > div { min-height: 88px; display: grid; align-content: center; gap: 6px; padding: 14px 18px; border-right: 1px solid var(--line); }
+.campaign-rewards > div:last-child { border-right: 0; }
+.campaign-rewards small { color: var(--dim); font: 600 7px/1 var(--mono); letter-spacing: 0.12em; }
+.campaign-rewards strong { color: var(--teal-bright); font: 700 12px/1.2 var(--mono); }
+.campaign-rewards span { color: var(--muted); font-size: 9px; line-height: 1.45; }
 
 .report-metrics { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-bottom: 12px; border: 1px solid var(--line); }
 .report-metrics > div { min-width: 0; min-height: 92px; display: grid; align-content: center; gap: 5px; padding: 12px 14px; border-right: 1px solid var(--line); }
@@ -3706,6 +3712,9 @@ summary:focus-visible {
   .reports-hero > button { width: 100%; }
   .report-rounds { grid-template-columns: 1fr; gap: 8px; }
   .campaign-outcome { grid-template-columns: 1fr; gap: 7px; }
+  .campaign-rewards { grid-template-columns: 1fr; }
+  .campaign-rewards > div { border-right: 0; border-bottom: 1px solid var(--line); }
+  .campaign-rewards > div:last-child { border-bottom: 0; }
   .report-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .report-metrics > div,
   .report-metrics > div:nth-child(3) { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }

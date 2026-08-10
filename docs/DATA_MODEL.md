@@ -2,7 +2,7 @@
 
 **Status:** Phase-0 reconciled implemented schema/use plus target deltas (2026-08-10)
 
-**Scope:** D1 migrations `0001`–`0008`, all seven production/development seed files, current Campaign Durable Object storage, and the Phase 3 Strategic Map coordination boundary
+**Scope:** D1 migrations `0001`–`0010`, all production/development seed files, current Campaign Durable Object storage, and the Phase 3 Strategic Map coordination boundary
 
 ## 1. Authority and status
 
@@ -14,7 +14,7 @@
 
 D1 owns global identity, ownership, economy, organisation, ship, strategic-world, campaign-registry, event, and archive truth. One named Campaign Durable Object owns the mutable tactical state of one active campaign. Phase 3 adds a separate sharded Strategic Map Durable Object boundary, one coordinator per strategic map/theatre. It is never a global-galaxy singleton.
 
-The current K-17 DO is authoritative only for its demo battlefield. Non-K-17 state can load committed D1 force snapshots, but still inherits the K-17 demo map/terrain scaffold and is not a complete scenario authority. Neither path is evidence of completed D1/DO reconciliation.
+The authored K-17 campaign loads committed D1 force snapshots into the versioned `scenario-outpost-k17-hold-relay@3` battlefield, resolves its four-round objective policy, and persists its terminal result. Other map-source keys remain unsupported rather than receiving an invented battlefield, so this is one complete scenario rather than a general campaign-authoring system.
 
 ## 2. Representation conventions
 
@@ -28,7 +28,7 @@ The current K-17 DO is authoritative only for its demo battlefield. Non-K-17 sta
 
 ## 3. Implemented D1 schema
 
-The eight migrations create the following exact table families. Field lists below reflect landed SQL, not a claim that every service workflow is executable. Production is recorded through `0007`; the `0008` schema/use described below is local-only pending an authorized migration and deploy.
+The ten migrations create the following table families. Field lists below reflect landed SQL, not a claim that every service workflow is executable. Production deployment state must still be checked separately before applying local migrations.
 
 ### 3.1 Identity and sessions
 
@@ -191,9 +191,17 @@ An embarked Battlegroup stores `current_carrier_task_force_id` and no independen
 
 The development seed uses `strategic-map-corinth`, CSV Resolute, the Resolute Task Force, Hammer/Raven, three operations, strategic round 28, and Large Supply 3/4. All seeded route durations remain `NULL/BALANCE_REQUIRED`; unresolved travel is not free movement.
 
+### 3.12 Tactical campaign results
+
+| Table | Implemented fields and constraints |
+|---|---|
+| `campaign_results` | One immutable terminal row per campaign: round, pinned scenario ID/version, victory/defeat reason, objective snapshot, reward disposition, unique resolution/effect IDs, and resolution time. The K-17 terminal effect inserts this row, closes `campaigns`, projects the result to a linked strategic operation when present, and records the same idempotency key in `campaign_effect_receipts` before the DO enters `COMPLETE`. |
+
+The reward JSON intentionally records service history and a `BALANCE_REQUIRED` Req amount of `null`; migration `0010` does not invent an economy value while RC-V5-016 remains unresolved.
+
 ## 4. Current Campaign Durable Object records
 
-One DO is named by the URL/D1 campaign ID. `outpost-k17` uses the explicit demo state. Other authorised campaigns require committed D1 deployment/loadout snapshots and fail with `CAMPAIGN_NOT_INITIALISED` when none exist, but their initialization still calls the K-17 demo-state factory, retains its map/terrain shape, clears its objectives, and applies fallback positions. Force loading is implemented; general scenario initialization is not.
+One DO is named by the URL/D1 campaign ID. The explicit local `outpost-k17` fixture remains available only in development. A persistent campaign requires committed D1 deployment/loadout snapshots and a supported authored `map_source_key`; K-17 loads `scenario-outpost-k17-hold-relay@3`, while unsupported content fails closed. General scenario import/authoring is not implemented.
 
 | Storage key | Implemented contents | Current behavior |
 |---|---|---|
@@ -223,7 +231,7 @@ interface ResolutionRecord {
 
 interface PendingPersistentEffect {
   idempotencyKey: string;
-  type: "UNIT_DESTROYED" | "UNIT_DAMAGED" | "REQUISITION_AWARDED" | "CAMPAIGN_HISTORY";
+  type: "UNIT_DESTROYED" | "UNIT_DAMAGED" | "UNIT_STATE_UPDATED" | "REQUISITION_AWARDED" | "CAMPAIGN_HISTORY" | "CAMPAIGN_RESULT";
   unitId?: string;
   payload: Record<string, unknown>;
   status: "PENDING" | "APPLIED" | "FAILED";

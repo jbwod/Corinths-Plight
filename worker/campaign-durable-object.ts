@@ -336,7 +336,55 @@ export class CampaignDurableObject extends DurableObject<Env> {
       }
       const campaignId = typeof effect.payload.campaignId === "string" ? effect.payload.campaignId : this.campaignId();
       const round = Number(effect.payload.round);
-      if (!effect.unitId || !Number.isInteger(round) || round < 1) throw new Error("PERSISTENT_EFFECT_INVALID");
+      if (!Number.isInteger(round) || round < 1) throw new Error("PERSISTENT_EFFECT_INVALID");
+      if (effect.type === "CAMPAIGN_RESULT") {
+        const scenarioId = effect.payload.scenarioId;
+        const scenarioVersion = Number(effect.payload.scenarioVersion);
+        const resolutionKey = effect.payload.resolutionKey;
+        const result = effect.payload.result;
+        const reason = effect.payload.reason;
+        const objectives = effect.payload.objectives;
+        const rewards = effect.payload.rewards;
+        if (
+          typeof scenarioId !== "string" || scenarioId.length === 0 ||
+          !Number.isInteger(scenarioVersion) || scenarioVersion < 1 ||
+          typeof resolutionKey !== "string" || resolutionKey.length === 0 ||
+          (result !== "VICTORY" && result !== "DEFEAT") ||
+          typeof reason !== "string" || !Array.isArray(objectives) ||
+          !rewards || typeof rewards !== "object" || Array.isArray(rewards)
+        ) {
+          throw new Error("CAMPAIGN_RESULT_EFFECT_INVALID");
+        }
+        const campaignStatus = result === "VICTORY" ? "COMPLETE" : "FAILED";
+        const strategicStatus = result === "VICTORY" ? "RESOLVED" : "FAILED";
+        await this.env.DB.batch([
+          this.env.DB.prepare(`INSERT INTO campaign_results (
+            campaign_id,round_number,scenario_id,scenario_version,result,reason,
+            objectives_json,rewards_json,resolution_key,effect_idempotency_key
+          ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)`)
+            .bind(campaignId, round, scenarioId, scenarioVersion, result, reason,
+              JSON.stringify(objectives), JSON.stringify(rewards), resolutionKey, effect.idempotencyKey),
+          this.env.DB.prepare(`UPDATE campaigns SET status=?1,strategic_status=?2,
+            completed_at=COALESCE(completed_at,unixepoch()),strategic_revision=strategic_revision+1
+            WHERE id=?3`).bind(campaignStatus, strategicStatus, campaignId),
+          this.env.DB.prepare(`UPDATE strategic_operations SET status=?1,outcome_json=?2,
+            ends_at=COALESCE(ends_at,unixepoch()),revision=revision+1,updated_at=unixepoch()
+            WHERE campaign_id=?3 AND status NOT IN ('RESOLVED','FAILED')`)
+            .bind(strategicStatus, JSON.stringify(effect.payload), campaignId),
+          this.env.DB.prepare(`INSERT INTO campaign_effect_receipts (
+            idempotency_key,campaign_id,round_number,effect_type,player_unit_id,payload_json
+          ) VALUES (?1,?2,?3,?4,NULL,?5)`)
+            .bind(effect.idempotencyKey, campaignId, round, effect.type, JSON.stringify(effect.payload)),
+        ]);
+        const applied = await this.env.DB.prepare(`SELECT 1 FROM campaign_results
+          WHERE campaign_id=?1 AND effect_idempotency_key=?2 LIMIT 1`)
+          .bind(campaignId, effect.idempotencyKey).first();
+        if (!applied) throw new Error("CAMPAIGN_RESULT_NOT_APPLIED");
+        await this.ctx.storage.delete(storageKey);
+        appliedCount += 1;
+        continue;
+      }
+      if (!effect.unitId) throw new Error("PERSISTENT_EFFECT_INVALID");
       const statements: D1PreparedStatement[] = [];
       if (effect.type === "UNIT_DESTROYED") {
         statements.push(this.env.DB.prepare(`UPDATE player_units SET status = 'DESTROYED',

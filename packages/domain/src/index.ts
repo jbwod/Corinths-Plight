@@ -866,16 +866,26 @@ export interface CampaignObjectiveSummary {
   status: ObjectiveState["status"];
 }
 
+export interface CampaignRewardSummary {
+  serviceHistory: "RECORDED";
+  requisition: {
+    status: "BALANCE_REQUIRED";
+    amount: null;
+    rulesDecisionId: "RC-V5-016";
+  };
+}
+
 export interface CampaignOutcome {
   result: "VICTORY" | "DEFEAT";
   round: number;
   reason: CampaignOutcomeReason;
   objectives: CampaignObjectiveSummary[];
+  rewards: CampaignRewardSummary;
 }
 
 export interface PendingPersistentEffect {
   idempotencyKey: string;
-  type: "UNIT_DESTROYED" | "UNIT_DAMAGED" | "UNIT_STATE_UPDATED" | "REQUISITION_AWARDED" | "CAMPAIGN_HISTORY";
+  type: "UNIT_DESTROYED" | "UNIT_DAMAGED" | "UNIT_STATE_UPDATED" | "REQUISITION_AWARDED" | "CAMPAIGN_HISTORY" | "CAMPAIGN_RESULT";
   unitId?: string;
   payload: Record<string, unknown>;
   status: "PENDING" | "APPLIED" | "FAILED";

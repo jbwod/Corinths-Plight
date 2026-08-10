@@ -37,6 +37,14 @@ describe("campaign directory", () => {
       maximum_players: 8,
       member_count: 2,
       deployment_count: 1,
+      result: "VICTORY",
+      outcome_reason: "FINAL_ROUND_PRIMARY_HELD",
+      result_round: 4,
+      rewards_json: JSON.stringify({
+        serviceHistory: "RECORDED",
+        requisition: { status: "BALANCE_REQUIRED", amount: null, rulesDecisionId: "RC-V5-016" },
+      }),
+      resolved_at: 42,
     }]));
 
     expect(response?.status).toBe(200);
@@ -46,6 +54,16 @@ describe("campaign directory", () => {
         scenarioAvailable: true,
         canEnter: true,
         memberCount: 2,
+        outcome: {
+          result: "VICTORY",
+          reason: "FINAL_ROUND_PRIMARY_HELD",
+          round: 4,
+          rewards: {
+            serviceHistory: "RECORDED",
+            requisition: { status: "BALANCE_REQUIRED", amount: null, rulesDecisionId: "RC-V5-016" },
+          },
+          resolvedAt: 42,
+        },
       })],
       availableCampaigns: [],
     });

@@ -29,6 +29,8 @@ const supportEvents = new Set([
   "AIR_DROP_COMPLETED",
   "AIR_DROP_FAILED",
   "WEAPON_RELOADED",
+  "MEDICAL_SUPPLY_RELOADED",
+  "UNIT_HEALED",
   "HEX_SCANNED",
   "DRONE_DEPLOYED",
   "STRUCTURE_COMPLETED",
@@ -152,6 +154,10 @@ export function describeCampaignReportEvent(
       return `${actor}'s air drop failed: ${String(payload.reason ?? "drop zone unavailable")}.`;
     case "WEAPON_RELOADED":
       return `${actor} reloaded ${String(payload.weaponId ?? "a weapon")}.`;
+    case "MEDICAL_SUPPLY_RELOADED":
+      return `${actor} restored Medical Supply to ${numberValue(payload.medicalSupplyAfter)}.`;
+    case "UNIT_HEALED":
+      return `${actor} restored ${numberValue(payload.amount)} strength to ${target}.`;
     case "HEX_SCANNED":
       return `${actor} scanned hex ${coordLabel(payload.targetHex) ?? "unknown"}.`;
     case "DRONE_DEPLOYED":
