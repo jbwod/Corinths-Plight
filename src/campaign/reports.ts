@@ -137,8 +137,13 @@ export function describeCampaignReportEvent(
       const destination = coordLabel(payload.to);
       return `${actor} moved${destination ? ` to hex ${destination}` : " along its plotted route"}.`;
     }
-    case "UNIT_BLOCKED":
-      return `${actor} was blocked${typeof payload.at === "string" ? ` at ${payload.at}` : " during movement"}.`;
+    case "UNIT_BLOCKED": {
+      const where = typeof payload.at === "string" ? ` at ${payload.at}` : " during movement";
+      const increment = typeof payload.distanceIncrement === "number" ? ` after ${payload.distanceIncrement} distance` : "";
+      if (payload.reason === "HOSTILE_ROUTE_CONTEST") return `${actor} met an opposing ground formation${where}${increment}; both stopped before entering.`;
+      if (payload.reason === "HOSTILE_FORMATION") return `${actor} halted before an occupied hostile position${where}${increment}.`;
+      return `${actor} was blocked${where}${increment}.`;
+    }
     case "UNIT_DUG_IN":
       return `${actor} dug in at hex ${coordLabel(payload.position) ?? "unknown"} for +2 Defense.`;
     case "UNIT_DUG_OUT":

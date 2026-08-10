@@ -107,6 +107,14 @@ function formatEvent(event: CampaignEvent): string {
   if (typeof payload.summary === "string") return payload.summary;
   if (event.type === "ORDER_SUBMITTED") return `Order ${String(payload.lifecycle ?? "saved").toLowerCase()} for ${event.actor ?? "unit"}.`;
   if (event.type === "UNIT_MOVED") return `${event.actor ?? "Unit"} completed its plotted movement.`;
+  if (event.type === "UNIT_BLOCKED") {
+    const increment = typeof payload.distanceIncrement === "number" ? ` after ${payload.distanceIncrement} distance` : "";
+    return payload.reason === "HOSTILE_ROUTE_CONTEST"
+      ? `${event.actor ?? "Unit"} met an opposing formation${increment}; both halted.`
+      : payload.reason === "HOSTILE_FORMATION"
+        ? `${event.actor ?? "Unit"} halted before a hostile formation${increment}.`
+        : `${event.actor ?? "Unit"} was blocked${increment}.`;
+  }
   if (event.type === "UNIT_DUG_IN") return `${event.actor ?? "Unit"} dug in for +2 Defense.`;
   if (event.type === "UNIT_DUG_OUT") return `${event.actor ?? "Unit"} left its prepared position and lost Dig In Defense.`;
   if (event.type === "UNIT_ATTACKED") return `${event.actor ?? "Unit"} engaged ${String(payload.targetId ?? "a hostile")}${payload.coverArmor === 1 ? "; cover added +1 Armor" : ""}${payload.digInDefense === 2 ? "; Dig In added +2 Defense" : ""}.`;

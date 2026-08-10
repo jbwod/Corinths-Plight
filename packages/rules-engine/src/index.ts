@@ -9,6 +9,7 @@ export * from "./forces";
 export * from "./hex";
 export * from "./logistics";
 export * from "./mechanics";
+export * from "./movement";
 export * from "./resolver";
 export * from "./rng";
 export * from "./scenario";

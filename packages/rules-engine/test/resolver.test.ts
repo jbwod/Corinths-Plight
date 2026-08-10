@@ -265,6 +265,35 @@ describe("simultaneous combat and capacity resolution", () => {
     expect(output.state.deployments.find((unit) => unit.id === bravo.id)?.position).toEqual({ q: 0, r: -1 });
   });
 
+  it("persists the legal route prefix and reports the hostile block increment", () => {
+    const mover = makeDeployment("mover", { q: -2, r: 0 }, "ALLIED");
+    const hostile = makeDeployment("hostile", { q: 0, r: 0 }, "ENEMY");
+    const route = [mover.position, { q: -1, r: 0 }, hostile.position];
+    const order = makeOrder(mover, { orderType: "ADVANCE", route, endHex: hostile.position });
+    const state = makeState(
+      [mover, hostile],
+      [makeHex(-2, 0), makeHex(-1, 0), makeHex(0, 0)],
+      [order],
+    );
+
+    const output = resolveRound(makeRoundInput(state, [order]));
+
+    expect(output.state.deployments.find((unit) => unit.id === mover.id)?.position).toEqual({ q: -1, r: 0 });
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "UNIT_MOVED",
+      actor: mover.id,
+      payload: expect.objectContaining({
+        route: [{ q: -2, r: 0 }, { q: -1, r: 0 }],
+        declaredDestination: { q: 0, r: 0 },
+      }),
+    }));
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "UNIT_BLOCKED",
+      actor: mover.id,
+      payload: expect.objectContaining({ reason: "HOSTILE_FORMATION", distanceIncrement: 2 }),
+    }));
+  });
+
   it("rejects a duplicate ATTACK activation instead of resolving either action", () => {
     const attacker = makeDeployment("attacker", { q: 0, r: 0 });
     const target = makeDeployment("target", { q: 1, r: 0 }, "ENEMY");

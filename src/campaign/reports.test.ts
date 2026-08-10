@@ -109,6 +109,15 @@ describe("campaign reports", () => {
       .toBe("ANVIL-2 left its prepared position and lost Dig In Defense.");
   });
 
+  it("explains the distance increment and reason for a movement block", () => {
+    expect(describeCampaignReportEvent(event("UNIT_BLOCKED", {
+      at: "0,0",
+      reason: "HOSTILE_ROUTE_CONTEST",
+      distanceIncrement: 1.5,
+    }, "dep-attacker"), new Map([["dep-attacker", "ROOK-7"]])))
+      .toBe("ROOK-7 met an opposing ground formation at 0,0 after 1.5 distance; both stopped before entering.");
+  });
+
   it("names an arriving enemy wave from its public event payload", () => {
     expect(describeCampaignReportEvent(event("ENEMY_REINFORCEMENTS_ARRIVED", {
       waveId: "k17-wave-2",

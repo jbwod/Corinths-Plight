@@ -20,6 +20,7 @@ import {
 } from "./hex";
 import { cargoSlotsForItem, disembarkCargo, embarkCargo, reloadAmmunition } from "./logistics";
 import { hasDisabledSubsystem, resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
+import { resolveSimultaneousMovement } from "./movement";
 import { resolveEngineerRepair, resolveHealing, resolveSubsystemDamage } from "./forces";
 import {
   applyBombardmentSuppression,
@@ -302,65 +303,48 @@ export function resolveRound(input: RoundInput): RoundOutput {
     deployment.cooldowns = tickCooldowns(deployment.cooldowns);
   }
 
-  const movementOrders = [...validOrders.values()].filter((order) => order.route.length > 1);
-  const contestedDestinations = new Set<string>();
-  const movementByDestination = new Map<string, UnitOrder[]>();
-  for (const order of movementOrders) {
-    const key = coordKey(order.endHex);
-    movementByDestination.set(key, [...(movementByDestination.get(key) ?? []), order]);
-  }
-  for (const [key, incoming] of movementByDestination) {
-    const destination = state.map.find((hex) => coordKey(hex.coord) === key);
-    if (!destination || incoming.length < 2) continue;
-    const incomingIds = new Set(incoming.map((order) => order.unitId));
-    const occupants = state.deployments.filter(
-      (deployment) =>
-        !incomingIds.has(deployment.id) &&
-        deployment.status !== "DESTROYED" &&
-        deployment.status !== "WITHDRAWN" &&
-        (deployment.locationState ?? "ON_MAP") === "ON_MAP" &&
-        sameCoord(deployment.position, destination.coord),
-    ).length;
-    if (occupants + incoming.length > destination.capacity) contestedDestinations.add(key);
-  }
-
   for (const order of validOrders.values()) {
     const deployment = state.deployments.find((candidate) => candidate.id === order.unitId)!;
     deployment.facing = order.facing;
-    if (order.route.length <= 1) continue;
-    if (contestedDestinations.has(coordKey(order.endHex))) {
-      event("UNIT_BLOCKED", deployment.id, {
-        orderId: order.id,
-        at: coordKey(order.endHex),
-        reason: "SIMULTANEOUS_CAPACITY_CONTEST",
-      });
-      continue;
-    }
-    if (!canOccupyHex(order.endHex, deployment.id, state.deployments, state.map)) {
-      event("UNIT_BLOCKED", deployment.id, {
-        orderId: order.id,
-        at: coordKey(order.endHex),
-        reason: "HEX_CAPACITY",
-      });
-      continue;
-    }
-    const from = { ...deployment.position };
-    deployment.position = { ...order.endHex };
+  }
+  const movementOutcomes = resolveSimultaneousMovement(
+    [...validOrders.values()].filter((order) => order.route.length > 1),
+    state.deployments,
+    state.map,
+  );
+  for (const outcome of movementOutcomes) {
+    const deployment = state.deployments.find((candidate) => candidate.id === outcome.unitId)!;
+    const moved = outcome.traversedRoute.length > 1;
+    if (moved) deployment.position = { ...outcome.to };
     if (deployment.statuses.includes("DUG_IN")) {
-      deployment.statuses = deployment.statuses.filter((status) => status !== "DUG_IN");
-      event("UNIT_DUG_OUT", deployment.id, {
-        orderId: order.id,
-        from,
-        reason: "MOVED_FROM_POSITION",
+      if (moved) {
+        deployment.statuses = deployment.statuses.filter((status) => status !== "DUG_IN");
+        event("UNIT_DUG_OUT", deployment.id, {
+          orderId: outcome.orderId,
+          from: outcome.from,
+          reason: "MOVED_FROM_POSITION",
+        });
+      }
+    }
+    if (moved) {
+      const order = validOrders.get(deployment.id)!;
+      event("UNIT_MOVED", deployment.id, {
+        orderId: outcome.orderId,
+        from: outcome.from,
+        to: outcome.to,
+        route: outcome.traversedRoute,
+        declaredDestination: order.endHex,
+        orderType: order.orderType,
       });
     }
-    event("UNIT_MOVED", deployment.id, {
-      orderId: order.id,
-      from,
-      to: deployment.position,
-      route: order.route,
-      orderType: order.orderType,
-    });
+    if (outcome.block) {
+      event("UNIT_BLOCKED", deployment.id, {
+        orderId: outcome.orderId,
+        at: coordKey(outcome.block.at),
+        reason: outcome.block.reason,
+        distanceIncrement: outcome.block.distanceIncrement,
+      });
+    }
   }
 
   for (const order of validOrders.values()) {
