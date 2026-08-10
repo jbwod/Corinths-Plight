@@ -83,7 +83,7 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 | AUD-RULE-007 — cargo/action ledger gaps | P1 | open | High | Normal unload skips occupancy checks; load/unload helpers receive full speed rather than remaining ledger; towing/mixed capacity is lost; airdrop specialist validation is not in the resolver path. | CP-201/CP-503/CP-505 |
 | AUD-RULE-008 — transport destruction unadjudicated | DECISION/P1 | blocked | High | Destroyed carrier leaves cargo attached; RC-V5-030 has no approved consequence. | DEC-008/CP-503 |
 | AUD-UI-001 — authoritative-looking local fallbacks | P0 | open | High | Tactical begins with local demo state; Forces replaces failed APIs with `SHOWCASE_FORCE`; strategic replaces required failures with a full local snapshot (`src/App.tsx:62-151`; `ForcesView.tsx:661-704`; `src/strategic/api.ts:625-703`). | CP-208/CP-305/CP-703 |
-| AUD-UI-002 — hard-coded production context | P0 | open | High | `demo-user`, `outpost-k17`, Spearhead, Hammer, Resolute/33rd and fixed round/unit IDs appear throughout App, Forces, DeploymentPlanner and strategic adapters. | CP-208/CP-401/CP-703 |
+| AUD-UI-002 — hard-coded production context | P0 | partial | High | Tactical campaign and deployment selection now come from authenticated directories; demo headers exist only in development. Forces and strategic showcase adapters still contain fixed Resolute/33rd/fixture identities, while the local tactical fixture retains fixed round/unit IDs by design. | CP-208/CP-401/CP-703 |
 | AUD-UI-003 — client fabricates tactical events | P0 | open | High | After order save, App creates local event ID/sequence/actor/payload/time/visibility (`src/App.tsx:360-376`) instead of consuming journal truth. | CP-403/CP-406 |
 | AUD-UI-004 — equipment selection does not mutate purchase | P1 | open | High | Forces requisition shows equipment checkboxes but omits `equipmentIds` from purchase payload (`ForcesView.tsx:504-550,583,636-644`). | CP-204/CP-208 |
 | AUD-AUTH-001 — auth/invitation operations are local-only and incomplete | P0 | partial | High | Local migration `0008` adds bounded hourly terminal-record cleanup, invitation actor/Battalion/recipient/IP limits, pseudonymized audit, a durable immediate-attempt/retry outbox and terminal invite PII retention. It is not deployed; idle/absolute session TTL, device/session controls, opt-out, production timing/abuse monitoring and broader integration evidence remain open. | CP-102/CP-104 |
@@ -190,7 +190,7 @@ No public campaign directory/create/join/leave, profile/settings/session-managem
 | Forces initial-equipment checkboxes | false front | Selection is omitted from purchase command. |
 | Forces rename/history | missing UI | Backend routes exist. |
 | Forces abilities | catalogue-only | Explicitly labels resolver deferred. |
-| Deployment selection/method/zone/save/commit | partial | Real service flow but fixed Spearhead/Hammer/demo IDs and incomplete lift/scenario creation. |
+| Deployment selection/method/zone/save/commit | partial | Real authenticated campaign selection, owned-unit validation and commit flow; broader Battlegroup/lift/scenario choices remain incomplete. |
 | Command/Battalion/ship/operation/map navigation | implemented read UX | Strategic fallback can replace failure with local fixture. |
 | Battalion rank/member/Battlegroup administration | missing/read-only | Organisation UI projects data only. |
 | Ship configure/upgrade/movement/transfer/consumption/combat | blocked/notice-only | Explicit deferred controls. |

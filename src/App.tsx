@@ -67,6 +67,7 @@ interface CampaignDirectoryEntry {
   role: string;
   scenarioAvailable: boolean;
   canEnter: boolean;
+  canJoin?: boolean;
 }
 type Notice = { tone: "info" | "success" | "danger"; message: string };
 
@@ -158,8 +159,14 @@ function GameApp() {
   const loadCampaignDirectory = useCallback(async (): Promise<string | undefined> => {
     const response = await fetch("/api/campaigns", { headers: DEMO_HEADERS });
     if (!response.ok) throw new Error(await errorMessage(response));
-    const body = await response.json() as { campaigns?: CampaignDirectoryEntry[] };
-    const entries = Array.isArray(body.campaigns) ? body.campaigns : [];
+    const body = await response.json() as {
+      campaigns?: CampaignDirectoryEntry[];
+      availableCampaigns?: CampaignDirectoryEntry[];
+    };
+    const entries = [
+      ...(Array.isArray(body.campaigns) ? body.campaigns : []),
+      ...(Array.isArray(body.availableCampaigns) ? body.availableCampaigns : []),
+    ];
     setCampaignDirectory(entries);
     const selected = entries.find((entry) => entry.campaignId === campaignId && entry.canEnter)
       ?? entries.find((entry) => entry.canEnter);
@@ -412,6 +419,25 @@ function GameApp() {
     }
   }
 
+  async function joinCampaign(joinCampaignId: string) {
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/campaigns/${joinCampaignId}/join`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(DEMO_HEADERS ?? {}) },
+        body: JSON.stringify({ commandId: `join-campaign-${crypto.randomUUID()}` }),
+      });
+      if (!response.ok) throw new Error(await errorMessage(response));
+      await loadCampaignDirectory();
+      navigate("Deployment");
+      setNotice({ tone: "success", message: "Campaign joined. Deploy a force to open your tactical command channel." });
+    } catch (error) {
+      setNotice({ tone: "danger", message: error instanceof Error ? error.message : "Campaign join failed." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const visibleTimeline =
     timelineMode === "EVENTS"
       ? [...campaign.events].sort((left, right) => right.timestamp - left.timestamp).slice(0, 8)
@@ -532,7 +558,15 @@ function GameApp() {
             <span className="eyebrow">CAMPAIGN DIRECTORY</span>
             <h2>No playable campaign assigned</h2>
             <p>Your account is signed in, but none of your campaign memberships currently has authored tactical content.</p>
-            <p>Join an active operation from Battalion or return after command opens a deployment.</p>
+            {campaignDirectory.some((entry) => entry.canJoin) ? (
+              <div className="composer-actions">
+                {campaignDirectory.filter((entry) => entry.canJoin).map((entry) => (
+                  <button key={entry.campaignId} disabled={busy} onClick={() => void joinCampaign(entry.campaignId)}>
+                    JOIN {entry.name.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            ) : <p>Join an active operation from Battalion or return after command opens a deployment.</p>}
           </section>
         </main>
       ) : (

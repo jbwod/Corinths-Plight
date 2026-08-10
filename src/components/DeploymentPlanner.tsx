@@ -3,15 +3,15 @@ import type { DeploymentMethodId, EffectiveUnit } from "../../packages/domain/sr
 import { Glyph } from "./Glyph";
 
 const DEMO_USER = "demo-user";
-const CAMPAIGN_ID = "operation-spearhead";
-const headers = { "x-demo-user": DEMO_USER };
+const headers = import.meta.env.DEV ? { "x-demo-user": DEMO_USER } : undefined;
 
 type Unit = { unitId: string; callsign: string; name: string; definitionId: string; status: string; locationState: string };
 type Loadout = { unitId: string; unitVersion: number; loadout: { id: string; revision: number; status: string }; effectiveUnit: EffectiveUnit | null; validation: { valid: boolean; errors: Array<{ code: string; message: string }> } };
 type Method = { id: DeploymentMethodId; name: string; implementation_status: string };
 type Zone = { id: string; hex: { q: number; r: number }; allowedMethods: DeploymentMethodId[]; environment: string[] };
 type Context = { campaignId: string; battalionId: string; canCommit: boolean; methods: Method[]; insertionZones: Zone[] };
-type PlanResponse = { planId: string; revision: number; status: string; validation: { valid: boolean; errors: Array<{ code: string; message: string; entityId?: string }>; warnings: Array<{ code: string; message: string }> } };
+type PlanResponse = { planId: string; campaignId?: string; revision: number; status: string; validation: { valid: boolean; errors: Array<{ code: string; message: string; entityId?: string }>; warnings: Array<{ code: string; message: string }> } };
+type CampaignOption = { campaignId: string; name: string; status: string; scenarioAvailable: boolean };
 
 function collection(payload: unknown): unknown[] {
   if (Array.isArray(payload)) return payload;
@@ -28,7 +28,7 @@ async function message(response: Response): Promise<string> {
 }
 
 export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "info" | "success" | "danger"; message: string }) => void }) {
-  const [mode, setMode] = useState<"LOADING" | "LIVE" | "SHOWCASE">("LOADING");
+  const [mode, setMode] = useState<"LOADING" | "LIVE" | "ERROR">("LOADING");
   const [units, setUnits] = useState<Unit[]>([]);
   const [loadouts, setLoadouts] = useState<Map<string, Loadout>>(new Map());
   const [context, setContext] = useState<Context>();
@@ -38,12 +38,24 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
   const [carrierId, setCarrierId] = useState("");
   const [plan, setPlan] = useState<PlanResponse>();
   const [busy, setBusy] = useState(false);
+  const [campaignId, setCampaignId] = useState("");
+  const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
+  const [planId] = useState(() => `deployment-plan-${crypto.randomUUID()}`);
 
   const load = useCallback(async () => {
     try {
+      const directoryResponse = await fetch("/api/campaigns", { headers });
+      if (!directoryResponse.ok) throw new Error("Campaign directory is unavailable.");
+      const directory = await directoryResponse.json() as { campaigns?: CampaignOption[] };
+      const options = (directory.campaigns ?? []).filter((campaign) =>
+        campaign.scenarioAvailable && ["RECRUITING", "ACTIVE", "PAUSED"].includes(campaign.status),
+      );
+      const selectedCampaignId = options.find((campaign) => campaign.campaignId === campaignId)?.campaignId
+        ?? options[0]?.campaignId;
+      if (!selectedCampaignId) throw new Error("Join an authored campaign before planning a deployment.");
       const [forcesResponse, contextResponse, plansResponse] = await Promise.all([
         fetch("/api/forces", { headers }),
-        fetch(`/api/deployment-context?campaignId=${encodeURIComponent(CAMPAIGN_ID)}`, { headers }),
+        fetch(`/api/deployment-context?campaignId=${encodeURIComponent(selectedCampaignId)}`, { headers }),
         fetch("/api/deployment-plans", { headers }),
       ]);
       if (!forcesResponse.ok || !contextResponse.ok || !plansResponse.ok) throw new Error("Authoritative deployment APIs are unavailable.");
@@ -59,18 +71,20 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
       }));
       const nextContext = await contextResponse.json() as Context;
       const plans = await plansResponse.json() as { plans?: Array<PlanResponse & { id?: string }> };
-      const current = plans.plans?.find((candidate) => candidate.planId === `deployment-plan-spearhead-${DEMO_USER}` || candidate.id === `deployment-plan-spearhead-${DEMO_USER}`);
+      const current = plans.plans?.find((candidate) => candidate.campaignId === selectedCampaignId && candidate.status !== "COMMITTED");
+      setCampaigns(options);
+      setCampaignId(selectedCampaignId);
       setUnits(nextUnits);
       setLoadouts(nextLoadouts);
       setContext(nextContext);
       setZoneId((currentValue) => currentValue || nextContext.insertionZones[0]?.id || "");
-      if (current) setPlan({ ...current, planId: current.planId ?? current.id ?? `deployment-plan-spearhead-${DEMO_USER}` });
+      if (current) setPlan({ ...current, planId: current.planId ?? current.id ?? planId });
       setMode("LIVE");
     } catch (error) {
-      setMode("SHOWCASE");
-      onNotice({ tone: "info", message: `${error instanceof Error ? error.message : "Deployment service offline"} Planner is read-only until an authenticated campaign context is available.` });
+      setMode("ERROR");
+      onNotice({ tone: "danger", message: error instanceof Error ? error.message : "Deployment service is unavailable." });
     }
-  }, [onNotice]);
+  }, [campaignId, onNotice, planId]);
 
   useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);
 
@@ -96,9 +110,8 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
         body: JSON.stringify({
           commandId: crypto.randomUUID(),
           expectedRevision: plan?.revision ?? 0,
-          planId: `deployment-plan-spearhead-${DEMO_USER}`,
-          campaignId: CAMPAIGN_ID,
-          battlegroupId: "battlegroup-hammer",
+          planId: plan?.planId ?? planId,
+          campaignId,
           method,
           insertionZoneId: zoneId,
           route: method === "PARADROP" ? [{ q: -5, r: 2 }, zones.find((zone) => zone.id === zoneId)?.hex, { q: 2, r: -2 }].filter(Boolean) : [],
@@ -136,10 +149,15 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
 
   return <main className="deployment-layout">
     <header className="deployment-commandbar">
-      <div><span className="eyebrow">OPERATION SPEARHEAD // MUSTER CONTROL</span><h1>Deployment planner</h1><p>Force package, lift assignment and insertion are validated against pinned server rules.</p></div>
+      <div><span className="eyebrow">CAMPAIGN MUSTER CONTROL</span><h1>Deployment planner</h1><p>Force package, lift assignment and insertion are validated against pinned server rules.</p></div>
       <span className={`registry-mode ${mode.toLowerCase()}`}><i /> {mode === "LIVE" ? "PLANNER LIVE" : mode}</span>
       <div className="deployment-verdict"><small>PLAN STATE</small><strong>{plan?.status ?? "UNSAVED"}</strong><span>{plan?.validation.valid ? "ALL GATES SATISFIED" : `${plan?.validation.errors.length ?? 0} BLOCKERS`}</span></div>
     </header>
+    {campaigns.length > 1 ? <label className="panel" style={{ padding: "1rem" }}>CAMPAIGN
+      <select value={campaignId} onChange={(event) => { setCampaignId(event.target.value); setPlan(undefined); setSelected([]); }}>
+        {campaigns.map((campaign) => <option key={campaign.campaignId} value={campaign.campaignId}>{campaign.name}</option>)}
+      </select>
+    </label> : null}
     <section className="deployment-steps panel">
       <article><b>01</b><div><strong>Force package</strong><small>Select persistent units and their locked revisions</small></div></article>
       <article><b>02</b><div><strong>Lift & capacity</strong><small>Assign rules-defined carrier manifests</small></div></article>

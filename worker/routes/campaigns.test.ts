@@ -4,14 +4,19 @@ import type { Env } from "../env";
 import { routeCampaignDirectoryRequest } from "./campaigns";
 
 function env(rows: unknown[]): Env {
-  const statement = {
-    bind: () => statement,
-    all: async () => ({ results: rows, success: true }),
+  let prepareIndex = 0;
+  const prepare = () => {
+    const resultRows = prepareIndex++ === 0 ? rows : [];
+    const statement = {
+      bind: () => statement,
+      all: async () => ({ results: resultRows, success: true }),
+    };
+    return statement;
   };
   return {
     ENVIRONMENT: "development",
     ALLOW_DEMO_AUTH: "true",
-    DB: { prepare: () => statement } as unknown as D1Database,
+    DB: { prepare } as unknown as D1Database,
   } as Env;
 }
 
@@ -31,6 +36,7 @@ describe("campaign directory", () => {
       minimum_players: 1,
       maximum_players: 8,
       member_count: 2,
+      deployment_count: 1,
     }]));
 
     expect(response?.status).toBe(200);
@@ -41,6 +47,7 @@ describe("campaign directory", () => {
         canEnter: true,
         memberCount: 2,
       })],
+      availableCampaigns: [],
     });
   });
 

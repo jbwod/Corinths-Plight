@@ -95,6 +95,48 @@ ON CONFLICT(battalion_id) DO UPDATE SET
   member_capacity = excluded.member_capacity,
   creation_cost = 0;
 
+-- Public foundation operation available to newly onboarded commanders. The
+-- authored tactical content is versioned in the Worker by this map source key.
+INSERT INTO planets (id,name,strategic_coord_json,environment_json,war_state_json)
+VALUES (
+  'planet-corinth','Corinth','{"q":17,"r":-8}',
+  '{"biome":"TEMPERATE_FRONTIER","contentPack":"foundation-public-v1"}',
+  '{"contested":true,"primaryThreat":"BUG_SWARM"}'
+)
+ON CONFLICT(id) DO UPDATE SET
+  environment_json = excluded.environment_json,
+  war_state_json = excluded.war_state_json;
+
+INSERT INTO campaigns (
+  id,planet_id,ruleset_id,name,status,round_duration_ms,map_source_key,
+  minimum_players,maximum_players,created_by,force_policy_json,strategic_status
+) VALUES (
+  'campaign-k17-relay','planet-corinth','ruleset-v5-core-curated-1',
+  'K-17: Hold the Relay','RECRUITING',300000,'fixture/outpost-k17',
+  1,500,'system-onboarding-director',
+  '{"allowedDefinitions":["unit-infantry-squad","unit-light-vehicle","unit-main-battle-tank"],"maximumUnits":8}',
+  'MUSTERING'
+)
+ON CONFLICT(id) DO UPDATE SET
+  name = excluded.name,
+  status = CASE WHEN campaigns.status IN ('COMPLETE','FAILED') THEN campaigns.status ELSE excluded.status END,
+  round_duration_ms = excluded.round_duration_ms,
+  map_source_key = excluded.map_source_key,
+  force_policy_json = excluded.force_policy_json;
+
+INSERT INTO campaign_insertion_zones (
+  id,campaign_id,hex_q,hex_r,allowed_methods_json,status,environment_json
+) VALUES (
+  'k17-relay-western-approach','campaign-k17-relay',-4,1,
+  '["STANDARD_GROUND"]','OPEN','["CLEAR_APPROACH"]'
+)
+ON CONFLICT(id) DO UPDATE SET
+  hex_q = excluded.hex_q,
+  hex_r = excluded.hex_r,
+  allowed_methods_json = excluded.allowed_methods_json,
+  status = excluded.status,
+  environment_json = excluded.environment_json;
+
 -- Existing verified human accounts enter the guided flow on rollout. Local
 -- fixtures and system identities use the reserved .invalid suffix and remain
 -- untouched.

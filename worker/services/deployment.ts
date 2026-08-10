@@ -32,7 +32,8 @@ function parseJson<T>(value: string | null | undefined, fallback: T): T {
 }
 
 function canCommand(role: string, campaignRole: string): boolean {
-  return role === "ADMIN" || role === "BATTALION_COMMAND" || campaignRole === "GM" || campaignRole === "BATTALION_COMMAND";
+  return role === "ADMIN" || role === "BATTALION_COMMAND" ||
+    campaignRole === "GM" || campaignRole === "BATTALION_COMMAND" || campaignRole === "PLAYER";
 }
 
 function receiptReplay(
