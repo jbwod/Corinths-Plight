@@ -21,6 +21,7 @@ This document records the narrow decisions used by the equipment/loadout/deploym
 15. Rear geometry only creates a flanking benefit for tagged ground targets. A ground vehicle ignores Armor from the direct rear but retains unrelated Defense. Dug-in ground infantry retains Armor and loses only Dig In Defense. Aerospace, VTOL and orbital targets neither gain nor suffer rear-attack benefits.
 16. Terrain Advantage compares authoritative scenario-map elevation at the firing and target hexes. A ground attacker strictly above a ground target adds +1 to the damage result before the current-FS cap and mitigation. Equal/lower elevation and aerospace, VTOL or orbital participation give no modifier.
 17. Dig In is a server-owned Standard Action for the governed Infantry, Medic and Engineer profiles. It costs the unit's full Speed, therefore requires a Hold route, applies `DUG_IN` for `+2 Defense`, survives a blocked movement attempt, and ends only after the unit actually changes hex. A direct rear ground attack excludes only this `+2` source.
+18. Personnel in a generated terrain/structure profile with `infantryArmor: 1`, or an explicitly marked scenario building hex, gain one non-stacking Cover Armor when attacked from outside that hex. Armor Piercing applies to the combined Armor value. Vehicles and co-located attackers receive no cover adjustment. Directional sandbag/cover edges remain deferred until the map contract can represent the protected side.
 
 ## Explicitly unresolved
 

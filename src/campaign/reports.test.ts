@@ -94,6 +94,21 @@ describe("campaign reports", () => {
     )).toBe("ROOK-7 attacked CHITIN-4: 3 damage, high ground added +1, armour penetrated.");
   });
 
+  it("explains cover, Dig In, and prepared-position transitions", () => {
+    expect(describeCampaignReportEvent(
+      event("UNIT_ATTACKED", {
+        targetId: "dep-target",
+        healthLoss: 0,
+        coverArmor: 1,
+        digInDefense: 2,
+      }, "dep-attacker"),
+      new Map([["dep-attacker", "ROOK-7"], ["dep-target", "ANVIL-2"]]),
+    )).toBe("ROOK-7 attacked ANVIL-2: 0 damage, cover added +1 Armor, Dig In added +2 Defense.");
+    expect(campaignReportGroup(event("UNIT_DUG_IN"))).toBe("MOVEMENT");
+    expect(describeCampaignReportEvent(event("UNIT_DUG_OUT", {}, "dep-target"), new Map([["dep-target", "ANVIL-2"]])))
+      .toBe("ANVIL-2 left its prepared position and lost Dig In Defense.");
+  });
+
   it("names an arriving enemy wave from its public event payload", () => {
     expect(describeCampaignReportEvent(event("ENEMY_REINFORCEMENTS_ARRIVED", {
       waveId: "k17-wave-2",

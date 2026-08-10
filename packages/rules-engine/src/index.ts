@@ -1,6 +1,7 @@
 export * from "./catalogue";
 export * from "./catalogue-runtime";
 export * from "./cargo-hydration";
+export * from "./cover";
 export * from "./demo";
 export * from "./deployment";
 export * from "./equipment";

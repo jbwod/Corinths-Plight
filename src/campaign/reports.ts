@@ -21,7 +21,7 @@ export const CAMPAIGN_REPORT_GROUPS: CampaignReportGroup[] = [
   "COMMAND",
 ];
 
-const movementEvents = new Set(["UNIT_MOVED", "UNIT_BLOCKED"]);
+const movementEvents = new Set(["UNIT_MOVED", "UNIT_BLOCKED", "UNIT_DUG_IN", "UNIT_DUG_OUT"]);
 const combatEvents = new Set(["DICE_ROLLED", "UNIT_ATTACKED", "SUBSYSTEM_MALFUNCTIONED", "DAMAGE_APPLIED", "UNIT_DESTROYED"]);
 const supportEvents = new Set([
   "CARGO_LOADED",
@@ -139,13 +139,17 @@ export function describeCampaignReportEvent(
     }
     case "UNIT_BLOCKED":
       return `${actor} was blocked${typeof payload.at === "string" ? ` at ${payload.at}` : " during movement"}.`;
+    case "UNIT_DUG_IN":
+      return `${actor} dug in at hex ${coordLabel(payload.position) ?? "unknown"} for +2 Defense.`;
+    case "UNIT_DUG_OUT":
+      return `${actor} left its prepared position and lost Dig In Defense.`;
     case "DICE_ROLLED": {
       const raw = numberValue(payload.raw);
       const modified = numberValue(payload.modified);
       return `${actor} rolled ${raw}${modified !== raw ? `, modified to ${modified}` : ""}.`;
     }
     case "UNIT_ATTACKED":
-      return `${actor} attacked ${target}: ${numberValue(payload.healthLoss)} damage${payload.highGroundModifier === 1 ? ", high ground added +1" : ""}${payload.rapidFireMultiplier === 2 ? ", Rapid Fire doubled the damage result" : ""}${payload.penetrated === true ? ", armour penetrated" : ""}.`;
+      return `${actor} attacked ${target}: ${numberValue(payload.healthLoss)} damage${payload.highGroundModifier === 1 ? ", high ground added +1" : ""}${payload.coverArmor === 1 ? ", cover added +1 Armor" : ""}${payload.digInDefense === 2 ? ", Dig In added +2 Defense" : ""}${payload.rapidFireMultiplier === 2 ? ", Rapid Fire doubled the damage result" : ""}${payload.penetrated === true ? ", armour penetrated" : ""}.`;
     case "SUBSYSTEM_MALFUNCTIONED": {
       const affected = Array.isArray(payload.affectedSubsystemIds)
         ? payload.affectedSubsystemIds.map(String).join(" and ")

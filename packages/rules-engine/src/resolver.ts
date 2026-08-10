@@ -850,6 +850,8 @@ export function resolveRound(input: RoundInput): RoundOutput {
         targetId: target.id,
         weaponId: weapon.id,
         armor: result.targetArmor,
+        coverArmor: result.coverArmor,
+        coverSources: result.coverSources,
         effectiveArmor: result.effectiveArmor,
         defense: result.targetDefense,
         digInDefense: result.digInDefense,

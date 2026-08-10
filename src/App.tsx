@@ -17,6 +17,7 @@ import {
   getUnitClass,
   hexDistance,
   projectCampaignState,
+  resolveTacticalCover,
   shortestPath,
 } from "../packages/rules-engine/src";
 import brandMark from "../app/static/img/brand-icon.gif";
@@ -108,7 +109,7 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "UNIT_MOVED") return `${event.actor ?? "Unit"} completed its plotted movement.`;
   if (event.type === "UNIT_DUG_IN") return `${event.actor ?? "Unit"} dug in for +2 Defense.`;
   if (event.type === "UNIT_DUG_OUT") return `${event.actor ?? "Unit"} left its prepared position and lost Dig In Defense.`;
-  if (event.type === "UNIT_ATTACKED") return `${event.actor ?? "Unit"} engaged ${String(payload.targetId ?? "a hostile")}.`;
+  if (event.type === "UNIT_ATTACKED") return `${event.actor ?? "Unit"} engaged ${String(payload.targetId ?? "a hostile")}${payload.coverArmor === 1 ? "; cover added +1 Armor" : ""}${payload.digInDefense === 2 ? "; Dig In added +2 Defense" : ""}.`;
   if (event.type === "DAMAGE_APPLIED") return `${event.actor ?? "Unit"} lost ${String(payload.loss ?? "?")} strength.`;
   if (event.type === "UNIT_HEALED") return `${event.actor ?? "Medic"} restored ${String(payload.amount ?? "?")} strength to ${String(payload.targetId ?? "an allied unit")}.`;
   if (event.type === "UNIT_REPAIRED") return `${event.actor ?? "Engineer"} repaired ${String(payload.targetId ?? "an allied vehicle")}.`;
@@ -315,6 +316,13 @@ function GameApp() {
   const attackerIsGround = selectedUnit ? !selectedUnit.tags?.some((tag) => tag === "AEROSPACE" || tag === "VTOL" || tag === "ORBITAL") : false;
   const targetIsGround = targetUnit ? !targetUnit.tags?.some((tag) => tag === "AEROSPACE" || tag === "VTOL" || tag === "ORBITAL") : false;
   const highGroundAdvantage = Boolean(attackerIsGround && targetIsGround && attackerHex && targetHex && attackerHex.elevation > targetHex.elevation);
+  const targetCover = selectedUnit && targetUnit
+    ? resolveTacticalCover(
+        { ...selectedUnit, position: draftedRoute.at(-1) ?? selectedUnit.position },
+        targetUnit,
+        campaign.map,
+      )
+    : { armor: 0 as const, sources: [] };
   const coLocatedAllies = selectedUnit ? campaign.deployments.filter((deployment) =>
     deployment.id !== selectedUnit.id &&
     deployment.side === selectedUnit.side &&
@@ -1021,6 +1029,7 @@ function GameApp() {
                     </div>
                     {targetOutOfRange && <p className="validation danger">Target is beyond the selected weapon's range.</p>}
                     {highGroundAdvantage && <p className="validation">HIGH GROUND: this attack gains +1 to its damage result before mitigation.</p>}
+                    {targetCover.armor === 1 && <p className="validation">TARGET IN COVER: +1 Armor applies from {targetCover.sources.map((source) => source.replaceAll("-", " ")).join(" + ")}.</p>}
                     {rapidFireReady && targetIsHorde && <p className="validation">RAPID FIRE: modified damage doubles against this Horde target before mitigation.</p>}
                     {weaponSystemsDisabled && <p className="validation danger">Weapon systems offline. An Engineer must repair this unit before it can fire.</p>}
                     {orderType === "RUSH" && <p className="validation">Rush doubles received damage and forbids attacks.</p>}

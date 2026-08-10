@@ -11,6 +11,7 @@ import type {
   WeaponProfile,
 } from "../../domain/src";
 import { hasLineOfSight, hexDistance, isRearAttack } from "./hex";
+import { resolveTacticalCover } from "./cover";
 import type { SeededRandom } from "./rng";
 
 export interface AttackRoll {
@@ -25,6 +26,8 @@ export interface AttackCalculation {
   roll?: AttackRoll;
   rearAttack: boolean;
   targetArmor: number;
+  coverArmor: 0 | 1;
+  coverSources: string[];
   effectiveArmor: number;
   targetDefense: number;
   digInDefense: 0 | 2;
@@ -130,7 +133,8 @@ export function resolveAttackRoll(
   const groundInfantryRear = rearGeometry && groundTarget && (targetTags.has("INFANTRY") || targetTags.has("PERSONNEL"));
   const rearAttack = groundVehicleRear || groundInfantryRear;
   const targetArmor = target.stats.armor;
-  const effectiveArmor = groundVehicleRear ? 0 : Math.max(0, targetArmor - weapon.armorPiercing);
+  const cover = resolveTacticalCover(attacker, target, hexes);
+  const effectiveArmor = groundVehicleRear ? 0 : Math.max(0, targetArmor + cover.armor - weapon.armorPiercing);
   const digInDefense: 0 | 2 = groundTarget && !groundInfantryRear && (targetTags.has("INFANTRY") || targetTags.has("PERSONNEL")) && target.statuses.includes("DUG_IN") ? 2 : 0;
   const baseDefense = target.stats.defense + digInDefense;
   const targetDefense = Math.max(0, baseDefense - (target.bombardmentSuppression?.stacks ?? 0));
@@ -141,6 +145,8 @@ export function resolveAttackRoll(
       ...targetCheck,
       rearAttack,
       targetArmor,
+      coverArmor: cover.armor,
+      coverSources: cover.sources,
       effectiveArmor,
       targetDefense,
       digInDefense,
@@ -173,6 +179,8 @@ export function resolveAttackRoll(
     roll: { raw, modified, capped },
     rearAttack,
     targetArmor,
+    coverArmor: cover.armor,
+    coverSources: cover.sources,
     effectiveArmor,
     targetDefense,
     digInDefense,

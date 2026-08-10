@@ -8,6 +8,7 @@ import type {
 } from "../../domain/src";
 import { RULESET_VERSION } from "../../domain/src";
 import { getUnitClass } from "./catalogue";
+import { INFANTRY_COVER_ARMOR_1 } from "./cover";
 import { ENGINE_VERSION } from "./resolver";
 
 const objectiveCoordinates = new Map([
@@ -40,7 +41,10 @@ function makeHex(q: number, r: number): BattlefieldHex {
     structureIds: q === 0 && r === 0 ? ["structure-outpost-k17"] : [],
     objectiveId: objectiveCoordinates.get(`${q},${r}`),
     control: q < -2 ? "ALLIED" : q > 2 ? "ENEMY" : "NEUTRAL",
-    environment: pattern % 9 === 0 ? ["ASH_STORM_EXPOSED"] : [],
+    environment: [
+      ...(pattern % 9 === 0 ? ["ASH_STORM_EXPOSED"] : []),
+      ...(q === 0 && r === 0 ? [INFANTRY_COVER_ARMOR_1] : []),
+    ],
     visibility: q <= 1 ? "OBSERVED" : "UNKNOWN",
   };
 }

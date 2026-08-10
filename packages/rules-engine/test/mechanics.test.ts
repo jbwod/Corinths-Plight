@@ -262,6 +262,23 @@ describe("armor, AP, rear arcs, Hits, and FS caps", () => {
     });
   });
 
+  it("adds one non-stacking Armor for personnel attacked from outside forest cover", () => {
+    const attacker = makeDeployment("attacker", { q: 0, r: 0 });
+    const target = makeDeployment("target", { q: 1, r: 0 }, "ENEMY", {
+      tags: ["GROUND", "PERSONNEL", "INFANTRY"],
+      stats: { healthModel: "FORCE_STRENGTH", maxHealth: 6, armor: 0, defense: 0 },
+      currentHealth: 6,
+    });
+    const forestMap = [makeHex(0, 0), makeHex(1, 0, { terrainId: "terrain-forest" })];
+
+    expect(resolveAttackRoll(attacker, target, { ...cannon, armorPiercing: 0 }, forestMap, fixedRandom(1))).toMatchObject({
+      targetArmor: 0,
+      coverArmor: 1,
+      effectiveArmor: 1,
+      threshold: 1,
+    });
+  });
+
   it("does not grant rear-attack benefits against aerospace targets", () => {
     const attacker = makeDeployment("attacker", { q: 0, r: 1 });
     const target = makeDeployment("target", { q: 0, r: 0 }, "ENEMY", {
