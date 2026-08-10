@@ -831,27 +831,37 @@ export class CampaignDurableObject extends DurableObject<Env> {
       };
       output.state.resolutions[resolutionKey] = record;
       const completedRound = output.state.round;
-      output.state.round += 1;
-      output.state.phase = "PLANNING";
-      output.state.clock = makeRoundClock(
-        output.state.campaignId,
-        output.state.round,
-        now,
-        state.clock.durationMs,
-        state.clock.lockLeadMs || this.configuredLockLead(),
-      );
-      output.state.orders = output.state.orders.filter((order) => order.round >= output.state.round);
-      const roundStarted: CampaignEvent = {
-        eventId: `${output.state.campaignId}:${output.state.round}:0001:ROUND_STARTED`,
-        campaignId: output.state.campaignId,
-        round: output.state.round,
-        sequence: 1,
-        type: "ROUND_STARTED",
-        payload: { previousRound: completedRound, deadline: output.state.clock.resolvesAt },
-        timestamp: now,
-        visibility: "PUBLIC",
-      };
-      output.state.events.push(roundStarted);
+      const terminal = output.state.phase === "COMPLETE" || output.state.outcome !== undefined;
+      let roundStarted: CampaignEvent | undefined;
+      output.state.orders = output.state.orders.filter((order) => order.round > completedRound);
+      if (terminal) {
+        const { pausedAt: _pausedAt, phaseBeforePause: _phaseBeforePause, ...terminalClock } = output.state.clock;
+        void _pausedAt;
+        void _phaseBeforePause;
+        output.state.phase = "COMPLETE";
+        output.state.clock = { ...terminalClock, lockAt: 0, resolvesAt: 0, schedule: [] };
+      } else {
+        output.state.round += 1;
+        output.state.phase = "PLANNING";
+        output.state.clock = makeRoundClock(
+          output.state.campaignId,
+          output.state.round,
+          now,
+          state.clock.durationMs,
+          state.clock.lockLeadMs || this.configuredLockLead(),
+        );
+        roundStarted = {
+          eventId: `${output.state.campaignId}:${output.state.round}:0001:ROUND_STARTED`,
+          campaignId: output.state.campaignId,
+          round: output.state.round,
+          sequence: 1,
+          type: "ROUND_STARTED",
+          payload: { previousRound: completedRound, deadline: output.state.clock.resolvesAt },
+          timestamp: now,
+          visibility: "PUBLIC",
+        };
+        output.state.events.push(roundStarted);
+      }
       output.state.version += 1;
       await transaction.put(STATE_KEY, encodeCampaignStoredState(output.state));
       await transaction.put(`resolution/${completedRound}`, record);
@@ -861,7 +871,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
           resolvedEvent,
         );
       }
-      await transaction.put(`event/${output.state.round}/000001`, roundStarted);
+      if (roundStarted) await transaction.put(`event/${output.state.round}/000001`, roundStarted);
       for (const effect of output.persistentEffects) {
         await transaction.put(`pending-effect/${effect.idempotencyKey}`, effect);
       }
@@ -906,7 +916,13 @@ export class CampaignDurableObject extends DurableObject<Env> {
     if (state.phase === "PAUSED") return errorResponse(409, "CAMPAIGN_PAUSED", "Resume the campaign before resolving.");
     if (state.phase === "PLANNING") await this.lockRound();
     const result = await this.resolveCurrentRound(Date.now(), expectedRound);
-    return json({ resolution: this.publicResolution(result.record), duplicate: result.duplicate, nextRound: result.state.round });
+    return json({
+      resolution: this.publicResolution(result.record),
+      duplicate: result.duplicate,
+      nextRound: result.state.phase === "COMPLETE" ? null : result.state.round,
+      phase: result.state.phase,
+      outcome: result.state.outcome,
+    });
   }
 
   private async handleClock(request: Request): Promise<Response> {
@@ -999,16 +1015,23 @@ export class CampaignDurableObject extends DurableObject<Env> {
     if (!this.isOperator(viewer)) return errorResponse(403, "ADMIN_REQUIRED", "Campaign operator permission is required.");
     const now = Date.now();
     const fallback = await this.getState();
-    const { state, changed } = await this.ctx.storage.transaction(async (transaction) => {
+    if (fallback.phase === "COMPLETE" || fallback.phase === "FAILED") {
+      return errorResponse(409, "CAMPAIGN_COMPLETE", "A completed campaign cannot be paused.");
+    }
+    const { state, changed, terminal } = await this.ctx.storage.transaction(async (transaction) => {
       const current = this.storedState(await transaction.get<unknown>(STATE_KEY), fallback);
+      if (current.phase === "COMPLETE" || current.phase === "FAILED") {
+        return { state: current, changed: false, terminal: true };
+      }
       const updated = pauseClock(current, now);
-      if (updated === current) return { state: current, changed: false };
+      if (updated === current) return { state: current, changed: false, terminal: false };
       const event = updated.events.at(-1);
       if (!event || event.type !== "CAMPAIGN_PAUSED") throw new Error("Pause transition did not emit its campaign event.");
       await transaction.put(STATE_KEY, encodeCampaignStoredState(updated));
       await transaction.put(`event/${updated.round}/${String(event.sequence).padStart(6, "0")}`, event);
-      return { state: updated, changed: true };
+      return { state: updated, changed: true, terminal: false };
     });
+    if (terminal) return errorResponse(409, "CAMPAIGN_COMPLETE", "A completed campaign cannot be paused.");
     await this.scheduleNextAlarm(state);
     if (changed) this.broadcast("campaign-paused", state);
     return json({ phase: state.phase, clock: state.clock });

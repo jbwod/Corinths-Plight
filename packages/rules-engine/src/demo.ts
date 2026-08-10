@@ -137,8 +137,8 @@ export function createDemoCampaignState(
     deployment("dep-rook-7", "unit-infantry-squad", "demo-user", "ALLIED", "ROOK-7", { q: -3, r: 1 }, 2),
     deployment("dep-bellator", "unit-main-battle-tank", "demo-user", "ALLIED", "BELLATOR", { q: -4, r: 3 }, 1),
     deployment("dep-keystone", "unit-engineers", "demo-user", "ALLIED", "KEYSTONE", { q: -4, r: 1 }, 2),
-    deployment("dep-longbow", "unit-artillery", "allied-user", "ALLIED", "LONGBOW", { q: -5, r: 2 }, 2),
-    deployment("dep-lantern", "unit-light-vehicle", "allied-user", "ALLIED", "LANTERN", { q: -2, r: -1 }, 2),
+    deployment("dep-longbow", "unit-artillery", "demo-user", "ALLIED", "LONGBOW", { q: -5, r: 2 }, 2),
+    deployment("dep-lantern", "unit-light-vehicle", "demo-user", "ALLIED", "LANTERN", { q: -2, r: -1 }, 2),
     deployment("bug-drone-1", "enemy-bug-drone", "enemy-doctrine", "ENEMY", "SKITTER-9", { q: 1, r: -1 }, 5, false),
     deployment("bug-warrior-1", "enemy-bug-warrior", "enemy-doctrine", "ENEMY", "CHITIN-4", { q: 3, r: -1 }, 5, false),
     deployment("bug-heavy-1", "enemy-bug-heavy", "enemy-doctrine", "ENEMY", "BEHEMOTH", { q: 4, r: -2 }, 4, false),
@@ -147,11 +147,11 @@ export function createDemoCampaignState(
     item.campaignId = campaignId;
   });
   const orders = [
-    demoOrder("order-longbow-18", "dep-longbow", "allied-user", round, "HOLD", [{ q: -5, r: 2 }], 2),
+    demoOrder("order-longbow-18", "dep-longbow", "demo-user", round, "HOLD", [{ q: -5, r: 2 }], 2),
     demoOrder(
       "order-lantern-18",
       "dep-lantern",
-      "allied-user",
+      "demo-user",
       round,
       "ADVANCE",
       [
@@ -213,6 +213,18 @@ export function createDemoCampaignState(
         description: "Protect the western road and depot approaches.",
       },
     ],
+    scenarioPolicy: {
+      policyId: "HOLD_PRIMARY_OBJECTIVE",
+      version: 1,
+      startRound: 18,
+      maxRounds: 4,
+      primaryObjectiveId: "objective-outpost",
+      capturableObjectiveIds: [
+        "objective-nest",
+        "objective-outpost",
+        "objective-supply-route",
+      ],
+    },
     events: [
       {
         eventId: `${campaignId}:17:0001:ROUND_FINISHED`,

@@ -58,6 +58,8 @@ const eventTypes = new Set([
   "SUPPLY_TRANSFERRED",
   "OBJECTIVE_CAPTURED",
   "ROUND_FINISHED",
+  "CAMPAIGN_COMPLETED",
+  "CAMPAIGN_FAILED",
   "CAMPAIGN_PAUSED",
   "CAMPAIGN_RESUMED",
 ]);
@@ -366,6 +368,12 @@ function stateRecord(value: unknown, path: string): Record<string, unknown> {
   return value;
 }
 
+function stateOnlyKeys(record: Record<string, unknown>, allowed: readonly string[], path: string): void {
+  const allowedSet = new Set(allowed);
+  const extra = Object.keys(record).filter((key) => !allowedSet.has(key));
+  if (extra.length > 0) stateFail(path, `unknown fields: ${extra.join(", ")}`);
+}
+
 function stateString(value: unknown, path: string): string {
   if (typeof value !== "string" || value.length === 0) stateFail(path, "expected a non-empty string");
   return value;
@@ -450,6 +458,8 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     "deployments",
     "orders",
     "objectives",
+    "scenarioPolicy",
+    "outcome",
     "events",
     "resolutions",
     "pendingPersistentEffects",
@@ -661,15 +671,89 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     if (typeof event.visibility !== "string" || !eventVisibilities.has(event.visibility)) stateFail(`${path}.visibility`, "invalid event visibility");
   }
 
+  const objectiveState = new Map<string, { owner: string; status: string }>();
   for (const [index, objectiveValue] of stateArray(state.objectives, "$.objectives").entries()) {
     const path = `$.objectives[${index}]`;
     const objective = stateRecord(objectiveValue, path);
-    stateString(objective.id, `${path}.id`);
+    const id = stateString(objective.id, `${path}.id`);
+    if (objectiveState.has(id)) stateFail(`${path}.id`, "duplicate objective identifier");
     stateString(objective.name, `${path}.name`);
     stateCoordinate(objective.coord, `${path}.coord`);
     stateString(objective.description, `${path}.description`);
     if (typeof objective.owner !== "string" || !sides.has(objective.owner)) stateFail(`${path}.owner`, "invalid side");
     if (!new Set(["ACTIVE", "SECURED", "FAILED"]).has(objective.status as string)) stateFail(`${path}.status`, "invalid objective status");
+    objectiveState.set(id, { owner: objective.owner as string, status: objective.status as string });
+  }
+
+  if (state.scenarioPolicy !== undefined) {
+    const policy = stateRecord(state.scenarioPolicy, "$.scenarioPolicy");
+    stateOnlyKeys(
+      policy,
+      ["policyId", "version", "startRound", "maxRounds", "primaryObjectiveId", "capturableObjectiveIds"],
+      "$.scenarioPolicy",
+    );
+    if (policy.policyId !== "HOLD_PRIMARY_OBJECTIVE") stateFail("$.scenarioPolicy.policyId", "unsupported scenario policy");
+    if (policy.version !== 1) stateFail("$.scenarioPolicy.version", "unsupported scenario policy version");
+    const startRound = stateInteger(policy.startRound, "$.scenarioPolicy.startRound", 1);
+    const maxRounds = stateInteger(policy.maxRounds, "$.scenarioPolicy.maxRounds", 1);
+    if (!Number.isSafeInteger(startRound + maxRounds - 1)) {
+      stateFail("$.scenarioPolicy.maxRounds", "scenario duration exceeds the supported round range");
+    }
+    const primaryObjectiveId = stateString(policy.primaryObjectiveId, "$.scenarioPolicy.primaryObjectiveId");
+    const capturableObjectiveIds = stateStringArray(
+      policy.capturableObjectiveIds,
+      "$.scenarioPolicy.capturableObjectiveIds",
+    );
+    if (capturableObjectiveIds.length === 0) stateFail("$.scenarioPolicy.capturableObjectiveIds", "at least one objective is required");
+    if (new Set(capturableObjectiveIds).size !== capturableObjectiveIds.length) {
+      stateFail("$.scenarioPolicy.capturableObjectiveIds", "duplicate objective identifier");
+    }
+    if (!objectiveState.has(primaryObjectiveId)) stateFail("$.scenarioPolicy.primaryObjectiveId", "objective does not exist");
+    if (!capturableObjectiveIds.includes(primaryObjectiveId)) {
+      stateFail("$.scenarioPolicy.primaryObjectiveId", "primary objective must be capturable");
+    }
+    for (const [index, id] of capturableObjectiveIds.entries()) {
+      if (!objectiveState.has(id)) stateFail(`$.scenarioPolicy.capturableObjectiveIds[${index}]`, "objective does not exist");
+    }
+  }
+
+  if (state.outcome !== undefined) {
+    if (state.scenarioPolicy === undefined) stateFail("$.outcome", "scenario outcome requires a scenario policy");
+    if (state.phase !== "COMPLETE") stateFail("$.phase", "scenario outcome requires COMPLETE phase");
+    const campaignOutcome = stateRecord(state.outcome, "$.outcome");
+    stateOnlyKeys(campaignOutcome, ["result", "round", "reason", "objectives"], "$.outcome");
+    if (campaignOutcome.result !== "VICTORY" && campaignOutcome.result !== "DEFEAT") {
+      stateFail("$.outcome.result", "invalid campaign outcome");
+    }
+    const outcomeRound = stateInteger(campaignOutcome.round, "$.outcome.round", 1);
+    if (outcomeRound !== state.round) stateFail("$.outcome.round", "must match the campaign round");
+    const victoryReason = "FINAL_ROUND_PRIMARY_HELD";
+    const defeatReasons = new Set([
+      "ALL_ALLIED_DEPLOYMENTS_LOST",
+      "PRIMARY_OBJECTIVE_LOST",
+      "FINAL_ROUND_CONDITIONS_NOT_MET",
+    ]);
+    if (
+      (campaignOutcome.result === "VICTORY" && campaignOutcome.reason !== victoryReason) ||
+      (campaignOutcome.result === "DEFEAT" && !defeatReasons.has(campaignOutcome.reason as string))
+    ) {
+      stateFail("$.outcome.reason", "reason does not match the campaign outcome");
+    }
+    const summaryIds = new Set<string>();
+    for (const [index, summaryValue] of stateArray(campaignOutcome.objectives, "$.outcome.objectives").entries()) {
+      const path = `$.outcome.objectives[${index}]`;
+      const summary = stateRecord(summaryValue, path);
+      stateOnlyKeys(summary, ["id", "owner", "status"], path);
+      const id = stateString(summary.id, `${path}.id`);
+      if (summaryIds.has(id)) stateFail(`${path}.id`, "duplicate objective summary");
+      summaryIds.add(id);
+      const current = objectiveState.get(id);
+      if (!current) stateFail(`${path}.id`, "objective does not exist");
+      if (summary.owner !== current.owner || summary.status !== current.status) {
+        stateFail(path, "summary does not match objective state");
+      }
+    }
+    if (summaryIds.size !== objectiveState.size) stateFail("$.outcome.objectives", "must summarize every objective");
   }
 
   const resolutions = stateRecord(state.resolutions, "$.resolutions");

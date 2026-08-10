@@ -37,8 +37,8 @@ This is the live release checklist. A checked local build item is not permission
 | `npm run seed:check` | macOS local, Node project toolchain | PASS | 34 definitions; 28 active; 95 SQL definitions; 16 allied classes; 7 enemy roles; 3 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
 | `npm run typecheck` | local | PASS | TypeScript 6.0.3. |
 | `npm run lint` | local | PASS | ESLint 10.8.1. |
-| `npm test` | local | PASS | Vitest 4.1.10; 37 files / 256 tests. |
-| `WRANGLER_WRITE_LOGS=false npm run build` | local development config | PASS | Worker 533.15 kB; client JS 419.15 kB; CSS 120.83 kB. |
+| `npm test` | local | PASS | Vitest 4.1.10; 39 files / 270 tests. |
+| `npm run build` | local development config | PASS | Worker 543.37 kB; client JS 430.68 kB; CSS 129.97 kB; Wrangler emitted only its known sandboxed debug-log warning. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
 | Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0008 applied. |
 | Seven seeds, twice | same isolated D1 | PASS | Core, Phase 2, equipment, onboarding and three development fixtures replayed twice. |
@@ -161,7 +161,7 @@ No external state was changed during this Phase-0 assessment.
 | Submit/edit/cancel/schedule tactical orders | partial | CP-406 and general campaign UI |
 | Resolve deterministic PvE combined arms | narrow partial | CP-500–CP-507 |
 | Persist effects before next round | fail | CP-402 |
-| Audience-safe reconnect/report/replay | fail/missing | CP-403/CP-700 |
+| Audience-safe reconnect/report/replay | partial/fail | A local report-detail UI consumes projected round events, but event-time redaction, reconnect catch-up, index/playback/export and browser evidence remain CP-403/CP-700. |
 | Apply tactical result to living war | missing | CP-600–CP-603 |
 | Withdraw/re-embark/redeploy | missing | CP-603 |
 
@@ -174,7 +174,7 @@ No external state was changed during this Phase-0 assessment.
 | Forces/loadout | prior visual inspection only | unknown | prior visual inspection only | unverified | unverified | missing |
 | Battalion/ship/strategic reads | prior visual inspection only | unknown | prior visual inspection only | partial | unverified | missing |
 | Tactical map/order | Playwright live-read/forged-field canary | unknown | Playwright overflow canary | **core route/target unavailable** | **no equivalent workflow** | missing |
-| Reports/replay | missing | missing | missing | missing | missing | missing |
+| Reports/replay | local component; browser proof pending | unknown | responsive CSS; browser proof pending | semantic round/detail controls | screen-reader audit missing | missing |
 
 Release target is WCAG 2.2 AA. The tactical map requires a semantic grid/list that can inspect/select units/hexes, compose a route, choose a target and review fog-safe information without the canvas.
 

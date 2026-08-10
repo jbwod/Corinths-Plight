@@ -162,6 +162,7 @@ describe("versioned campaign Durable Object storage", () => {
 
   it("accepts and identifies a legacy raw state for transparent migration", () => {
     const state = fixture();
+    delete state.scenarioPolicy;
     const parsed = parseCampaignStoredState(state, CAMPAIGN_ID);
 
     expect(parsed).toEqual({ state, legacy: true });
@@ -190,6 +191,58 @@ describe("versioned campaign Durable Object storage", () => {
       state: output.state,
       legacy: false,
     });
+  });
+
+  it("round-trips a terminal scenario outcome with objective summaries", () => {
+    const previousState = fixture();
+    previousState.round = 21;
+    previousState.clock.schedule.forEach((scheduled) => {
+      scheduled.round = 21;
+    });
+    const output = resolveRound({
+      previousState,
+      rulesetVersion: previousState.rulesetVersion,
+      playerOrders: [],
+      enemyOrders: [],
+      seed: "terminal-contract-test",
+      resolutionTime: 110_000,
+    });
+
+    expect(output.state.outcome).toMatchObject({
+      result: "VICTORY",
+      round: 21,
+      reason: "FINAL_ROUND_PRIMARY_HELD",
+    });
+    expect(parseCampaignStoredState(encodeCampaignStoredState(output.state), CAMPAIGN_ID)).toEqual({
+      state: output.state,
+      legacy: false,
+    });
+  });
+
+  it("fails closed on malformed scenario policies and outcomes", () => {
+    const badDuration = fixture();
+    (badDuration.scenarioPolicy as unknown as Record<string, unknown>).maxRounds = 0;
+    expect(() => encodeCampaignStoredState(badDuration)).toThrow(/scenarioPolicy\.maxRounds/);
+
+    const badObjective = fixture();
+    badObjective.scenarioPolicy!.capturableObjectiveIds.push("objective-does-not-exist");
+    expect(() => encodeCampaignStoredState(badObjective)).toThrow(/objective does not exist/);
+
+    const previousState = fixture();
+    previousState.round = 21;
+    previousState.clock.schedule.forEach((scheduled) => {
+      scheduled.round = 21;
+    });
+    const terminal = resolveRound({
+      previousState,
+      rulesetVersion: previousState.rulesetVersion,
+      playerOrders: [],
+      enemyOrders: [],
+      seed: "malformed-outcome-test",
+      resolutionTime: 110_000,
+    }).state;
+    terminal.outcome!.objectives[0]!.owner = "NEUTRAL";
+    expect(() => encodeCampaignStoredState(terminal)).toThrow(/summary does not match objective state/);
   });
 
   it("rejects another campaign, unknown versions, and malformed critical state", () => {

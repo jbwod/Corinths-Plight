@@ -2,7 +2,7 @@
 
 **Audited:** 2026-08-10
 
-**Commit:** `3d7e091` (`codex/phase0-release-baseline`) plus the local Phase-1 checkpoint described below
+**Commit:** `307af23` (`codex/phase0-release-baseline`) plus the local K-17/report foundation described below
 
 **Authority:** `docs/GAME_COMPLETION_GOAL.md`
 
@@ -30,8 +30,8 @@ The audit began with only two unrelated untracked user paths, which were preserv
 | Seed/content validator | Pass | `npm run seed:check`: 34 definitions, 28 active, 95 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 3 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
 | TypeScript | Pass | `npm run typecheck`. |
 | ESLint | Pass | `npm run lint`. |
-| Unit/contract tests | Pass | `npm test`: 37 files, 256 tests, Vitest 4.1.10. |
-| Worker/client build | Pass | `WRANGLER_WRITE_LOGS=false npm run build`; Worker 533.15 kB, client JS 419.15 kB, CSS 120.83 kB. |
+| Unit/contract tests | Pass | `npm test`: 39 files, 270 tests, Vitest 4.1.10. |
+| Worker/client build | Pass | `npm run build`; Worker 543.37 kB, client JS 430.68 kB, CSS 129.97 kB. Wrangler's sandboxed debug-log write warns but the build exits successfully. |
 | Production-mode build | Pass | `WRANGLER_WRITE_LOGS=false npm run build:production`. |
 | Empty D1 migration replay | Pass | All eight migrations applied in isolated Wrangler state. |
 | Repeat seed replay | Pass | All seven seeds applied twice. |
@@ -49,16 +49,16 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 | Guided Battalion join/create/invite, starter unit and tour | implemented foundation | High | `worker/routes/onboarding.ts:60-90`; `src/components/GuidedOnboarding.tsx:192-243` | Local invitation limits/audit/outbox hardening exists; opt-out, production abuse evidence and the full organisation lifecycle remain CP-104/CP-206/CP-207. |
 | Force list/detail/history, unit/equipment purchase and loadout | partial | High | `worker/routes/forces.ts:114-177`; force/equipment services | D1/compiled split, no approved economy, UI false fronts/fallbacks and incomplete lifecycle: CP-200–CP-208. |
 | Deployment planning and commit | partial | High | `worker/routes/deployment.ts:49-86`; `worker/services/deployment.ts:335-445` | Demo IDs, no general scenario bootstrap, incomplete lift: CP-208/CP-400/CP-601. |
-| Tactical map and basic Hold/Advance/Rush/Attack | partial | High | `src/components/HexMap.tsx`; `packages/rules-engine/src/resolver.ts`; Campaign DO | Demo K-17 bootstrap, narrow composer, rule defects, unsafe journal/realtime: CP-400–CP-507. |
+| Tactical map and basic Hold/Advance/Rush/Attack | partial | High | `src/components/HexMap.tsx`; `packages/rules-engine/src/resolver.ts`; Campaign DO | The demo now resolves objective capture and a bounded four-round outcome, but bootstrap remains demo-bound and the composer/rules/journal remain narrow: CP-400–CP-507. |
 | Deterministic enemy orders | prototype | High | `worker/enemy-ai.ts:15-101` | Hard-coded nearest-target doctrine and `objective-outpost`; D1 enemy data unused: CP-506. |
 | Tactical persistent effects | partial/unsafe | High | `worker/campaign-durable-object.ts:231-319,645-738` | Next round opens before D1 acknowledgement; no crypto journal: CP-402. |
-| Tactical realtime/report API | partial/unsafe | High | `worker/campaign-durable-object.ts:341-357,833-887` | Generic broadcast leaks identifiers, no catch-up, current-state redaction: CP-403/CP-700. |
+| Tactical realtime/report API | partial/unsafe | High | Campaign DO report endpoint; `src/components/CampaignReports.tsx` | Round detail is now visible and grouped, but broadcasts still leak identifiers, there is no catch-up/index/playback/export, and reports use current-state redaction: CP-403/CP-700. |
 | Strategic command/Battalion/ship/map/operation reads | implemented read model | High | `worker/routes/strategic.ts:114-138,162-170` | UI can fabricate showcase/default state; no mutations: CP-305. |
 | Strategic order submission | blocked | High | `worker/routes/strategic.ts:139-146` | Always `501 STRATEGIC_ORDER_EXECUTION_DEFERRED`: CP-302/CP-303. |
 | Strategic resolution | blocked | High | `worker/strategic-map-durable-object.ts:124-140` | Always `501 STRATEGIC_RESOLUTION_NOT_IMPLEMENTED`; no alarm/journal runtime: CP-302. |
 | Ship identity/modules/cargo/supply | partial/read-only | High | D1 schema and `GET /api/ships/primary`; `ShipView.tsx` | Acquisition/configuration/movement/transfers/combat deferred: CP-300/CP-301/CP-305. |
 | Campaign discovery/create/join/scenario authoring | missing | High | No public route; only `/api/campaigns/:id/*` proxy | CP-400/CP-401/CP-405. |
-| Reports library/replay | missing UI, partial API | High | Report-by-round DO endpoint; Reports nav notice | CP-403/CP-700. |
+| Reports library/replay | partial UI and API | High | Report-by-round DO endpoint; `src/components/CampaignReports.tsx`; `src/campaign/reports.ts` | Local report selection/detail and terminal results work; index API, event-time redaction, playback/export and strategic consequences remain CP-403/CP-700. |
 | Multi-planet living war | missing end to end | High | One development strategic fixture; public mutations blocked | CP-302–CP-305/CP-600–CP-604. |
 | CI, preview, recovery, SLOs, legal/a11y/performance | missing release evidence | High | Config/docs/workflow inventory | CP-001–CP-107/CP-702/CP-800–CP-805. |
 
@@ -72,7 +72,7 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 | AUD-CAT-004 — blocked companion slots execute | P0 | open | High | RC-EQP-001 marks optional slot budgets blocked, and Phase-2 metadata says companion-only/catalogued; `listUnitSlots` ignores that metadata and the loadout engine enforces every row. Existing purchasable equipment therefore relies on an unapproved slot policy. | DEC-017/CP-200/CP-204 |
 | AUD-EQP-001 — Scan/Drone are event-only no-ops | P0 content-integrity | open | High | Resolver emits `HEX_SCANNED`/`DRONE_DEPLOYED` and cooldown, but visibility consumes only live sensors/LOS. Optics additionally invents passive `+1 Sensors`, and Drone Operator is seeded Secondary although its Store row says Primary. These overlays must be unavailable until DEC-018 is resolved and state/projection is wired. | DEC-018/CP-204/CP-500 |
 | AUD-RULE-004 — unknown sensors become a real zero | P0 | open | High | D1's non-null legacy column and Phase-2 0 sentinel turn an unknown sensor value into runtime truth, contrary to `GAME_SYSTEMS.md` unknown-value policy. Migrate a nullable/profile representation and block dependent mechanics until known. | CP-200/CP-201 |
-| AUD-SCEN-001 — every tactical campaign is K-17 shaped | P0 | open | High | K-17 uses `createDemoCampaignState`; non-K17 bootstrap reads D1 rows then calls the same demo factory and retains its map/terrain while clearing objectives (`worker/campaign-durable-object.ts:117-218`). | CP-400/CP-401 |
+| AUD-SCEN-001 — every tactical campaign is K-17 shaped | P0 | open | High | The K-17 fixture now has a strict bounded outcome policy, but K-17 still uses `createDemoCampaignState`; non-K17 bootstrap reads D1 rows then calls that factory and retains its map/terrain while clearing objectives (`worker/campaign-durable-object.ts:117-218`). | CP-400/CP-401 |
 | AUD-SCEN-002 — production seed chain has no world | P0 | open | High | Fresh migrations plus the four production seed families yield zero campaigns, insertion zones, strategic maps/nodes and ships. Those exist only in explicitly development-only seeds, so a production-onboarded user has no server-backed operation to enter. | DEC-020/CP-304/CP-400/CP-404 |
 | AUD-JOURNAL-001 — next round precedes durable acknowledgement | P0 | open | High | DO commits the next PLANNING state and alarm at `worker/campaign-durable-object.ts:697-733`, then applies D1 effects at `:737`. Resolution/effect records lack PREPARED/FAILED lifecycle and cryptographic input/output/payload hashes. | CP-402 |
 | AUD-RT-001 — cross-audience socket invalidation | P0 security | open | High | Socket attachments store viewer data, but `broadcast()` sends one payload to every socket (`worker/campaign-durable-object.ts:341-357`); order messages include unit/order IDs. No sequence catch-up exists; reports use current visibility. | CP-403 |
@@ -160,7 +160,7 @@ No public campaign directory/create/join/leave, profile/settings/session-managem
 | `POST /pause` | Admin pause | partial |
 | `POST /resume` | Admin resume | partial |
 | `GET /ws` upgrade | Read-only hibernating invalidations | partial; audience/catch-up defects |
-| `GET /reports/:round` | Viewer round detail | partial; no index/event-time knowledge/UI |
+| `GET /reports/:round` | Viewer round detail consumed by the Reports screen | partial; no index, event-time knowledge, playback or export |
 | alarm | Locks/resolves or processes scheduled transition | partial; no durable schedule lifecycle/recovery |
 
 ### Strategic Map Durable Object
@@ -183,7 +183,8 @@ No public campaign directory/create/join/leave, profile/settings/session-managem
 | Tactical `MY UNITS/ALLIED`, `SURFACE/INTEL/SUPPLY` | inert prototype | Buttons have no handlers. |
 | Tactical non-foundation order types | catalogue-only | Disabled and marked soon. |
 | Tactical operator clock/pause/resume/resolve | misleading | Rendered to normal players; backend correctly requires admin. Hide/role-gate and add audited operator workflow. |
-| Tactical Reports/Settings | notice-only | Reports and settings nav do not open implemented workflows. |
+| Tactical Reports | partial | Reports navigation opens a live round archive/detail view; current-state fog, missing index API/playback/export and no browser evidence keep CP-700 open. |
+| Tactical Settings | notice-only | Settings does not open an implemented workflow. |
 | Forces browse/inspect/readiness/purchase/loadout | partial | Useful server routes, but demo headers, fixed operation, fabricated/default fields and showcase-on-error remain. |
 | Forces initial-equipment checkboxes | false front | Selection is omitted from purchase command. |
 | Forces rename/history | missing UI | Backend routes exist. |

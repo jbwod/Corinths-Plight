@@ -31,6 +31,18 @@ class MemoryStorage {
     this.values.set(key, value);
   }
 
+  async delete(key: string): Promise<boolean> {
+    return this.values.delete(key);
+  }
+
+  async list<Value>({ prefix = "" }: { prefix?: string } = {}): Promise<Map<string, Value>> {
+    return new Map(
+      [...this.values.entries()]
+        .filter(([key]) => key.startsWith(prefix))
+        .map(([key, value]) => [key, value as Value]),
+    );
+  }
+
   async transaction<Value>(closure: (transaction: DurableObjectTransaction) => Promise<Value>): Promise<Value> {
     return closure({
       get: this.get.bind(this),
@@ -227,6 +239,58 @@ describe("CampaignDurableObject campaign contracts", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ error: { code: "EXPECTED_ROUND_REQUIRED" } });
+  });
+
+  it("keeps a terminal scenario on its completed round and clears the alarm", async () => {
+    const { campaign, storage } = campaignObject();
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    seeded.round = 21;
+    seeded.orders = [];
+    seeded.phase = "PLANNING";
+    seeded.clock = {
+      durationMs: 0,
+      lockLeadMs: 0,
+      roundStartedAt: 1,
+      lockAt: 0,
+      resolvesAt: 0,
+      schedule: [],
+    };
+    seeded.deployments.forEach((deployment) => {
+      deployment.persistentUnitId = undefined;
+      if (deployment.side === "ENEMY") {
+        deployment.status = "DESTROYED";
+        deployment.locationState = "DESTROYED";
+        deployment.currentHealth = 0;
+      }
+    });
+    storage.values.set("state/current", encodeCampaignStoredState(seeded));
+    storage.alarm = 123;
+
+    const response = await campaign.fetch(request("/resolve", {
+      method: "POST",
+      headers: { "x-expected-round": "21" },
+    }));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      nextRound: null,
+      phase: "COMPLETE",
+      outcome: { result: "VICTORY", round: 21, reason: "FINAL_ROUND_PRIMARY_HELD" },
+    });
+    const completed = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    expect(completed.round).toBe(21);
+    expect(completed.phase).toBe("COMPLETE");
+    expect(completed.clock.schedule).toEqual([]);
+    expect(completed.events).toContainEqual(expect.objectContaining({ type: "CAMPAIGN_COMPLETED", round: 21 }));
+    expect(completed.events).not.toContainEqual(expect.objectContaining({ type: "ROUND_STARTED", round: 22 }));
+    expect(storage.values.has("resolution/21")).toBe(true);
+    expect(storage.alarm).toBeNull();
+
+    const pause = await campaign.fetch(request("/pause", { method: "POST" }));
+    expect(pause.status).toBe(409);
+    expect(await pause.json()).toMatchObject({ error: { code: "CAMPAIGN_COMPLETE" } });
+    expect(parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state.phase).toBe("COMPLETE");
   });
 
   it("commits clock commands once and rejects replay collisions or stale versions", async () => {

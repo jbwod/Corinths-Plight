@@ -18,6 +18,7 @@ import { cargoSlotsForItem, disembarkCargo, embarkCargo, reloadAmmunition } from
 import { resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
 import { createSeededRandom, hashSeed } from "./rng";
 import { getActionDefinition, getOrderTypeDefinition } from "./catalogue";
+import { evaluateScenarioRoundEnd } from "./scenario";
 
 export const ENGINE_VERSION = "foundation-0.1.0";
 
@@ -98,9 +99,27 @@ function stableDigest(value: unknown): string {
   return hashSeed(serialized).toString(16).padStart(8, "0");
 }
 
+function campaignStateDigest(state: RoundOutput["state"]): string {
+  return stableDigest({
+    campaignId: state.campaignId,
+    round: state.round,
+    phase: state.phase,
+    deployments: state.deployments,
+    objectives: state.objectives,
+    scenarioPolicy: state.scenarioPolicy,
+    outcome: state.outcome,
+    events: state.events,
+  });
+}
+
 export function resolveRound(input: RoundInput): RoundOutput {
   if (input.rulesetVersion !== input.previousState.rulesetVersion) {
     throw new Error("Round ruleset does not match the campaign-bound ruleset.");
+  }
+
+  if (input.previousState.outcome) {
+    const state = structuredClone(input.previousState);
+    return { state, events: [], persistentEffects: [], digest: campaignStateDigest(state) };
   }
 
   const suppliedOrders = [...input.playerOrders, ...input.enemyOrders];
@@ -116,13 +135,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
     );
   if (alreadyResolved) {
     const state = structuredClone(input.previousState);
-    const digest = stableDigest({
-      campaignId: state.campaignId,
-      round: state.round,
-      deployments: state.deployments,
-      objectives: state.objectives,
-      events: state.events,
-    });
+    const digest = campaignStateDigest(state);
     return { state, events: [], persistentEffects: [], digest };
   }
 
@@ -468,21 +481,30 @@ export function resolveRound(input: RoundInput): RoundOutput {
       order.lifecycle = "RESOLVED";
     }
   }
+
+  const scenario = evaluateScenarioRoundEnd(state);
+  state.objectives = scenario.objectives;
+  for (const capture of scenario.captures) {
+    event("OBJECTIVE_CAPTURED", undefined, { ...capture });
+  }
   event("ROUND_FINISHED", undefined, {
     ordersAccepted: validOrders.size,
     ordersRejected: allOrders.length - validOrders.size,
     unitsDestroyed: state.deployments.filter((deployment) => deployment.status === "DESTROYED").length,
   });
+  if (scenario.outcome) {
+    state.outcome = scenario.outcome;
+    state.phase = "COMPLETE";
+    event(
+      scenario.outcome.result === "VICTORY" ? "CAMPAIGN_COMPLETED" : "CAMPAIGN_FAILED",
+      undefined,
+      { ...scenario.outcome },
+    );
+  }
   state.events = [...state.events, ...events].slice(-1000);
   state.pendingPersistentEffects = [...state.pendingPersistentEffects, ...effects];
   state.version += 1;
-  const digest = stableDigest({
-    campaignId: state.campaignId,
-    round: state.round,
-    deployments: state.deployments,
-    objectives: state.objectives,
-    events: state.events,
-  });
+  const digest = campaignStateDigest(state);
   return { state, events, persistentEffects: effects, digest };
 }
 

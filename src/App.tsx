@@ -25,6 +25,7 @@ import { Glyph } from "./components/Glyph";
 import { HexMap } from "./components/HexMap";
 import { StrategicWorkspace, type StrategicView } from "./components/StrategicWorkspace";
 import { AuthGateway } from "./components/AuthGateway";
+import { CampaignReports } from "./components/CampaignReports";
 
 const DEMO_USER = "demo-user";
 const CAMPAIGN_ID = "outpost-k17";
@@ -46,14 +47,14 @@ const navigation = [
   ["reports", "Reports"],
 ] as const;
 
-type ActiveNav = Exclude<(typeof navigation)[number][1], "Reports">;
+type ActiveNav = (typeof navigation)[number][1];
 
 const strategicViews = new Set<ActiveNav>(["Command", "Galactic", "Battalion", "Ship"]);
 
 function initialNavigation(): ActiveNav {
   const requested = new URLSearchParams(window.location.search).get("view")?.toLowerCase();
   const matched = navigation.find(([, label]) => label.toLowerCase() === requested)?.[1];
-  return matched && matched !== "Reports" ? matched : "Command";
+  return matched ?? "Command";
 }
 
 type ConnectionState = "CONNECTING" | "LIVE" | "RECONNECTING" | "LOCAL";
@@ -93,6 +94,16 @@ function formatEvent(event: CampaignEvent): string {
 function eventLabel(event: CampaignEvent): string {
   const time = new Date(event.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   return `R${event.round} · ${time}`;
+}
+
+function campaignOutcomeMessage(campaign: CampaignView): string {
+  switch (campaign.outcome?.reason) {
+    case "FINAL_ROUND_PRIMARY_HELD": return "Outpost K-17 held through the final assault.";
+    case "ALL_ALLIED_DEPLOYMENTS_LOST": return "No Allied deployment remains operational.";
+    case "PRIMARY_OBJECTIVE_LOST": return "Enemy forces captured Outpost K-17.";
+    case "FINAL_ROUND_CONDITIONS_NOT_MET": return "The primary outpost was not secured at the deadline.";
+    default: return "Campaign command has closed this operation.";
+  }
 }
 
 function definitionLabel(deployment: CampaignDeployment): string {
@@ -153,7 +164,7 @@ function GameApp() {
   }, []);
 
   useEffect(() => {
-    if (activeNav !== "Campaigns") return;
+    if (activeNav !== "Campaigns" && activeNav !== "Reports") return;
     const initialLoad = window.setTimeout(() => void loadCampaign(), 0);
     const timer = window.setInterval(() => setNow(Date.now()), 1_000);
     return () => {
@@ -226,8 +237,13 @@ function GameApp() {
     campaign.phase !== "PLANNING" ||
     (campaign.clock.lockAt > 0 && now >= campaign.clock.lockAt && scheduledRound === campaign.round);
   const manualClock = campaign.clock.resolvesAt === 0;
+  const campaignTerminal = campaign.phase === "COMPLETE" || campaign.phase === "FAILED";
   const showOperatorControls = campaign.viewer.role === "ADMIN" || import.meta.env.DEV;
-  const countdown = manualClock ? "MANUAL" : formatCountdown(campaign.clock.resolvesAt - now);
+  const countdown = campaignTerminal
+    ? campaign.outcome?.result ?? "COMPLETE"
+    : manualClock
+      ? "MANUAL"
+      : formatCountdown(campaign.clock.resolvesAt - now);
   const lockCountdown = manualClock ? "operator controlled" : formatCountdown(campaign.clock.lockAt - now);
   const routeOverBudget = Boolean(selectedUnit && routeResult.total > selectedUnit.stats.speed);
   const targetOutOfRange = Boolean(
@@ -381,6 +397,7 @@ function GameApp() {
           }));
 
   const strategicView = strategicViews.has(activeNav) ? activeNav as StrategicView : undefined;
+  const tacticalContext = activeNav === "Campaigns" || activeNav === "Reports";
   const topbarCopy: Record<ActiveNav, { eyebrow: string; title: string }> = {
     Command: { eyebrow: "33RD EXPEDITIONARY // PERSISTENT WORLD", title: "Command Overview" },
     Galactic: { eyebrow: "HELION SYSTEM // STRATEGIC THEATRE", title: "Galactic Operations" },
@@ -389,6 +406,7 @@ function GameApp() {
     Forces: { eyebrow: "33RD EXPEDITIONARY BATTALION // MUSTER", title: "Persistent Force Registry" },
     Deployment: { eyebrow: "OPERATION SPEARHEAD // FORCE PROJECTION", title: "Deployment Planner" },
     Campaigns: { eyebrow: `ACTIVE OPERATION // ${campaign.planetName.toUpperCase()}`, title: campaign.campaignName },
+    Reports: { eyebrow: `AFTER-ACTION ARCHIVE // ${campaign.planetName.toUpperCase()}`, title: "Campaign Reports" },
   };
 
   function navigate(next: ActiveNav) {
@@ -414,16 +432,16 @@ function GameApp() {
           <span className="eyebrow">{topbarCopy[activeNav].eyebrow}</span>
           <h1>{topbarCopy[activeNav].title}</h1>
         </div>
-        <div className="round-clock" aria-label={activeNav === "Campaigns" ? `Round ${campaign.round}, ${countdown} remaining` : "Persistent strategic layer; open Command for the authoritative clock"}>
+        <div className="round-clock" aria-label={tacticalContext ? `Round ${campaign.round}, campaign ${countdown}` : "Persistent strategic layer; open Command for the authoritative clock"}>
           <Glyph name="clock" size={17} />
-          {activeNav === "Campaigns" ? (
-            <><div><span>ROUND {campaign.round}</span><strong>{countdown}</strong></div><small>{manualClock ? "UNTIMED" : `LOCK ${lockCountdown}`}</small></>
+          {tacticalContext ? (
+            <><div><span>ROUND {campaign.round}</span><strong>{countdown}</strong></div><small>{campaignTerminal ? "MISSION ENDED" : manualClock ? "UNTIMED" : `LOCK ${lockCountdown}`}</small></>
           ) : (
             <><div><span>STRATEGIC LAYER</span><strong>ASYNC</strong></div><small>SEE COMMAND<br />FOR CLOCK</small></>
           )}
         </div>
-        <div className={`connection-pill ${activeNav === "Campaigns" ? connection.toLowerCase() : ""}`}>
-          <i /> {activeNav === "Campaigns" ? connection === "LIVE" ? "CAMPAIGN LIVE" : connection : "PERSISTENT WORLD"}
+        <div className={`connection-pill ${tacticalContext ? connection.toLowerCase() : ""}`}>
+          <i /> {tacticalContext ? connection === "LIVE" ? "CAMPAIGN LIVE" : connection : "PERSISTENT WORLD"}
         </div>
       </header>
 
@@ -432,13 +450,7 @@ function GameApp() {
           <button
             className={activeNav === label ? "active" : ""}
             key={label}
-            onClick={() => {
-              if (label === "Reports") {
-                setNotice({ tone: "info", message: "Strategic reports remain deferred; use the Battalion activity feed and operation briefings in this checkpoint." });
-                return;
-              }
-              navigate(label);
-            }}
+            onClick={() => navigate(label)}
           >
             <Glyph name={icon} />
             <span>{label}</span>
@@ -460,6 +472,13 @@ function GameApp() {
         <ForcesView onNotice={setNotice} />
       ) : activeNav === "Deployment" ? (
         <DeploymentPlanner onNotice={setNotice} />
+      ) : activeNav === "Reports" ? (
+        <CampaignReports
+          campaign={campaign}
+          campaignId={CAMPAIGN_ID}
+          demoUser={DEMO_USER}
+          onReturnToCampaign={() => navigate("Campaigns")}
+        />
       ) : (
       <main className="operations-layout">
         <aside className="left-panel panel">
@@ -513,6 +532,14 @@ function GameApp() {
             <div className="map-tools"><button className="active">SURFACE</button><button>INTEL</button><button>SUPPLY</button></div>
             <span className="map-version">STATE v{campaign.version}</span>
           </div>
+          {campaign.outcome && (
+            <div className={`campaign-terminal-overlay ${campaign.outcome.result.toLowerCase()}`} role="status">
+              <span>{campaign.outcome.result === "VICTORY" ? "MISSION ACCOMPLISHED" : "MISSION FAILED"}</span>
+              <strong>{campaignOutcomeMessage(campaign)}</strong>
+              <small>Round {campaign.outcome.round} · campaign state locked</small>
+              <button onClick={() => navigate("Reports")}>OPEN AFTER-ACTION REPORT</button>
+            </div>
+          )}
           <HexMap
             campaign={campaign}
             selectedUnitId={selectedUnit?.id}
@@ -623,7 +650,7 @@ function GameApp() {
             <summary>CAMPAIGN OPERATOR CONTROLS</summary>
             <div>
               {(["manual", "1m", "5m", "30m", "24h"] as const).map((preset) => (
-                <button key={preset} disabled={busy} onClick={() => void runCommand("/clock", {
+                <button key={preset} disabled={busy || campaignTerminal} onClick={() => void runCommand("/clock", {
                   method: "PATCH",
                   body: JSON.stringify({
                     commandId: `clock-${crypto.randomUUID()}`,
@@ -632,9 +659,9 @@ function GameApp() {
                   }),
                 }, `Round clock set to ${preset}.`)}>{preset.toUpperCase()}</button>
               ))}
-              <button disabled={busy || campaign.phase === "PAUSED"} onClick={() => void runCommand("/pause", { method: "POST" }, "Campaign clock paused.")}>PAUSE</button>
+              <button disabled={busy || campaign.phase === "PAUSED" || campaignTerminal} onClick={() => void runCommand("/pause", { method: "POST" }, "Campaign clock paused.")}>PAUSE</button>
               <button disabled={busy || campaign.phase !== "PAUSED"} onClick={() => void runCommand("/resume", { method: "POST" }, "Campaign clock resumed.")}>RESUME</button>
-              <button className="resolve" disabled={busy || campaign.phase === "PAUSED"} onClick={() => void runCommand("/resolve", { method: "POST", headers: { "x-expected-round": String(campaign.round) } }, `Round ${campaign.round} resolved.`)}>RESOLVE NOW</button>
+              <button className="resolve" disabled={busy || campaign.phase === "PAUSED" || campaignTerminal} onClick={() => void runCommand("/resolve", { method: "POST", headers: { "x-expected-round": String(campaign.round) } }, `Round ${campaign.round} resolved.`)}>RESOLVE NOW</button>
             </div>
           </details>}
         </aside>

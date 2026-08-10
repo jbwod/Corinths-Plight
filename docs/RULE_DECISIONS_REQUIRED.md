@@ -302,6 +302,8 @@ For every `PENDING` row:
 
 **Sources:** production seed chain creates no campaigns, insertion zones, strategic maps, nodes or ships; all current world content is explicitly development-only.
 
+**Current local experiment:** the development K-17 fixture now exercises a four-round hold-the-primary-objective policy with deterministic capture and terminal outcomes. This is test content only: it does not approve four rounds, the outcome predicates, rewards, waves, force access, or K-17 as production content.
+
 **Options:**
 
 1. Versioned production scenario/content packs, separately seeded from canonical rules and never development fixtures.

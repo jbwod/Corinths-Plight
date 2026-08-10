@@ -785,6 +785,8 @@ export type CampaignEventType =
   | "SUPPLY_TRANSFERRED"
   | "OBJECTIVE_CAPTURED"
   | "ROUND_FINISHED"
+  | "CAMPAIGN_COMPLETED"
+  | "CAMPAIGN_FAILED"
   | "CAMPAIGN_PAUSED"
   | "CAMPAIGN_RESUMED";
 
@@ -807,6 +809,41 @@ export interface ObjectiveState {
   owner: FactionSide;
   status: "ACTIVE" | "SECURED" | "FAILED";
   description: string;
+}
+
+/**
+ * Version 1 describes a bounded hold-the-objective scenario without coupling
+ * the rules engine to a campaign identifier. The policy data names every
+ * objective that can change hands and the one objective that gates victory.
+ */
+export interface CampaignScenarioPolicyV1 {
+  policyId: "HOLD_PRIMARY_OBJECTIVE";
+  version: 1;
+  startRound: number;
+  maxRounds: number;
+  primaryObjectiveId: string;
+  capturableObjectiveIds: string[];
+}
+
+export type CampaignScenarioPolicy = CampaignScenarioPolicyV1;
+
+export type CampaignOutcomeReason =
+  | "ALL_ALLIED_DEPLOYMENTS_LOST"
+  | "PRIMARY_OBJECTIVE_LOST"
+  | "FINAL_ROUND_PRIMARY_HELD"
+  | "FINAL_ROUND_CONDITIONS_NOT_MET";
+
+export interface CampaignObjectiveSummary {
+  id: string;
+  owner: FactionSide;
+  status: ObjectiveState["status"];
+}
+
+export interface CampaignOutcome {
+  result: "VICTORY" | "DEFEAT";
+  round: number;
+  reason: CampaignOutcomeReason;
+  objectives: CampaignObjectiveSummary[];
 }
 
 export interface PendingPersistentEffect {
@@ -841,6 +878,8 @@ export interface CampaignRuntimeState {
   deployments: CampaignDeployment[];
   orders: UnitOrder[];
   objectives: ObjectiveState[];
+  scenarioPolicy?: CampaignScenarioPolicy;
+  outcome?: CampaignOutcome;
   events: CampaignEvent[];
   resolutions: Record<string, ResolutionRecord>;
   pendingPersistentEffects: PendingPersistentEffect[];
