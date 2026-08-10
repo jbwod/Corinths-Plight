@@ -76,4 +76,44 @@ describe("campaign directory", () => {
     );
     expect(response?.status).toBe(401);
   });
+
+  it("advertises the authored Iron Rain briefing to campaign members", async () => {
+    const response = await routeCampaignDirectoryRequest(new Request("https://game.test/api/campaigns", {
+      headers: { "x-demo-user": "demo-user" },
+    }), env([{
+      campaign_id: "operation-iron-rain",
+      name: "Operation Iron Rain",
+      status: "RECRUITING",
+      planet_name: "Corinth",
+      map_source_key: "fixture/operation-iron-rain",
+      side: "ALLIED",
+      role: "BATTALION_COMMAND",
+      joined_at: 1,
+      minimum_players: 2,
+      maximum_players: 8,
+      member_count: 1,
+      deployment_count: 0,
+      result: null,
+      outcome_reason: null,
+      result_round: null,
+      rewards_json: null,
+      resolved_at: null,
+    }]));
+
+    expect(response?.status).toBe(200);
+    expect(await response?.json()).toEqual({
+      campaigns: [expect.objectContaining({
+        campaignId: "operation-iron-rain",
+        scenarioAvailable: true,
+        canEnter: false,
+        briefing: {
+          threat: "HIGH",
+          objectives: ["Hold Airfield", "Destroy Hive"],
+          durationRounds: 6,
+          recommendedCapabilities: ["GROUND_COMBAT", "ARMOURED", "ENGINEERING", "ARTILLERY"],
+        },
+      })],
+      availableCampaigns: [],
+    });
+  });
 });

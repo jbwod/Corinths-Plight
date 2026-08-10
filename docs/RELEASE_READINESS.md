@@ -158,7 +158,7 @@ No external state was changed during this Phase-0 assessment.
 | Battalion/Battlegroup organise/delegate | partial/read-only | CP-206/CP-207 |
 | Own/configure/embark ship | read-only/blocked | CP-300/CP-301/DEC-010 |
 | Submit/resolve strategic travel to another planet | blocked/501 | CP-302–CP-304/DEC-005 |
-| Choose operation and create scenario campaign | missing | CP-400/CP-401/CP-601 |
+| Choose operation and create scenario campaign | partial | K-17 and local Iron Rain are authored and deployable through the live campaign/planner surfaces; strategic order-to-deployment automation and a production content pack remain CP-601/DEC-020. |
 | Submit/edit/cancel/schedule tactical orders | partial | Current-round generated order/action composer and cancel path exist; future scheduling remains intentionally unavailable pending its reliable semantics. |
 | Resolve deterministic PvE combined arms | narrow partial | CP-500–CP-507 |
 | Persist effects before next round | narrow pass | Supported tactical effects hold `EFFECTS_PENDING` and acknowledge before one next round; broaden under CP-402. |

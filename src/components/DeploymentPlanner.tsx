@@ -11,7 +11,18 @@ type Method = { id: DeploymentMethodId; name: string; implementation_status: str
 type Zone = { id: string; hex: { q: number; r: number }; allowedMethods: DeploymentMethodId[]; environment: string[] };
 type Context = { campaignId: string; battalionId: string; canCommit: boolean; methods: Method[]; insertionZones: Zone[] };
 type PlanResponse = { planId: string; campaignId?: string; revision: number; status: string; validation: { valid: boolean; errors: Array<{ code: string; message: string; entityId?: string }>; warnings: Array<{ code: string; message: string }> } };
-type CampaignOption = { campaignId: string; name: string; status: string; scenarioAvailable: boolean };
+type CampaignOption = {
+  campaignId: string;
+  name: string;
+  status: string;
+  scenarioAvailable: boolean;
+  briefing?: {
+    threat: string;
+    objectives: string[];
+    durationRounds: number;
+    recommendedCapabilities: string[];
+  };
+};
 
 function collection(payload: unknown): unknown[] {
   if (Array.isArray(payload)) return payload;
@@ -96,6 +107,7 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
     return effective?.cargoProfile ? [{ id, callsign: units.find((unit) => unit.unitId === id)?.callsign ?? id, effective }] : [];
   }), [loadouts, selected, units]);
   const selectedUnits = selected.map((id) => ({ unit: units.find((unit) => unit.unitId === id)!, loadout: loadouts.get(id) })).filter((item) => item.unit && item.loadout);
+  const selectedCampaign = campaigns.find((campaign) => campaign.campaignId === campaignId);
 
   async function save() {
     if (mode !== "LIVE" || !context || !zoneId || selectedUnits.length === 0) return;
@@ -158,6 +170,12 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
         {campaigns.map((campaign) => <option key={campaign.campaignId} value={campaign.campaignId}>{campaign.name}</option>)}
       </select>
     </label> : null}
+    {selectedCampaign?.briefing ? <section className="panel" style={{ padding: "1rem", gridColumn: "1 / -1" }}>
+      <span className="eyebrow">OPERATION BRIEFING · {selectedCampaign.briefing.threat} THREAT · {selectedCampaign.briefing.durationRounds} ROUNDS</span>
+      <h2>{selectedCampaign.name}</h2>
+      <p><strong>Objectives:</strong> {selectedCampaign.briefing.objectives.join(" · ")}</p>
+      <p><strong>Recommended:</strong> {selectedCampaign.briefing.recommendedCapabilities.map((item) => item.replaceAll("_", " ")).join(" · ")}</p>
+    </section> : null}
     <section className="deployment-steps panel">
       <article><b>01</b><div><strong>Force package</strong><small>Select persistent units and their locked revisions</small></div></article>
       <article><b>02</b><div><strong>Lift & capacity</strong><small>Assign rules-defined carrier manifests</small></div></article>

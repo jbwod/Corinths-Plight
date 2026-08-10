@@ -128,13 +128,13 @@ For `/api/campaigns/{campaignId}/*` the current Worker:
 1. rejects an unsafe production auth configuration;
 2. requires an exact same-origin `Origin` for mutations and WebSocket upgrades, and rejects explicitly cross-origin API requests;
 3. authenticates either an explicitly enabled development demo identity or a SHA-256-digested `corinth_session` row joined to an `ACTIVE` user;
-4. allows the demo identity only when `ENVIRONMENT=development`, `ALLOW_DEMO_AUTH=true`, and the campaign is an explicit local fixture (`outpost-k17` or `operation-spearhead`);
+4. allows the demo identity only when `ENVIRONMENT=development` and `ALLOW_DEMO_AUTH=true`; campaign access still requires an existing D1 campaign membership;
 5. for session identities, reads an existing campaign and membership from D1 before resolving a DO name; only `ACTIVE`, `PAUSED`, `COMPLETE`, or `FAILED` campaigns route;
 6. maps campaign `PLAYER`, `BATTALION_COMMAND`, and `GM` roles to supported viewer contexts; `OBSERVER` and unsafe neutral projections fail closed;
 7. strips cookies, authorization/demo inputs, and client-supplied internal viewer headers before adding server-derived viewer headers;
 8. routes to `CAMPAIGN.getByName(campaignId)`.
 
-The DO self-initialises without D1 only for `outpost-k17`. A registered non-K-17 campaign requires committed D1 deployment snapshots for its forces, but it still calls `createDemoCampaignState`, retains the K-17 map/terrain shape, clears objectives, and applies fallback positions. This prevents arbitrary force invention but is not fail-closed scenario initialization.
+The DO self-initialises without D1 only for the explicit local `outpost-k17` fixture. Registered campaigns require committed D1 deployment snapshots and an authored `map_source_key`. K-17 and Operation Iron Rain now load different versioned maps, objectives, enemy forces, reinforcement schedules and round policies; any unsupported source fails closed before state is created.
 
 Current tactical order commands derive start position, class eligibility, executable order/action definitions, action economy/speed cost, fitted weapons/equipment, owner, current visible target IDs, and one-attack limits on the server. Order upsert requires an actor-scoped `commandId`, `expectedCampaignVersion`, and `expectedOrderRevision`; clock update requires `commandId` and `expectedCampaignVersion`. Each stores a SHA-256 request hash and exact response receipt atomically with its state/event changes, matching retries replay, and changed-payload reuse fails. The pure resolver independently rechecks the pinned ruleset, compiled executable definitions, routes, speed/action budget, attack count, targets, weapons, LOS/range, ammo, cooldown, and friendly-fire rules. This boundary is incomplete while D1 can mark a class executable that the compiled catalogue cannot resolve.
 

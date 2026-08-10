@@ -195,13 +195,13 @@ The development seed uses `strategic-map-corinth`, CSV Resolute, the Resolute Ta
 
 | Table | Implemented fields and constraints |
 |---|---|
-| `campaign_results` | One immutable terminal row per campaign: round, pinned scenario ID/version, victory/defeat reason, objective snapshot, reward disposition, unique resolution/effect IDs, and resolution time. The K-17 terminal effect inserts this row, closes `campaigns`, projects the result to a linked strategic operation when present, and records the same idempotency key in `campaign_effect_receipts` before the DO enters `COMPLETE`. |
+| `campaign_results` | One immutable terminal row per campaign: round, pinned scenario ID/version, victory/defeat reason, objective snapshot, reward disposition, unique resolution/effect IDs, and resolution time. Authored campaign terminal effects insert this row, close `campaigns`, project the result to a linked strategic operation when present, and record the same idempotency key in `campaign_effect_receipts` before the DO enters `COMPLETE`. |
 
 The reward JSON intentionally records service history and a `BALANCE_REQUIRED` Req amount of `null`; migration `0010` does not invent an economy value while RC-V5-016 remains unresolved.
 
 ## 4. Current Campaign Durable Object records
 
-One DO is named by the URL/D1 campaign ID. The explicit local `outpost-k17` fixture remains available only in development. A persistent campaign requires committed D1 deployment/loadout snapshots and a supported authored `map_source_key`; K-17 loads `scenario-outpost-k17-hold-relay@3`, while unsupported content fails closed. General scenario import/authoring is not implemented.
+One DO is named by the URL/D1 campaign ID. The explicit local `outpost-k17` fixture remains available only in development. A persistent campaign requires committed D1 deployment/loadout snapshots and a supported authored `map_source_key`; K-17 loads `scenario-outpost-k17-hold-relay@3`, Iron Rain loads `scenario-operation-iron-rain@1`, and unsupported content fails closed. General scenario import/authoring is not implemented.
 
 | Storage key | Implemented contents | Current behavior |
 |---|---|---|
@@ -309,7 +309,7 @@ The tactical `persistent_effects` table still needs a follow-up migration or del
 1. Add runtime schemas and explicit D1-to-domain adapters, including seconds/milliseconds and quarter-point conversion.
 2. Choose one generated/hashed source of rules truth and enforce published immutability.
 3. Deploy and monitor the locally implemented `0008` retention/invitation controls only after migration approval, then extend the passwordless boundary with operator account controls and session/device management without exposing auth identities publicly.
-4. Replace the K-17-derived non-demo initializer with runtime-validated battlefield/map/objective content from an authorised D1 strategic deployment/scenario snapshot; keep K-17 and the Corinth Expedition fixtures local-only.
+4. Evolve the current code-authored K-17 and Iron Rain loaders into runtime-validated, hash-pinned scenario publications while retaining fail-closed map-source selection.
 5. Complete and reconcile the existing purchase/equip/deploy services, then add withdrawal/recovery before exposing the broader table families as complete features.
 6. Add the tactical PREPARED/hash journal and D1 persistent-effect applier before claiming exact-once tactical-to-strategic resolution.
 7. Reconcile legacy Player Unit/ship compatibility locations with structured strategic location through one transactional service.

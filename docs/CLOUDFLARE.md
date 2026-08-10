@@ -112,7 +112,7 @@ Clock values change configuration only; manual/accelerated/production alarms cal
 
 The default Wrangler configuration deliberately enables the local demo. It must never be used for a remote deployment. Root production scripts always set/select the production environment. Operators must use those scripts and must not bypass them with a bare `wrangler deploy`.
 
-`ALLOW_DEMO_AUTH` is accepted only when its value is exactly `true` and `ENVIRONMENT` is exactly `development`. Production also returns 503 if configured with demo auth enabled. The explicit demo identity can access only the local fixtures `outpost-k17` and `operation-spearhead`.
+`ALLOW_DEMO_AUTH` is accepted only when its value is exactly `true` and `ENVIRONMENT` is exactly `development`. Production also returns 503 if configured with demo auth enabled. Demo campaign access still requires a seeded D1 campaign and membership; current local content includes K-17, Iron Rain, and Spearhead records, while only K-17 and Iron Rain have authored tactical loaders.
 
 ## 6. Authentication and campaign-routing boundary
 
@@ -120,7 +120,7 @@ The default Wrangler configuration deliberately enables the local demo. It must 
 
 - Unsafe methods and WebSocket upgrades require a present, exactly matching same-origin `Origin`.
 - Explicitly cross-origin API requests are rejected. The sole exception is an Origin-less top-level document navigation to exact `GET /api/auth/verify`, allowing links opened from mail clients to stage their token without mutating account state; its confirmation POST remains exact same-origin.
-- Demo headers/query identity work only under the explicit development flag and only for K-17 or Operation Spearhead.
+- Demo headers/query identity work only under the explicit development flag; campaign routes still require an existing D1 membership.
 - Cookie authentication accepts a 32–512 character `corinth_session`, URI-decodes it, hashes it with SHA-256, and queries an unexpired/unrevoked session joined to an `ACTIVE` user.
 - Session campaign access is loaded from D1 before `CAMPAIGN.getByName`. Only existing `ACTIVE`, `PAUSED`, `COMPLETE`, or `FAILED` campaigns route.
 - `PLAYER` and `BATTALION_COMMAND` retain their campaign side; campaign `GM` maps to internal `ADMIN`; `OBSERVER`, unknown roles, and unsafe neutral projections fail closed.

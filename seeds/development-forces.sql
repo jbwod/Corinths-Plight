@@ -101,6 +101,21 @@ ON CONFLICT(campaign_id, user_id) DO UPDATE SET
   side = excluded.side,
   role = excluded.role;
 
+INSERT INTO campaign_insertion_zones (
+  id, campaign_id, hex_q, hex_r, allowed_methods_json, status, environment_json
+) VALUES
+  (
+    'iron-rain-western-muster', 'operation-iron-rain', -6, 2,
+    '["STANDARD_GROUND","VEHICLE_TRANSPORT","VTOL_INSERTION","HEAVY_AIR_TRANSPORT"]',
+    'OPEN', '["CLEAR_APPROACH","ROUGH_AIRFIELD_APPROACH"]'
+  )
+ON CONFLICT(id) DO UPDATE SET
+  hex_q = excluded.hex_q,
+  hex_r = excluded.hex_r,
+  allowed_methods_json = excluded.allowed_methods_json,
+  status = excluded.status,
+  environment_json = excluded.environment_json;
+
 INSERT INTO ships (
   id, battalion_id, ruleset_id, class_definition_id, name,
   status, current_health, location_planet_id, state_json

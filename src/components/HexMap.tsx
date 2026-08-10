@@ -406,7 +406,7 @@ export function HexMap({
       <canvas
         ref={canvasRef}
         role="application"
-        aria-label="Outpost K-17 tactical hex map. Drag to pan, wheel to zoom, and select a hex to issue orders."
+        aria-label={`${campaign.campaignName} tactical hex map. Drag to pan, wheel to zoom, and select a hex to issue orders.`}
         tabIndex={0}
         onPointerDown={(event) => {
           event.currentTarget.setPointerCapture(event.pointerId);
@@ -470,7 +470,7 @@ export function HexMap({
         }}
       />
       <div className="map-coordinates" aria-hidden="true">
-        {hovered ? `HEX ${hovered.q}.${hovered.r}` : `${layer} GRID // K-17`}
+        {hovered ? `HEX ${hovered.q}.${hovered.r}` : `${layer} GRID // ${campaign.campaignName.toUpperCase()}`}
       </div>
       <div className="map-zoom-controls">
         <button onClick={() => setViewport((current) => ({ ...current, zoom: Math.min(2.2, current.zoom * 1.15) }))} aria-label="Zoom in">+</button>

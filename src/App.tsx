@@ -146,11 +146,15 @@ function eventLabel(event: CampaignEvent): string {
 }
 
 function campaignOutcomeMessage(campaign: CampaignView): string {
+  const primaryObjective = campaign.objectives.find((objective) =>
+    objective.id === campaign.scenarioPolicy?.primaryObjectiveId
+  );
+  const objectiveName = primaryObjective?.name ?? "The primary objective";
   switch (campaign.outcome?.reason) {
-    case "FINAL_ROUND_PRIMARY_HELD": return "Outpost K-17 held through the final assault.";
+    case "FINAL_ROUND_PRIMARY_HELD": return `${objectiveName} held through the final assault.`;
     case "ALL_ALLIED_DEPLOYMENTS_LOST": return "No Allied deployment remains operational.";
-    case "PRIMARY_OBJECTIVE_LOST": return "Enemy forces captured Outpost K-17.";
-    case "FINAL_ROUND_CONDITIONS_NOT_MET": return "The primary outpost was not secured at the deadline.";
+    case "PRIMARY_OBJECTIVE_LOST": return `Enemy forces captured ${objectiveName}.`;
+    case "FINAL_ROUND_CONDITIONS_NOT_MET": return `${objectiveName} was not secured at the deadline.`;
     default: return "Campaign command has closed this operation.";
   }
 }
@@ -920,7 +924,7 @@ function GameApp() {
 
         <section className="map-panel" aria-label="Tactical operations map">
           <div className="map-toolbar">
-            <div><span className="eyebrow">TACTICAL FEED</span><strong>SECTOR K-17 // GRID 04</strong></div>
+            <div><span className="eyebrow">TACTICAL FEED</span><strong>{campaign.campaignName.toUpperCase()} // GRID {String(campaign.scenarioVersion).padStart(2, "0")}</strong></div>
             <div className="map-tools" aria-label="Tactical map layer">
               {(["SURFACE", "INTEL", "SUPPLY"] as TacticalMapLayer[]).map((layer) => (
                 <button className={mapLayer === layer ? "active" : ""} key={layer} onClick={() => setMapLayer(layer)}>{layer}</button>
