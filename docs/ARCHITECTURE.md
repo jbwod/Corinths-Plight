@@ -25,7 +25,7 @@ The current repository is a deployed Phase 3/equipment foundation with local K-1
 | Deliverable | Repository evidence | Status |
 |---|---|---|
 | Foundation and Phase 3 design/audit documents | Original seven documents plus `STRATEGIC_LAYER.md`, `BATTALION_MODEL.md`, `SHIP_SYSTEM.md`, and `STRATEGIC_RESOLUTION.md` | Implemented |
-| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0006_production_identity.sql` | Implemented as additive schema artifacts; production is currently applied through `0005` |
+| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0006_production_identity.sql` | Implemented as additive schema artifacts and applied through `0006` in production |
 | Ruleset seed | `seeds/v5-core-curated.sql`; consistency check in `scripts/validate-seed.ts` | Implemented as an idempotent SQL seed |
 | Domain contracts | `packages/domain/src/index.ts` | Implemented TypeScript interfaces; runtime schemas are not yet present |
 | Pure rules engine | `packages/rules-engine/src/` and `packages/rules-engine/test/` | Implemented foundation subset |
@@ -36,8 +36,8 @@ The current repository is a deployed Phase 3/equipment foundation with local K-1
 | Phase 3 strategic schema/world | `0004`, `development-strategic-world.sql`, and the four Phase 3 design documents | Implemented local checkpoint |
 | Strategic resolver/API/UI | Domain, pure-engine, Worker, and responsive strategic workspace files | Checkpoint work; verify landed tests before release |
 | Equipment/loadout/deployment slice | `0005`, canonical equipment seed, pure engine, Worker services, planner/force UI, and Spearhead fixture | Implemented release candidate; broader Store content remains blocked |
-| Public home and production identity slice | Public React gateway, Resend passwordless services/routes, opaque sessions, and `0006` | Implemented locally; Resend DNS/secrets and production migration/deploy pending |
-| Successful remote foundation deployment | Production D1 is migrated through `0005`; Phase 3/equipment Worker and UI are available at `corinthplight.qnetica.com.au` | Implemented on 2026-08-10; production identity/scenario data remains open |
+| Public home and production identity slice | Public React gateway, Resend passwordless services/routes, opaque sessions, and `0006` | Implemented and deployed; live Resend delivered-test passed |
+| Successful remote foundation deployment | Production D1 is migrated through `0006`; Phase 3/equipment/identity Worker and UI are available at `corinthplight.qnetica.com.au` | Implemented on 2026-08-10; production scenario data remains open |
 
 The full Phase 3 scenario—production account creation, invitation, purchase, ship travel, deployment into a tactical campaign, exact-once permanent strategic consequences, recovery, and redeployment—is the product definition of success, not a claim about this checkpoint.
 
@@ -272,21 +272,21 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 | Check | Status | Evidence or remaining work |
 |---|---|---|
 | Package skeleton, TypeScript, lint, unit tests, local production build | Complete | Root package scripts |
-| Migrations and idempotent seed artifacts | Complete locally as artifacts | Five additive SQL migrations, three canonical seeds, three local fixtures, `seed:check` |
+| Migrations and idempotent seed artifacts | Complete locally and through `0006` in production | Six additive SQL migrations, three canonical seeds, three local fixtures, `seed:check` |
 | Deterministic resolver subset and regression coverage | Complete for the stated subset | Hold/Advance/Rush/Attack engine tests |
 | K-17 state, alarms, clock, pause/resume, sockets | Partial | Unit coverage exists; crash/alarm/WebSocket integration coverage does not |
 | Viewer projection | Partial | Basic state/report redaction exists; event-time and socket-field leakage tests remain |
 | D1 persistent-effect applier and next-round gate | Partial | Supported effects use D1 receipts; cryptographic journal, automatic reconciliation, and next-round acknowledgement gate remain open |
 | PREPARED journal, cryptographic input/output hashes, secret seed commitment | Open | Current record is a committed snapshot with a predictable seed and 32-bit digest |
 | Separate persisted schedule records and reconnect catch-up | Open | Schedule lives inside current state; no events-after-sequence API |
-| Production login/provider/session issuance | Open | Existing session rows can be validated only |
+| Production passwordless identity/session issuance | Complete | Resend verified-email links, opaque sessions, logout, rate limits, and pseudonymized audit are deployed |
 | Helion/Corinth strategic schema and fixture | Complete locally | Fresh 0001–0004, all seeds twice, integrity/FK and negative probes |
 | Strategic map sharding, pure resolver, permission-scoped APIs, responsive UI | Checkpoint verification required | Phase 3 domain/engine/Worker/UI lanes; release only after full tests/build and visual inspection |
 | Strategic-to-tactical deployment/result reconciliation | Partial | Loadout/deployment commit, campaign snapshot bootstrap, and narrow tactical writeback exist; withdrawal and the full acknowledgement-gated protocol remain deferred |
 | Production D1 and custom-domain foundation | Complete for the earlier release | Production binding is provisioned; `corinthplight.qnetica.com.au` serves the pre-Phase-3 foundation |
-| Phase 3 remote deployment | Complete | Cloudflare version `e23895fe-9723-4062-a921-e1919b2a1d6d`; custom-domain health/UI/auth smoke tests passed |
+| Phase 3/identity remote deployment | Complete | Cloudflare version `5ea08f5b-340c-4acf-ae0d-7679b3077317`; custom-domain health/UI/auth/Resend smoke tests passed |
 
-Phase 3 should not be described as complete or production-ready until the open identity, deployment/result, correctness, and release gates above are closed. See [STRATEGIC_LAYER.md](./STRATEGIC_LAYER.md), [BATTALION_MODEL.md](./BATTALION_MODEL.md), [SHIP_SYSTEM.md](./SHIP_SYSTEM.md), and [STRATEGIC_RESOLUTION.md](./STRATEGIC_RESOLUTION.md).
+Phase 3 should not be described as complete until the open deployment/result, correctness, scenario, and release gates above are closed. See [STRATEGIC_LAYER.md](./STRATEGIC_LAYER.md), [BATTALION_MODEL.md](./BATTALION_MODEL.md), [SHIP_SYSTEM.md](./SHIP_SYSTEM.md), and [STRATEGIC_RESOLUTION.md](./STRATEGIC_RESOLUTION.md).
 
 ## 11. Equipment/deployment vertical slice
 

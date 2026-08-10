@@ -1,6 +1,6 @@
 # Corinth's Plight Production Authentication
 
-**Status:** Implemented locally; production migration, Resend domain verification, and Worker secrets are pending
+**Status:** Deployed to production on 2026-08-10
 
 **Public origin:** `https://corinthplight.qnetica.com.au`
 
@@ -52,13 +52,13 @@ The existing `users`, `profiles`, `auth_identities`, and `user_sessions` tables 
    ```
 
    `AUTH_HASH_KEY` must be a high-entropy, independently generated secret. Rotating it invalidates rate/audit pseudonyms but does not invalidate stored session token hashes.
-4. Apply migration `0006` to production before deploying the Worker/UI that uses it.
+4. Apply migration `0006` to production before deploying the Worker/UI that uses it. This was completed for the current release.
 5. Smoke test one new registration, link replay rejection, a returning login, session projection, logout, and the same-origin rejection path. Confirm no token or raw email appears in Worker logs.
 
 Resend API behavior used by the adapter is documented in [Send Email](https://resend.com/docs/api-reference/emails/send-email), [Idempotency Keys](https://resend.com/docs/dashboard/emails/idempotency-keys), and [Managing domains](https://resend.com/docs/dashboard/domains/introduction).
 
 ## 5. Verification evidence
 
-The local release gate covers runtime validation, Resend request headers/body/idempotency, secure cookie clearing, auth route behavior, all existing tests, typecheck/lint/build, and an isolated D1 migration replay. A real local Worker/D1 flow has also exercised registration, link consumption, authenticated session projection, one-time replay rejection, and logout.
+The local release gate covers runtime validation, Resend request headers/body/idempotency, secure cookie clearing, auth route behavior, all existing tests, typecheck/lint/build, and an isolated D1 migration replay. A real local Worker/D1 flow also exercised registration, link consumption, authenticated session projection, one-time replay rejection, and logout.
 
-Production remains intentionally undeployed until the Resend domain and both Worker secrets exist and the remote `0006` migration is explicitly approved.
+Production version `5ea08f5b-340c-4acf-ae0d-7679b3077317` is deployed with migration `0006`, the verified `register@corinth.qnetica.com.au` sender, and both managed Worker secrets. Live checks passed for health, signed-out session availability, same-origin rejection, desktop/mobile UI rendering, and a Resend delivered-test registration. The production challenge is `SENT` with a recorded Resend message identifier; its audit email/IP subjects are pseudonymized.

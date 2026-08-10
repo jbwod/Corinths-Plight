@@ -12,7 +12,7 @@
 
 The repository builds a React/Vite client and one Cloudflare Worker containing the public API plus the exported Campaign and Strategic Map Durable Object classes. D1 and both named DO namespaces are configured. The V1 Flask application remains reference code and is not imported into the Worker.
 
-The Phase 3 and equipment/deployment runtime was deployed on 2026-08-10. The primary custom domain is `https://corinthplight.qnetica.com.au`; `https://corinths-plight.cybercow-now.workers.dev` remains enabled as a fallback. Production version `e23895fe-9723-4062-a921-e1919b2a1d6d` binds D1 database `corinths-plight-production` (`c75ca7bc-f10b-4987-853d-f387d377bdb9`) and both Durable Object namespaces. Production is migrated through `0005` and contains the core, Phase 2, and equipment/deployment canonical catalogues. Development fixtures were deliberately not applied; preview remains unprovisioned.
+The Phase 3, equipment/deployment, and passwordless identity runtime was deployed on 2026-08-10. The primary custom domain is `https://corinthplight.qnetica.com.au`; `https://corinths-plight.cybercow-now.workers.dev` remains enabled as a fallback. Production version `5ea08f5b-340c-4acf-ae0d-7679b3077317` binds D1 database `corinths-plight-production` (`c75ca7bc-f10b-4987-853d-f387d377bdb9`) and both Durable Object namespaces. Production is migrated through `0006` and contains the canonical catalogues plus verified-email challenge/session support. Development fixtures were deliberately not applied; preview remains unprovisioned.
 
 ## 2. Current runtime topology
 
@@ -98,7 +98,7 @@ The values below are the actual `wrangler.jsonc` entries:
 |---|---|---:|---:|---|---|
 | default (local development) | `corinths-plight` / `development` | `true` | tactical 5m / 30s; strategic 5m / 30s | `corinths-plight`, `...0001` placeholder | Local-only |
 | `--env preview` | `corinths-plight-preview` / `preview` | `false` | tactical 30m / 30s; strategic 30m / 30s | `corinths-plight-preview`, `...0002` placeholder | Not provisioned/deployed |
-| `--env production` | `corinths-plight` / `production` | `false` | tactical 24h / 30s; strategic 24h / 30s | `corinths-plight-production`, `c75ca7bc-f10b-4987-853d-f387d377bdb9` | Phase 3/equipment runtime deployed; identity and scenario data absent |
+| `--env production` | `corinths-plight` / `production` | `false` | tactical 24h / 30s; strategic 24h / 30s | `corinths-plight-production`, `c75ca7bc-f10b-4987-853d-f387d377bdb9` | Phase 3/equipment/passwordless identity runtime deployed; scenario data absent |
 
 Clock values change configuration only; manual/accelerated/production alarms call the same DO lock/resolve functions.
 
@@ -122,7 +122,7 @@ The default Wrangler configuration deliberately enables the local demo. It must 
 
 ### 6.2 Open controls
 
-- The passwordless Resend flow, opaque session issuance, current-session projection, and logout are implemented locally, but production remains on migration `0005` until `0006`, the verified sending domain, and the `RESEND_API_KEY`/`AUTH_HASH_KEY` Worker secrets are explicitly released. See [AUTHENTICATION.md](./AUTHENTICATION.md).
+- The passwordless Resend flow, opaque session issuance, current-session projection, and logout are deployed with migration `0006`, verified sender `register@corinth.qnetica.com.au`, and managed `RESEND_API_KEY`/`AUTH_HASH_KEY` secrets. See [AUTHENTICATION.md](./AUTHENTICATION.md).
 - There is no separate synchronizer-token mechanism; the current cookie-auth mitigation is exact same-origin Origin enforcement plus `SameSite=Lax`. Deployment/proxy policy must preserve the Origin signal.
 - `readJson` enforces size and parses JSON but does not require JSON content type or apply general runtime schemas.
 - A non-K-17 campaign bootstraps only when authorised D1 deployment snapshots exist; otherwise the DO fails `CAMPAIGN_NOT_INITIALISED` rather than inventing forces.
@@ -235,7 +235,7 @@ Implemented:
 
 Still required:
 
-- production application of migration `0006`, verified Resend DNS/sender, and managed `RESEND_API_KEY`/`AUTH_HASH_KEY` secrets;
+- operational monitoring and expiry cleanup for passwordless challenges, sessions, rate buckets, and audit retention;
 - runtime request/response schemas and content-type policy;
 - server-secret seed/HMAC or equivalent commitment protocol;
 - cryptographic input/output/effect hashes;
@@ -260,10 +260,10 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 - [x] No R2, Queue, or KV authority binding is present.
 - [x] Demo auth requires exact development opt-in and is limited to `outpost-k17` and `operation-spearhead`; production cannot enable it safely.
 - [x] Unsafe mutations/WebSocket upgrades require same origin; D1 membership is checked before DO lookup.
-- [x] Five additive D1 migrations, published/local seed separation, source-hash validator, TypeScript build, lint, and unit tests exist.
+- [x] Six additive D1 migrations, published/local seed separation, source-hash validator, TypeScript build, lint, and unit tests exist.
 - [~] Manual/accelerated/24h clocks and pause/resume are unit-tested; alarm crash/eviction integration is not.
 - [~] Snapshot/report projection exists; event-time payload and socket-audience leakage coverage is incomplete.
-- [ ] Implement production login/provider and session issuance/recovery/rotation/revocation flow.
+- [x] Implement and deploy passwordless production registration/login, opaque session issuance, email-based recovery, and logout revocation.
 - [x] Implement fail-closed non-K-17 campaign bootstrap from committed D1 deployment snapshots.
 - [ ] Implement PREPARED journal, cryptographic input/output hashes, and protected deterministic seed.
 - [ ] Implement separate persisted schedule records and consumed/recovery semantics.
@@ -271,7 +271,7 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 - [ ] Implement events-after-sequence reconnect and hibernation integration tests.
 - [ ] Provision the preview D1 resource and replace its placeholder ID; production D1 is already provisioned.
 - [ ] Complete and record a remote preview deployment/smoke test.
-- [x] Complete and record the production remote migration/seed/deployment through version `e23895fe-9723-4062-a921-e1919b2a1d6d`.
+- [x] Complete and record production migration/deployment through `0006`, version `5ea08f5b-340c-4acf-ae0d-7679b3077317`.
 
 ## 13. Cloudflare decisions
 
