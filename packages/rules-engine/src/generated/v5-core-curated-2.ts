@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "85ec382c48e65118e4c1bb4e3d84dc1595172b395d5a87f6e75548a5271c0c8d",
+  "contentHash": "632838eca9c131e302b63d082ac60a6665c9973c86521cd9648c94ba1187107f",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -777,7 +777,7 @@ const snapshot = {
         ],
         "disposition": "subtract 2 from each outgoing damage result, minimum zero; add 3 Defense.",
         "status": "PROVISIONAL-MVP",
-        "notes": "Canonical section: 6. Internal V5 ambiguities\nCanonical status: `PROVISIONAL-MVP`.\n\n\n- **Evidence:** `V5 > Evasive` describes lower accuracy as “-2 to attacks +3 to Defense,” but V5 has no separate accuracy/to-hit statistic.\n- **MVP disposition:** subtract 2 from each outgoing damage result, minimum zero; add 3 Defense.\n- **Status:** `PROVISIONAL-MVP`."
+        "notes": "Canonical section: 6. Internal V5 ambiguities\nCanonical status: `PROVISIONAL-MVP`.\n\n\n- **Evidence:** `V5 > Evasive` describes lower accuracy as “-2 to attacks +3 to Defense,” but V5 has no separate accuracy/to-hit statistic.\n- **MVP disposition:** subtract 2 from each outgoing damage result, minimum zero; add 3 Defense.\n- **Implementation note:** a governed capable unit must declare at least half its Speed in axial displacement. The modifiers are active only if its resolved position still meets that displacement after simultaneous blocking.\n- **Status:** `PROVISIONAL-MVP`."
       },
       {
         "id": "RC-V5-005",
@@ -1859,7 +1859,8 @@ const snapshot = {
             "allowedOrders": [
               "HOLD",
               "ADVANCE",
-              "RUSH"
+              "RUSH",
+              "EVASIVE"
             ],
             "capacity": 1,
             "tags": [
@@ -7489,6 +7490,7 @@ const snapshot = {
         "evidence": {
           "definitionIds": [
             "order-advance",
+            "order-evasive",
             "order-hold",
             "order-rush"
           ],
@@ -8022,6 +8024,22 @@ const snapshot = {
       },
       {
         "definitionKind": "ORDER",
+        "definitionId": "order-evasive",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-order-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "orderTypes",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; later mechanics remain separately gated."
+        }
+      },
+      {
+        "definitionKind": "ORDER",
         "definitionId": "order-hold",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
@@ -8442,14 +8460,14 @@ const snapshot = {
             "ATTACK",
             "MOVEMENT",
             "SUBSYSTEMS",
-            "RAPID_FIRE"
+            "RAPID_FIRE",
+            "EVASIVE"
           ],
           "missing": [
-            "EVASIVE",
             "CARGO"
           ],
           "publicationCorrection": {
-            "reason": "The V5 natural-5/6 subsystem malfunction rule now persists and gates later weapon and mobility use.",
+            "reason": "Subsystem malfunctions and Evasive movement now resolve through the generated tactical handler.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": true,
@@ -13915,5 +13933,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "85ec382c48e65118e4c1bb4e3d84dc1595172b395d5a87f6e75548a5271c0c8d" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "632838eca9c131e302b63d082ac60a6665c9973c86521cd9648c94ba1187107f" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

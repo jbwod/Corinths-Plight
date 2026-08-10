@@ -21,7 +21,7 @@ export const CAMPAIGN_REPORT_GROUPS: CampaignReportGroup[] = [
   "COMMAND",
 ];
 
-const movementEvents = new Set(["UNIT_MOVED", "UNIT_BLOCKED", "UNIT_DUG_IN", "UNIT_DUG_OUT"]);
+const movementEvents = new Set(["UNIT_MOVED", "UNIT_BLOCKED", "UNIT_DUG_IN", "UNIT_DUG_OUT", "EVASIVE_MANEUVER"]);
 const combatEvents = new Set(["DICE_ROLLED", "UNIT_ATTACKED", "WEAPON_SKIPPED", "SUBSYSTEM_MALFUNCTIONED", "DAMAGE_APPLIED", "UNIT_DESTROYED"]);
 const supportEvents = new Set([
   "CARGO_LOADED",
@@ -148,13 +148,17 @@ export function describeCampaignReportEvent(
       return `${actor} dug in at hex ${coordLabel(payload.position) ?? "unknown"} for +2 Defense.`;
     case "UNIT_DUG_OUT":
       return `${actor} left its prepared position and lost Dig In Defense.`;
+    case "EVASIVE_MANEUVER":
+      return payload.active === true
+        ? `${actor} completed an Evasive maneuver: +3 Defense and −2 to outgoing attacks this round.`
+        : `${actor} was stopped before completing the minimum Evasive displacement and gained no modifier.`;
     case "DICE_ROLLED": {
       const raw = numberValue(payload.raw);
       const modified = numberValue(payload.modified);
       return `${actor} rolled ${raw}${modified !== raw ? `, modified to ${modified}` : ""}.`;
     }
     case "UNIT_ATTACKED":
-      return `${actor} attacked ${target}: ${numberValue(payload.healthLoss)} damage${payload.highGroundModifier === 1 ? ", high ground added +1" : ""}${payload.coverArmor === 1 ? ", cover added +1 Armor" : ""}${payload.digInDefense === 2 ? ", Dig In added +2 Defense" : ""}${payload.rapidFireMultiplier === 2 ? ", Rapid Fire doubled the damage result" : ""}${payload.penetrated === true ? ", armour penetrated" : ""}.`;
+      return `${actor} attacked ${target}: ${numberValue(payload.healthLoss)} damage${payload.highGroundModifier === 1 ? ", high ground added +1" : ""}${payload.evasiveAttackModifier === -2 ? ", Evasive fire applied −2" : ""}${payload.coverArmor === 1 ? ", cover added +1 Armor" : ""}${payload.digInDefense === 2 ? ", Dig In added +2 Defense" : ""}${payload.evasiveDefenseModifier === 3 ? ", target Evasive added +3 Defense" : ""}${payload.rapidFireMultiplier === 2 ? ", Rapid Fire doubled the damage result" : ""}${payload.penetrated === true ? ", armour penetrated" : ""}.`;
     case "WEAPON_SKIPPED":
       return `${actor}'s ${String(payload.weaponId ?? "weapon")} did not fire at ${target}: ${String(payload.reason ?? "not eligible")}`;
     case "SUBSYSTEM_MALFUNCTIONED": {

@@ -37,6 +37,8 @@ export interface AttackCalculation {
   rapidFireMultiplier: 1 | 2;
   damageResult: number;
   highGroundModifier: 0 | 1;
+  evasiveAttackModifier: 0 | -2;
+  evasiveDefenseModifier: 0 | 3;
   ammoAfter?: number;
   cooldownAfter?: number;
 }
@@ -119,6 +121,7 @@ export function resolveAttackRoll(
   hexes: BattlefieldHex[],
   random: SeededRandom,
   spotters: CampaignDeployment[] = [],
+  modifiers: { attackerEvasive?: boolean; targetEvasive?: boolean } = {},
 ): AttackCalculation {
   const targetCheck = canTarget(attacker, target, weapon, hexes, spotters);
   const rearGeometry = isRearAttack(attacker.position, target.position, target.facing);
@@ -136,7 +139,9 @@ export function resolveAttackRoll(
   const cover = resolveTacticalCover(attacker, target, hexes);
   const effectiveArmor = groundVehicleRear ? 0 : Math.max(0, targetArmor + cover.armor - weapon.armorPiercing);
   const digInDefense: 0 | 2 = groundTarget && !groundInfantryRear && (targetTags.has("INFANTRY") || targetTags.has("PERSONNEL")) && target.statuses.includes("DUG_IN") ? 2 : 0;
-  const baseDefense = target.stats.defense + digInDefense;
+  const evasiveAttackModifier: 0 | -2 = modifiers.attackerEvasive ? -2 : 0;
+  const evasiveDefenseModifier: 0 | 3 = modifiers.targetEvasive ? 3 : 0;
+  const baseDefense = target.stats.defense + digInDefense + evasiveDefenseModifier;
   const targetDefense = Math.max(0, baseDefense - (target.bombardmentSuppression?.stacks ?? 0));
   const threshold = effectiveArmor + targetDefense;
   const rapidFireMultiplier = weapon.tags.includes("RAPID_FIRE") && target.tags?.includes("HORDE") === true ? 2 : 1;
@@ -156,12 +161,14 @@ export function resolveAttackRoll(
       rapidFireMultiplier,
       damageResult: 0,
       highGroundModifier,
+      evasiveAttackModifier,
+      evasiveDefenseModifier,
     };
   }
 
   const rolls = Array.from({ length: weapon.damage.count }, () => random.die(weapon.damage.sides));
   const raw = rolls.reduce((total, value) => total + value, 0);
-  const modified = raw + (weapon.damage.modifier ?? 0) + highGroundModifier;
+  const modified = Math.max(0, raw + (weapon.damage.modifier ?? 0) + highGroundModifier + evasiveAttackModifier);
   const capped =
     attacker.stats.healthModel === "FORCE_STRENGTH"
       ? Math.min(modified, attacker.currentHealth)
@@ -190,6 +197,8 @@ export function resolveAttackRoll(
     rapidFireMultiplier,
     damageResult,
     highGroundModifier,
+    evasiveAttackModifier,
+    evasiveDefenseModifier,
     ammoAfter:
       weapon.ammoCapacity === undefined
         ? undefined

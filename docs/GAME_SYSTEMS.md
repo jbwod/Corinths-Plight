@@ -62,12 +62,12 @@ Canonical status MUST NOT be inferred from an implementation flag, and implement
 | System | Canonical profile | Foundation implementation |
 |---|---|---|
 | Hold, Advance, Rush | `canonical_active` | `foundation_partial`: explicit axial route, Speed budget, quarter-distance simultaneous movement, hostile blocking/contention, partial-route stops, end position/facing, and Rush attack/damage restrictions resolve; Hold applies final facing. Unpinned terrain defaults still prevent a full implementation claim. |
-| Evasive, Melee Charge, Stealth | `canonical_active`/`active_provisional` | `foundation_deferred`: structured definitions exist with `executable=false`; submission and resolver validation reject them. |
+| Evasive, Melee Charge, Stealth | `canonical_active`/`active_provisional` | `foundation_partial`: Evasive is executable for governed eligible units; Melee Charge and Stealth remain structured definitions with `executable=false`. |
 | Attack action | `canonical_active` plus V5 rulings | `foundation_partial`: one server-owned Attack activation per unit fires every eligible fitted weapon once and implements FS cap, Armor/AP/Defense, governed rear effects, range, direct LOS, indirect spotting, ammo, cooldown, Rush damage, and simultaneous commit. Remaining firing-arc/melee/aerospace rules are deferred. |
 | Multiweapon attack activation | `active_provisional` (`RC-V5-003`) | `foundation_executable`: the player declares one target; the server deterministically derives and revalidates every participating fitted weapon, then resolves each eligible weapon once in stable identifier order. Ineligible weapons emit an auditable skip event. Split fire is not active. |
 | Dig In | `active_provisional` | `foundation_partial`: Infantry, Medics and Engineers can spend their full movement to gain `+2 Defense`; the status persists across rounds and ends after actual movement. |
 | Dynamic cover Armor | `active_provisional` | `foundation_partial`: generated forest/trench profiles and explicit scenario building markers grant personnel one non-stacking `+1 Armor` when attacked from outside. Directional freestanding cover remains deferred. |
-| Evasive modifiers | Canonical or `active_provisional` | `foundation_deferred`: the order and modifier are not yet applied by the resolver. |
+| Evasive modifiers | Canonical or `active_provisional` | `foundation_executable`: a capable unit must declare an endpoint at least half its Speed from its start. If simultaneous blocking prevents the actual displacement, it gains no modifier; otherwise it receives `+3 Defense` and `-2` to every outgoing weapon result for that round. |
 | Terrain Advantage / high ground | `active_provisional` (`RC-V5-021`) | `foundation_executable`: a tagged ground attacker above a tagged ground target adds +1 before the current-FS cap and mitigation; air domains receive no elevation benefit. |
 | Rapid Fire versus Horde | `active_provisional` (`RC-V5-027`) | `foundation_executable`: the governed unit tags double the capped modified damage result before mitigation, preserve the natural die for subsystem checks, and retain one-Hit conversion against vehicle targets. |
 | Vehicle Subsystems | `active_provisional` | `foundation_executable`: a penetrating single-die natural 5 disables weapons and a natural 6 disables mobility; Infantry must retain at least that much FS. Malfunctions are simultaneous with attacks, persist, gate later orders, and can be restored by Engineer Repair. |
@@ -141,7 +141,7 @@ This glossary states canonical profile meaning. Terms marked as foundation-defer
 - **Hold**: do not spend Speed on movement; actions remain available; attack eligible hostiles in range.
 - **Advance**: move along the declared route and engage. A hostile ground formation stops an advancing ground unit; mechs and aerospace are exempt.
 - **Rush**: ground-only movement at twice normal distance per Speed spent; the unit cannot attack and suffers doubled losses this round.
-- **Evasive**: foundation-deferred special order; outgoing attack result `-2`, Defense `+3`, and the unit must end at least half its base Speed away from its starting point (`RC-V5-004`).
+- **Evasive**: executable special order for governed capable units; outgoing attack result `-2`, Defense `+3`, and the unit must end at least half its base Speed away from its starting point (`RC-V5-004`). A unit stopped short by simultaneous movement gains neither modifier.
 - **Melee Charge**: foundation-deferred special order; forgo ranged attacks and attempt to reach base contact with a melee-capable unit.
 - **Brawl**: foundation-deferred melee engagement in which normal ranged attacks cannot target participants.
 - **Stealth order**: foundation-deferred movement under the applicable infantry- or vehicle-stealth rules.
@@ -226,7 +226,7 @@ For each weapon attack:
 
 Each eligible weapon rolls once during the attack activation. Spending a Primary Action or using Rush removes the entire activation, not merely one weapon roll (`RC-V5-003`).
 
-The foundation implements the target checks (including the friendly-spotter requirement for indirect fire), server-derived multiweapon participation, seeded per-weapon rolls, high-ground +1, FS cap, Rapid Fire against Horde, Armor/AP/Defense threshold, governed rear effects, one-Hit vehicle penetration, Rush loss multiplier, ammo/cooldown updates, simultaneous damage aggregation, and persistent subsystem malfunctions. Evasive modifiers, split fire, forward firing arcs, melee, and other special attacks remain deferred even though their canonical decisions are retained below.
+The foundation implements the target checks (including the friendly-spotter requirement for indirect fire), server-derived multiweapon participation, seeded per-weapon rolls, high-ground +1, Evasive outgoing `-2` and target Defense `+3`, FS cap, Rapid Fire against Horde, Armor/AP/Defense threshold, governed rear effects, one-Hit vehicle penetration, Rush loss multiplier, ammo/cooldown updates, simultaneous damage aggregation, and persistent subsystem malfunctions. Split fire, forward firing arcs, melee, and other special attacks remain deferred even though their canonical decisions are retained below.
 
 ### 3.6 Facing and flanking
 
@@ -465,7 +465,7 @@ Implementation requirements:
 
 Before a deferred system can become active, it needs the following:
 
-- Special orders/actions: resolver hooks and tests for Evasive, Melee Charge/Brawl, Stealth, Construct, Funnel, general Resupply, Garrison, Assault, and Break Out/profile rejection behavior. Dig In, First Aid, Engineer Repair, and Artillery Deploy/Pack Up/Bombardment are active; Load/Unload and finite-weapon Reload are narrow migrated UI/runtime paths; Scan and Deploy Drone still require authoritative effects/projection before activation.
+- Special orders/actions: resolver hooks and tests for Melee Charge/Brawl, Stealth, Construct, Funnel, general Resupply, Garrison, Assault, and Break Out/profile rejection behavior. Evasive, Dig In, First Aid, Engineer Repair, and Artillery Deploy/Pack Up/Bombardment are active; Load/Unload and finite-weapon Reload are narrow migrated UI/runtime paths; Scan and Deploy Drone still require authoritative effects/projection before activation.
 - Tactical completeness: split-fire policy, directional freestanding cover, typed firing-arc exclusions, melee timing, and remembered intelligence.
 - Canonical roster: normalized foundation definitions for Medic, Logi Truck, IFV, Light Mech, Fighter, Bomber, VTOL, and Heavy Air Transport without importing legacy same-name statistics.
 - Optional equipment: V5-compatible unit access and slot budgets, action costs, dice semantics, ammo/reload data, durations, stack limits, and Req economy.
@@ -480,6 +480,6 @@ Activation requires updating this document and the conflict register in the same
 
 ## 9. Verification baseline
 
-At the current local reconciliation point, the full root suite passes **53 test files / 400 tests** (the committed Phase-0 baseline was 32/201). Coverage includes deterministic tactical and strategic helpers, quarter-distance simultaneous movement, generated terrain/structure cover, multiweapon activations, redaction, routes/LOS/capacity, combat/ammo/cooldowns, force/auth APIs, campaign contracts, strategic adapters/coordinator boundaries, effective-unit construction, deployment/cargo validation, and migrated equipment/support-action paths. The separate Playwright gameplay baseline passes 5/5 locally, including join/deploy, executable-action coverage, First Aid, Medic field resupply, Engineer vehicle Repair, Artillery deployment and Bombardment, all four K-17 rounds, durable outcome/debrief projection, and a 390px overflow check.
+At the current local reconciliation point, the full root suite passes **53 test files / 404 tests** (the committed Phase-0 baseline was 32/201). Coverage includes deterministic tactical and strategic helpers, quarter-distance simultaneous movement, generated terrain/structure cover, multiweapon activations, Evasive movement/combat modifiers, redaction, routes/LOS/capacity, combat/ammo/cooldowns, force/auth APIs, campaign contracts, strategic adapters/coordinator boundaries, effective-unit construction, deployment/cargo validation, and migrated equipment/support-action paths. The separate Playwright gameplay baseline passes 5/5 locally, including join/deploy, executable-action coverage, First Aid, Medic field resupply, Engineer vehicle Repair, Artillery deployment and Bombardment, all four K-17 rounds, durable outcome/debrief projection, and a 390px overflow check.
 
 This passing baseline proves only the foundation capabilities named in section 1.3. It does not make catalogue-only or foundation-deferred canonical systems executable.

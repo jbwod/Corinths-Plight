@@ -326,6 +326,11 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(composer.getByRole("button", { name: "UNLOAD", exact: true })).toBeVisible();
   await expect(composer.getByRole("button", { name: "SCAN", exact: true })).toHaveCount(0);
 
+  await page.locator(".unit-roster").getByRole("button", { name: /NOMAD/ }).click();
+  await expect(composer.getByRole("button", { name: "EVASIVE", exact: true })).toBeEnabled();
+  await composer.getByRole("button", { name: "EVASIVE", exact: true }).click();
+  await expect(composer.getByText(/EVASIVE: end at least/)).toBeVisible();
+
   await page.locator(".unit-roster").getByRole("button", { name: /LONGBOW/ }).click();
   await expect(composer.getByRole("button", { name: "ATTACK", exact: true })).toBeVisible();
   await expect(composer.getByRole("button", { name: "RELOAD", exact: true })).toBeVisible();

@@ -814,6 +814,7 @@ export type CampaignEventType =
   | "UNIT_BLOCKED"
   | "UNIT_DUG_IN"
   | "UNIT_DUG_OUT"
+  | "EVASIVE_MANEUVER"
   | "UNIT_ATTACKED"
   | "WEAPON_SKIPPED"
   | "SUBSYSTEM_MALFUNCTIONED"

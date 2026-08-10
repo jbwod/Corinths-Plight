@@ -302,14 +302,14 @@ export const orderTypeDefinitions: OrderTypeRuleDefinition[] = (
     kind: "order-type" as const,
     name,
     orderType: name,
-    executable: name === "HOLD" || name === "ADVANCE" || name === "RUSH",
+    executable: name === "HOLD" || name === "ADVANCE" || name === "RUSH" || name === "EVASIVE",
     description: `Structured ${name.toLowerCase().replaceAll("_", " ")} order definition.`,
     tags: ["ORDER"],
     rulesetVersion: RULESET_VERSION,
     source: v5("Standard and Special Order Types"),
     status: "active" as const,
     notes:
-      name === "HOLD" || name === "ADVANCE" || name === "RUSH"
+      name === "HOLD" || name === "ADVANCE" || name === "RUSH" || name === "EVASIVE"
         ? "Executable in the foundation resolver."
         : "Canonical rule retained as data; deterministic resolution hook is deferred.",
   }));

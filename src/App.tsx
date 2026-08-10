@@ -118,7 +118,10 @@ function formatEvent(event: CampaignEvent): string {
   }
   if (event.type === "UNIT_DUG_IN") return `${event.actor ?? "Unit"} dug in for +2 Defense.`;
   if (event.type === "UNIT_DUG_OUT") return `${event.actor ?? "Unit"} left its prepared position and lost Dig In Defense.`;
-  if (event.type === "UNIT_ATTACKED") return `${event.actor ?? "Unit"} engaged ${String(payload.targetId ?? "a hostile")}${payload.coverArmor === 1 ? "; cover added +1 Armor" : ""}${payload.digInDefense === 2 ? "; Dig In added +2 Defense" : ""}.`;
+  if (event.type === "EVASIVE_MANEUVER") return payload.active === true
+    ? `${event.actor ?? "Unit"} completed an Evasive maneuver for +3 Defense and −2 outgoing attacks.`
+    : `${event.actor ?? "Unit"} was stopped before completing its Evasive maneuver.`;
+  if (event.type === "UNIT_ATTACKED") return `${event.actor ?? "Unit"} engaged ${String(payload.targetId ?? "a hostile")}${payload.evasiveAttackModifier === -2 ? "; Evasive fire applied −2" : ""}${payload.coverArmor === 1 ? "; cover added +1 Armor" : ""}${payload.digInDefense === 2 ? "; Dig In added +2 Defense" : ""}${payload.evasiveDefenseModifier === 3 ? "; target Evasive added +3 Defense" : ""}.`;
   if (event.type === "WEAPON_SKIPPED") return `${event.actor ?? "Unit"}'s ${String(payload.weaponId ?? "weapon")} did not fire: ${String(payload.reason ?? "not eligible")}.`;
   if (event.type === "DAMAGE_APPLIED") return `${event.actor ?? "Unit"} lost ${String(payload.loss ?? "?")} strength.`;
   if (event.type === "UNIT_HEALED") return `${event.actor ?? "Medic"} restored ${String(payload.amount ?? "?")} strength to ${String(payload.targetId ?? "an allied unit")}.`;
@@ -451,6 +454,11 @@ function GameApp() {
       : formatCountdown(campaign.clock.resolvesAt - now);
   const lockCountdown = manualClock ? "operator controlled" : formatCountdown(campaign.clock.lockAt - now);
   const routeOverBudget = Boolean(selectedUnit && routeResult.total > selectedUnit.stats.speed);
+  const evasiveMinimumDisplacement = selectedUnit ? selectedUnit.stats.speed / 2 : 0;
+  const evasiveDisplacement = selectedUnit
+    ? hexDistance(selectedUnit.position, draftedRoute.at(-1) ?? selectedUnit.position)
+    : 0;
+  const evasiveRouteIncomplete = orderType === "EVASIVE" && evasiveDisplacement < evasiveMinimumDisplacement;
   const deployedArtilleryMoving = Boolean(isArtilleryUnit && artilleryDeployed && draftedRoute.length > 1);
   const noEligibleAttackWeapon = actionMode === "ATTACK" && Boolean(targetUnit) && participatingWeapons.length === 0;
   const actionReady =
@@ -481,6 +489,7 @@ function GameApp() {
       selectedDefinition &&
       routeResult.legal &&
       !routeOverBudget &&
+      !evasiveRouteIncomplete &&
       !(mobilityDisabled && draftedRoute.length > 1) &&
       !deployedArtilleryMoving &&
       !locked &&
@@ -983,6 +992,11 @@ function GameApp() {
                   <button onClick={() => setDraftedRoute([{ ...selectedUnit.position }])}>RESET</button>
                 </div>
                 {routeOverBudget && <p className="validation danger">Route exceeds this unit's speed budget.</p>}
+                {orderType === "EVASIVE" && (
+                  <p className={`validation ${evasiveRouteIncomplete ? "danger" : ""}`}>
+                    EVASIVE: end at least {evasiveMinimumDisplacement} hexes from the start ({evasiveDisplacement} plotted). Active movement grants +3 Defense and applies −2 to this unit's attacks.
+                  </p>
+                )}
                 {mobilityDisabled && draftedRoute.length > 1 && <p className="validation danger">Mobility subsystem offline. Repair this unit before moving.</p>}
                 {!routeResult.legal && <p className="validation danger">{routeResult.reason}</p>}
                 <div className="facing-control" aria-label="Final facing">
@@ -1057,6 +1071,7 @@ function GameApp() {
                     {highGroundAdvantage && <p className="validation">HIGH GROUND: this attack gains +1 to its damage result before mitigation.</p>}
                     {targetCover.armor === 1 && <p className="validation">TARGET IN COVER: +1 Armor applies from {targetCover.sources.map((source) => source.replaceAll("-", " ")).join(" + ")}.</p>}
                     {rapidFireReady && targetIsHorde && <p className="validation">RAPID FIRE: modified damage doubles against this Horde target before mitigation.</p>}
+                    {orderType === "EVASIVE" && <p className="validation">EVASIVE FIRE: each outgoing damage result receives −2.</p>}
                     {weaponSystemsDisabled && <p className="validation danger">Weapon systems offline. An Engineer must repair this unit before it can fire.</p>}
                     {orderType === "RUSH" && <p className="validation">Rush doubles received damage and forbids attacks.</p>}
                   </>

@@ -12,7 +12,10 @@ describe("generated tactical grammar", () => {
     expect(["HOLD", "ADVANCE", "RUSH"].map((type) =>
       getTacticalOrderRule(type as "HOLD" | "ADVANCE" | "RUSH").executable,
     )).toEqual([true, true, true]);
-    expect(getTacticalOrderRule("EVASIVE").executable).toBe(false);
+    expect(getTacticalOrderRule("EVASIVE")).toMatchObject({
+      executable: true,
+      handlerId: "foundation-order-handler",
+    });
 
     expect(getTacticalActionRule("ATTACK")).toMatchObject({
       id: "action-attack",

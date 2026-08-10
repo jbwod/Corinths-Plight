@@ -124,6 +124,16 @@ export function validateOrder(
   if (order.route.length === 0 || !sameCoord(order.route[0], order.startHex)) reasons.push("Route must begin at startHex.");
   if (!sameCoord(order.route.at(-1) ?? order.startHex, order.endHex)) reasons.push("Route must end at endHex.");
   if (order.orderType === "HOLD" && order.route.length > 1) reasons.push("HOLD cannot include movement.");
+  if (order.orderType === "EVASIVE") {
+    const tags = new Set(deployment.tags ?? []);
+    if (!tags.has("EVASIVE") && !tags.has("EVASIVE_CAPABLE")) {
+      reasons.push("This unit is not capable of Evasive movement.");
+    }
+    const requiredDisplacement = deployment.stats.speed / 2;
+    if (hexDistance(order.startHex, order.endHex) < requiredDisplacement) {
+      reasons.push(`EVASIVE must end at least ${requiredDisplacement} hexes from the starting position.`);
+    }
+  }
   const orderDefinition = getTacticalOrderRule(order.orderType);
   if (!orderDefinition.executable) {
     reasons.push(`${order.orderType.replaceAll("_", " ")} is catalogued but not executable in this engine version.`);
@@ -345,6 +355,25 @@ export function resolveRound(input: RoundInput): RoundOutput {
         distanceIncrement: outcome.block.distanceIncrement,
       });
     }
+  }
+
+  const evasiveUnits = new Set<string>();
+  for (const order of validOrders.values()) {
+    if (order.orderType !== "EVASIVE") continue;
+    const deployment = state.deployments.find((candidate) => candidate.id === order.unitId)!;
+    const requiredDisplacement = deployment.stats.speed / 2;
+    const actualDisplacement = hexDistance(order.startHex, deployment.position);
+    const active = actualDisplacement >= requiredDisplacement;
+    if (active) evasiveUnits.add(deployment.id);
+    event("EVASIVE_MANEUVER", deployment.id, {
+      orderId: order.id,
+      active,
+      requiredDisplacement,
+      actualDisplacement,
+      attackModifier: active ? -2 : 0,
+      defenseModifier: active ? 3 : 0,
+      reason: active ? "MINIMUM_DISPLACEMENT_MET" : "MOVEMENT_BLOCKED_BEFORE_MINIMUM_DISPLACEMENT",
+    }, deployment.side === "ENEMY" ? "ENEMY" : "ALLIED");
   }
 
   for (const order of validOrders.values()) {
@@ -807,7 +836,10 @@ export function resolveRound(input: RoundInput): RoundOutput {
       for (const weapon of [...attacker.weapons].sort((left, right) =>
         left.id < right.id ? -1 : left.id > right.id ? 1 : 0
       )) {
-        const result = resolveAttackRoll(attacker, target, weapon, state.map, random, state.deployments);
+        const result = resolveAttackRoll(attacker, target, weapon, state.map, random, state.deployments, {
+          attackerEvasive: evasiveUnits.has(attacker.id),
+          targetEvasive: evasiveUnits.has(target.id),
+        });
         if (!result.legal || !result.roll) {
           event("WEAPON_SKIPPED", attacker.id, {
             orderId: order.id,
@@ -832,6 +864,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
           rapidFireMultiplier: result.rapidFireMultiplier,
           damageResult: result.damageResult,
           highGroundModifier: result.highGroundModifier,
+          evasiveAttackModifier: result.evasiveAttackModifier,
         });
         const rushMultiplier = rushingUnits.has(target.id) ? 2 : 1;
         const healthLoss = result.healthLoss * rushMultiplier;
@@ -853,6 +886,8 @@ export function resolveRound(input: RoundInput): RoundOutput {
           rapidFireMultiplier: result.rapidFireMultiplier,
           damageResult: result.damageResult,
           highGroundModifier: result.highGroundModifier,
+          evasiveAttackModifier: result.evasiveAttackModifier,
+          evasiveDefenseModifier: result.evasiveDefenseModifier,
         });
         const subsystemRules = weapon.damage.count === 1
           ? getTacticalSubsystemRules(target.definitionId)

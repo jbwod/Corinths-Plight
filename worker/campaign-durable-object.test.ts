@@ -210,6 +210,27 @@ describe("CampaignDurableObject campaign contracts", () => {
     });
   });
 
+  it("accepts governed Evasive orders only with the required displacement", async () => {
+    const { campaign } = campaignObject();
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const response = await campaign.fetch(request("/orders", {
+      method: "POST",
+      body: orderBody({
+        commandId: "command-evasive-order",
+        unitId: "dep-lantern",
+        expectedOrderRevision: 1,
+        orderType: "EVASIVE",
+        route: [{ q: -2, r: -1 }, { q: -3, r: 0 }, { q: -4, r: 0 }, { q: -5, r: 0 }],
+      }),
+    }));
+
+    const responseBody = await response.json();
+    expect(response.status, JSON.stringify(responseBody)).toBe(200);
+    expect(responseBody).toMatchObject({
+      order: { unitId: "dep-lantern", orderType: "EVASIVE", endHex: { q: -5, r: 0 } },
+    });
+  });
+
   it("replaces a cancelled deterministic order instead of corrupting state with a duplicate ID", async () => {
     const { campaign, storage } = campaignObject();
     const first = await campaign.fetch(request("/orders", { method: "POST", body: orderBody() }));

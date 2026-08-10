@@ -136,6 +136,7 @@ describe("rules catalogue bootstrap", () => {
       "EQUIPMENT:equipment-flak-vests",
       "EQUIPMENT:equipment-light-at",
       "ORDER:order-advance",
+      "ORDER:order-evasive",
       "ORDER:order-hold",
       "ORDER:order-rush",
       "UNIT:unit-artillery",

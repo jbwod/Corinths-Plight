@@ -483,7 +483,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
   "unit-light-vehicle": {
     capacity: 1,
     tags: ["GROUND", "VEHICLE", "SUB_SYSTEM", "EVASIVE"],
-    allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH", "EVASIVE"],
     allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
   },
   "unit-main-battle-tank": {
@@ -764,6 +764,7 @@ const foundationUnitIds = [
 
 const foundationOrderIds = [
   "order-advance",
+  "order-evasive",
   "order-hold",
   "order-rush",
 ] as const;
@@ -828,10 +829,10 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["HITS", "ATTACK", "MOVEMENT", "SUBSYSTEMS", "RAPID_FIRE"],
-      missing: ["EVASIVE", "CARGO"],
+      implementedSubset: ["HITS", "ATTACK", "MOVEMENT", "SUBSYSTEMS", "RAPID_FIRE", "EVASIVE"],
+      missing: ["CARGO"],
     },
-    explanation: "The V5 natural-5/6 subsystem malfunction rule now persists and gates later weapon and mobility use.",
+    explanation: "Subsystem malfunctions and Evasive movement now resolve through the generated tactical handler.",
   },
   "UNIT:unit-main-battle-tank": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
