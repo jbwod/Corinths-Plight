@@ -62,6 +62,7 @@ describe("equipment and transport actions", () => {
     const packState = createDemoCampaignState(1_000);
     const deployedArtillery = packState.deployments.find((deployment) => deployment.definitionId === "unit-artillery")!;
     deployedArtillery.statuses = ["DEPLOYED"];
+    deployedArtillery.artilleryDeployment = "DEPLOYED";
     const packRule = getTacticalActionRule("PACK_UP");
     const packOrder = order(packState, deployedArtillery, [action("pack-artillery", "PACK_UP")]);
     packState.orders = [packOrder];
@@ -71,6 +72,60 @@ describe("equipment and transport actions", () => {
       type: "ARTILLERY_PACKED",
       actor: deployedArtillery.id,
       payload: expect.objectContaining({ speedCost: packRule.speedCost, toStatus: "PACKED" }),
+    }));
+  });
+
+  it("bombards a spotted radius, spends Small Supply, and recovers suppression after fire stops", () => {
+    const base = createDemoCampaignState(1_000);
+    const artillery = base.deployments.find((deployment) => deployment.definitionId === "unit-artillery")!;
+    const target = base.deployments.find((deployment) => deployment.id === "bug-drone-1")!;
+    artillery.statuses = ["DEPLOYED"];
+    artillery.artilleryDeployment = "DEPLOYED";
+    artillery.supplies = { SMALL_SUPPLY: 2 };
+    target.position = { q: -1, r: 1 };
+    target.stats = { ...target.stats, defense: 2 };
+    const bombardRule = getTacticalActionRule("BOMBARDMENT");
+    const bombardAction: StructuredAction = {
+      id: "bombard-drone",
+      type: "BOMBARDMENT",
+      economy: bombardRule.economy,
+      speedCost: bombardRule.speedCost,
+      targetHex: { ...target.position },
+      equipmentIds: [],
+    };
+    const bombardOrder = order(base, artillery, [bombardAction]);
+    base.orders = [bombardOrder];
+
+    const bombarded = resolveRound({ ...input([bombardOrder]), previousState: base });
+    const resolvedArtillery = bombarded.state.deployments.find((deployment) => deployment.id === artillery.id)!;
+    const suppressedTarget = bombarded.state.deployments.find((deployment) => deployment.id === target.id)!;
+    expect(resolvedArtillery.supplies?.SMALL_SUPPLY).toBe(1);
+    expect(suppressedTarget.bombardmentSuppression).toEqual({ stacks: 1, lastAppliedRound: base.round });
+    expect(bombarded.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "ARTILLERY_BOMBARDED", actor: artillery.id }),
+      expect.objectContaining({
+        type: "BOMBARDMENT_APPLIED",
+        payload: expect.objectContaining({ targetId: target.id, stacksAfter: 1, defenseAfter: 1 }),
+      }),
+    ]));
+
+    const recoveryState = structuredClone(bombarded.state);
+    recoveryState.round += 1;
+    recoveryState.phase = "PLANNING";
+    recoveryState.orders = [];
+    const recovered = resolveRound({
+      previousState: recoveryState,
+      rulesetVersion: recoveryState.rulesetVersion,
+      playerOrders: [],
+      enemyOrders: [],
+      seed: "bombardment-recovery",
+      resolutionTime: 3_000,
+    });
+    expect(recovered.state.deployments.find((deployment) => deployment.id === target.id)?.bombardmentSuppression).toBeUndefined();
+    expect(recovered.events).toContainEqual(expect.objectContaining({
+      type: "BOMBARDMENT_RECOVERED",
+      actor: target.id,
+      payload: expect.objectContaining({ stacksAfter: 0, defenseAfter: 2 }),
     }));
   });
 

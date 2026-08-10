@@ -87,6 +87,7 @@ function deployment(
     ),
     cooldowns: {},
     statuses: definitionId === "unit-artillery" ? ["PACKED"] : [],
+    artilleryDeployment: definitionId === "unit-artillery" ? "PACKED" : undefined,
     equipmentIds: [],
     battlegroupId: side === "ALLIED" ? "hammer" : undefined,
   };

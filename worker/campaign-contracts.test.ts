@@ -131,6 +131,10 @@ describe("campaign order request contracts", () => {
       unitId: "unit-1", orderType: "HOLD", facing: 0,
       actions: [{ type: "REPAIR", payload: { repairKind: "HIT" } }],
     }],
+    ["Bombardment without target hex", {
+      unitId: "unit-1", orderType: "HOLD", facing: 0,
+      actions: [{ type: "BOMBARDMENT" }],
+    }],
     ["Engineer Repair without choice", {
       unitId: "unit-1", orderType: "HOLD", facing: 0,
       actions: [{ type: "REPAIR", targetDeploymentId: "unit-2" }],

@@ -460,7 +460,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     capacity: 1,
     tags: ["GROUND", "PERSONNEL", "ARTILLERY", "INDIRECT", "DEPLOYABLE"],
     allowedOrders: ["HOLD", "ADVANCE"],
-    allowedActions: ["ATTACK", "DEPLOY", "PACK_UP", "RELOAD"],
+    allowedActions: ["ATTACK", "BOMBARDMENT", "DEPLOY", "PACK_UP", "RELOAD"],
   },
   "unit-combat-medic": {
     capacity: 1,
@@ -770,6 +770,7 @@ const foundationOrderIds = [
 
 const foundationActionIds = [
   "action-attack",
+  "action-bombardment",
   "action-deploy-platform",
   "action-first-aid",
   "action-load-cargo",
@@ -784,10 +785,10 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "EXPERIMENTAL_DAMAGE_PROFILE",
     parameters: {
-      implementedSubset: ["FS", "MOVEMENT", "DEPLOY_PACK_STATE", "EXPERIMENTAL_ATTACK"],
-      missing: ["BOMBARDMENT", "FUNNEL", "ANTI_ORBITAL"],
+      implementedSubset: ["FS", "MOVEMENT", "DEPLOY_PACK_STATE", "BOMBARDMENT", "EXPERIMENTAL_ATTACK"],
+      missing: ["FUNNEL", "ANTI_ORBITAL"],
     },
-    explanation: "Artillery can now deploy and pack with the V5 half-Speed Standard Action while its control actions remain deferred.",
+    explanation: "Artillery can deploy/pack and use the V5 Bombardment defense-suppression action while Funnel remains deferred.",
   },
   "UNIT:unit-engineers": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",

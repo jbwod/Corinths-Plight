@@ -105,7 +105,8 @@ export function resolveAttackRoll(
   const rearAttack = isRearAttack(attacker.position, target.position, target.facing);
   const targetArmor = target.stats.armor;
   const effectiveArmor = rearAttack ? 0 : Math.max(0, targetArmor - weapon.armorPiercing);
-  const targetDefense = rearAttack && target.statuses.includes("DUG_IN") ? 0 : target.stats.defense;
+  const baseDefense = rearAttack && target.statuses.includes("DUG_IN") ? 0 : target.stats.defense;
+  const targetDefense = Math.max(0, baseDefense - (target.bombardmentSuppression?.stacks ?? 0));
   const threshold = effectiveArmor + targetDefense;
   if (!targetCheck.legal) {
     return {

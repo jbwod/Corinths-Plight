@@ -346,6 +346,11 @@ export interface SubsystemRepairProfile {
 
 export type ArtilleryDeploymentState = "PACKED" | "DEPLOYED";
 
+export interface BombardmentSuppressionState {
+  stacks: number;
+  lastAppliedRound: number;
+}
+
 export interface ArtilleryProfile {
   id: string;
   deploySpeedCostQuarters: number;
@@ -698,6 +703,7 @@ export interface CampaignDeployment {
   cargo?: CargoManifestItem[];
   cargoProfile?: CargoProfile;
   artilleryDeployment?: ArtilleryDeploymentState;
+  bombardmentSuppression?: BombardmentSuppressionState;
   locationState?: UnitLocationState;
   towedUnitId?: string;
 }
@@ -813,6 +819,9 @@ export type CampaignEventType =
   | "UNIT_REPAIRED"
   | "ARTILLERY_DEPLOYED"
   | "ARTILLERY_PACKED"
+  | "ARTILLERY_BOMBARDED"
+  | "BOMBARDMENT_APPLIED"
+  | "BOMBARDMENT_RECOVERED"
   | "MEDICAL_SUPPLY_RELOADED"
   | "HEX_SCANNED"
   | "DRONE_DEPLOYED"

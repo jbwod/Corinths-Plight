@@ -174,6 +174,22 @@ describe("armor, AP, rear arcs, Hits, and FS caps", () => {
     });
   });
 
+  it("uses active bombardment stacks to reduce Defense without going below zero", () => {
+    const attacker = makeDeployment("attacker", { q: 0, r: -1 });
+    const target = makeDeployment("target", { q: 0, r: 0 }, "ENEMY", {
+      facing: 0,
+      stats: { healthModel: "HITS", maxHealth: 3, armor: 0, defense: 3 },
+      currentHealth: 3,
+      bombardmentSuppression: { stacks: 2, lastAppliedRound: 4 },
+    });
+
+    expect(resolveAttackRoll(attacker, target, cannon, map, fixedRandom(2))).toMatchObject({
+      targetDefense: 1,
+      threshold: 1,
+      penetrated: true,
+    });
+  });
+
   it("ignores Armor and dug-in Defense from the direct rear", () => {
     const attacker = makeDeployment("attacker", { q: 0, r: 1 });
     const target = makeDeployment("target", { q: 0, r: 0 }, "ENEMY", {

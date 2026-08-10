@@ -209,7 +209,7 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 | Infantry | yes | yes | partial | Dig In, cover, melee/stealth and price missing |
 | Medic | yes | yes | partial/playable | First Aid and field resupply are connected through generated catalogue, order contract, resolver, D1 effects, report events and tactical UI. Field resupply spends one Small Supply and restores Medical Supply to current Medic FS; MASH remains deferred. |
 | Engineer | yes | yes | partial/playable | Vehicle Repair is connected through generated catalogue, strict order contract, resolver, D1 health/Supply/subsystem effects, reports and tactical UI. It restores one Hit or one selected subsystem for one Small Supply in base contact. Construct and Dig In remain deferred. |
-| Artillery | yes | yes | partial/playable | Deploy/Pack Up is connected through generated grammar, strict orders, resolver, reports and tactical UI. Packed/deployed state gates movement and firing. Bombardment/Funnel/control and anti-orbital paths remain deferred; damage remains experimental. |
+| Artillery | yes | yes | partial/playable | Deploy/Pack Up and Bombardment are connected through generated grammar, strict orders, resolver, reports and tactical UI. Bombardment requires deployment, spotting, range and Small Supply, applies capped/recovering Defense stacks, and changes combat calculations. Funnel and anti-orbital paths remain deferred; direct damage remains experimental. |
 | Logi Truck | yes, legacy seed marks executable | no | safely blocked | Generated authority rejects the unsupported handler; tow/supply absent |
 | Light Vehicle | yes | yes | partial | Evasive/Rapid Fire/subsystems/cargo absent |
 | IFV | yes, legacy seed marks executable | no | safely blocked | Generated authority rejects the unsupported handler; cargo alternatives remain unhydrated |
@@ -223,7 +223,7 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 ### Orders, actions, equipment and deployment
 
 - Generated executable orders: Hold, Advance and Rush only.
-- Generated executable action grammar and tactical UI: Attack, finite-weapon Reload, Medic field resupply, Load, Unload, First Aid, Engineer Repair, and Artillery Deploy/Pack Up; Scan and Drone are rejected and unadvertised until their visibility state effects exist.
+- Generated executable action grammar and tactical UI: Attack, finite-weapon Reload, Medic field resupply, Load, Unload, First Aid, Engineer Repair, and Artillery Deploy/Pack Up/Bombardment; Scan and Drone are rejected and unadvertised until their visibility state effects exist.
 - D1 has 22 action definitions. CP-201 preserves their audit links but exposes only action/order types backed by a registered generated foundation handler. MASH, artillery deployment/funnel, supply transfer, crew repair, flight operations, airdrop and sabotage remain non-executable end to end.
 - The executable equipment subset is narrow: Flak Vests and Light AT currently have proven handlers. Generated corrections fail closed on Optics and Drone Operator because their visibility effects are not implemented; Orbital Drop Training and the remaining items stay partial, blocked or hidden.
 - Standard, Vehicle, VTOL, HAT and Paradrop deployment rows are marked implemented, but planner/scenario/aerospace integration is incomplete; Orbital remains partial and unresolved.

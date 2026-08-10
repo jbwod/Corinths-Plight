@@ -26,12 +26,14 @@ describe("generated tactical grammar", () => {
     expect(getTacticalActionRule("LOAD")).toMatchObject({ speedCost: 0.5, executable: true });
     expect(getTacticalActionRule("UNLOAD")).toMatchObject({ speedCost: 0.5, executable: true });
     expect(getTacticalActionRule("HEAL")).toMatchObject({ economy: "PRIMARY", executable: true });
+    expect(getTacticalActionRule("DEPLOY")).toMatchObject({ speedCost: 0.5, executable: true });
+    expect(getTacticalActionRule("PACK_UP")).toMatchObject({ speedCost: 0.5, executable: true });
+    expect(getTacticalActionRule("BOMBARDMENT")).toMatchObject({ economy: "PRIMARY", executable: true });
   });
 
   it("keeps catalogue-only mechanics out of live orders", () => {
     expect(getTacticalActionRule("SCAN").executable).toBe(false);
     expect(getTacticalActionRule("DEPLOY_DRONE").executable).toBe(false);
-    expect(getTacticalActionRule("BOMBARDMENT").executable).toBe(false);
     expect(() => getTacticalActionRule("AIR_SUPPORT")).toThrow("Unknown action type: AIR_SUPPORT");
   });
 

@@ -1,6 +1,7 @@
 import type {
   CampaignDeployment,
   CampaignEvent,
+  ArtilleryProfile,
   EngineerRepairChoice,
   EngineerRepairProfile,
   HealingProfile,
@@ -20,6 +21,11 @@ import {
 import { cargoSlotsForItem, disembarkCargo, embarkCargo, reloadAmmunition } from "./logistics";
 import { resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
 import { resolveEngineerRepair, resolveHealing } from "./forces";
+import {
+  applyBombardmentSuppression,
+  recoverBombardmentSuppression,
+  validateArtilleryFire,
+} from "./specialists";
 import { createSeededRandom, hashSeed } from "./rng";
 import { getTacticalActionRule, getTacticalOrderRule } from "./tactical-grammar";
 import { getTacticalUnitClass } from "./tactical-unit-catalogue";
@@ -41,6 +47,53 @@ function isArtilleryDeployment(deployment: CampaignDeployment): boolean {
   }
 }
 
+function artilleryState(deployment: CampaignDeployment): "PACKED" | "DEPLOYED" {
+  return deployment.artilleryDeployment ?? (deployment.statuses.includes("DEPLOYED") ? "DEPLOYED" : "PACKED");
+}
+
+const artilleryProfile: ArtilleryProfile = {
+  id: "v5-artillery",
+  deploySpeedCostQuarters: 2,
+  packSpeedCostQuarters: 2,
+  mustBeDeployedForIndirectFire: true,
+  indirectRequiresSpotter: true,
+  fireSupplyType: "SMALL_SUPPLY",
+  fireSupplyCost: 1,
+  handlerId: "foundation-action-handler",
+};
+
+function deploymentTags(deployment: CampaignDeployment): string[] {
+  try {
+    return getTacticalUnitClass(deployment.definitionId).tags;
+  } catch {
+    return [];
+  }
+}
+
+function artillerySpotters(state: RoundOutput["state"], artillery: CampaignDeployment) {
+  return state.deployments
+    .filter((deployment) =>
+      deployment.side === artillery.side &&
+      deployment.status !== "DESTROYED" &&
+      deployment.status !== "WITHDRAWN" &&
+      (deployment.locationState ?? "ON_MAP") === "ON_MAP"
+    )
+    .map((deployment) => ({
+      id: deployment.id,
+      side: deployment.side,
+      status: deployment.status,
+      position: deployment.position,
+      sensorRange: deployment.stats.sensors,
+      tags: deploymentTags(deployment),
+      profile: {
+        id: "v5-ground-spotter",
+        canSpotDomains: ["GROUND" as const],
+        allowsFiringUnit: false,
+        prohibitedTags: ["CANNOT_SPOT_GROUND"],
+      },
+    }));
+}
+
 export function validateOrder(
   order: UnitOrder,
   deployment: CampaignDeployment | undefined,
@@ -51,7 +104,7 @@ export function validateOrder(
   if (deployment.status === "DESTROYED") reasons.push("Unit was destroyed before the order resolved.");
   if (deployment.status === "IMMOBILISED" && order.route.length > 1) reasons.push("Unit is immobilised.");
   const artillery = isArtilleryDeployment(deployment);
-  const artilleryDeployed = deployment.statuses.includes("DEPLOYED");
+  const artilleryDeployed = artilleryState(deployment) === "DEPLOYED";
   if (artillery && artilleryDeployed && order.route.length > 1) {
     reasons.push("Deployed artillery must pack up before it can move in a later round.");
   }
@@ -112,6 +165,7 @@ export function validateOrder(
     reasons.push("Artillery must deploy before firing.");
   }
   const primaryCount = order.actions.filter((action) => action.economy === "PRIMARY").length;
+  if (primaryCount > 1) reasons.push("A unit may perform one Primary Action per round.");
   if (primaryCount > 0 && order.actions.some((action) => action.type === "ATTACK")) {
     reasons.push("A Primary Action replaces the unit's attack.");
   }
@@ -189,6 +243,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
     .sort((left, right) => left.unitId.localeCompare(right.unitId) || left.revision - right.revision);
   const events: CampaignEvent[] = [];
   const effects: PendingPersistentEffect[] = [];
+  const bombardedThisRound = new Set<string>();
   const random = createSeededRandom(input.seed);
   let sequence = Math.max(
     0,
@@ -295,7 +350,14 @@ export function resolveRound(input: RoundInput): RoundOutput {
   for (const order of validOrders.values()) {
     const actor = state.deployments.find((candidate) => candidate.id === order.unitId)!;
     const actorVisibility: CampaignEvent["visibility"] = actor.side === "ENEMY" ? "ENEMY" : "ALLIED";
-    for (const action of order.actions.filter((candidate) => candidate.type !== "ATTACK")) {
+    const supportActions = order.actions
+      .filter((candidate) => candidate.type !== "ATTACK")
+      .map((action, index) => ({ action, index }))
+      .sort((left, right) =>
+        (left.action.type === "DEPLOY" ? -1 : 0) - (right.action.type === "DEPLOY" ? -1 : 0) || left.index - right.index
+      )
+      .map(({ action }) => action);
+    for (const action of supportActions) {
       if (action.type === "DEPLOY" || action.type === "PACK_UP") {
         if (!isArtilleryDeployment(actor)) {
           event("ORDER_REJECTED", actor.id, {
@@ -308,12 +370,88 @@ export function resolveRound(input: RoundInput): RoundOutput {
         const deployed = action.type === "DEPLOY";
         actor.statuses = actor.statuses.filter((status) => status !== "PACKED" && status !== "DEPLOYED");
         actor.statuses.push(deployed ? "DEPLOYED" : "PACKED");
+        actor.artilleryDeployment = deployed ? "DEPLOYED" : "PACKED";
         event(deployed ? "ARTILLERY_DEPLOYED" : "ARTILLERY_PACKED", actor.id, {
           actionId: action.id,
           fromStatus: deployed ? "PACKED" : "DEPLOYED",
           toStatus: deployed ? "DEPLOYED" : "PACKED",
           speedCost: action.speedCost,
         }, actorVisibility);
+      }
+      if (action.type === "BOMBARDMENT") {
+        const targetHex = action.targetHex;
+        const weapon = actor.weapons.find((candidate) => candidate.indirect) ?? actor.weapons[0];
+        const targetOnMap = targetHex && state.map.some((hex) => sameCoord(hex.coord, targetHex));
+        const minimumRangeSatisfied = targetHex ? hexDistance(actor.position, targetHex) >= 1 : false;
+        const validation = targetHex && weapon && targetOnMap && minimumRangeSatisfied
+          ? validateArtilleryFire({
+              profile: artilleryProfile,
+              deploymentState: artilleryState(actor),
+              firingUnitId: actor.id,
+              firingSide: actor.side,
+              firingPosition: actor.position,
+              weapon,
+              target: {
+                id: `hex:${targetHex.q},${targetHex.r}`,
+                side: actor.side === "ALLIED" ? "ENEMY" : "ALLIED",
+                status: "ACTIVE",
+                position: targetHex,
+                domain: "GROUND",
+              },
+              map: state.map,
+              spotters: artillerySpotters(state, actor),
+              supplyAvailable: actor.supplies?.SMALL_SUPPLY ?? 0,
+            })
+          : undefined;
+        if (!isArtilleryDeployment(actor) || !targetHex || !weapon || !targetOnMap || !minimumRangeSatisfied || !validation?.legal) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [
+              !isArtilleryDeployment(actor)
+                ? "Bombardment requires an Artillery unit."
+                : !minimumRangeSatisfied
+                  ? "Bombardment target must be at least one hex away."
+                  : validation?.reason ?? "Bombardment target is invalid.",
+            ],
+          }, actorVisibility);
+          continue;
+        }
+        actor.supplies = { ...(actor.supplies ?? {}), SMALL_SUPPLY: validation.supplyAfter };
+        const affected = state.deployments
+          .filter((candidate) =>
+            candidate.side !== actor.side &&
+            candidate.status !== "DESTROYED" &&
+            candidate.status !== "WITHDRAWN" &&
+            (candidate.locationState ?? "ON_MAP") === "ON_MAP" &&
+            hexDistance(candidate.position, targetHex) <= 1
+          )
+          .sort((left, right) => left.id.localeCompare(right.id));
+        event("ARTILLERY_BOMBARDED", actor.id, {
+          actionId: action.id,
+          targetHex,
+          areaRadius: 1,
+          spotterId: validation.spotterId,
+          smallSupplySpent: validation.supplySpent,
+          affectedTargetIds: affected.map((candidate) => candidate.id),
+        }, actorVisibility);
+        for (const target of affected) {
+          bombardedThisRound.add(target.id);
+          const suppression = applyBombardmentSuppression(
+            target.stats.defense,
+            target.bombardmentSuppression?.stacks ?? 0,
+          );
+          if (suppression.after === suppression.before) continue;
+          target.bombardmentSuppression = { stacks: suppression.after, lastAppliedRound: state.round };
+          event("BOMBARDMENT_APPLIED", actor.id, {
+            actionId: action.id,
+            targetId: target.id,
+            targetHex: target.position,
+            stacksBefore: suppression.before,
+            stacksAfter: suppression.after,
+            defenseAfter: suppression.defenseAfter,
+          }, actorVisibility);
+        }
       }
       if (action.type === "LOAD") {
         if (!actor.cargoProfile && action.targetDeploymentId && state.deployments.find((candidate) => candidate.id === action.targetDeploymentId)?.cargoProfile) continue;
@@ -596,6 +734,22 @@ export function resolveRound(input: RoundInput): RoundOutput {
         }, actorVisibility);
       }
     }
+  }
+
+  for (const target of state.deployments
+    .filter((deployment) => (deployment.bombardmentSuppression?.stacks ?? 0) > 0 && !bombardedThisRound.has(deployment.id))
+    .sort((left, right) => left.id.localeCompare(right.id))) {
+    const recovered = recoverBombardmentSuppression(target.stats.defense, target.bombardmentSuppression!.stacks);
+    if (recovered.after === 0) delete target.bombardmentSuppression;
+    else target.bombardmentSuppression = {
+      stacks: recovered.after,
+      lastAppliedRound: target.bombardmentSuppression!.lastAppliedRound,
+    };
+    event("BOMBARDMENT_RECOVERED", target.id, {
+      stacksBefore: recovered.before,
+      stacksAfter: recovered.after,
+      defenseAfter: recovered.defenseAfter,
+    });
   }
 
   const damage = new Map<string, number>();

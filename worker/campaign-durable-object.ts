@@ -14,8 +14,10 @@ import {
   createScenarioCampaignState,
   getTacticalActionRule,
   getTacticalOrderRule,
+  hexDistance,
   projectCampaignState,
   resolveRound,
+  validateArtilleryFire,
   validateOrder,
 } from "../packages/rules-engine/src";
 import {
@@ -256,6 +258,12 @@ export class CampaignDurableObject extends DurableObject<Env> {
         statuses: Array.isArray(snapshot.statuses)
           ? snapshot.statuses.filter((status): status is string => typeof status === "string")
           : row.definition_id === "unit-artillery" ? ["PACKED"] : [],
+        artilleryDeployment: snapshot.artilleryDeployment === "DEPLOYED" || snapshot.artilleryDeployment === "PACKED"
+          ? snapshot.artilleryDeployment
+          : row.definition_id === "unit-artillery" ? "PACKED" : undefined,
+        bombardmentSuppression: snapshot.bombardmentSuppression && typeof snapshot.bombardmentSuppression === "object"
+          ? snapshot.bombardmentSuppression as CampaignDeployment["bombardmentSuppression"]
+          : undefined,
         equipmentIds: Array.isArray(snapshot.equipmentInstanceIds) ? snapshot.equipmentInstanceIds.filter((id): id is string => typeof id === "string") : [],
         allowedActions: snapshotActions.filter((action) => execution.allowedActionTypes.includes(action)) as CampaignDeployment["allowedActions"],
         allowedOrders: snapshotOrders.filter((order) => execution.allowedOrderTypes.includes(order)) as CampaignDeployment["allowedOrders"],
@@ -718,7 +726,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       return errorResponse(422, "ATTACK_LIMIT", "A unit receives one attack activation per round.");
     }
     const artillery = execution.legacyDefinition.tags.includes("ARTILLERY");
-    const artilleryDeployed = deployment.statuses.includes("DEPLOYED");
+    const artilleryDeployed = deployment.artilleryDeployment === "DEPLOYED" || deployment.statuses.includes("DEPLOYED");
     const platformActions = actions.filter((action) => action.type === "DEPLOY" || action.type === "PACK_UP");
     if (platformActions.length > 1) {
       return errorResponse(422, "ARTILLERY_STATE_CONFLICT", "Artillery may change platform state once per round.");
@@ -743,15 +751,81 @@ export class CampaignDurableObject extends DurableObject<Env> {
     ) {
       return errorResponse(422, "ARTILLERY_PACKED", "Artillery must deploy before firing.");
     }
-    const visibleDeploymentIds = new Set(
-      projectCampaignState(state, viewer, Date.now()).deployments.map((candidate) => candidate.id),
-    );
+    const projectedState = projectCampaignState(state, viewer, Date.now());
+    const visibleDeploymentIds = new Set(projectedState.deployments.map((candidate) => candidate.id));
     if (
       [...actions, ...incidentalActions].some(
         (action) => action.targetDeploymentId && !visibleDeploymentIds.has(action.targetDeploymentId),
       )
     ) {
       return errorResponse(422, "TARGET_NOT_VISIBLE", "The target is not present in the unit's current battlefield intelligence.");
+    }
+    for (const action of actions) {
+      if (action.type !== "BOMBARDMENT") continue;
+      const targetHex = action.targetHex;
+      const visibleHex = targetHex && projectedState.map.find((hex) =>
+        hex.coord.q === targetHex.q && hex.coord.r === targetHex.r && hex.visibility !== "UNKNOWN"
+      );
+      const weapon = deployment.weapons.find((candidate) => candidate.indirect) ?? deployment.weapons[0];
+      if (!artillery || !targetHex || !visibleHex || !weapon) {
+        return errorResponse(422, "BOMBARDMENT_TARGET_INVALID", "Bombardment requires an Artillery unit and a known battlefield hex.");
+      }
+      if (hexDistance(route.at(-1)!, targetHex) < 1) {
+        return errorResponse(422, "BOMBARDMENT_RANGE_INVALID", "Bombardment target must be at least one hex away.");
+      }
+      const spotters = state.deployments
+        .filter((candidate) =>
+          candidate.side === deployment.side &&
+          candidate.status !== "DESTROYED" &&
+          candidate.status !== "WITHDRAWN" &&
+          (candidate.locationState ?? "ON_MAP") === "ON_MAP"
+        )
+        .map((candidate) => {
+          const candidateRules = resolveUnitExecutionAdapter(LEGACY_RULESET_ID, candidate.definitionId, this.env.ENVIRONMENT);
+          return {
+            id: candidate.id,
+            side: candidate.side,
+            status: candidate.status,
+            position: candidate.position,
+            sensorRange: candidate.stats.sensors,
+            tags: candidateRules.ok ? candidateRules.legacyDefinition.tags : [],
+            profile: {
+              id: "v5-ground-spotter",
+              canSpotDomains: ["GROUND" as const],
+              allowsFiringUnit: false,
+              prohibitedTags: ["CANNOT_SPOT_GROUND"],
+            },
+          };
+        });
+      const validation = validateArtilleryFire({
+        profile: {
+          id: "v5-artillery",
+          deploySpeedCostQuarters: 2,
+          packSpeedCostQuarters: 2,
+          mustBeDeployedForIndirectFire: true,
+          indirectRequiresSpotter: true,
+          fireSupplyType: "SMALL_SUPPLY",
+          fireSupplyCost: 1,
+        },
+        deploymentState: platformActions[0]?.type === "DEPLOY" ? "DEPLOYED" : artilleryDeployed ? "DEPLOYED" : "PACKED",
+        firingUnitId: deployment.id,
+        firingSide: deployment.side,
+        firingPosition: route.at(-1)!,
+        weapon,
+        target: {
+          id: `hex:${targetHex.q},${targetHex.r}`,
+          side: deployment.side === "ALLIED" ? "ENEMY" : "ALLIED",
+          status: "ACTIVE",
+          position: targetHex,
+          domain: "GROUND",
+        },
+        map: state.map,
+        spotters,
+        supplyAvailable: deployment.supplies?.SMALL_SUPPLY ?? 0,
+      });
+      if (!validation.legal) {
+        return errorResponse(422, "BOMBARDMENT_ILLEGAL", validation.reason ?? "Bombardment is not legal.");
+      }
     }
     for (const action of [...actions, ...incidentalActions]) {
       if (action.type !== "REPAIR") continue;

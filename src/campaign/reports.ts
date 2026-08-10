@@ -34,6 +34,9 @@ const supportEvents = new Set([
   "UNIT_REPAIRED",
   "ARTILLERY_DEPLOYED",
   "ARTILLERY_PACKED",
+  "ARTILLERY_BOMBARDED",
+  "BOMBARDMENT_APPLIED",
+  "BOMBARDMENT_RECOVERED",
   "HEX_SCANNED",
   "DRONE_DEPLOYED",
   "STRUCTURE_COMPLETED",
@@ -169,6 +172,12 @@ export function describeCampaignReportEvent(
       return `${actor} deployed and unhitched the artillery platform.`;
     case "ARTILLERY_PACKED":
       return `${actor} packed and hitched the artillery platform.`;
+    case "ARTILLERY_BOMBARDED":
+      return `${actor} fired a radius-one suppression mission at hex ${coordLabel(payload.targetHex) ?? "unknown"}, spending one Small Supply.`;
+    case "BOMBARDMENT_APPLIED":
+      return `${target} now has ${numberValue(payload.stacksAfter)} bombardment suppression stack${numberValue(payload.stacksAfter) === 1 ? "" : "s"} (Defense ${numberValue(payload.defenseAfter)}).`;
+    case "BOMBARDMENT_RECOVERED":
+      return `${actor} recovered one bombardment suppression stack (Defense ${numberValue(payload.defenseAfter)}).`;
     case "HEX_SCANNED":
       return `${actor} scanned hex ${coordLabel(payload.targetHex) ?? "unknown"}.`;
     case "DRONE_DEPLOYED":

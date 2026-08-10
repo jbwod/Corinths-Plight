@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "a2c554405dd3f61e08e99c0a40107575698a63c841c53aa72a167f5f27260955",
+  "contentHash": "7e31680f37dda978488eb2c75a579f98c095463f200e368bb147f60bb2255f76",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1278,6 +1278,7 @@ const snapshot = {
           "execution": {
             "allowedActions": [
               "ATTACK",
+              "BOMBARDMENT",
               "DEPLOY",
               "PACK_UP",
               "RELOAD"
@@ -7498,6 +7499,7 @@ const snapshot = {
         "evidence": {
           "definitionIds": [
             "action-attack",
+            "action-bombardment",
             "action-deploy-platform",
             "action-first-aid",
             "action-load-cargo",
@@ -7538,6 +7540,22 @@ const snapshot = {
       {
         "definitionKind": "ACTION",
         "definitionId": "action-attack",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-bombardment",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
         "availabilityStatus": "AVAILABLE",
@@ -8171,15 +8189,15 @@ const snapshot = {
             "FS",
             "MOVEMENT",
             "DEPLOY_PACK_STATE",
+            "BOMBARDMENT",
             "EXPERIMENTAL_ATTACK"
           ],
           "missing": [
-            "BOMBARDMENT",
             "FUNNEL",
             "ANTI_ORBITAL"
           ],
           "publicationCorrection": {
-            "reason": "Artillery can now deploy and pack with the V5 half-Speed Standard Action while its control actions remain deferred.",
+            "reason": "Artillery can deploy/pack and use the V5 Bombardment defense-suppression action while Funnel remains deferred.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": true,
@@ -13843,5 +13861,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "a2c554405dd3f61e08e99c0a40107575698a63c841c53aa72a167f5f27260955" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "7e31680f37dda978488eb2c75a579f98c095463f200e368bb147f60bb2255f76" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

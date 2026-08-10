@@ -8,6 +8,7 @@ interface HexMapProps {
   draftedRoute: AxialCoord[];
   draftedFacing: number;
   targetUnitId?: string;
+  targetHex?: AxialCoord;
   onMapClick: (coord: AxialCoord, unit?: CampaignDeployment) => void;
   onHover: (coord?: AxialCoord, unit?: CampaignDeployment) => void;
 }
@@ -123,6 +124,7 @@ export function HexMap({
   draftedRoute,
   draftedFacing,
   targetUnitId,
+  targetHex,
   onMapClick,
   onHover,
 }: HexMapProps) {
@@ -292,6 +294,20 @@ export function HexMap({
       drawArrow(ctx, points.at(-2)!, points.at(-1)!, "#79ebdd", 3);
     }
 
+    if (targetHex && mapIndex.has(coordKey(targetHex))) {
+      const point = axialToWorld(targetHex);
+      ctx.save();
+      ctx.strokeStyle = "#ff9a68";
+      ctx.fillStyle = "rgba(255,122,78,.12)";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, HEX_SIZE * 1.7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
     for (const [key, deployments] of unitIndex.entries()) {
       const hex = mapIndex.get(key);
       if (!hex || hex.visibility === "UNKNOWN") continue;
@@ -352,7 +368,7 @@ export function HexMap({
     vignette.addColorStop(1, "rgba(0,0,0,.48)");
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, size.width, size.height);
-  }, [campaign, draftedFacing, draftedRoute, hovered, mapIndex, selectedUnitId, size, targetUnitId, unitIndex, viewport]);
+  }, [campaign, draftedFacing, draftedRoute, hovered, mapIndex, selectedUnitId, size, targetHex, targetUnitId, unitIndex, viewport]);
 
   const screenToCoord = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();

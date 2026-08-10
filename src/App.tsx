@@ -78,9 +78,9 @@ interface CampaignDirectoryEntry {
   };
 }
 type Notice = { tone: "info" | "success" | "danger"; message: string };
-type ComposerActionMode = "NONE" | "ATTACK" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "DEPLOY" | "PACK_UP";
+type ComposerActionMode = "NONE" | "ATTACK" | "RELOAD" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
 type RepairKind = "HIT" | "SUBSYSTEM";
-const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "RELOAD", "LOAD", "UNLOAD", "HEAL", "REPAIR", "DEPLOY", "PACK_UP"];
+const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "RELOAD", "LOAD", "UNLOAD", "HEAL", "REPAIR", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
 
 function initialCampaign(): CampaignView {
   const now = Date.now();
@@ -112,6 +112,9 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "UNIT_REPAIRED") return `${event.actor ?? "Engineer"} repaired ${String(payload.targetId ?? "an allied vehicle")}.`;
   if (event.type === "ARTILLERY_DEPLOYED") return `${event.actor ?? "Artillery"} deployed and is ready to fire.`;
   if (event.type === "ARTILLERY_PACKED") return `${event.actor ?? "Artillery"} packed up for movement.`;
+  if (event.type === "ARTILLERY_BOMBARDED") return `${event.actor ?? "Artillery"} fired a suppression mission.`;
+  if (event.type === "BOMBARDMENT_APPLIED") return `${String(payload.targetId ?? "Hostile unit")} lost Defense under bombardment.`;
+  if (event.type === "BOMBARDMENT_RECOVERED") return `${event.actor ?? "Unit"} recovered one Defense from bombardment.`;
   if (event.type === "MEDICAL_SUPPLY_RELOADED") return `${event.actor ?? "Medic"} restored Medical Supply to ${String(payload.medicalSupplyAfter ?? "?")}.`;
   if (event.type === "UNIT_DESTROYED") return `${event.actor ?? "Unit"} was destroyed.`;
   if (event.type === "ROUND_FINISHED") return `Round ${event.round} resolved and archived.`;
@@ -164,6 +167,7 @@ function GameApp() {
   const [actionMode, setActionMode] = useState<ComposerActionMode>("NONE");
   const [repairKind, setRepairKind] = useState<RepairKind>("HIT");
   const [repairSubsystemId, setRepairSubsystemId] = useState<string>();
+  const [bombardmentTargetHex, setBombardmentTargetHex] = useState<AxialCoord>();
   const [selectedWeaponId, setSelectedWeaponId] = useState<string>();
   const [scheduledRound, setScheduledRound] = useState(18);
   const [hovered, setHovered] = useState<{ coord?: AxialCoord; unit?: CampaignDeployment }>({});
@@ -280,13 +284,15 @@ function GameApp() {
   const isMedicalUnit = selectedDefinition?.tags.includes("MEDICAL") ?? false;
   const isEngineerUnit = selectedDefinition?.tags.includes("ENGINEER") ?? false;
   const isArtilleryUnit = selectedDefinition?.tags.includes("ARTILLERY") ?? false;
-  const artilleryDeployed = selectedUnit?.statuses.includes("DEPLOYED") ?? false;
+  const artilleryDeployed = selectedUnit?.artilleryDeployment === "DEPLOYED" || selectedUnit?.statuses.includes("DEPLOYED") === true;
+  const artilleryWeapon = selectedUnit?.weapons.find((weapon) => weapon.indirect) ?? selectedUnit?.weapons[0];
   const medicalSupplyCapacity = selectedUnit ? Math.max(0, Math.floor(selectedUnit.currentHealth)) : 0;
   const executableComposerActions = composerActionModes.filter((type) =>
     selectedAllowedActions.includes(type) &&
     getTacticalActionRule(type).executable &&
     (type !== "DEPLOY" || !artilleryDeployed) &&
-    (type !== "PACK_UP" || artilleryDeployed),
+    (type !== "PACK_UP" || artilleryDeployed) &&
+    (type !== "BOMBARDMENT" || artilleryDeployed),
   );
   const targetUnit = campaign.deployments.find((deployment) => deployment.id === targetUnitId);
   const reloadableWeapons = selectedUnit?.weapons.filter((weapon) =>
@@ -352,6 +358,24 @@ function GameApp() {
   const repairableSubsystems = supportTarget?.subsystems?.filter((subsystem) => subsystem.state !== "OPERATIONAL") ?? [];
   const selectedRepairSubsystem = repairableSubsystems.find((subsystem) => subsystem.subsystemId === repairSubsystemId)
     ?? repairableSubsystems[0];
+  const bombardmentHexes = selectedUnit && artilleryWeapon ? campaign.map
+    .filter((hex) => {
+      const distance = hexDistance(selectedUnit.position, hex.coord);
+      return hex.visibility !== "UNKNOWN" && distance >= 1 && distance <= artilleryWeapon.range;
+    })
+    .sort((left, right) => {
+      const hostileCount = (coord: AxialCoord) => campaign.deployments.filter((deployment) =>
+        deployment.side !== selectedUnit.side &&
+        deployment.status !== "DESTROYED" &&
+        hexDistance(deployment.position, coord) <= 1
+      ).length;
+      return hostileCount(right.coord) - hostileCount(left.coord) ||
+        hexDistance(selectedUnit.position, left.coord) - hexDistance(selectedUnit.position, right.coord) ||
+        left.coord.q - right.coord.q || left.coord.r - right.coord.r;
+    }) : [];
+  const selectedBombardmentHex = bombardmentHexes.find((hex) =>
+    bombardmentTargetHex && coordinatesEqual(hex.coord, bombardmentTargetHex)
+  )?.coord ?? bombardmentHexes[0]?.coord;
   const currentOrder = campaign.orders.find(
     (order) => order.unitId === selectedUnit?.id && order.round === scheduledRound && order.lifecycle !== "CANCELLED",
   );
@@ -402,6 +426,9 @@ function GameApp() {
     )) ||
     (actionMode === "DEPLOY" && isArtilleryUnit && !artilleryDeployed) ||
     (actionMode === "PACK_UP" && isArtilleryUnit && artilleryDeployed) ||
+    (actionMode === "BOMBARDMENT" && Boolean(
+      isArtilleryUnit && artilleryDeployed && selectedBombardmentHex && (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0,
+    )) ||
     ((actionMode === "LOAD" || actionMode === "UNLOAD") && Boolean(supportTarget));
   const canSubmit = Boolean(
     selectedUnit &&
@@ -432,6 +459,8 @@ function GameApp() {
             ? "deploy and unhitch the artillery platform"
           : actionMode === "PACK_UP"
             ? "pack and hitch the artillery platform"
+          : actionMode === "BOMBARDMENT" && selectedBombardmentHex
+            ? `bombard hex ${selectedBombardmentHex.q}.${selectedBombardmentHex.r}`
           : undefined;
 
   useEffect(() => {
@@ -464,6 +493,7 @@ function GameApp() {
         ? storedAction.payload.subsystemId
         : undefined,
     );
+    setBombardmentTargetHex(storedAction?.type === "BOMBARDMENT" ? storedAction.targetHex : undefined);
     setSelectedWeaponId(storedAction?.weaponId ?? selectedUnit.weapons[0]?.id);
   }, [campaign.orders, scheduledRound, selectedUnit]);
 
@@ -482,6 +512,11 @@ function GameApp() {
   }
 
   function planDestination(coord: AxialCoord, unit?: CampaignDeployment) {
+    if (actionMode === "BOMBARDMENT" && executableComposerActions.includes("BOMBARDMENT")) {
+      setBombardmentTargetHex(coord);
+      setNotice({ tone: "info", message: `Hex ${coord.q}.${coord.r} designated for suppression fire.` });
+      return;
+    }
     if (unit?.ownerId === campaign.viewer.userId) {
       selectUnit(unit);
       return;
@@ -549,6 +584,8 @@ function GameApp() {
       });
     } else if (actionMode === "DEPLOY" || actionMode === "PACK_UP") {
       actions.push({ type: actionMode, equipmentIds: [] });
+    } else if (actionMode === "BOMBARDMENT" && selectedBombardmentHex) {
+      actions.push({ type: "BOMBARDMENT", targetHex: selectedBombardmentHex, equipmentIds: [] });
     }
     setBusy(true);
     try {
@@ -819,6 +856,7 @@ function GameApp() {
             draftedRoute={draftedRoute}
             draftedFacing={draftedFacing}
             targetUnitId={targetUnitId}
+            targetHex={actionMode === "BOMBARDMENT" ? selectedBombardmentHex : undefined}
             onMapClick={planDestination}
             onHover={(coord, unit) => setHovered({ coord, unit })}
           />
@@ -929,6 +967,7 @@ function GameApp() {
                           setRepairKind(target && target.currentHealth < target.stats.maxHealth ? "HIT" : "SUBSYSTEM");
                           setRepairSubsystemId(damagedSubsystem?.subsystemId);
                         }
+                        if (type === "BOMBARDMENT") setBombardmentTargetHex(bombardmentHexes[0]?.coord);
                       }}
                     >{type}</button>
                   ))}
@@ -1068,6 +1107,38 @@ function GameApp() {
                         : "Pack and hitch the artillery platform. It may move from the next round."}
                     </p>
                     <p className="validation">STANDARD ACTION · 0.5 SPEED · CURRENT STATE: {artilleryDeployed ? "DEPLOYED" : "PACKED"}</p>
+                  </>
+                ) : actionMode === "BOMBARDMENT" ? (
+                  <>
+                    <label className="field-label" htmlFor="bombardment-target">SUPPRESSION TARGET HEX</label>
+                    <select
+                      id="bombardment-target"
+                      aria-label="BOMBARDMENT TARGET HEX"
+                      value={selectedBombardmentHex ? `${selectedBombardmentHex.q},${selectedBombardmentHex.r}` : ""}
+                      onChange={(event) => {
+                        const [q, r] = event.target.value.split(",").map(Number);
+                        setBombardmentTargetHex({ q, r });
+                      }}
+                      disabled={bombardmentHexes.length === 0}
+                    >
+                      {bombardmentHexes.map((hex) => {
+                        const affected = campaign.deployments.filter((deployment) =>
+                          deployment.side !== selectedUnit.side &&
+                          deployment.status !== "DESTROYED" &&
+                          hexDistance(deployment.position, hex.coord) <= 1
+                        ).length;
+                        return (
+                          <option value={`${hex.coord.q},${hex.coord.r}`} key={`${hex.coord.q},${hex.coord.r}`}>
+                            HEX {hex.coord.q}.{hex.coord.r} · RANGE {hexDistance(selectedUnit.position, hex.coord)} · {affected} HOSTILE{affected === 1 ? "" : "S"}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <p className={`validation ${(selectedUnit.supplies?.SMALL_SUPPLY ?? 0) < 1 ? "danger" : ""}`}>
+                      SMALL SUPPLY: {selectedUnit.supplies?.SMALL_SUPPLY ?? 0} · Bombardment consumes 1
+                    </p>
+                    <p className="validation">PRIMARY ACTION · Radius 1 · hostile Defense −1 per active stack · requires a friendly spotter.</p>
+                    {bombardmentHexes.length === 0 && <p className="validation danger">No known hex is within Artillery range.</p>}
                   </>
                 ) : actionMode === "LOAD" || actionMode === "UNLOAD" ? (
                   <>

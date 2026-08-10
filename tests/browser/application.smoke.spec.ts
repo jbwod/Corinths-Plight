@@ -374,6 +374,13 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(composer.getByText(/SMALL SUPPLY: 1/)).toBeVisible();
   await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
   await expect(page.getByText(/DOC-7 order submitted to campaign command/)).toBeVisible();
+  await page.locator(".unit-roster").getByRole("button", { name: /LONGBOW/ }).click();
+  await expect(composer.getByRole("button", { name: "BOMBARDMENT", exact: true })).toBeVisible();
+  await composer.getByRole("button", { name: "BOMBARDMENT", exact: true }).click();
+  await expect(composer.getByLabel("BOMBARDMENT TARGET HEX")).toBeVisible();
+  await expect(composer.getByText(/Bombardment consumes 1/)).toBeVisible();
+  await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
+  await expect(page.getByText(/LONGBOW order submitted to campaign command/)).toBeVisible();
   await submitRelayDefenceAttack(page);
   await submitEngineerAdvance(page);
   await resolveCurrentK17Round(page);
@@ -388,8 +395,11 @@ test("tactical composer exposes every currently executable action and no catalog
       events?: Array<{ type: string }>;
     };
     const medic = state.deployments?.find((deployment) => deployment.callsign === "DOC-7");
+    const artillery = state.deployments?.find((deployment) => deployment.callsign === "LONGBOW");
     return medic?.supplies?.MEDICAL_SUPPLY === 4 && medic.supplies.SMALL_SUPPLY === 0 &&
-      state.events?.some((event) => event.type === "MEDICAL_SUPPLY_RELOADED") === true;
+      artillery?.supplies?.SMALL_SUPPLY === 1 &&
+      state.events?.some((event) => event.type === "MEDICAL_SUPPLY_RELOADED") === true &&
+      state.events.some((event) => event.type === "ARTILLERY_BOMBARDED") === true;
   }).toBe(true);
 
   const roundThree = await page.request.get("/api/campaigns/campaign-k17-relay/state", {

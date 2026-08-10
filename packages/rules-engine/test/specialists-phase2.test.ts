@@ -11,6 +11,8 @@ import { describe, expect, it } from "vitest";
 import {
   projectDetectedContacts,
   projectDetectedContactsAs,
+  applyBombardmentSuppression,
+  recoverBombardmentSuppression,
   rearmFighter,
   resolveStealthDetection,
   transitionArtilleryDeployment,
@@ -94,6 +96,14 @@ describe("artillery deployment and spotting", () => {
         supplyAvailable: 2,
       }),
     ).toMatchObject({ legal: true, spotterId: "spotter", supplySpent: 1, supplyAfter: 1 });
+  });
+
+  it("caps bombardment stacks at base Defense and recovers one per unbombarded round", () => {
+    expect(applyBombardmentSuppression(2, 0)).toEqual({ before: 0, after: 1, defenseAfter: 1 });
+    expect(applyBombardmentSuppression(2, 1)).toEqual({ before: 1, after: 2, defenseAfter: 0 });
+    expect(applyBombardmentSuppression(2, 2)).toEqual({ before: 2, after: 2, defenseAfter: 0 });
+    expect(recoverBombardmentSuppression(2, 2)).toEqual({ before: 2, after: 1, defenseAfter: 1 });
+    expect(recoverBombardmentSuppression(2, 1)).toEqual({ before: 1, after: 0, defenseAfter: 2 });
   });
 });
 

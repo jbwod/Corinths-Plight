@@ -113,6 +113,36 @@ export interface ArtilleryFireResult {
   supplyAfter: number;
 }
 
+export interface BombardmentSuppressionResult {
+  before: number;
+  after: number;
+  defenseAfter: number;
+}
+
+export function applyBombardmentSuppression(
+  baseDefense: number,
+  currentStacks: number,
+): BombardmentSuppressionResult {
+  if (!Number.isInteger(baseDefense) || baseDefense < 0 || !Number.isInteger(currentStacks) || currentStacks < 0) {
+    throw new Error("Bombardment Defense and stack values must be non-negative integers.");
+  }
+  const before = Math.min(baseDefense, currentStacks);
+  const after = Math.min(baseDefense, before + 1);
+  return { before, after, defenseAfter: Math.max(0, baseDefense - after) };
+}
+
+export function recoverBombardmentSuppression(
+  baseDefense: number,
+  currentStacks: number,
+): BombardmentSuppressionResult {
+  if (!Number.isInteger(baseDefense) || baseDefense < 0 || !Number.isInteger(currentStacks) || currentStacks < 0) {
+    throw new Error("Bombardment Defense and stack values must be non-negative integers.");
+  }
+  const before = Math.min(baseDefense, currentStacks);
+  const after = Math.max(0, before - 1);
+  return { before, after, defenseAfter: Math.max(0, baseDefense - after) };
+}
+
 export function validateArtilleryFire(input: ArtilleryFireInput): ArtilleryFireResult {
   const rejected = (reason: string): ArtilleryFireResult => ({
     legal: false,

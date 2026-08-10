@@ -66,6 +66,9 @@ const eventTypes = new Set([
   "UNIT_REPAIRED",
   "ARTILLERY_DEPLOYED",
   "ARTILLERY_PACKED",
+  "ARTILLERY_BOMBARDED",
+  "BOMBARDMENT_APPLIED",
+  "BOMBARDMENT_RECOVERED",
   "UNIT_DESTROYED",
   "STRUCTURE_COMPLETED",
   "SUPPLY_TRANSFERRED",
@@ -258,7 +261,7 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
       requestFail(`${path}.payload.subsystemId`, "Hit repair does not accept subsystemId.");
     }
   }
-  if ((type === "SCAN" || type === "DEPLOY_DRONE") && !parsed.targetHex) {
+  if ((type === "SCAN" || type === "DEPLOY_DRONE" || type === "BOMBARDMENT") && !parsed.targetHex) {
     requestFail(path, `${type} requires targetHex.`);
   }
   return parsed;
@@ -645,6 +648,15 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     stateNumericRecord(deployment.ammunition, `${path}.ammunition`);
     stateNumericRecord(deployment.cooldowns, `${path}.cooldowns`);
     stateStringArray(deployment.statuses, `${path}.statuses`);
+    if (deployment.artilleryDeployment !== undefined && deployment.artilleryDeployment !== "PACKED" && deployment.artilleryDeployment !== "DEPLOYED") {
+      stateFail(`${path}.artilleryDeployment`, "invalid artillery deployment state");
+    }
+    if (deployment.bombardmentSuppression !== undefined) {
+      const suppression = stateRecord(deployment.bombardmentSuppression, `${path}.bombardmentSuppression`);
+      stateOnlyKeys(suppression, ["stacks", "lastAppliedRound"], `${path}.bombardmentSuppression`);
+      stateInteger(suppression.stacks, `${path}.bombardmentSuppression.stacks`, 0);
+      stateInteger(suppression.lastAppliedRound, `${path}.bombardmentSuppression.lastAppliedRound`, 1);
+    }
     stateStringArray(deployment.equipmentIds, `${path}.equipmentIds`);
     if (deployment.subsystems !== undefined) {
       const subsystemIds = new Set<string>();
