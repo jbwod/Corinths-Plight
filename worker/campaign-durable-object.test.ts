@@ -522,28 +522,46 @@ describe("CampaignDurableObject campaign contracts", () => {
     const { campaign, storage } = campaignObject();
     const first = await campaign.fetch(request("/orders", { method: "POST", body: orderBody() }));
     expect(first.status).toBe(201);
-    const firstBody = await first.json() as { order: { id: string; revision: number } };
+    const firstBody = await first.json() as { order: { id: string; revision: number }; campaignVersion: number };
     expect(firstBody.order.revision).toBe(1);
 
-    const cancelled = await campaign.fetch(request(`/orders/${encodeURIComponent(firstBody.order.id)}`, { method: "DELETE" }));
+    const cancellationBody = JSON.stringify({
+      commandId: "command-cancel-0001",
+      expectedCampaignVersion: firstBody.campaignVersion,
+      expectedOrderRevision: firstBody.order.revision,
+    });
+    const cancelled = await campaign.fetch(request(`/orders/${encodeURIComponent(firstBody.order.id)}`, {
+      method: "DELETE",
+      body: cancellationBody,
+    }));
+    const cancellationReplay = await campaign.fetch(request(`/orders/${encodeURIComponent(firstBody.order.id)}`, {
+      method: "DELETE",
+      body: cancellationBody,
+    }));
     expect(cancelled.status).toBe(200);
+    expect(cancellationReplay.status).toBe(200);
+    const cancelledBody = await cancelled.json() as { campaignVersion: number; orderRevision: number; lifecycle: string };
+    expect(await cancellationReplay.json()).toEqual(cancelledBody);
+    expect(cancelledBody).toMatchObject({ lifecycle: "CANCELLED", orderRevision: 2 });
+    const afterCancel = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    expect(afterCancel.events.filter((event) => event.type === "ORDER_CANCELLED" && event.actor === UNIT_ID)).toHaveLength(1);
 
     const replacement = await campaign.fetch(request("/orders", {
       method: "POST",
       body: orderBody({
         commandId: "command-order-0002",
-        expectedCampaignVersion: 3,
-        expectedOrderRevision: 1,
+        expectedCampaignVersion: cancelledBody.campaignVersion,
+        expectedOrderRevision: cancelledBody.orderRevision,
       }),
     }));
     expect(replacement.status).toBe(200);
     const replacementBody = await replacement.json() as { order: { id: string; revision: number } };
-    expect(replacementBody.order).toMatchObject({ id: firstBody.order.id, revision: 2 });
+    expect(replacementBody.order).toMatchObject({ id: firstBody.order.id, revision: 3 });
 
     const parsed = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID);
     const matching = parsed.state.orders.filter((order) => order.unitId === UNIT_ID && order.round === parsed.state.round);
     expect(matching).toHaveLength(1);
-    expect(matching[0]).toMatchObject({ id: firstBody.order.id, revision: 2, lifecycle: "SUBMITTED" });
+    expect(matching[0]).toMatchObject({ id: firstBody.order.id, revision: 3, lifecycle: "SUBMITTED" });
     expect((await campaign.fetch(request("/state"))).status).toBe(200);
   });
 

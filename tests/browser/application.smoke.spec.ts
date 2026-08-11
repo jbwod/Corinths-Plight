@@ -811,6 +811,15 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(longbowIntent).toHaveAttribute("aria-pressed", "true");
   await longbowIntent.click();
   await expect(longbowIntent).toHaveAttribute("aria-pressed", "false");
+  await composer.getByRole("button", { name: "WITHDRAW ORDER" }).click();
+  await expect(composer.getByText(/returns to MISSING/)).toBeVisible();
+  await composer.getByRole("button", { name: "CONFIRM WITHDRAW" }).click();
+  await expect(page.getByText(/LONGBOW order withdrawn/)).toBeVisible();
+  await expect(mapIntentions.getByText("LONGBOW", { exact: true })).toHaveCount(0);
+  await composer.getByRole("button", { name: "DEPLOY", exact: true }).click();
+  await composer.getByRole("button", { name: "SUBMIT ORDER" }).click();
+  await expect(page.getByText(/LONGBOW order submitted to campaign command/)).toBeVisible();
+  await expect(mapIntentions.getByText("LONGBOW", { exact: true })).toBeVisible();
 
   const tacticalState = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
     headers: { "x-demo-user": "demo-user" },

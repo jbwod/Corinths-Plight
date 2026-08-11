@@ -62,14 +62,14 @@ Before accepting a submitted order, the Worker/DO path checks owner, deployed/no
 
 Only `HOLD`, `ADVANCE`, and `RUSH` order types are executable. The narrow executable action set is described in `GAME_SYSTEMS.md`; other names remain catalogued and fail closed. There is currently no executable Incidental action, and the Incidental ledger rejects Standard/Primary actions rather than silently accepting them.
 
-For order and clock writes, the DO canonicalises the validated intent with Unicode code-point key ordering, hashes it with SHA-256, and stores the actor-scoped receipt in the same DO transaction as the new state (and order event, where applicable). An exact retry returns the original status/body. Reusing a command ID with different intent returns `409`; a stale campaign or order revision also returns `409`. A cancelled current-round order is replaced in the aggregate at its deterministic ID, preventing a duplicate order from corrupting the stored state.
+For order upsert, cancellation and clock writes, the DO canonicalises the validated intent with Unicode code-point key ordering, hashes it with SHA-256, and stores the actor-scoped receipt in the same DO transaction as the new state and event where applicable. An exact retry returns the original status/body. Reusing a command ID with different intent returns `409`; a stale campaign or order revision also returns `409`. Cancellation increments the order revision and emits an Allied event. A replacement current-round order then replaces the cancelled aggregate at its deterministic ID, preventing a duplicate order from corrupting stored state.
 
 Current limitations:
 
 - replacing an order overwrites the current in-state revision instead of retaining every immutable revision in the DO;
 - D1 `order_archive` is not populated;
 - current command authority is owner-only; delegated command is not wired;
-- cancel, pause, resume and manual resolve do not yet use the command-receipt/CAS protocol;
+- pause, resume and manual resolve do not yet use the command-receipt/CAS protocol;
 - the runtime accepts current-round orders only; future-round scheduling is deliberately disabled until it can validate against projected positions and preserve revisions safely.
 
 ### 3.2 Lifecycle

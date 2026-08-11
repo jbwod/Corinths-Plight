@@ -136,12 +136,12 @@ For `/api/campaigns/{campaignId}/*` the current Worker:
 
 The DO self-initialises without D1 only for the explicit local `outpost-k17` fixture. Registered campaigns require committed D1 deployment snapshots and an authored `map_source_key`. K-17 and Operation Iron Rain now load different versioned maps, objectives, enemy forces, reinforcement schedules and round policies; any unsupported source fails closed before state is created.
 
-Current tactical order commands derive start position, class eligibility, executable order/action definitions, action economy/speed cost, fitted weapons/equipment, owner, current visible target IDs, and one-attack limits on the server. Order upsert requires an actor-scoped `commandId`, `expectedCampaignVersion`, and `expectedOrderRevision`; clock update requires `commandId` and `expectedCampaignVersion`. Each stores a SHA-256 request hash and exact response receipt atomically with its state/event changes, matching retries replay, and changed-payload reuse fails. The pure resolver independently rechecks the pinned ruleset, compiled executable definitions, routes, speed/action budget, attack count, targets, weapons, LOS/range, ammo, cooldown, and friendly-fire rules. This boundary is incomplete while D1 can mark a class executable that the compiled catalogue cannot resolve.
+Current tactical order commands derive start position, class eligibility, executable order/action definitions, action economy/speed cost, fitted weapons/equipment, owner, current visible target IDs, and one-attack limits on the server. Order upsert and cancellation require an actor-scoped `commandId`, `expectedCampaignVersion`, and `expectedOrderRevision`; clock update requires `commandId` and `expectedCampaignVersion`. Each stores a SHA-256 request hash and exact response receipt atomically with its state/event changes, matching retries replay, and changed-payload reuse fails. The pure resolver independently rechecks the pinned ruleset, compiled executable definitions, routes, speed/action budget, attack count, targets, weapons, LOS/range, ammo, cooldown, and friendly-fire rules. This boundary is incomplete while D1 can mark a class executable that the compiled catalogue cannot resolve.
 
 Still target rather than implemented:
 
 - general runtime request schemas and versioned public DTO schemas;
-- idempotency/expected-version contracts for tactical cancellation and operator pause/resume/resolve commands (order upsert and clock update now have this boundary);
+- idempotency/expected-version contracts for operator pause/resume/resolve commands (order upsert, cancellation and clock update now have this boundary);
 - delegated Battalion command and production-grade admin audit;
 - session rotation/device management, operator account controls, and legacy account migration;
 - event-time intelligence/declassification for historical reports beyond the bounded audience-projected socket reconnect catch-up.

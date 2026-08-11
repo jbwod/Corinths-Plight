@@ -231,6 +231,8 @@ export function describeCampaignReportEvent(
       const reasons = Array.isArray(payload.reasons) ? payload.reasons.filter((reason): reason is string => typeof reason === "string") : [];
       return `${actor}'s order was rejected${reasons.length ? `: ${reasons.join(" ")}` : "."}`;
     }
+    case "ORDER_CANCELLED":
+      return `${actor}'s ${String(payload.previousLifecycle ?? "submitted").toLowerCase()} order was withdrawn before lock.`;
     case "OBJECTIVE_CAPTURED":
       return `${objective} changed control to ${String(payload.owner ?? payload.to ?? "another side")}.`;
     case "ENEMY_REINFORCEMENTS_ARRIVED": {

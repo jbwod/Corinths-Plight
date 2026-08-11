@@ -30,7 +30,7 @@ The audit began with only two unrelated untracked user paths, which were preserv
 | Seed/content validator | Pass | `npm run seed:check`: 46 definitions, 41 active, 100 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 4 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
 | TypeScript | Pass | `npm run typecheck`. |
 | ESLint | Pass | `npm run lint`. |
-| Unit/contract tests | Pass | `npm test`: 60 files, 482 tests, Vitest 4.1.10. |
+| Unit/contract tests | Pass | `npm test`: 60 files, 483 tests, Vitest 4.1.10. |
 | Worker/client build | Pass | `npm run build`; Worker 1,254.61 kB, client JS 777.40 kB, CSS 136.50 kB. Wrangler's sandboxed debug-log write warns but the build exits successfully. |
 | Production-mode build | Pass | `WRANGLER_WRITE_LOGS=false npm run build:production`. |
 | Empty D1 migration replay | Pass | All eight migrations applied in isolated Wrangler state. |
@@ -156,7 +156,7 @@ No public campaign directory/create/join/leave, profile/settings/session-managem
 |---|---|---|
 | `GET /state` | Project viewer campaign state | partial; demo scenario and current-time fog |
 | `POST /orders` | Strict current-round draft/submitted intent; actor-scoped SHA-256 receipt and campaign/order revision CAS; server-derived costs/attack audit | partial; broad split catalogue, owner-only authority, no immutable D1 order archive |
-| `DELETE /orders/:id` | Cancel current/future unlocked order | implemented backend; no UI |
+| `DELETE /orders/:id` | Cancel the current unlocked order | implemented UI and backend with actor-scoped replay receipt, optimistic campaign/order revisions, Allied event and replacement flow |
 | `POST /resolve` | Admin manual tactical resolve | partial; unsafe journal boundary |
 | `PATCH /clock` | Admin clock preset | partial; generic player UI renders it |
 | `POST /pause` | Admin pause | partial |
@@ -182,7 +182,7 @@ No public campaign directory/create/join/leave, profile/settings/session-managem
 | Guided Battalion directory/code/create, invites, starter unit, tour | implemented foundation | Product-policy numbers/lore are not canonical rules. |
 | Tactical campaign selection | missing | App always uses `outpost-k17`. |
 | Tactical unit/route/facing/order/actions | partial/playable | Campaign-selected composer exposes the exact generated executable orders and Attack/Reload/Load/Unload; paired cargo remains a two-order coordination flow and advanced rules are deferred. |
-| Tactical order cancel | missing UI | Backend exists. |
+| Tactical order cancel | implemented | Two-step withdrawal is available before lock; the server atomically records a revised cancelled order, Allied event and actor-scoped receipt, and the unit may submit a replacement. |
 | Tactical `MY UNITS/ALLIED`, `SURFACE/INTEL/SUPPLY` | implemented foundation | Roster scope now distinguishes owned orderable units from inspect-only Allied formations. Surface, Intel and Supply layers change battlefield rendering, legends and hover detail without inventing hidden data. |
 | Tactical non-foundation order types | catalogue-only | Disabled and marked soon. |
 | Tactical operator clock/pause/resume/resolve | misleading | Rendered to normal players; backend correctly requires admin. Hide/role-gate and add audited operator workflow. |

@@ -46,6 +46,7 @@ import {
   encodeCampaignStoredState,
   parseCampaignClockIntent,
   parseCampaignMarkerIntent,
+  parseCampaignOrderCancellationIntent,
   parseCampaignOrderIntent,
   parseCampaignStoredState,
   type CampaignActionIntent,
@@ -98,7 +99,7 @@ interface WebSocketAttachment {
   role: string;
 }
 
-type CampaignCommandOperation = "ORDER_UPSERT" | "CLOCK_UPDATE" | "MARKER_UPDATE";
+type CampaignCommandOperation = "ORDER_UPSERT" | "ORDER_CANCEL" | "CLOCK_UPDATE" | "MARKER_UPDATE";
 
 interface CampaignCommandReceipt<TResponse extends object> {
   schemaVersion: 1;
@@ -113,6 +114,13 @@ interface CampaignCommandReceipt<TResponse extends object> {
 
 interface OrderCommandResponse {
   order: UnitOrder;
+  campaignVersion: number;
+}
+
+interface OrderCancellationResponse {
+  orderId: string;
+  lifecycle: "CANCELLED";
+  orderRevision: number;
   campaignVersion: number;
 }
 
@@ -1696,26 +1704,123 @@ export class CampaignDurableObject extends DurableObject<Env> {
   }
 
   private async handleCancelOrder(request: Request, orderId: string): Promise<Response> {
-    await assertCampaignMutationBodyEmpty(request);
     const viewer = this.viewer(request);
-    const state = await this.getState();
-    const order = state.orders.find((candidate) => candidate.id === orderId);
-    if (!order) return errorResponse(404, "ORDER_NOT_FOUND", "Order was not found.");
-    const deployment = state.deployments.find((candidate) => candidate.id === order.unitId);
+    const intent = parseCampaignOrderCancellationIntent(await readJson<unknown>(request));
+    const requestHash = await campaignCommandHash({ ...intent, orderId });
+    const receiptKey = this.orderReceiptKey(viewer.userId, intent.commandId);
+    const storedReceipt = await this.ctx.storage.get<unknown>(receiptKey);
+    if (storedReceipt !== undefined) {
+      const prior = commandReceipt<OrderCancellationResponse>(storedReceipt, "ORDER_CANCEL");
+      if (prior.actorUserId !== viewer.userId || prior.commandId !== intent.commandId || prior.requestHash !== requestHash) {
+        return errorResponse(409, "COMMAND_REUSED", "commandId was already used with a different order cancellation.");
+      }
+      return json(prior.response, { status: prior.status });
+    }
+    const baseState = await this.getState();
+    const baseOrder = baseState.orders.find((candidate) => candidate.id === orderId);
+    if (!baseOrder) return errorResponse(404, "ORDER_NOT_FOUND", "Order was not found.");
+    const deployment = baseState.deployments.find((candidate) => candidate.id === baseOrder.unitId);
     if (!deployment || deployment.ownerId !== viewer.userId) {
       return errorResponse(403, "ORDER_FORBIDDEN", "You cannot cancel this order.");
     }
     if (
-      !["DRAFT", "SUBMITTED"].includes(order.lifecycle) ||
-      (order.round === state.round && state.phase !== "PLANNING")
+      !["DRAFT", "SUBMITTED"].includes(baseOrder.lifecycle) ||
+      baseOrder.round !== baseState.round ||
+      baseState.phase !== "PLANNING"
     ) {
       return errorResponse(409, "ORDER_LOCKED", "Order can no longer be cancelled.");
     }
+    if (
+      baseState.version !== intent.expectedCampaignVersion ||
+      baseOrder.revision !== intent.expectedOrderRevision
+    ) {
+      return errorResponse(409, "CAMPAIGN_VERSION_CHANGED", "Campaign or order state changed before cancellation.", {
+        expectedCampaignVersion: intent.expectedCampaignVersion,
+        actualCampaignVersion: baseState.version,
+        expectedOrderRevision: intent.expectedOrderRevision,
+        actualOrderRevision: baseOrder.revision,
+      });
+    }
+    const state = structuredClone(baseState);
+    const order = state.orders.find((candidate) => candidate.id === orderId)!;
     order.lifecycle = "CANCELLED";
+    order.revision += 1;
     state.version += 1;
-    await this.ctx.storage.put(STATE_KEY, encodeCampaignStoredState(state));
+    const now = Date.now();
+    const sequence = eventSequence(state);
+    const cancelledEvent: CampaignEvent = {
+      eventId: `${state.campaignId}:${state.round}:${String(sequence).padStart(4, "0")}:ORDER_CANCELLED`,
+      campaignId: state.campaignId,
+      round: state.round,
+      sequence,
+      type: "ORDER_CANCELLED",
+      actor: deployment.id,
+      payload: { orderId, revision: order.revision, previousLifecycle: baseOrder.lifecycle },
+      timestamp: now,
+      visibility: "ALLIED",
+    };
+    state.events.push(cancelledEvent);
+    const response: OrderCancellationResponse = {
+      orderId,
+      lifecycle: "CANCELLED",
+      orderRevision: order.revision,
+      campaignVersion: state.version,
+    };
+    const receipt: CampaignCommandReceipt<OrderCancellationResponse> = {
+      schemaVersion: 1,
+      operation: "ORDER_CANCEL",
+      actorUserId: viewer.userId,
+      commandId: intent.commandId,
+      requestHash,
+      status: 200,
+      response,
+      createdAt: now,
+    };
+    const commit = await this.ctx.storage.transaction(async (transaction) => {
+      const concurrentReceiptValue = await transaction.get<unknown>(receiptKey);
+      if (concurrentReceiptValue !== undefined) {
+        const concurrentReceipt = commandReceipt<OrderCancellationResponse>(concurrentReceiptValue, "ORDER_CANCEL");
+        return concurrentReceipt.requestHash === requestHash &&
+          concurrentReceipt.actorUserId === viewer.userId &&
+          concurrentReceipt.commandId === intent.commandId
+          ? { kind: "REPLAY" as const, receipt: concurrentReceipt }
+          : { kind: "COMMAND_REUSED" as const };
+      }
+      const current = this.storedState(await transaction.get<unknown>(STATE_KEY), baseState);
+      const currentOrder = current.orders.find((candidate) => candidate.id === orderId);
+      if (
+        current.version !== intent.expectedCampaignVersion ||
+        current.phase !== "PLANNING" ||
+        !currentOrder ||
+        currentOrder.revision !== intent.expectedOrderRevision ||
+        !["DRAFT", "SUBMITTED"].includes(currentOrder.lifecycle)
+      ) {
+        return {
+          kind: "VERSION_CHANGED" as const,
+          campaignVersion: current.version,
+          orderRevision: currentOrder?.revision ?? 0,
+        };
+      }
+      await transaction.put(STATE_KEY, encodeCampaignStoredState(state));
+      await transaction.put(`event/${state.round}/${String(sequence).padStart(6, "0")}`, cancelledEvent);
+      await transaction.put(receiptKey, receipt);
+      return { kind: "COMMITTED" as const };
+    });
+    if (commit.kind === "REPLAY") return json(commit.receipt.response, { status: commit.receipt.status });
+    if (commit.kind === "COMMAND_REUSED") {
+      return errorResponse(409, "COMMAND_REUSED", "commandId was already used with a different order cancellation.");
+    }
+    if (commit.kind === "VERSION_CHANGED") {
+      return errorResponse(409, "CAMPAIGN_VERSION_CHANGED", "Campaign or order state changed before cancellation commit.", {
+        expectedCampaignVersion: intent.expectedCampaignVersion,
+        actualCampaignVersion: commit.campaignVersion,
+        expectedOrderRevision: intent.expectedOrderRevision,
+        actualOrderRevision: commit.orderRevision,
+      });
+    }
     this.broadcast("order-cancelled", state);
-    return json({ orderId, lifecycle: order.lifecycle });
+    this.log("order.cancelled", { userId: viewer.userId, unitId: deployment.id, orderId, revision: order.revision });
+    return json(response);
   }
 
   private async lockRound(now = Date.now()): Promise<CampaignRuntimeState> {

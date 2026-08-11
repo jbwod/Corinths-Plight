@@ -37,7 +37,7 @@ This is the live release checklist. A checked local build item is not permission
 | `npm run seed:check` | macOS local, Node project toolchain | PASS | 46 definitions; 41 active; 100 SQL definitions; 16 allied classes; 7 enemy roles; 4 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
 | `npm run typecheck` | local | PASS | TypeScript 6.0.3. |
 | `npm run lint` | local | PASS | ESLint 10.8.1. |
-| `npm test` | local | PASS | Vitest 4.1.10; 60 files / 482 tests. |
+| `npm test` | local | PASS | Vitest 4.1.10; 60 files / 483 tests. |
 | `npm run build` | local development config | PASS | Worker 1,254.61 kB; client JS 777.40 kB; CSS 136.50 kB; Wrangler emitted only its known sandboxed debug-log warning. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
 | Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0010 applied. |
@@ -159,7 +159,7 @@ No external state was changed during this Phase-0 assessment.
 | Own/configure/embark ship | read-only/blocked | CP-300/CP-301/DEC-010 |
 | Submit/resolve strategic travel and operation deployment | local partial | Movement, Embark/Disembark, support and `DEPLOY_TO_CAMPAIGN` resolve through the map coordinator; production world publication and full crash-safe journal remain CP-302–CP-304/DEC-005. |
 | Choose operation and create scenario campaign | partial | K-17 and local Iron Rain are authored and deployable through the live campaign/planner surfaces; strategic order-to-deployment automation and a production content pack remain CP-601/DEC-020. |
-| Submit/edit/cancel/schedule tactical orders | partial | Current-round generated order/action composer and cancel path exist; future scheduling remains intentionally unavailable pending its reliable semantics. |
+| Submit/edit/cancel/schedule tactical orders | partial | Current-round generated orders support submit, edit and two-step cancel through actor-scoped hashed receipts and optimistic campaign/order revisions. Cancellation emits an Allied event and supports replacement before lock. Future scheduling remains intentionally unavailable pending reliable semantics. |
 | Resolve deterministic PvE combined arms | narrow partial | CP-500–CP-507 |
 | Persist effects before next round | narrow pass | Supported tactical effects hold `EFFECTS_PENDING` and acknowledge before one next round; broaden under CP-402. |
 | Audience-safe reconnect/report/replay | partial/fail | Projected submitted Allied orders drive readiness and a visual intent layer while drafts remain owner-only. Shared tactical markers are side-filtered and known-hex restricted. Report detail now consumes the audience-projected locked battlefield snapshot and archived events to provide interactive map reconstruction plus a synchronized accessible ledger. Event payload visibility is conservatively based on the locked snapshot; per-event knowledge evolution, declassification/export and broader multi-account evidence remain CP-403/CP-700–CP-701. |

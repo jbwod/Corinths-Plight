@@ -1814,6 +1814,8 @@ summary:focus-visible {
   padding: 0 15px 14px;
 }
 
+.composer-actions.with-cancel { grid-template-columns: 1fr 1fr 1.35fr; }
+
 .composer-actions button {
   height: 40px;
   border: 1px solid rgba(112, 217, 207, 0.33);
@@ -1832,6 +1834,20 @@ summary:focus-visible {
   color: #c5fff6;
   box-shadow: inset 0 0 15px rgba(112, 217, 207, 0.08);
 }
+
+.composer-actions .cancel {
+  border-color: rgba(232, 112, 86, .38);
+  background: rgba(112, 35, 27, .13);
+  color: #e89079;
+}
+
+.composer-actions .cancel.confirm {
+  border-color: rgba(255, 128, 99, .78);
+  background: rgba(139, 43, 32, .34);
+  color: #ffc0ad;
+}
+
+.order-summary-card .cancel-warning { color: #e69a82; }
 
 .composer-actions button:disabled,
 .operator-drawer button:disabled {

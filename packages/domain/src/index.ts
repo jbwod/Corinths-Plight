@@ -855,6 +855,7 @@ export interface CampaignClock {
 export type CampaignEventType =
   | "ROUND_STARTED"
   | "ORDER_SUBMITTED"
+  | "ORDER_CANCELLED"
   | "ORDER_REJECTED"
   | "ORDER_LOCKED"
   | "ENEMY_INTENTION_DECLARED"

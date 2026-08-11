@@ -63,6 +63,7 @@ const enemyTargetPreferences = new Set([
 const eventTypes = new Set([
   "ROUND_STARTED",
   "ORDER_SUBMITTED",
+  "ORDER_CANCELLED",
   "ORDER_REJECTED",
   "ORDER_LOCKED",
   "ENEMY_INTENTION_DECLARED",
@@ -136,6 +137,12 @@ export interface CampaignOrderIntent {
   actions?: CampaignActionIntent[];
   incidentalActions?: CampaignActionIntent[];
   optionalRoleplayText?: string;
+}
+
+export interface CampaignOrderCancellationIntent {
+  commandId: string;
+  expectedCampaignVersion: number;
+  expectedOrderRevision: number;
 }
 
 export interface CampaignClockIntent {
@@ -421,6 +428,23 @@ export function parseCampaignOrderIntent(value: unknown): CampaignOrderIntent {
     parsed.optionalRoleplayText = value.optionalRoleplayText.trim();
   }
   return parsed;
+}
+
+export function parseCampaignOrderCancellationIntent(value: unknown): CampaignOrderCancellationIntent {
+  if (!isRecord(value)) requestFail("$", "Expected a campaign order cancellation object.");
+  onlyKeys(value, ["commandId", "expectedCampaignVersion", "expectedOrderRevision"], "$");
+  const commandId = identifier(value.commandId, "$.commandId");
+  if (!Number.isSafeInteger(value.expectedCampaignVersion) || (value.expectedCampaignVersion as number) < 1) {
+    requestFail("$.expectedCampaignVersion", "Expected campaign version must be a positive safe integer.");
+  }
+  if (!Number.isSafeInteger(value.expectedOrderRevision) || (value.expectedOrderRevision as number) < 1) {
+    requestFail("$.expectedOrderRevision", "Expected order revision must be a positive safe integer.");
+  }
+  return {
+    commandId,
+    expectedCampaignVersion: value.expectedCampaignVersion as number,
+    expectedOrderRevision: value.expectedOrderRevision as number,
+  };
 }
 
 export function parseCampaignClockIntent(value: unknown): CampaignClockIntent {

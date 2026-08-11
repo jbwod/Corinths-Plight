@@ -118,6 +118,7 @@ function formatEvent(event: CampaignEvent): string {
   const payload = event.payload as Record<string, unknown>;
   if (typeof payload.summary === "string") return payload.summary;
   if (event.type === "ORDER_SUBMITTED") return `Order ${String(payload.lifecycle ?? "saved").toLowerCase()} for ${event.actor ?? "unit"}.`;
+  if (event.type === "ORDER_CANCELLED") return `Order withdrawn for ${event.actor ?? "unit"}.`;
   if (event.type === "ENEMY_INTENTION_DECLARED") return typeof payload.targetId === "string"
     ? `${event.actor ?? "Enemy formation"} declared ${String(payload.orderType ?? "combat")} against ${payload.targetId}.`
     : `${event.actor ?? "Enemy formation"} advanced toward ${String(payload.objectiveId ?? "the primary objective")}.`;
@@ -229,6 +230,7 @@ function GameApp() {
   const [hovered, setHovered] = useState<{ coord?: AxialCoord; unit?: CampaignDeployment }>({});
   const [notice, setNotice] = useState<Notice>();
   const [busy, setBusy] = useState(false);
+  const [cancelConfirmOrderId, setCancelConfirmOrderId] = useState<string>();
   const [timelineMode, setTimelineMode] = useState<"ORDERS" | "EVENTS">("EVENTS");
   const [rosterScope, setRosterScope] = useState<"MY_UNITS" | "ALLIED">("MY_UNITS");
   const [mapLayer, setMapLayer] = useState<TacticalMapLayer>("SURFACE");
@@ -805,6 +807,7 @@ function GameApp() {
   function selectUnit(unit: CampaignDeployment) {
     setSelectedUnitId(unit.id);
     setScheduledRound(campaign.round);
+    setCancelConfirmOrderId(undefined);
     setNotice(undefined);
   }
 
@@ -995,6 +998,7 @@ function GameApp() {
       });
       if (!response.ok) throw new Error(await errorMessage(response));
       await loadCampaign(true, campaignId);
+      setCancelConfirmOrderId(undefined);
       setNotice({
         tone: "success",
         message: `${selectedUnit.callsign} order ${lifecycle === "DRAFT" ? "saved as draft" : "submitted to campaign command"}.`,
@@ -1002,6 +1006,31 @@ function GameApp() {
       setTimelineMode("ORDERS");
     } catch (error) {
       setNotice({ tone: "danger", message: error instanceof Error ? error.message : "Order submission failed." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelOrder() {
+    if (!campaignId || !selectedUnit || !currentOrder || locked || busy) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/campaigns/${campaignId}/orders/${encodeURIComponent(currentOrder.id)}`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json", ...(DEMO_HEADERS ?? {}) },
+        body: JSON.stringify({
+          commandId: `cancel-order-${crypto.randomUUID()}`,
+          expectedCampaignVersion: campaign.version,
+          expectedOrderRevision: currentOrder.revision,
+        }),
+      });
+      if (!response.ok) throw new Error(await errorMessage(response));
+      await loadCampaign(true, campaignId);
+      setCancelConfirmOrderId(undefined);
+      setTimelineMode("ORDERS");
+      setNotice({ tone: "success", message: `${selectedUnit.callsign} order withdrawn. A replacement may be submitted before lock.` });
+    } catch (error) {
+      setNotice({ tone: "danger", message: error instanceof Error ? error.message : "Order cancellation failed." });
     } finally {
       setBusy(false);
     }
@@ -1849,8 +1878,24 @@ function GameApp() {
               <div className="order-summary-card">
                 <span>AUTO-GENERATED ORDER</span>
                 <p><b>{selectedUnit.callsign}</b> will <b>{orderType.replaceAll("_", " ")}</b> to hex <b>{draftedRoute.at(-1)?.q}.{draftedRoute.at(-1)?.r}</b>, face <b>{FACING_LABELS[draftedFacing]}</b>{actionSummary ? <> and <b>{actionSummary}</b></> : ""}.</p>
+                {currentOrder && cancelConfirmOrderId === currentOrder.id && (
+                  <p className="cancel-warning" role="status">Withdraw this {currentOrder.lifecycle.toLowerCase()} order? The unit returns to MISSING until a replacement is submitted.</p>
+                )}
               </div>
-              <div className="composer-actions">
+              <div className={`composer-actions ${currentOrder && ["DRAFT", "SUBMITTED"].includes(currentOrder.lifecycle) ? "with-cancel" : ""}`}>
+                {currentOrder && ["DRAFT", "SUBMITTED"].includes(currentOrder.lifecycle) && (
+                  <button
+                    className={`cancel ${cancelConfirmOrderId === currentOrder.id ? "confirm" : ""}`}
+                    disabled={busy || locked}
+                    onClick={() => cancelConfirmOrderId === currentOrder.id
+                      ? void cancelOrder()
+                      : setCancelConfirmOrderId(currentOrder.id)}
+                  >
+                    {cancelConfirmOrderId === currentOrder.id
+                      ? "CONFIRM WITHDRAW"
+                      : currentOrder.lifecycle === "DRAFT" ? "DELETE DRAFT" : "WITHDRAW ORDER"}
+                  </button>
+                )}
                 <button className="secondary" disabled={busy || locked} onClick={() => void submitOrder("DRAFT")}>SAVE DRAFT</button>
                 <button className="primary" disabled={busy || !canSubmit} onClick={() => void submitOrder("SUBMITTED")}>{busy ? "TRANSMITTING…" : currentOrder ? "UPDATE ORDER" : "SUBMIT ORDER"}</button>
               </div>

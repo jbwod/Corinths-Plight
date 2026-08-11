@@ -8,6 +8,7 @@ import {
   canonicalCampaignJson,
   encodeCampaignStoredState,
   parseCampaignClockIntent,
+  parseCampaignOrderCancellationIntent,
   parseCampaignOrderIntent,
   parseCampaignStoredState,
 } from "./campaign-contracts";
@@ -24,6 +25,29 @@ const CLOCK_COMMAND = {
 } as const;
 
 describe("campaign order request contracts", () => {
+  it("requires exact optimistic fields for order cancellation", () => {
+    expect(parseCampaignOrderCancellationIntent({
+      commandId: "cancel-order-0001",
+      expectedCampaignVersion: 8,
+      expectedOrderRevision: 2,
+    })).toEqual({
+      commandId: "cancel-order-0001",
+      expectedCampaignVersion: 8,
+      expectedOrderRevision: 2,
+    });
+    expect(() => parseCampaignOrderCancellationIntent({
+      commandId: "cancel-order-0001",
+      expectedCampaignVersion: 8,
+      expectedOrderRevision: 0,
+    })).toThrow(CampaignRequestContractError);
+    expect(() => parseCampaignOrderCancellationIntent({
+      commandId: "cancel-order-0001",
+      expectedCampaignVersion: 8,
+      expectedOrderRevision: 2,
+      lifecycle: "CANCELLED",
+    })).toThrow(CampaignRequestContractError);
+  });
+
   it("accepts intent fields while leaving action economy to the server", () => {
     expect(parseCampaignOrderIntent({
       ...ORDER_COMMAND,
