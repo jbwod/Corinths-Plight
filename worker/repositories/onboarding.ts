@@ -33,6 +33,18 @@ export interface ActiveBattalionRow extends BattalionRecruitmentRow {
   permissions: string | null;
 }
 
+export interface BattalionAssignmentRow {
+  battalion_id: string;
+  name: string;
+  short_name: string | null;
+  rank_id: string;
+  rank_name: string;
+  command_role: "PLAYER" | "BATTALION_COMMAND" | "ADMIN";
+  membership_revision: number;
+  active_revision: number | null;
+  is_current: number;
+}
+
 export interface InvitationRow {
   invitation_id: string;
   battalion_id: string;
@@ -144,6 +156,21 @@ export async function getActiveOnboardingBattalion(db: D1Database, userId: strin
     LEFT JOIN battalion_permission_definitions AS definitions ON definitions.permission=permissions.permission
     WHERE active.user_id=?1
     GROUP BY battalions.id LIMIT 1`).bind(userId).first<ActiveBattalionRow>();
+}
+
+export async function listBattalionAssignments(db: D1Database, userId: string): Promise<BattalionAssignmentRow[]> {
+  const result = await db.prepare(`SELECT memberships.battalion_id,battalions.name,battalions.short_name,
+      memberships.rank_id,ranks.name AS rank_name,memberships.command_role,
+      memberships.revision AS membership_revision,active.revision AS active_revision,
+      CASE WHEN active.battalion_id=memberships.battalion_id THEN 1 ELSE 0 END AS is_current
+    FROM battalion_memberships AS memberships
+    JOIN battalions ON battalions.id=memberships.battalion_id AND battalions.status='ACTIVE'
+    JOIN battalion_ranks AS ranks ON ranks.id=memberships.rank_id AND ranks.battalion_id=memberships.battalion_id
+    LEFT JOIN user_active_battalions AS active ON active.user_id=memberships.user_id
+    WHERE memberships.user_id=?1 AND memberships.status='ACTIVE'
+    ORDER BY is_current DESC,battalions.name COLLATE NOCASE,battalions.id`)
+    .bind(userId).all<BattalionAssignmentRow>();
+  return result.results;
 }
 
 export async function listPendingInvitations(db: D1Database, userId: string): Promise<InvitationRow[]> {

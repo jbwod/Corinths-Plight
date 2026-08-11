@@ -1346,6 +1346,17 @@ export interface ActiveOnboardingBattalionDto extends BattalionDirectoryEntryDto
   joinEnabled: boolean;
 }
 
+export interface BattalionAssignmentDto {
+  battalionId: string;
+  name: string;
+  shortName?: string | null;
+  rankId: string;
+  rankName: string;
+  commandRole: "PLAYER" | "BATTALION_COMMAND" | "ADMIN";
+  membershipRevision: number;
+  current: boolean;
+}
+
 export interface OnboardingStatusDto {
   required: boolean;
   status: "NOT_ENROLLED" | "IN_PROGRESS" | "COMPLETE" | "SKIPPED";
@@ -1359,6 +1370,8 @@ export interface OnboardingStatusDto {
     alreadyUsed: boolean;
   };
   activeBattalion: ActiveOnboardingBattalionDto | null;
+  activeBattalionRevision: number | null;
+  battalionAssignments: BattalionAssignmentDto[];
   publicBattalions: BattalionDirectoryEntryDto[];
   invitations: BattalionInvitationDto[];
   starterUnits: StarterUnitOptionDto[];

@@ -11,7 +11,7 @@ A newly verified commander completes one server-authoritative flow before enteri
 3. review the Command, Galactic, Battalion, Ship, Forces, Deployment, and Campaign surfaces;
 4. explicitly complete onboarding and enter the persistent interface.
 
-After completion, the Battalion Recruitment surface continues to expose pending targeted invitations, the open directory, and private-code joining. A successful assignment changes only the selected operational Battalion; historical memberships remain durable.
+After completion, the Battalion Recruitment surface continues to expose current memberships, pending targeted invitations, the open directory, and private-code joining. Existing memberships can be selected directly without rejoining. A context switch changes only `user_active_battalions`; every other membership remains durable.
 
 Existing accounts without an `onboarding_progress` record are not retroactively trapped. The rollout seed opts verified production accounts into the flow once and excludes `.invalid` fixtures/system identities. Demo authentication bypasses onboarding.
 
@@ -20,6 +20,7 @@ Existing accounts without an `onboarding_progress` record are not retroactively 
 - Session identity is the only User authority. Client-provided User IDs, balances, memberships, permissions, prices, and completion state are ignored.
 - Registration fails closed before account creation when the active onboarding economy policy is absent; deployment must seed policy before deploying the registration integration.
 - `battalion_memberships` remains the durable many-to-many relationship; `user_active_battalions` is selected context, not permission cache.
+- Active switching requires an existing active membership and the current selector revision. It uses a separate actor-scoped receipt from joining, so a response-lost retry returns the same selection result while changed-payload command reuse conflicts.
 - A public Battalion is directory-visible only while active, open, below capacity, and carrying a non-empty engagement summary. Private Battalions require a targeted invitation or hashed invite code.
 - Recruitment settings are owned by the Battalion aggregate. Editing them requires active membership plus `BATTALION_EDIT`; invitations require `MEMBER_INVITE`.
 - Username/email invitations and a durable delivery job are committed atomically before any Resend call. The `202` response does not wait on the provider: `ExecutionContext.waitUntil` starts a bounded immediate attempt, while the hourly schedule recovers missed or failed attempts. Invitation email and provider identifiers never appear in public Battalion projections.

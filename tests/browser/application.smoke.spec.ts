@@ -429,6 +429,79 @@ test("local demo navigation reaches live strategic and tactical services", async
   await expect(page.getByText(/Local tactical projection active/)).toHaveCount(0);
 });
 
+test("commander switches persistent Battalion context without rejoining", async ({ page }) => {
+  type BattalionStatus = {
+    activeBattalion: { battalionId: string; name: string } | null;
+    activeBattalionRevision: number | null;
+    battalionAssignments: Array<{ battalionId: string; name: string; current: boolean }>;
+    publicBattalions: Array<{ battalionId: string; name: string }>;
+  };
+  const headers = { "x-demo-user": "demo-user", origin: "http://127.0.0.1:4173" };
+  const readStatus = async () => {
+    const response = await page.request.get("/api/onboarding", { headers });
+    expect(response.status()).toBe(200);
+    return response.json() as Promise<BattalionStatus>;
+  };
+  const currentAssignment = (value: BattalionStatus) => value.battalionAssignments.find((assignment) => assignment.current);
+  const switchBattalion = async (battalionId: string, expectedSelectionRevision: number | null, commandId = `browser-switch-${crypto.randomUUID()}`) => {
+    const response = await page.request.post("/api/onboarding/battalions/current", {
+      headers,
+      data: { commandId, battalionId, expectedSelectionRevision },
+    });
+    return { response, commandId };
+  };
+
+  let status = await readStatus();
+  const original = currentAssignment(status);
+  expect(original).toBeDefined();
+  let target = status.battalionAssignments.find((assignment) => !assignment.current);
+
+  if (!target) {
+    const candidate = status.publicBattalions.find((battalion) => battalion.battalionId !== original!.battalionId);
+    expect(candidate).toBeDefined();
+    const unassigned = await switchBattalion(candidate!.battalionId, status.activeBattalionRevision);
+    expect(unassigned.response.status()).toBe(404);
+    const joined = await page.request.post("/api/onboarding/battalions/join", {
+      headers,
+      data: { commandId: `browser-join-${crypto.randomUUID()}`, battalionId: candidate!.battalionId },
+    });
+    expect(joined.status()).toBe(200);
+    status = await readStatus();
+    expect(currentAssignment(status)?.battalionId).toBe(candidate!.battalionId);
+    const restore = await switchBattalion(original!.battalionId, status.activeBattalionRevision);
+    expect(restore.response.status()).toBe(200);
+    status = await readStatus();
+    target = status.battalionAssignments.find((assignment) => assignment.battalionId === candidate!.battalionId);
+  }
+
+  expect(target).toBeDefined();
+  expect(currentAssignment(status)?.battalionId).toBe(original!.battalionId);
+  await page.goto("/?view=battalion");
+  await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();
+  await page.getByRole("tab", { name: "RECRUITMENT" }).click();
+  const currentCard = page.locator(".recruitment-membership-list article.current");
+  await expect(currentCard).toContainText(original!.name);
+  const targetCard = page.locator(".recruitment-membership-list article").filter({ hasText: target!.name });
+  await expect(targetCard.getByRole("button", { name: "SWITCH" })).toBeVisible();
+
+  const switchedResponse = page.waitForResponse((response) =>
+    response.url().endsWith("/api/onboarding/battalions/current") && response.request().method() === "POST");
+  await targetCard.getByRole("button", { name: "SWITCH" }).click();
+  expect((await switchedResponse).status()).toBe(200);
+  await expect.poll(async () => currentAssignment(await readStatus())?.battalionId).toBe(target!.battalionId);
+
+  status = await readStatus();
+  const restoreCommandId = `browser-restore-${crypto.randomUUID()}`;
+  const restored = await switchBattalion(original!.battalionId, status.activeBattalionRevision, restoreCommandId);
+  expect(restored.response.status()).toBe(200);
+  const replayed = await switchBattalion(original!.battalionId, status.activeBattalionRevision, restoreCommandId);
+  expect(replayed.response.status()).toBe(200);
+  await expect(replayed.response.json()).resolves.toEqual(await restored.response.json());
+  const reused = await switchBattalion(target!.battalionId, status.activeBattalionRevision, restoreCommandId);
+  expect(reused.response.status()).toBe(409);
+  await expect.poll(async () => currentAssignment(await readStatus())?.battalionId).toBe(original!.battalionId);
+});
+
 test("campaign staging directory joins and safely leaves before deployment", async ({ page }) => {
   const directoryResponse = await page.request.get("/api/campaigns", {
     headers: { "x-demo-user": "demo-user" },

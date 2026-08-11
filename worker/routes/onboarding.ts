@@ -8,6 +8,7 @@ import {
   validateInviteBattalionMemberCommand,
   validateJoinBattalionCommand,
   validateRespondBattalionInviteCommand,
+  validateSwitchActiveBattalionCommand,
   validateUpdateBattalionRecruitmentCommand,
   type ValidationResult,
 } from "../onboarding-validation";
@@ -20,6 +21,7 @@ import {
   joinBattalion,
   OnboardingServiceError,
   respondBattalionInvite,
+  switchActiveBattalion,
   updateBattalionRecruitment,
 } from "../services/onboarding";
 import { processInvitationDeliveryJobs } from "../services/security-operations";
@@ -69,6 +71,10 @@ export async function routeOnboardingRequest(
     if (url.pathname === "/api/onboarding/battalions/join") {
       if (request.method !== "POST") return methodNotAllowed("POST");
       return json(await joinBattalion(env, userId, parsed(validateJoinBattalionCommand(await body(request)))));
+    }
+    if (url.pathname === "/api/onboarding/battalions/current") {
+      if (request.method !== "POST") return methodNotAllowed("POST");
+      return json(await switchActiveBattalion(env, userId, parsed(validateSwitchActiveBattalionCommand(await body(request)))));
     }
     if (url.pathname === "/api/onboarding/battalions") {
       if (request.method !== "POST") return methodNotAllowed("POST");

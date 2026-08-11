@@ -47,5 +47,16 @@ describe("onboarding HTTP boundary", () => {
     }), environment());
     expect(forged?.status).toBe(400);
     await expect(forged?.json()).resolves.toMatchObject({ error: { code: "COMMAND_INVALID" } });
+
+    const switchWithoutRevision = await routeOnboardingRequest(new Request("http://localhost/api/onboarding/battalions/current", {
+      method: "POST",
+      headers: { "x-demo-user": "demo-user", "content-type": "application/json" },
+      body: JSON.stringify({
+        commandId: "switch-battalion-123456",
+        battalionId: "battalion-33rd-expeditionary",
+      }),
+    }), environment());
+    expect(switchWithoutRevision?.status).toBe(400);
+    await expect(switchWithoutRevision?.json()).resolves.toMatchObject({ error: { code: "REVISION_INVALID" } });
   });
 });

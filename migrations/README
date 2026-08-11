@@ -15,5 +15,6 @@ Current sequence:
 - `0009` idempotent campaign-join command receipts;
 - `0010` persistent campaign results and rewards;
 - `0011` Battlegroup management receipts, compare-and-set revisions, and live roster/delegation uniqueness.
+- `0012` actor-scoped active Battalion context switching receipts.
 
 Use the root `db:migrate:local` or guarded `db:migrate:remote` package scripts. Production-safe catalogue/onboarding seeds are separate from development fixtures.

@@ -1,6 +1,6 @@
 # Corinth's Plight Battalion Model
 
-**Status:** Phase 3 organisation schema/read foundation plus deployed recruitment; migration `0008` abuse/retention controls are local-only and wider mutations remain deferred (2026-08-10)
+**Status:** organisation, recruitment, Battlegroup management, and active Battalion switching are implemented locally; wider membership/rank mutations remain deferred (2026-08-12)
 
 ## 1. Identity is not membership
 
@@ -23,6 +23,8 @@ Migration 0004 adds the provider-neutral `auth_identities` and hashed `account_r
 A User does not contain a permanent `battalion_id`. `battalion_memberships` preserves the many-to-many relationship and historical status. `user_active_battalions` makes the current operational Battalion explicit while allowing former or future affiliations to remain represented.
 
 There is at most one current selection per User. A trigger requires an `ACTIVE` membership at selection time, and deactivating that membership clears the selection. Every request must still authenticate the User and recheck membership status; current selection is context, not authority.
+
+The Recruitment surface now lists all of the authenticated User's active memberships and exposes a dedicated context switch. `POST /api/onboarding/battalions/current` requires the target membership, the current selector revision (or `null` when no selector exists), and an actor-scoped command ID. The D1 update is compare-and-set, keeps every other membership intact, stores an exact replay receipt, and emits an owner-audience context event. Joining and switching are therefore separate operations.
 
 ## 3. Battalion identity and lifecycle
 
@@ -51,7 +53,7 @@ Invite command idempotency is scoped to the authenticated inviter by `UNIQUE(inv
 
 Migration 0008 adds fixed-window invitation limits for actor, Battalion, HMAC-pseudonymized recipient, and HMAC-pseudonymized source IP, plus private invitation-security audit rows, a leased delivery outbox, and bounded invitation-expiry/PII maintenance. The invitation command returns a generic accepted response before Resend; `waitUntil` makes the first bounded attempt and the hourly job recovers/retries. Eligibility remains non-enumerating and blocked scopes share one generic response. This code is locally verified but not part of the recorded production `0007` deployment.
 
-Invite/send/accept/decline, public/code joins, and recruitment settings are implemented. Leave/remove, rank editing, ownership transfer, and invite revocation remain deferred.
+Invite/send/accept/decline, public/code joins, active membership switching, and recruitment settings are implemented. Leave/remove, rank editing, ownership transfer, and invite revocation remain deferred.
 
 ## 5. Configurable ranks and permissions
 

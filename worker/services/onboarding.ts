@@ -1,5 +1,6 @@
 import type {
   ActiveOnboardingBattalionDto,
+  BattalionAssignmentDto,
   BattalionDirectoryEntryDto,
   BattalionInvitationDto,
   BattalionPermission,
@@ -16,6 +17,7 @@ import type {
   InviteBattalionMemberCommand,
   JoinBattalionCommand,
   RespondBattalionInviteCommand,
+  SwitchActiveBattalionCommand,
   UpdateBattalionRecruitmentCommand,
 } from "../onboarding-validation";
 import { onboardingCommandHash } from "../onboarding-validation";
@@ -31,11 +33,13 @@ import {
   getPublicJoinAuthority,
   getStarterDefinition,
   getStarterGrant,
+  listBattalionAssignments,
   listPendingInvitations,
   listPublicBattalions,
   listStarterDefinitions,
   type ActiveBattalionRow,
   type BattalionRecruitmentRow,
+  type BattalionAssignmentRow,
   type InvitationRow,
   type JoinAuthorityRow,
   type OnboardingReceiptRow,
@@ -108,6 +112,19 @@ function activeBattalion(row: ActiveBattalionRow | null): ActiveOnboardingBattal
   } : null;
 }
 
+function battalionAssignment(row: BattalionAssignmentRow): BattalionAssignmentDto {
+  return {
+    battalionId: row.battalion_id,
+    name: row.name,
+    shortName: row.short_name,
+    rankId: row.rank_id,
+    rankName: row.rank_name,
+    commandRole: row.command_role,
+    membershipRevision: Number(row.membership_revision),
+    current: row.is_current === 1,
+  };
+}
+
 function invitation(row: InvitationRow): BattalionInvitationDto {
   return {
     invitationId: row.invitation_id,
@@ -152,10 +169,11 @@ async function committedReceipt(env: Env, userId: string, commandId: string, ope
 }
 
 export async function getOnboardingStatus(env: Env, userId: string): Promise<OnboardingStatusDto> {
-  const [progress, policy, currentBattalion, battalions, invites, definitions, grant] = await Promise.all([
+  const [progress, policy, currentBattalion, assignments, battalions, invites, definitions, grant] = await Promise.all([
     getOnboardingProgress(env.DB, userId),
     getOnboardingPolicy(env.DB, userId),
     getActiveOnboardingBattalion(env.DB, userId),
+    listBattalionAssignments(env.DB, userId),
     listPublicBattalions(env.DB),
     listPendingInvitations(env.DB, userId),
     listStarterDefinitions(env.DB),
@@ -179,6 +197,8 @@ export async function getOnboardingStatus(env: Env, userId: string): Promise<Onb
       alreadyUsed,
     },
     activeBattalion: activeBattalion(currentBattalion),
+    activeBattalionRevision: assignments.find((assignment) => assignment.is_current === 1)?.active_revision ?? null,
+    battalionAssignments: assignments.map(battalionAssignment),
     publicBattalions: battalions.map(directory),
     invitations: invites.map(invitation),
     starterUnits: definitions.map(starter),
@@ -189,6 +209,89 @@ export async function getOnboardingStatus(env: Env, userId: string): Promise<Onb
       definitionId: grant.definition_id,
     } : null,
   };
+}
+
+export async function switchActiveBattalion(
+  env: Env,
+  userId: string,
+  command: SwitchActiveBattalionCommand,
+): Promise<unknown> {
+  const operation = "SWITCH_ACTIVE_BATTALION";
+  const requestHash = await onboardingCommandHash({ userId, ...command, operation });
+  const replay = await committedReceipt(env, userId, command.commandId, operation, requestHash);
+  if (replay) return replay;
+
+  const assignments = await listBattalionAssignments(env.DB, userId);
+  const target = assignments.find((assignment) => assignment.battalion_id === command.battalionId);
+  if (!target) {
+    throw new OnboardingServiceError(404, "BATTALION_ASSIGNMENT_NOT_FOUND", "Active Battalion membership was not found.");
+  }
+  const current = assignments.find((assignment) => assignment.is_current === 1);
+  const actualRevision = current?.active_revision ?? null;
+  if (actualRevision !== command.expectedSelectionRevision) {
+    throw new OnboardingServiceError(409, "BATTALION_SELECTION_CONFLICT", "Battalion context changed. Refresh and try again.");
+  }
+
+  const alreadyCurrent = target.is_current === 1;
+  const nextRevision = alreadyCurrent
+    ? Number(target.active_revision)
+    : command.expectedSelectionRevision === null ? 1 : command.expectedSelectionRevision + 1;
+  const response = {
+    switched: !alreadyCurrent,
+    battalion: { battalionId: target.battalion_id, name: target.name },
+    activeBattalionRevision: nextRevision,
+  };
+  const ownerNamespace = (await onboardingCommandHash(userId)).slice(0, 16);
+  const now = Math.floor(Date.now() / 1000);
+  const statements: D1PreparedStatement[] = [];
+
+  if (!alreadyCurrent && command.expectedSelectionRevision === null) {
+    statements.push(env.DB.prepare(`INSERT INTO user_active_battalions (user_id,battalion_id,selected_at,revision)
+      SELECT ?1,?2,?3,1
+      WHERE NOT EXISTS (SELECT 1 FROM user_active_battalions WHERE user_id=?1)
+        AND EXISTS (SELECT 1 FROM battalion_memberships
+          WHERE user_id=?1 AND battalion_id=?2 AND status='ACTIVE')`)
+      .bind(userId, target.battalion_id, now));
+  } else if (!alreadyCurrent) {
+    statements.push(env.DB.prepare(`UPDATE user_active_battalions
+      SET battalion_id=?2,selected_at=?3,revision=revision+1
+      WHERE user_id=?1 AND revision=?4
+        AND EXISTS (SELECT 1 FROM battalion_memberships
+          WHERE user_id=?1 AND battalion_id=?2 AND status='ACTIVE')`)
+      .bind(userId, target.battalion_id, now, command.expectedSelectionRevision));
+  }
+
+  if (!alreadyCurrent) {
+    statements.push(env.DB.prepare(`INSERT INTO strategic_events (
+        event_id,event_type,battalion_id,actor_user_id,audience,subject_type,subject_id,
+        summary,payload_json,event_hash,idempotency_key,occurred_at
+      ) SELECT ?1,'BATTALION_CONTEXT_SELECTED',?2,?3,'OWNER','BATTALION',?2,
+               'Active Battalion command context selected.',?4,?5,?6,?7
+        WHERE EXISTS (SELECT 1 FROM user_active_battalions
+          WHERE user_id=?3 AND battalion_id=?2 AND revision=?8)`)
+      .bind(`event:onboarding:${ownerNamespace}:${command.commandId}`, target.battalion_id, userId,
+        JSON.stringify({ previousBattalionId: current?.battalion_id ?? null }), requestHash,
+        `onboarding:event:${ownerNamespace}:${command.commandId}`, now, nextRevision));
+  }
+  statements.push(env.DB.prepare(`INSERT INTO onboarding_command_receipts (
+      user_id,command_id,operation,request_hash,response_json
+    ) SELECT ?1,?2,?3,?4,?5 WHERE EXISTS (
+      SELECT 1 FROM user_active_battalions
+      WHERE user_id=?1 AND battalion_id=?6 AND revision=?7)`)
+    .bind(userId, command.commandId, operation, requestHash, JSON.stringify(response), target.battalion_id, nextRevision));
+
+  try {
+    await env.DB.batch(statements);
+  } catch (error) {
+    const raced = await committedReceipt(env, userId, command.commandId, operation, requestHash);
+    if (raced) return raced;
+    throw error;
+  }
+  const committed = await committedReceipt(env, userId, command.commandId, operation, requestHash);
+  if (!committed) {
+    throw new OnboardingServiceError(409, "BATTALION_SELECTION_CONFLICT", "Battalion context changed. Refresh and try again.");
+  }
+  return committed;
 }
 
 function joinResponse(authority: JoinAuthorityRow): Record<string, unknown> {

@@ -6,6 +6,11 @@ export interface JoinBattalionCommand {
   inviteCode?: string;
   invitationId?: string;
 }
+export interface SwitchActiveBattalionCommand {
+  commandId: string;
+  battalionId: string;
+  expectedSelectionRevision: number | null;
+}
 export interface CreateBattalionCommand {
   commandId: string;
   name: string;
@@ -104,6 +109,28 @@ export function validateJoinBattalionCommand(value: unknown): ValidationResult<J
       battalionId: typeof value.battalionId === "string" ? value.battalionId : undefined,
       invitationId: typeof value.invitationId === "string" ? value.invitationId : undefined,
       inviteCode: typeof value.inviteCode === "string" ? value.inviteCode.trim().toUpperCase() : undefined,
+    },
+  };
+}
+
+export function validateSwitchActiveBattalionCommand(value: unknown): ValidationResult<SwitchActiveBattalionCommand> {
+  if (!record(value) || !only(value, ["commandId", "battalionId", "expectedSelectionRevision"])) {
+    return invalid("COMMAND_INVALID", "Battalion selection command contains unsupported fields.");
+  }
+  if (!commandId(value.commandId)) return invalid("COMMAND_ID_INVALID", "commandId must be 16–128 safe characters.");
+  if (typeof value.battalionId !== "string" || !idPattern.test(value.battalionId)) {
+    return invalid("BATTALION_ID_INVALID", "Battalion ID is invalid.");
+  }
+  if (value.expectedSelectionRevision !== null
+    && (!Number.isInteger(value.expectedSelectionRevision) || Number(value.expectedSelectionRevision) < 1)) {
+    return invalid("REVISION_INVALID", "expectedSelectionRevision must be a positive integer or null.");
+  }
+  return {
+    valid: true,
+    value: {
+      commandId: value.commandId,
+      battalionId: value.battalionId,
+      expectedSelectionRevision: value.expectedSelectionRevision === null ? null : Number(value.expectedSelectionRevision),
     },
   };
 }

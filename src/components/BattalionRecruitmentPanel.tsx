@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import type { BattalionAccessPolicy, OnboardingStatusDto } from "../../packages/domain/src";
 
+const DEMO_HEADERS = import.meta.env.DEV ? { "x-demo-user": "demo-user" } : undefined;
+const JSON_HEADERS = { "content-type": "application/json", ...(DEMO_HEADERS ?? {}) };
+
 function commandId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
 }
@@ -25,6 +28,7 @@ export function BattalionRecruitmentPanel() {
   const [message, setMessage] = useState("");
   const [assignmentCode, setAssignmentCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState<string>();
   const [notice, setNotice] = useState<{ tone: "success" | "danger"; message: string }>();
 
   function retryableCommand(key: string, payload: Record<string, unknown>): string {
@@ -37,9 +41,10 @@ export function BattalionRecruitmentPanel() {
   }
 
   const load = useCallback(async () => {
-    const response = await fetch("/api/onboarding");
+    const response = await fetch("/api/onboarding", { headers: DEMO_HEADERS });
     if (!response.ok) throw new Error(await errorMessage(response));
     const next = await response.json() as OnboardingStatusDto;
+    setLoadError(undefined);
     setStatus(next);
     if (next.activeBattalion) {
       setAccessPolicy(next.activeBattalion.accessPolicy);
@@ -49,7 +54,9 @@ export function BattalionRecruitmentPanel() {
   }, [setAccessPolicy, setEngagementSummary, setJoinEnabled]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void load().catch(() => undefined), 0);
+    const timer = window.setTimeout(() => void load().catch((caught) => {
+      setLoadError(caught instanceof Error ? caught.message : "Battalion assignments could not be loaded.");
+    }), 0);
     return () => window.clearTimeout(timer);
   }, [load]);
 
@@ -67,7 +74,7 @@ export function BattalionRecruitmentPanel() {
       };
       const response = await fetch("/api/onboarding/battalions/settings", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: JSON_HEADERS,
         body: JSON.stringify({
           commandId: retryableCommand("recruitment-settings", payload),
           ...payload,
@@ -92,7 +99,7 @@ export function BattalionRecruitmentPanel() {
       const payload = { targetType, target, message };
       const response = await fetch("/api/onboarding/battalions/invites", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: JSON_HEADERS,
         body: JSON.stringify({ commandId: retryableCommand("battalion-invite", payload), ...payload }),
       });
       if (!response.ok) throw new Error(await errorMessage(response));
@@ -119,7 +126,7 @@ export function BattalionRecruitmentPanel() {
     try {
       const response = await fetch(path, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: JSON_HEADERS,
         body: JSON.stringify({ commandId: retryableCommand(key, payload), ...payload }),
       });
       if (!response.ok) throw new Error(await errorMessage(response));
@@ -143,17 +150,44 @@ export function BattalionRecruitmentPanel() {
     await assignment("assignment-code", "/api/onboarding/battalions/join", payload, "Battalion assignment confirmed.", true);
   }
 
-  const battalion = status?.activeBattalion;
-  if (!battalion) return <section className="recruitment-empty"><h2>Recruitment unavailable</h2><p>No active Battalion recruitment context is available for this account.</p></section>;
-  const canEdit = battalion.permissions.includes("BATTALION_EDIT");
-  const canInvite = battalion.permissions.includes("MEMBER_INVITE");
+  async function switchAssignment(battalionId: string) {
+    if (!status) return;
+    await assignment(
+      `assignment-switch:${battalionId}`,
+      "/api/onboarding/battalions/current",
+      { battalionId, expectedSelectionRevision: status.activeBattalionRevision },
+      "Active Battalion context switched.",
+      true,
+    );
+  }
+
+  if (!status) return <section className="recruitment-empty"><h2>{loadError ? "Assignments unavailable" : "Loading assignments"}</h2><p>{loadError ?? "Reading your persistent Battalion memberships."}</p></section>;
+  const battalion = status.activeBattalion;
+  const canEdit = battalion?.permissions.includes("BATTALION_EDIT") ?? false;
+  const canInvite = battalion?.permissions.includes("MEMBER_INVITE") ?? false;
+  const existingAssignments = new Set(status.battalionAssignments.map((item) => item.battalionId));
 
   return (
     <section className="recruitment-console">
-      <header className="strategic-section-heading"><div><span className="eyebrow">BATTALION RECRUITMENT</span><h2>Access and invitations</h2></div><span>{battalion.accessPolicy} · {battalion.joinEnabled ? "OPEN" : "CLOSED"}</span></header>
+      <header className="strategic-section-heading"><div><span className="eyebrow">BATTALION RECRUITMENT</span><h2>Assignments, access and invitations</h2></div><span>{battalion ? `${battalion.accessPolicy} · ${battalion.joinEnabled ? "OPEN" : "CLOSED"}` : "ASSIGNMENT ONLY"}</span></header>
       {notice && <p className={`recruitment-notice ${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>{notice.message}</p>}
       <section className="recruitment-assignments">
-          <header><small>YOUR BATTALION ASSIGNMENTS</small><h3>Join another active formation</h3><p>Membership is persistent. Joining here selects the new Battalion as your current operational context.</p></header>
+          <header><small>YOUR BATTALION ASSIGNMENTS</small><h3>Select your command context</h3><p>Membership is persistent. Switching changes the Battalion shown across Command, Forces, Operations, and Ship surfaces without leaving another formation.</p></header>
+          <div className="recruitment-membership-list">
+            {status.battalionAssignments.map((item) => (
+              <article className={item.current ? "current" : ""} key={item.battalionId}>
+                <div>
+                  <small>{item.shortName ?? "BATTALION"} · {item.commandRole.replaceAll("_", " ")}</small>
+                  <strong>{item.name}</strong>
+                  <p>{item.rankName} · membership revision {item.membershipRevision}</p>
+                </div>
+                {item.current
+                  ? <span className="recruitment-current-marker">CURRENT</span>
+                  : <button className="primary" disabled={busy} onClick={() => void switchAssignment(item.battalionId)}>SWITCH</button>}
+              </article>
+            ))}
+          </div>
+          <header className="recruitment-join-heading"><small>NEW ASSIGNMENT</small><h3>Join another active formation</h3></header>
           {status.invitations.length > 0 && <div className="recruitment-invitation-list">{status.invitations.map((item) => (
             <article key={item.invitationId}>
               <div><small>{item.source} INVITATION</small><strong>{item.battalionName}</strong><p>{item.invitedBy}{item.message ? ` · ${item.message}` : ""}</p></div>
@@ -173,7 +207,7 @@ export function BattalionRecruitmentPanel() {
             </article>
           ))}</div>}
           <div className="recruitment-directory">
-            {status.publicBattalions.filter((item) => item.battalionId !== battalion.battalionId).map((item) => (
+            {status.publicBattalions.filter((item) => !existingAssignments.has(item.battalionId)).map((item) => (
               <article key={item.battalionId}><div><small>{item.recruitmentKind} · {item.openSpots} OPEN</small><strong>{item.name}</strong><p>{item.engagementSummary}</p></div><button disabled={busy} onClick={() => void assignment(
                 `assignment-public:${item.battalionId}`,
                 "/api/onboarding/battalions/join",
@@ -189,7 +223,7 @@ export function BattalionRecruitmentPanel() {
             <button disabled={busy}>JOIN WITH CODE</button>
           </form>
       </section>
-      <div className="recruitment-grid">
+      {battalion ? <div className="recruitment-grid">
         <form onSubmit={saveSettings}>
           <header><small>DIRECTORY POLICY</small><h3>Public access</h3></header>
           <fieldset disabled={!canEdit || busy}>
@@ -217,7 +251,7 @@ export function BattalionRecruitmentPanel() {
           <button className="primary" disabled={!canInvite || busy}>SAVE AND EMAIL INVITATION</button>
           {!canInvite && <p className="boundary-note">Your current rank does not grant MEMBER_INVITE.</p>}
         </form>
-      </div>
+      </div> : <p className="boundary-note"><strong>Recruitment settings unavailable:</strong> the selected Battalion has no published recruitment policy. You can still switch an existing membership or join an open formation.</p>}
       <p className="boundary-note"><strong>Privacy boundary:</strong> invitation email and identity records remain server-private. Public Battalion projections expose only profile and recruitment information.</p>
     </section>
   );
