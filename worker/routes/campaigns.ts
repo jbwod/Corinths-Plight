@@ -38,6 +38,7 @@ interface PublicCampaignRow {
 }
 
 const joinPath = /^\/api\/campaigns\/([a-z0-9][a-z0-9-]{0,63})\/join$/;
+const withdrawPath = /^\/api\/campaigns\/([a-z0-9][a-z0-9-]{0,63})\/withdraw$/;
 const [outpostMapSource, ironRainMapSource, brokenRoadMapSource, nightGlassMapSource, coldHorizonMapSource] = AUTHORED_SCENARIO_MAP_SOURCES;
 
 function scenarioBriefing(mapSourceKey: string): Record<string, unknown> | undefined {
@@ -137,8 +138,75 @@ async function joinCampaign(request: Request, env: Env, campaignId: string): Pro
   return json(JSON.parse(committed.response_json), { status: 201 });
 }
 
+async function withdrawCampaign(request: Request, env: Env, campaignId: string): Promise<Response> {
+  const identity = await authenticate(request, env);
+  if (!identity) return errorResponse(401, "AUTH_REQUIRED", "Sign in is required to leave a campaign.");
+  const userId = identity.kind === "SESSION" ? identity.userId : identity.viewer.userId;
+  let body: unknown;
+  try { body = await request.json(); } catch { return errorResponse(400, "INVALID_JSON", "Request body is not valid JSON."); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return errorResponse(400, "INVALID_COMMAND", "Campaign withdrawal command is invalid.");
+  }
+  const record = body as Record<string, unknown>;
+  if (Object.keys(record).some((key) => !["commandId", "expectedJoinedAt"].includes(key)) ||
+      typeof record.commandId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/.test(record.commandId) ||
+      !Number.isSafeInteger(record.expectedJoinedAt) || Number(record.expectedJoinedAt) < 1) {
+    return errorResponse(400, "INVALID_COMMAND", "Campaign withdrawal command is invalid.");
+  }
+  const expectedJoinedAt = Number(record.expectedJoinedAt);
+  const requestHash = await commandHash({ operation: "WITHDRAW_CAMPAIGN", campaignId, userId, expectedJoinedAt });
+  const prior = await env.DB.prepare(`SELECT campaign_id,request_hash,response_json
+    FROM campaign_join_receipts WHERE user_id=?1 AND command_id=?2 LIMIT 1`)
+    .bind(userId, record.commandId).first<{ campaign_id: string; request_hash: string; response_json: string }>();
+  if (prior) {
+    if (prior.campaign_id !== campaignId || prior.request_hash !== requestHash) {
+      return errorResponse(409, "COMMAND_ID_REUSED", "commandId was already used for a different command.");
+    }
+    return json(JSON.parse(prior.response_json));
+  }
+  const response = { withdrawn: true, campaignId };
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO campaign_join_receipts
+      (user_id,command_id,campaign_id,request_hash,response_json)
+      SELECT memberships.user_id,?1,memberships.campaign_id,?2,?3
+      FROM campaign_memberships AS memberships
+      JOIN campaigns ON campaigns.id=memberships.campaign_id
+      WHERE memberships.campaign_id=?4 AND memberships.user_id=?5
+        AND memberships.joined_at=?6 AND memberships.role='PLAYER'
+        AND campaigns.status='RECRUITING'
+        AND NOT EXISTS (
+          SELECT 1 FROM deployments
+          WHERE deployments.campaign_id=memberships.campaign_id
+            AND deployments.owner_id=memberships.user_id
+        )`)
+      .bind(record.commandId, requestHash, JSON.stringify(response), campaignId, userId, expectedJoinedAt),
+    env.DB.prepare(`UPDATE deployment_plans SET status='CANCELLED',revision=revision+1,updated_at=unixepoch()
+      WHERE campaign_id=?1 AND created_by=?2 AND status IN ('DRAFT','VALID','INVALID')
+        AND EXISTS (SELECT 1 FROM campaign_join_receipts
+          WHERE user_id=?2 AND command_id=?3 AND campaign_id=?1 AND request_hash=?4)`)
+      .bind(campaignId, userId, record.commandId, requestHash),
+    env.DB.prepare(`DELETE FROM campaign_memberships
+      WHERE campaign_id=?1 AND user_id=?2 AND joined_at=?3
+        AND EXISTS (SELECT 1 FROM campaign_join_receipts
+          WHERE user_id=?2 AND command_id=?4 AND campaign_id=?1 AND request_hash=?5)`)
+      .bind(campaignId, userId, expectedJoinedAt, record.commandId, requestHash),
+  ]);
+  const committed = await env.DB.prepare(`SELECT response_json FROM campaign_join_receipts
+    WHERE user_id=?1 AND command_id=?2 AND campaign_id=?3 AND request_hash=?4 LIMIT 1`)
+    .bind(userId, record.commandId, campaignId, requestHash).first<{ response_json: string }>();
+  if (!committed) {
+    return errorResponse(409, "CAMPAIGN_WITHDRAWAL_UNAVAILABLE", "Only an undeployed player may leave a recruiting campaign. The membership may also have changed.");
+  }
+  return json(JSON.parse(committed.response_json));
+}
+
 export async function routeCampaignDirectoryRequest(request: Request, env: Env): Promise<Response | null> {
   const url = new URL(request.url);
+  const withdraw = url.pathname.match(withdrawPath);
+  if (withdraw) {
+    if (request.method !== "POST") return errorResponse(405, "METHOD_NOT_ALLOWED", "Use POST to leave a campaign.", { allowed: ["POST"] });
+    return withdrawCampaign(request, env, withdraw[1]);
+  }
   const join = url.pathname.match(joinPath);
   if (join) {
     if (request.method !== "POST") return errorResponse(405, "METHOD_NOT_ALLOWED", "Use POST to join a campaign.", { allowed: ["POST"] });
@@ -195,9 +263,11 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
       role: row.role,
       joinedAt: row.joined_at,
       memberCount: Number(row.member_count),
+      deploymentCount: Number(row.deployment_count),
       minimumPlayers: Number(row.minimum_players),
       maximumPlayers: Number(row.maximum_players),
       scenarioAvailable: isAuthoredScenarioMapSourceKey(row.map_source_key),
+      canWithdraw: row.status === "RECRUITING" && row.role === "PLAYER" && Number(row.deployment_count) === 0,
       canEnter: isAuthoredScenarioMapSourceKey(row.map_source_key) && Number(row.deployment_count) > 0 &&
         ["RECRUITING", "ACTIVE", "PAUSED", "COMPLETE", "FAILED"].includes(row.status),
       briefing: scenarioBriefing(row.map_source_key),

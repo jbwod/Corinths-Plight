@@ -16,7 +16,26 @@ async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<
   const join = page.getByRole("button", { name: /JOIN K-17: HOLD THE RELAY/i });
   const map = page.getByRole("region", { name: "Tactical operations map" });
   const noPlayableCampaign = page.getByRole("heading", { name: "No playable campaign assigned" });
-  await expect(map.or(noPlayableCampaign)).toBeVisible();
+  const campaignDirectory = page.getByRole("heading", { name: "Choose your next operation" });
+  await expect(map.or(noPlayableCampaign).or(campaignDirectory)).toBeVisible();
+  if (await campaignDirectory.isVisible()) {
+    const k17Card = page.locator(".campaign-directory-card").filter({ hasText: "K-17: HOLD THE RELAY" });
+    const openCampaign = k17Card.getByRole("button", { name: "OPEN CAMPAIGN" });
+    if (await openCampaign.isVisible()) {
+      await openCampaign.click();
+      await expect(map).toBeVisible();
+    } else {
+      const planDeployment = k17Card.getByRole("button", { name: "PLAN DEPLOYMENT" });
+      const joinCampaign = k17Card.getByRole("button", { name: "JOIN CAMPAIGN" });
+      if (await planDeployment.isVisible()) {
+        await planDeployment.click();
+        await expect(page.getByRole("heading", { name: "Deployment planner", exact: true })).toBeVisible();
+      } else if (await joinCampaign.isVisible()) {
+        await joinCampaign.click();
+        await expect(page.getByRole("heading", { name: "Deployment planner", exact: true })).toBeVisible();
+      }
+    }
+  }
   const campaignSelector = page.getByLabel("Active campaign");
   if (await campaignSelector.count() && await campaignSelector.locator('option[value="campaign-k17-relay"]').count()) {
     if (await campaignSelector.isVisible()) {
@@ -408,6 +427,66 @@ test("local demo navigation reaches live strategic and tactical services", async
   await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "K-17: Hold the Relay" })).toBeVisible();
   await expect(page.getByText(/Local tactical projection active/)).toHaveCount(0);
+});
+
+test("campaign staging directory joins and safely leaves before deployment", async ({ page }) => {
+  const directoryResponse = await page.request.get("/api/campaigns", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(directoryResponse.status()).toBe(200);
+  const directory = await directoryResponse.json() as {
+    availableCampaigns?: Array<{ campaignId: string; name: string }>;
+  };
+  const target = directory.availableCampaigns?.[0];
+  expect(target, "development world should expose an authored recruiting campaign").toBeDefined();
+
+  await page.goto("/?view=campaigns&directory=1");
+  await expect(page.getByRole("heading", { name: "Choose your next operation" })).toBeVisible();
+  const availableCard = page.locator(".campaign-directory-card").filter({ hasText: target!.name });
+  await expect(availableCard).toContainText("RECRUITING");
+  await availableCard.getByRole("button", { name: "JOIN CAMPAIGN" }).click();
+  await expect(page.getByRole("heading", { name: "Deployment planner", exact: true })).toBeVisible();
+  await expect(page.getByText(/Campaign joined/)).toBeVisible();
+
+  await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Campaigns" }).click();
+  await page.getByRole("button", { name: "BROWSE CAMPAIGNS", exact: true }).click();
+  const joinedCard = page.locator(".campaign-directory-card.joined").filter({ hasText: target!.name });
+  await expect(joinedCard).toContainText("NOT DEPLOYED");
+  await expect(joinedCard.getByRole("button", { name: "PLAN DEPLOYMENT" })).toBeVisible();
+  await joinedCard.getByRole("button", { name: "LEAVE CAMPAIGN" }).click();
+  await expect(joinedCard.getByText(/Once units deploy, tactical extraction rules apply instead/)).toBeVisible();
+  const withdrawalRequest = page.waitForRequest((request) => request.url().endsWith(`/api/campaigns/${target!.campaignId}/withdraw`) && request.method() === "POST");
+  await joinedCard.getByRole("button", { name: "CONFIRM LEAVE" }).click();
+  const committedRequest = await withdrawalRequest;
+  await expect(page.getByText(new RegExp(`Left ${target!.name}`, "i"))).toBeVisible();
+
+  const replayEvidence = await page.evaluate(async ({ campaignId, command }) => {
+    async function send(body: Record<string, unknown>) {
+      const response = await fetch(`/api/campaigns/${campaignId}/withdraw`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-demo-user": "demo-user" },
+        body: JSON.stringify(body),
+      });
+      return { status: response.status, body: await response.json() };
+    }
+    return {
+      exact: await send(command),
+      conflict: await send({ ...command, expectedJoinedAt: Number(command.expectedJoinedAt) + 1 }),
+    };
+  }, { campaignId: target!.campaignId, command: committedRequest.postDataJSON() as Record<string, unknown> });
+  expect(replayEvidence.exact).toEqual({ status: 200, body: { withdrawn: true, campaignId: target!.campaignId } });
+  expect(replayEvidence.conflict).toMatchObject({ status: 409, body: { error: { code: "COMMAND_ID_REUSED" } } });
+
+  const after = await page.request.get("/api/campaigns", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(after.status()).toBe(200);
+  await expect(after.json()).resolves.toMatchObject({
+    campaigns: expect.not.arrayContaining([expect.objectContaining({ campaignId: target!.campaignId })]),
+    availableCampaigns: expect.arrayContaining([expect.objectContaining({ campaignId: target!.campaignId })]),
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectNoDocumentOverflow(page);
 });
 
 test("quartermaster previews and persists equipment into a Reserve unit", async ({ page }) => {

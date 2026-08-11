@@ -76,10 +76,22 @@ interface CampaignDirectoryEntry {
   name: string;
   planetName: string;
   status: string;
-  role: string;
+  role?: string;
+  joinedAt?: number;
+  memberCount?: number;
+  minimumPlayers?: number;
+  maximumPlayers?: number;
+  deploymentCount?: number;
   scenarioAvailable: boolean;
   canEnter: boolean;
   canJoin?: boolean;
+  canWithdraw?: boolean;
+  briefing?: {
+    threat: string;
+    objectives: string[];
+    durationRounds: number;
+    recommendedCapabilities: string[];
+  };
   outcome?: {
     result: "VICTORY" | "DEFEAT";
     reason: string;
@@ -231,6 +243,7 @@ function GameApp() {
   const [notice, setNotice] = useState<Notice>();
   const [busy, setBusy] = useState(false);
   const [cancelConfirmOrderId, setCancelConfirmOrderId] = useState<string>();
+  const [withdrawConfirmCampaignId, setWithdrawConfirmCampaignId] = useState<string>();
   const [timelineMode, setTimelineMode] = useState<"ORDERS" | "EVENTS">("EVENTS");
   const [rosterScope, setRosterScope] = useState<"MY_UNITS" | "ALLIED">("MY_UNITS");
   const [mapLayer, setMapLayer] = useState<TacticalMapLayer>("SURFACE");
@@ -240,6 +253,9 @@ function GameApp() {
       ?? (import.meta.env.DEV ? DEFAULT_DEVELOPMENT_CAMPAIGN_ID : undefined),
   );
   const [campaignDirectory, setCampaignDirectory] = useState<CampaignDirectoryEntry[]>([]);
+  const [campaignDirectoryOpen, setCampaignDirectoryOpen] = useState(
+    () => new URLSearchParams(window.location.search).get("directory") === "1",
+  );
   const realtimeCursor = useRef<{ round: number; sequence: number; version: number } | undefined>(undefined);
 
   const loadCampaignDirectory = useCallback(async (): Promise<string | undefined> => {
@@ -1066,12 +1082,71 @@ function GameApp() {
       await loadCampaignDirectory();
       const url = new URL(window.location.href);
       url.searchParams.set("campaign", joinCampaignId);
+      url.searchParams.delete("directory");
       window.history.replaceState({}, "", url);
       setCampaignId(joinCampaignId);
+      setCampaignDirectoryOpen(false);
       navigate("Deployment");
       setNotice({ tone: "success", message: "Campaign joined. Deploy a force to open your tactical command channel." });
     } catch (error) {
       setNotice({ tone: "danger", message: error instanceof Error ? error.message : "Campaign join failed." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function openDeployment(entry: CampaignDirectoryEntry) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("campaign", entry.campaignId);
+    window.history.replaceState({}, "", url);
+    setCampaignId(entry.campaignId);
+    setCampaignDirectoryOpen(false);
+    navigate("Deployment");
+  }
+
+  function openCampaign(entry: CampaignDirectoryEntry) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("campaign", entry.campaignId);
+    url.searchParams.delete("directory");
+    window.history.replaceState({}, "", url);
+    setCampaignId(entry.campaignId);
+    setCampaignDirectoryOpen(false);
+    void loadCampaign(false, entry.campaignId);
+  }
+
+  function browseCampaigns() {
+    const url = new URL(window.location.href);
+    url.searchParams.set("directory", "1");
+    window.history.replaceState({}, "", url);
+    setCampaignDirectoryOpen(true);
+  }
+
+  async function withdrawCampaign(entry: CampaignDirectoryEntry) {
+    if (!entry.canWithdraw || !entry.joinedAt) return;
+    if (withdrawConfirmCampaignId !== entry.campaignId) {
+      setWithdrawConfirmCampaignId(entry.campaignId);
+      return;
+    }
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/campaigns/${entry.campaignId}/withdraw`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(DEMO_HEADERS ?? {}) },
+        body: JSON.stringify({
+          commandId: `withdraw-campaign-${crypto.randomUUID()}`,
+          expectedJoinedAt: entry.joinedAt,
+        }),
+      });
+      if (!response.ok) throw new Error(await errorMessage(response));
+      setWithdrawConfirmCampaignId(undefined);
+      setCampaignId(undefined);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("campaign");
+      window.history.replaceState({}, "", url);
+      await loadCampaignDirectory();
+      setNotice({ tone: "success", message: `Left ${entry.name}. Its uncommitted deployment plans were cancelled.` });
+    } catch (error) {
+      setNotice({ tone: "danger", message: error instanceof Error ? error.message : "Campaign withdrawal failed." });
     } finally {
       setBusy(false);
     }
@@ -1154,6 +1229,7 @@ function GameApp() {
               ))}
             </select>
           ) : null}
+          {activeNav === "Campaigns" && !campaignDirectoryOpen && <button className="campaign-browser-button" onClick={browseCampaigns}>BROWSE CAMPAIGNS</button>}
         </div>
         <div className="round-clock" aria-label={tacticalContext ? `Round ${campaign.round}, campaign ${countdown}` : "Persistent strategic layer; open Command for the authoritative clock"}>
           <Glyph name="clock" size={17} />
@@ -1212,21 +1288,46 @@ function GameApp() {
           onReturnToCampaign={() => navigate("Campaigns")}
           onReturnToGalactic={() => navigate("Galactic")}
         />
-      ) : activeNav === "Campaigns" && !campaignId ? (
-        <main className="operations-layout">
-          <section className="panel" style={{ gridColumn: "1 / -1", padding: "2rem" }}>
-            <span className="eyebrow">CAMPAIGN DIRECTORY</span>
-            <h2>No playable campaign assigned</h2>
-            <p>Your account is signed in, but none of your campaign memberships currently has authored tactical content.</p>
-            {campaignDirectory.some((entry) => entry.canJoin) ? (
-              <div className="composer-actions">
-                {campaignDirectory.filter((entry) => entry.canJoin).map((entry) => (
-                  <button key={entry.campaignId} disabled={busy} onClick={() => void joinCampaign(entry.campaignId)}>
-                    JOIN {entry.name.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            ) : <p>Join an active operation from Battalion or return after command opens a deployment.</p>}
+      ) : activeNav === "Campaigns" && (campaignDirectoryOpen || !campaignId) ? (
+        <main className="campaign-directory-layout">
+          <header className="campaign-directory-hero panel">
+            <div><span className="eyebrow">CAMPAIGN DIRECTORY</span><h2>Choose your next operation</h2><p>Joined operations remain staged here until a persistent force is deployed. Public recruiting campaigns can be joined without exposing private campaign data.</p></div>
+            <dl><div><dt>JOINED</dt><dd>{campaignDirectory.filter((entry) => !entry.canJoin).length}</dd></div><div><dt>RECRUITING</dt><dd>{campaignDirectory.filter((entry) => entry.canJoin).length}</dd></div></dl>
+          </header>
+          <section className="campaign-directory-section panel">
+            <header><div><span className="eyebrow">YOUR ASSIGNMENTS</span><h3>Staged campaigns</h3></div></header>
+            <div className="campaign-directory-grid">
+              {campaignDirectory.filter((entry) => !entry.canJoin).map((entry) => (
+                <article key={entry.campaignId} className="campaign-directory-card joined">
+                  <header><span>{entry.planetName}</span><b>{entry.status}</b></header>
+                  <h4>{entry.name}</h4>
+                  <p>{entry.briefing?.objectives.join(" · ") ?? "Awaiting an authored operation briefing."}</p>
+                  <dl><div><dt>THREAT</dt><dd>{entry.briefing?.threat ?? "UNKNOWN"}</dd></div><div><dt>DURATION</dt><dd>{entry.briefing ? `${entry.briefing.durationRounds} ROUNDS` : "UNSET"}</dd></div><div><dt>FORCE</dt><dd>{entry.deploymentCount ? `${entry.deploymentCount} DEPLOYED` : "NOT DEPLOYED"}</dd></div></dl>
+                  <footer>
+                    {entry.canEnter && <button className="primary" disabled={busy} onClick={() => openCampaign(entry)}>OPEN CAMPAIGN</button>}
+                    {entry.status === "RECRUITING" && entry.scenarioAvailable && <button className="primary" disabled={busy} onClick={() => openDeployment(entry)}>PLAN DEPLOYMENT</button>}
+                    {entry.canWithdraw && <button className={withdrawConfirmCampaignId === entry.campaignId ? "danger confirm" : "danger"} disabled={busy} onClick={() => void withdrawCampaign(entry)}>{withdrawConfirmCampaignId === entry.campaignId ? "CONFIRM LEAVE" : "LEAVE CAMPAIGN"}</button>}
+                  </footer>
+                  {withdrawConfirmCampaignId === entry.campaignId && <small className="campaign-withdraw-warning">This cancels your uncommitted plans. Once units deploy, tactical extraction rules apply instead.</small>}
+                </article>
+              ))}
+              {!campaignDirectory.some((entry) => !entry.canJoin) && <p className="campaign-directory-empty">No staged campaign memberships. Join a recruiting operation below.</p>}
+            </div>
+          </section>
+          <section className="campaign-directory-section panel">
+            <header><div><span className="eyebrow">OPEN OPERATIONS</span><h3>Recruiting campaigns</h3></div></header>
+            <div className="campaign-directory-grid">
+              {campaignDirectory.filter((entry) => entry.canJoin).map((entry) => (
+                <article key={entry.campaignId} className="campaign-directory-card">
+                  <header><span>{entry.planetName}</span><b>{entry.status}</b></header>
+                  <h4>{entry.name}</h4>
+                  <p>{entry.briefing?.objectives.join(" · ") ?? "Authoritative scenario briefing available after assignment."}</p>
+                  <dl><div><dt>THREAT</dt><dd>{entry.briefing?.threat ?? "UNKNOWN"}</dd></div><div><dt>COMMANDERS</dt><dd>{entry.memberCount ?? 0}/{entry.maximumPlayers ?? "—"}</dd></div><div><dt>DURATION</dt><dd>{entry.briefing ? `${entry.briefing.durationRounds} ROUNDS` : "UNSET"}</dd></div></dl>
+                  <footer><button className="primary" disabled={busy} onClick={() => void joinCampaign(entry.campaignId)}>JOIN CAMPAIGN</button></footer>
+                </article>
+              ))}
+              {!campaignDirectory.some((entry) => entry.canJoin) && <p className="campaign-directory-empty">No public authored campaigns are recruiting right now.</p>}
+            </div>
           </section>
         </main>
       ) : (
@@ -1241,6 +1342,7 @@ function GameApp() {
             <button className={rosterScope === "MY_UNITS" ? "active" : ""} onClick={() => setRosterScope("MY_UNITS")}>MY UNITS</button>
             <button className={rosterScope === "ALLIED" ? "active" : ""} onClick={() => setRosterScope("ALLIED")}>ALLIED</button>
           </div>
+          <button className="campaign-panel-browser" onClick={browseCampaigns}>BROWSE CAMPAIGN DIRECTORY</button>
           <section className="command-readiness" aria-label="Allied order readiness">
             <header><span>ROUND {campaign.round} READINESS</span><strong>{missingCommandUnits.length === 0 && draftingCommandUnits.length === 0 ? "READY TO LOCK" : "ORDERS REQUIRED"}</strong></header>
             <div>

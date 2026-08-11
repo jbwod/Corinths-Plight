@@ -106,6 +106,7 @@ describe("campaign directory", () => {
         campaignId: "operation-iron-rain",
         scenarioAvailable: true,
         canEnter: false,
+        canWithdraw: false,
         briefing: {
           threat: "HIGH",
           objectives: ["Hold Airfield", "Destroy Hive"],
@@ -145,6 +146,8 @@ describe("campaign directory", () => {
       campaigns: [expect.objectContaining({
         campaignId: "operation-broken-road",
         scenarioAvailable: true,
+        deploymentCount: 0,
+        canWithdraw: true,
         briefing: {
           threat: "MODERATE",
           objectives: ["Hold Junction 7", "Protect Supply Cache"],
@@ -233,5 +236,20 @@ describe("campaign directory", () => {
       })],
       availableCampaigns: [],
     });
+  });
+
+  it("requires the exact pre-deployment withdrawal command shape", async () => {
+    const malformed = await routeCampaignDirectoryRequest(new Request("https://game.test/api/campaigns/operation-broken-road/withdraw", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-demo-user": "demo-user" },
+      body: JSON.stringify({ commandId: "withdraw-campaign-0001", expectedJoinedAt: 1, force: true }),
+    }), env([]));
+    expect(malformed?.status).toBe(400);
+    await expect(malformed?.json()).resolves.toMatchObject({ error: { code: "INVALID_COMMAND" } });
+
+    const wrongMethod = await routeCampaignDirectoryRequest(new Request("https://game.test/api/campaigns/operation-broken-road/withdraw", {
+      headers: { "x-demo-user": "demo-user" },
+    }), env([]));
+    expect(wrongMethod?.status).toBe(405);
   });
 });
