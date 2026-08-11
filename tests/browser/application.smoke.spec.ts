@@ -766,6 +766,12 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(composer.getByText(/CURRENT STATE: PACKED/)).toBeVisible();
   await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
   await expect(page.getByText(/LONGBOW order submitted to campaign command/)).toBeVisible();
+  const orderReadiness = page.getByRole("region", { name: "Allied order readiness" });
+  await expect(orderReadiness).toContainText("SUBMITTED");
+  await expect(orderReadiness).toContainText("MISSING");
+  const mapIntentions = page.getByRole("region", { name: "Submitted Allied map intentions" });
+  await expect(mapIntentions).toContainText("LONGBOW");
+  await expect(mapIntentions).toContainText("DEPLOY");
 
   await page.locator(".unit-roster").getByRole("button", { name: /DOC-7/ }).click();
   await expect(composer.getByRole("button", { name: "HEAL", exact: true })).toBeVisible();
@@ -774,6 +780,12 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(composer.getByText(/MEDICAL SUPPLY:/)).toBeVisible();
   await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
   await expect(page.getByText(/DOC-7 order submitted to campaign command/)).toBeVisible();
+  await expect(mapIntentions).toContainText("DOC-7");
+  await expect(mapIntentions).toContainText("HEAL");
+  await mapIntentions.getByRole("button", { name: "HIDE" }).click();
+  await expect(mapIntentions.getByText("LONGBOW", { exact: true })).toHaveCount(0);
+  await mapIntentions.getByRole("button", { name: "SHOW" }).click();
+  await expect(mapIntentions.getByText("LONGBOW", { exact: true })).toBeVisible();
   await submitRelayDefenceOrder(page);
   await submitEngineerRazorWire(page);
   await resolveCurrentK17Round(page);

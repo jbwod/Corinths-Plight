@@ -1019,6 +1019,15 @@ summary:focus-visible {
   transition: width 300ms ease;
 }
 
+.command-readiness { padding: 10px 12px; border-bottom: 1px solid var(--line); background: rgba(10, 29, 31, .62); }
+.command-readiness > header { display: flex; justify-content: space-between; gap: 8px; color: var(--dim); font: 600 6px/1 var(--mono); letter-spacing: .09em; }
+.command-readiness > header strong { color: var(--gold); }
+.command-readiness > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 8px; }
+.command-readiness > div span { display: grid; gap: 3px; padding: 7px; border: 1px solid rgba(99, 143, 143, .2); color: var(--dim); font: 600 5px/1 var(--mono); text-align: center; }
+.command-readiness > div b { color: var(--teal-bright); font-size: 11px; }
+.command-readiness > p { margin: 8px 0 0; color: var(--muted); font: 500 6px/1.45 var(--mono); }
+.command-readiness > p b { color: var(--gold); }
+
 .panel-filter-row {
   height: 42px;
   display: grid;
@@ -1164,6 +1173,8 @@ summary:focus-visible {
   border-color: rgba(112, 217, 207, 0.38);
   color: var(--teal);
 }
+.order-state.awaiting { border-color: rgba(230, 109, 82, .34); color: #ef8c75; }
+.order-state.draft { border-color: rgba(210, 182, 111, .34); color: var(--gold); }
 
 .allied-intentions,
 .objective-list {
@@ -1342,6 +1353,30 @@ summary:focus-visible {
   padding: 8px 10px;
   color: var(--teal);
 }
+
+.map-intent-roster {
+  position: absolute;
+  z-index: 3;
+  top: 101px;
+  left: 14px;
+  width: min(225px, calc(100% - 28px));
+  max-height: 236px;
+  overflow-y: auto;
+  border: 1px solid rgba(102, 147, 147, .3);
+  background: rgba(5, 15, 18, .88);
+  backdrop-filter: blur(8px);
+  color: var(--muted);
+  font-family: var(--mono);
+}
+.map-intent-roster > header { min-height: 27px; display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; padding: 0 6px 0 9px; border-bottom: 1px solid var(--line); color: var(--teal); font-size: 6px; letter-spacing: .12em; }
+.map-intent-roster > header b { min-width: 20px; padding: 3px; border: 1px solid rgba(112, 217, 207, .3); text-align: center; }
+.map-intent-roster > header button { min-height: 20px; padding: 0 6px; border: 1px solid rgba(112, 217, 207, .24); background: transparent; color: var(--dim); font: 600 5px/1 var(--mono); cursor: pointer; }
+.map-intent-roster > div { min-height: 34px; display: grid; grid-template-columns: 7px minmax(0, 1fr); gap: 8px; align-items: center; padding: 5px 9px; border-bottom: 1px solid rgba(99, 134, 135, .13); }
+.map-intent-roster > div i { width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+.map-intent-roster > div span { min-width: 0; display: grid; gap: 3px; }
+.map-intent-roster > div strong { overflow: hidden; color: #c6d8d5; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.map-intent-roster > div small { overflow: hidden; color: var(--dim); font-size: 5px; text-overflow: ellipsis; white-space: nowrap; }
+.map-intent-roster > p { margin: 0; padding: 7px 9px; color: var(--gold); font-size: 5px; }
 
 .map-zoom-controls {
   top: 66px;

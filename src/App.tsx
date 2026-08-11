@@ -614,9 +614,21 @@ function GameApp() {
   const ordersForRound = campaign.orders.filter(
     (order) => order.round === campaign.round && !["CANCELLED", "FAILED"].includes(order.lifecycle),
   );
-  const ownSubmitted = ownUnits.filter((unit) =>
-    ordersForRound.some((order) => order.unitId === unit.id && order.lifecycle !== "DRAFT"),
-  ).length;
+  const commandUnits = campaign.deployments.filter((unit) =>
+    unit.side === campaign.viewer.side &&
+    !["DESTROYED", "WITHDRAWN"].includes(unit.status) &&
+    (unit.locationState === undefined || unit.locationState === "ON_MAP")
+  );
+  const commandUnitIds = new Set(commandUnits.map((unit) => unit.id));
+  const submittedCommandOrders = ordersForRound.filter((order) =>
+    commandUnitIds.has(order.unitId) && order.lifecycle !== "DRAFT"
+  );
+  const draftingCommandUnits = commandUnits.filter((unit) =>
+    ordersForRound.some((order) => order.unitId === unit.id && order.lifecycle === "DRAFT")
+  );
+  const missingCommandUnits = commandUnits.filter((unit) =>
+    !ordersForRound.some((order) => order.unitId === unit.id)
+  );
   const locked =
     campaign.phase !== "PLANNING" ||
     (campaign.clock.lockAt > 0 && now >= campaign.clock.lockAt && scheduledRound === campaign.round);
@@ -1131,14 +1143,27 @@ function GameApp() {
       <main className="operations-layout">
         <aside className="left-panel panel">
           <div className="panel-heading">
-            <div><span className="eyebrow">BATTLEGROUP HAMMER</span><h2>Deployed forces</h2></div>
-            <span className="readiness-count">{ownSubmitted}/{ownUnits.length}</span>
+            <div><span className="eyebrow">ALLIED COMMAND NET</span><h2>Deployed forces</h2></div>
+            <span className="readiness-count" aria-label={`${submittedCommandOrders.length} of ${commandUnits.length} Allied units submitted`}>{submittedCommandOrders.length}/{commandUnits.length}</span>
           </div>
-          <div className="readiness-bar"><i style={{ width: `${ownUnits.length ? ownSubmitted / ownUnits.length * 100 : 0}%` }} /></div>
+          <div className="readiness-bar"><i style={{ width: `${commandUnits.length ? submittedCommandOrders.length / commandUnits.length * 100 : 0}%` }} /></div>
           <div className="panel-filter-row" aria-label="Deployed force roster scope">
             <button className={rosterScope === "MY_UNITS" ? "active" : ""} onClick={() => setRosterScope("MY_UNITS")}>MY UNITS</button>
             <button className={rosterScope === "ALLIED" ? "active" : ""} onClick={() => setRosterScope("ALLIED")}>ALLIED</button>
           </div>
+          <section className="command-readiness" aria-label="Allied order readiness">
+            <header><span>ROUND {campaign.round} READINESS</span><strong>{missingCommandUnits.length === 0 && draftingCommandUnits.length === 0 ? "READY TO LOCK" : "ORDERS REQUIRED"}</strong></header>
+            <div>
+              <span><b>{submittedCommandOrders.length}</b>SUBMITTED</span>
+              <span><b>{draftingCommandUnits.length}</b>DRAFTING</span>
+              <span><b>{missingCommandUnits.length}</b>MISSING</span>
+            </div>
+            {missingCommandUnits.length > 0
+              ? <p><b>AWAITING</b> {missingCommandUnits.map((unit) => unit.callsign).join(" · ")}</p>
+              : draftingCommandUnits.length > 0
+                ? <p><b>UNSUBMITTED DRAFTS</b> {draftingCommandUnits.map((unit) => unit.callsign).join(" · ")}</p>
+                : <p><b>ALLIED FORMATION READY</b> Every operational on-map unit has submitted.</p>}
+          </section>
           <div className="unit-roster">
             {rosterUnits.map((unit) => {
               const order = ordersForRound.find((candidate) => candidate.unitId === unit.id);
@@ -1163,7 +1188,7 @@ function GameApp() {
                     <i className="health-track"><b style={{ width: `${unit.currentHealth / unit.stats.maxHealth * 100}%` }} /></i>
                   </span>
                   <span className={`order-state ${order ? order.lifecycle.toLowerCase() : "awaiting"}`}>
-                    {order ? order.orderType : inspectOnly ? "ALLY" : "AWAITING"}
+                    {order ? order.lifecycle === "DRAFT" ? "DRAFT" : order.orderType : "MISSING"}
                   </span>
                 </button>
               );

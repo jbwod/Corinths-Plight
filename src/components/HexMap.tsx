@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AxialCoord, CampaignDeployment, CampaignView } from "../../packages/domain/src";
+import type { AxialCoord, CampaignDeployment, CampaignView, UnitOrder } from "../../packages/domain/src";
 import { coordKey, FACING_LABELS, getUnitClass } from "../../packages/rules-engine/src";
 
 interface HexMapProps {
@@ -24,6 +24,12 @@ interface Viewport {
 
 const HEX_SIZE = 39;
 const SQRT_THREE = Math.sqrt(3);
+const ALLIED_INTENT_COLORS = ["#e6bd68", "#bb8cff", "#6fc8ff", "#ff9271", "#8edb8a", "#e982c8"] as const;
+
+function intentActionLabel(order: UnitOrder): string | undefined {
+  const action = order.actions[0] ?? order.incidentalActions[0];
+  return action?.type.replaceAll("_", " ");
+}
 
 function axialToWorld({ q, r }: AxialCoord) {
   return { x: HEX_SIZE * 1.5 * q, y: HEX_SIZE * SQRT_THREE * (r + q / 2) };
@@ -138,6 +144,7 @@ export function HexMap({
   const [size, setSize] = useState({ width: 900, height: 650, ratio: 1 });
   const [viewport, setViewport] = useState<Viewport>({ x: 450, y: 330, zoom: 1 });
   const [hovered, setHovered] = useState<AxialCoord>();
+  const [showAlliedIntents, setShowAlliedIntents] = useState(true);
 
   const mapIndex = useMemo(() => new Map(campaign.map.map((hex) => [coordKey(hex.coord), hex])), [campaign.map]);
   const unitIndex = useMemo(() => {
@@ -148,6 +155,23 @@ export function HexMap({
     }
     return result;
   }, [campaign.deployments]);
+  const submittedAlliedIntents = useMemo(() => campaign.orders
+    .filter((order) => {
+      if (order.round !== campaign.round || !["SUBMITTED", "LOCKED", "RESOLVING"].includes(order.lifecycle)) return false;
+      const deployment = campaign.deployments.find((candidate) => candidate.id === order.unitId);
+      return deployment?.side === campaign.viewer.side;
+    })
+    .sort((left, right) => left.unitId < right.unitId ? -1 : left.unitId > right.unitId ? 1 : 0), [campaign.deployments, campaign.orders, campaign.round, campaign.viewer.side]);
+  const intentColors = useMemo(() => {
+    const colors = new Map<string, string>();
+    let alliedIndex = 0;
+    for (const order of submittedAlliedIntents) {
+      colors.set(order.id, order.submittedBy === campaign.viewer.userId
+        ? "#79ebdd"
+        : ALLIED_INTENT_COLORS[alliedIndex++ % ALLIED_INTENT_COLORS.length]);
+    }
+    return colors;
+  }, [campaign.viewer.userId, submittedAlliedIntents]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -354,17 +378,76 @@ export function HexMap({
       ctx.stroke();
     }
 
-    for (const order of campaign.orders.filter((candidate) => candidate.round === campaign.round && candidate.route.length > 1)) {
+    for (const order of showAlliedIntents ? submittedAlliedIntents : []) {
+      const deployment = campaign.deployments.find((candidate) => candidate.id === order.unitId);
+      if (!deployment) continue;
       const points = order.route.map(axialToWorld);
+      const color = intentColors.get(order.id) ?? "#e6bd68";
+      if (points.length > 1) {
+        ctx.save();
+        ctx.shadowColor = color;
+        ctx.shadowBlur = order.submittedBy === campaign.viewer.userId ? 7 : 3;
+        ctx.setLineDash(order.orderType === "RUSH" ? [11, 5] : order.orderType === "EVASIVE" ? [3, 5] : [7, 7]);
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = 0.86;
+        ctx.lineWidth = order.submittedBy === campaign.viewer.userId ? 2.5 : 2;
+        ctx.beginPath();
+        points.forEach((point, index) => (index === 0 ? ctx.moveTo(point.x, point.y) : ctx.lineTo(point.x, point.y)));
+        ctx.stroke();
+        ctx.restore();
+        drawArrow(ctx, points.at(-2)!, points.at(-1)!, color, order.submittedBy === campaign.viewer.userId ? 2.5 : 2);
+      }
+      const destination = points.at(-1) ?? axialToWorld(order.endHex);
       ctx.save();
-      ctx.setLineDash([7, 7]);
-      ctx.strokeStyle = order.submittedBy === campaign.viewer.userId ? "rgba(115,225,211,.8)" : "rgba(218,185,104,.7)";
+      ctx.strokeStyle = color;
+      ctx.fillStyle = "rgba(5,14,16,.84)";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      points.forEach((point, index) => (index === 0 ? ctx.moveTo(point.x, point.y) : ctx.lineTo(point.x, point.y)));
+      ctx.arc(destination.x, destination.y, 21, 0, Math.PI * 2);
+      ctx.fill();
       ctx.stroke();
+      const facingAngle = -Math.PI / 2 + (Math.PI / 3) * order.facing;
+      ctx.beginPath();
+      ctx.moveTo(destination.x + Math.cos(facingAngle) * 21, destination.y + Math.sin(facingAngle) * 21);
+      ctx.lineTo(destination.x + Math.cos(facingAngle) * 30, destination.y + Math.sin(facingAngle) * 30);
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.font = "bold 7px ui-monospace, SFMono-Regular, monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(deployment.callsign.slice(0, 8), destination.x, destination.y - 2);
+      ctx.font = "bold 5px ui-monospace, SFMono-Regular, monospace";
+      ctx.fillText(order.orderType, destination.x, destination.y + 7);
       ctx.restore();
-      if (points.length > 1) drawArrow(ctx, points.at(-2)!, points.at(-1)!, "rgba(218,185,104,.78)", 2);
+
+      for (const action of [...order.actions, ...order.incidentalActions]) {
+        const targetDeployment = action.targetDeploymentId
+          ? campaign.deployments.find((candidate) => candidate.id === action.targetDeploymentId)
+          : undefined;
+        const actionTarget = targetDeployment?.position ?? action.targetHex;
+        if (!actionTarget) continue;
+        const target = axialToWorld(actionTarget);
+        const interactionColor = action.type === "ATTACK" || action.type === "BOMBARDMENT"
+          ? "#ff8067"
+          : ["HEAL", "REPAIR", "RESUPPLY", "LOAD", "UNLOAD"].includes(action.type)
+            ? "#83dfa8"
+            : color;
+        ctx.save();
+        ctx.strokeStyle = interactionColor;
+        ctx.fillStyle = interactionColor;
+        ctx.globalAlpha = 0.9;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash(action.type === "ATTACK" || action.type === "BOMBARDMENT" ? [4, 4] : [2, 4]);
+        ctx.beginPath();
+        ctx.moveTo(destination.x, destination.y);
+        ctx.lineTo(target.x, target.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(target.x, target.y, 7, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     if (draftedRoute.length > 1) {
@@ -469,7 +552,7 @@ export function HexMap({
     vignette.addColorStop(1, "rgba(0,0,0,.48)");
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, size.width, size.height);
-  }, [campaign, draftedFacing, draftedRoute, hovered, layer, mapIndex, selectedUnitId, size, targetHex, targetUnitId, unitIndex, viewport]);
+  }, [campaign, draftedFacing, draftedRoute, hovered, intentColors, layer, mapIndex, selectedUnitId, showAlliedIntents, size, submittedAlliedIntents, targetHex, targetUnitId, unitIndex, viewport]);
 
   const screenToCoord = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -555,6 +638,22 @@ export function HexMap({
         <button onClick={() => setViewport((current) => ({ ...current, zoom: Math.max(0.56, current.zoom * 0.85) }))} aria-label="Zoom out">−</button>
       </div>
       <div className="map-facing-readout">FACING {FACING_LABELS[draftedFacing] ?? "N"}</div>
+      {submittedAlliedIntents.length > 0 && (
+        <div className="map-intent-roster" role="region" aria-label="Submitted Allied map intentions">
+          <header><span>ALLIED INTENT</span><b>{submittedAlliedIntents.length}</b><button type="button" aria-pressed={showAlliedIntents} onClick={() => setShowAlliedIntents((visible) => !visible)}>{showAlliedIntents ? "HIDE" : "SHOW"}</button></header>
+          {showAlliedIntents && submittedAlliedIntents.slice(0, 6).map((order) => {
+            const deployment = campaign.deployments.find((candidate) => candidate.id === order.unitId);
+            const color = intentColors.get(order.id) ?? "#e6bd68";
+            return (
+              <div key={order.id}>
+                <i style={{ backgroundColor: color }} />
+                <span><strong>{deployment?.callsign ?? order.unitId}</strong><small>{order.orderType} → {order.endHex.q}.{order.endHex.r}{intentActionLabel(order) ? ` · ${intentActionLabel(order)}` : ""}</small></span>
+              </div>
+            );
+          })}
+          {showAlliedIntents && submittedAlliedIntents.length > 6 && <p>+{submittedAlliedIntents.length - 6} MORE SUBMITTED INTENTS</p>}
+        </div>
+      )}
       <div className="map-legend">
         {layer === "INTEL" ? (
           <><span><i className="legend-chip allied" /> VISIBLE</span><span><i className="legend-chip intent" /> OBSERVED</span><span>S# SENSOR</span></>
