@@ -205,6 +205,11 @@ export interface MapFormationView {
   version: number;
   carrierTaskForceId?: string;
   capabilities: string[];
+  supply?: {
+    largeCurrent: number | null;
+    largeCapacity: number | null;
+    suppliedThroughRound: number | null;
+  };
 }
 
 export interface StrategicMapView {

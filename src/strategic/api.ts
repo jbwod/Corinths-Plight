@@ -378,6 +378,10 @@ function normalizeFormation(value: unknown, kind: MapFormationView["kind"], inde
   if (!record) return undefined;
   const location = asRecord(record.currentNode) ?? asRecord(record.location) ?? {};
   const transit = asRecord(record.transit) ?? {};
+  const supply = asRecord(record.supply) ?? {};
+  const largeSupply = firstArray(supply, "balances")
+    .map((balance) => asRecord(balance))
+    .find((balance) => normalizedStatus(balance?.size, "") === "LARGE");
   const id = identifier(record, "id", kind === "TASK_FORCE" ? "taskForceId" : "battlegroupId");
   if (!id) return undefined;
   return {
@@ -391,6 +395,11 @@ function normalizeFormation(value: unknown, kind: MapFormationView["kind"], inde
     version: asNumber(record.version, 1),
     carrierTaskForceId: identifier(record, "currentCarrierTaskForceId", "carrierTaskForceId") || undefined,
     capabilities: stringValues(record.capabilities),
+    supply: kind === "TASK_FORCE" ? {
+      largeCurrent: asNullableNumber(supply.largeCurrent ?? largeSupply?.quantity),
+      largeCapacity: asNullableNumber(supply.largeCapacity ?? largeSupply?.capacity),
+      suppliedThroughRound: asNullableNumber(supply.suppliedThroughRound ?? supply.suppliedUntilRound),
+    } : undefined,
   };
 }
 

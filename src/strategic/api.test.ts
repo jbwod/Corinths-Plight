@@ -33,7 +33,7 @@ function payloads(): StrategicApiPayloads {
       clock: { mode: "MANUAL" },
       nodes: [{ id: "node-1", name: "Test Orbit", type: "ORBIT", x: 25, y: 30, control: "FRIENDLY" }, { id: "node-2", name: "Test Ridge", type: "SURFACE_REGION", x: 70, y: 65, control: "CONTESTED" }],
       routes: [{ id: "route-1", fromNodeId: "node-1", toNodeId: "node-2", status: "OPEN", allowedMovementProfiles: ["AIR_MOBILE_BATTLEGROUP"], baseTravelRounds: null, travelCostStatus: "BALANCE_REQUIRED" }],
-      taskForces: [{ id: "tf-1", name: "Test Task Force", status: "READY", currentNodeId: "node-1" }],
+      taskForces: [{ id: "tf-1", name: "Test Task Force", status: "READY", currentNodeId: "node-1", supply: { balances: [{ size: "LARGE", quantity: 2, capacity: 4 }], suppliedThroughRound: 6 } }],
       battlegroups: [{ id: "bg-1", name: "Battlegroup Test", status: "EMBARKED", currentNodeId: null, currentCarrierTaskForceId: "tf-1", revision: 2 }],
       viewerPermissions: ["SHIP_VIEW"],
     },
@@ -45,7 +45,12 @@ describe("strategic API view normalization", () => {
     const snapshot = normalizeStrategicPayloads(payloads());
 
     expect(snapshot.map.formations).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: "tf-1", kind: "TASK_FORCE", nodeId: "node-1" }),
+      expect.objectContaining({
+        id: "tf-1",
+        kind: "TASK_FORCE",
+        nodeId: "node-1",
+        supply: { largeCurrent: 2, largeCapacity: 4, suppliedThroughRound: 6 },
+      }),
       expect.objectContaining({ id: "bg-1", kind: "BATTLEGROUP", nodeId: "node-1" }),
     ]));
     expect(snapshot.ship.taskForce.name).toBe("Test Task Force");

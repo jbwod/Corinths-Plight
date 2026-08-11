@@ -93,6 +93,15 @@ export function GalacticOperationsView({
     !selectedFormation.routeNodeIds.length &&
     (selectedFormation.nodeId === selectedOperation.nodeId || carrierAtOperationPlanet),
   );
+  const selectedTaskForceSupply = selectedFormation?.kind === "TASK_FORCE" ? selectedFormation.supply : undefined;
+  const requiredSupplyRound = snapshot.clock.round + 1;
+  const canResupplyTaskForce = Boolean(
+    selectedFormation?.kind === "TASK_FORCE" &&
+    selectedTaskForceSupply?.largeCurrent !== null &&
+    selectedTaskForceSupply?.largeCurrent !== undefined &&
+    selectedTaskForceSupply.largeCurrent > 0 &&
+    (selectedTaskForceSupply.suppliedThroughRound ?? -1) < requiredSupplyRound,
+  );
 
   useEffect(() => {
     if (selectedOperationId) void onRequestOperationDetail(selectedOperationId);
@@ -301,7 +310,7 @@ export function GalacticOperationsView({
                 <section>
                   <div className="inspector-section-title"><span>FORMATIONS</span><b>{formationsAtSelectedNode.length}</b></div>
                   <div className="formation-intentions-list">
-                    {formationsAtSelectedNode.map((formation) => <article key={formation.id}><i>{formation.kind === "TASK_FORCE" ? "TF" : "BG"}</i><span><b>{formation.name}</b><small>{formation.status.replaceAll("_", " ")}</small><p>{formation.intention ?? "No published intention"}</p></span></article>)}
+                    {formationsAtSelectedNode.map((formation) => <article key={formation.id}><i>{formation.kind === "TASK_FORCE" ? "TF" : "BG"}</i><span><b>{formation.name}</b><small>{formation.status.replaceAll("_", " ")}</small><p>{formation.kind === "TASK_FORCE" && formation.supply ? `Large Supply ${formation.supply.largeCurrent ?? "?"}/${formation.supply.largeCapacity ?? "?"} · ${formation.supply.suppliedThroughRound === null ? "UNSUPPLIED" : `SUPPLIED THROUGH R${formation.supply.suppliedThroughRound}`}` : formation.intention ?? "No published intention"}</p></span></article>)}
                     {!formationsAtSelectedNode.length && <p className="strategic-empty-copy">No friendly formation is projected here.</p>}
                   </div>
                 </section>
@@ -345,10 +354,19 @@ export function GalacticOperationsView({
                       })}>DISEMBARK</button>
                     )}
                     {selectedFormation?.kind === "TASK_FORCE" && (
-                      <button type="button" disabled={!canCreateOrders || submitting} onClick={() => void submitOrder({
-                        type: "RESUPPLY_TASK_FORCE",
-                        taskForceId: selectedFormation.id,
-                      })}>CONSUME LARGE SUPPLY</button>
+                      <div className="strategic-supply-order">
+                        <span>
+                          <small>LOGISTICS STATE</small>
+                          <strong>{selectedTaskForceSupply?.largeCurrent ?? "?"}/{selectedTaskForceSupply?.largeCapacity ?? "?"} LARGE SUPPLY</strong>
+                          <em>{selectedTaskForceSupply?.suppliedThroughRound === null || selectedTaskForceSupply?.suppliedThroughRound === undefined
+                            ? "TASK FORCE UNSUPPLIED"
+                            : `SUPPLIED THROUGH ROUND ${selectedTaskForceSupply.suppliedThroughRound}`}</em>
+                        </span>
+                        <button type="button" disabled={!canCreateOrders || submitting || !canResupplyTaskForce} onClick={() => void submitOrder({
+                          type: "RESUPPLY_TASK_FORCE",
+                          taskForceId: selectedFormation.id,
+                        })}>{canResupplyTaskForce ? `SUPPLY THROUGH ROUND ${requiredSupplyRound}` : (selectedTaskForceSupply?.largeCurrent ?? 0) < 1 ? "NO LARGE SUPPLY" : `SUPPLIED THROUGH ROUND ${selectedTaskForceSupply?.suppliedThroughRound ?? requiredSupplyRound}`}</button>
+                      </div>
                     )}
                     {selectedOperation && supportCapability && ["ACTIVE", "MUSTERING"].includes(selectedOperation.status) && (
                       <button type="button" disabled={!canCreateOrders || submitting} onClick={() => void submitOrder({

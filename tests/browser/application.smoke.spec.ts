@@ -499,6 +499,65 @@ test("strategic deployment authorization boots a persistent tactical operation",
   expect(tactical.deployments.filter((unit) => unit.ownerId === "demo-user")).toHaveLength(2);
 });
 
+test("Task Force resupply consumes one Large Supply and extends strategic access", async ({ page }) => {
+  type SupplyProjection = {
+    map: { version: number };
+    round: { round: number };
+    taskForces: Array<{
+      id: string;
+      supply: { balances: Array<{ size: string; quantity: number }>; suppliedThroughRound: number | null };
+    }>;
+  };
+  const headers = { "x-demo-user": "demo-user" };
+  const readProjection = async () => {
+    const response = await page.request.get("/api/strategic/maps/strategic-map-corinth", { headers });
+    expect(response.status()).toBe(200);
+    return response.json() as Promise<SupplyProjection>;
+  };
+  let projection = await readProjection();
+  let resolute = projection.taskForces.find((force) => force.id === "task-force-resolute")!;
+  while ((resolute.supply.suppliedThroughRound ?? -1) >= projection.round.round + 1) {
+    const response = await page.request.post("/api/strategic/maps/strategic-map-corinth/resolve", {
+      headers,
+      data: {
+        commandId: crypto.randomUUID(),
+        expectedMapVersion: projection.map.version,
+        expectedRound: projection.round.round,
+      },
+    });
+    expect(response.status()).toBe(200);
+    projection = await readProjection();
+    resolute = projection.taskForces.find((force) => force.id === "task-force-resolute")!;
+  }
+  const resolvingRound = projection.round.round;
+  const largeBefore = resolute.supply.balances.find((balance) => balance.size === "LARGE")!.quantity;
+
+  await page.goto("/?view=galactic");
+  await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();
+  await page.getByLabel("ORDERED FORMATION").selectOption("task-force-resolute");
+  const supplyOrder = page.getByRole("button", { name: `SUPPLY THROUGH ROUND ${resolvingRound + 1}` });
+  await expect(page.getByText(`${largeBefore}/4 LARGE SUPPLY`, { exact: true })).toBeVisible();
+  await expect(supplyOrder).toBeEnabled();
+  await supplyOrder.click();
+  await expect(page.getByText(/Resolute Task Force: order submitted for strategic round/i)).toBeVisible();
+  await page.getByRole("button", { name: `RESOLVE ROUND ${resolvingRound}` }).click();
+  await expect(page.getByText(new RegExp(`Strategic round ${resolvingRound} resolved`))).toBeVisible();
+
+  await expect.poll(async () => {
+    const next = await readProjection();
+    const force = next.taskForces.find((candidate) => candidate.id === "task-force-resolute")!;
+    return {
+      round: next.round.round,
+      large: force.supply.balances.find((balance) => balance.size === "LARGE")?.quantity,
+      suppliedThroughRound: force.supply.suppliedThroughRound,
+    };
+  }).toEqual({
+    round: resolvingRound + 1,
+    large: largeBefore - 1,
+    suppliedThroughRound: resolvingRound + 1,
+  });
+});
+
 test("tactical API exposes Light Mech, VTOL, Fighter, Bomber, and HAT verticals and rejects client-authored action economy", async ({ page }) => {
   await page.goto("/");
 

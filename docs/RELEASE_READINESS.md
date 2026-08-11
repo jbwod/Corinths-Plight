@@ -44,7 +44,7 @@ This is the live release checklist. A checked local build item is not permission
 | Seven seeds, twice | same isolated D1 | PASS | Core, Phase 2, equipment, onboarding and three development fixtures replayed twice. |
 | SQLite integrity | isolated D1 database | PASS | `integrity_check=ok`; `foreign_key_check` empty. |
 | `npm run ci:verify:d1` | isolated local D1 | PASS | Ten migrations; seven seeds twice; stable table fingerprints/counts; 117 checked application tables. |
-| `CI=1 npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 9/9 canaries pass, including strategic Disembark, resolved operation deployment into a committed tactical campaign, live K-17 support/combat/victory resolution, the Heavy Air Transport manifested-drop composer, generated Logi/Artillery cargo controls, and 390px overflow coverage. |
+| `CI=1 npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 10/10 canaries pass, including strategic Disembark, authoritative Task Force Large-Supply consumption, resolved operation deployment into a committed tactical campaign, live K-17 support/combat/victory resolution, the Heavy Air Transport manifested-drop composer, generated Logi/Artillery cargo controls, and 390px overflow coverage. |
 | `git diff --check` | local Phase-1 tree | PASS | No whitespace errors at final gate. |
 | `npm audit --audit-level=high` | npm advisory service | PASS | Zero known vulnerabilities at assessment time; the result is time-sensitive. |
 
