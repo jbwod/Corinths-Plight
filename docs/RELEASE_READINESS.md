@@ -163,8 +163,8 @@ No external state was changed during this Phase-0 assessment.
 | Resolve deterministic PvE combined arms | narrow partial | CP-500–CP-507 |
 | Persist effects before next round | narrow pass | Supported tactical effects hold `EFFECTS_PENDING` and acknowledge before one next round; broaden under CP-402. |
 | Audience-safe reconnect/report/replay | partial/fail | A local report-detail UI consumes projected round events, but event-time redaction, reconnect catch-up, index/playback/export and browser evidence remain CP-403/CP-700. |
-| Apply tactical result to living war | missing | CP-600–CP-603 |
-| Withdraw/re-embark/redeploy | missing | CP-603 |
+| Apply tactical result to living war | partial/playable local | Authored victories atomically change strategic nodes/routes/follow-on operations, and the terminal report names the acknowledged effects before returning to Galactic Operations. General result ingestion and production content remain CP-600–CP-603. |
+| Withdraw/re-embark/redeploy | partial/playable local | Survivors return to reserve with exact state, their Battlegroup enters recovery, and the live strategic UI can re-embark it. Repair/resupply and production evidence remain CP-603. |
 
 ## Accessibility and browser matrix
 

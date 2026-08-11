@@ -1998,6 +1998,25 @@ export class CampaignDurableObject extends DurableObject<Env> {
     const viewer = this.viewer(request);
     const state = await this.getState();
     const records = await this.ctx.storage.list<ResolutionRecord>({ prefix: "resolution/" });
+    const strategicConsequences = state.outcome
+      ? await this.env.DB.prepare(`SELECT receipts.effect_type,receipts.target_type,receipts.target_id,
+            events.event_type,events.summary
+          FROM strategic_effect_receipts AS receipts
+          LEFT JOIN strategic_events AS events
+            ON events.idempotency_key=receipts.idempotency_key || ':event'
+          WHERE receipts.source_kind='CAMPAIGN_RESULT' AND receipts.source_id=?1
+            AND receipts.status='APPLIED'
+            AND (events.event_id IS NULL OR events.audience='PUBLIC' OR events.battalion_id=?2)
+          ORDER BY receipts.idempotency_key`)
+          .bind(state.campaignId, viewer.battalionId ?? null)
+          .all<{
+            effect_type: string;
+            target_type: string;
+            target_id: string;
+            event_type: string | null;
+            summary: string | null;
+          }>()
+      : { results: [] };
     const reports = [...records.values()]
       .sort((left, right) => left.round - right.round)
       .map((record) => ({
@@ -2013,6 +2032,13 @@ export class CampaignDurableObject extends DurableObject<Env> {
       scenarioId: state.scenarioId,
       scenarioVersion: state.scenarioVersion,
       reports,
+      strategicConsequences: strategicConsequences.results.map((effect) => ({
+        effectType: effect.effect_type,
+        targetType: effect.target_type,
+        targetId: effect.target_id,
+        eventType: effect.event_type,
+        summary: effect.summary ?? `${effect.effect_type.replaceAll("_", " ")} applied to ${effect.target_id}.`,
+      })),
       viewer: { userId: viewer.userId, side: viewer.side, role: viewer.role },
     });
   }

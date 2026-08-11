@@ -21,6 +21,13 @@ interface CampaignReportIndexResponse {
     eventCount: number;
     digest: string;
   }>;
+  strategicConsequences: Array<{
+    effectType: string;
+    targetType: string;
+    targetId: string;
+    eventType: string | null;
+    summary: string;
+  }>;
 }
 
 interface CampaignReportsProps {
@@ -28,6 +35,7 @@ interface CampaignReportsProps {
   campaignId: string;
   demoUser?: string;
   onReturnToCampaign: () => void;
+  onReturnToGalactic: () => void;
 }
 
 async function reportError(response: Response): Promise<string> {
@@ -43,10 +51,17 @@ function eventTime(event: CampaignEvent): string {
   return new Date(event.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-export function CampaignReports({ campaign, campaignId, demoUser, onReturnToCampaign }: CampaignReportsProps) {
+export function CampaignReports({
+  campaign,
+  campaignId,
+  demoUser,
+  onReturnToCampaign,
+  onReturnToGalactic,
+}: CampaignReportsProps) {
   const [reportIndex, setReportIndex] = useState<{
     campaignId: string;
     reports: CampaignReportIndexResponse["reports"];
+    strategicConsequences: CampaignReportIndexResponse["strategicConsequences"];
   }>();
   const indexedReports = reportIndex?.campaignId === campaignId ? reportIndex.reports : undefined;
   const locallyResolvedRounds = useMemo(() => {
@@ -85,6 +100,7 @@ export function CampaignReports({ campaign, campaignId, demoUser, onReturnToCamp
       .then((index) => setReportIndex({
         campaignId,
         reports: [...index.reports].sort((left, right) => left.round - right.round),
+        strategicConsequences: index.strategicConsequences ?? [],
       }))
       .catch(() => undefined);
     return () => controller.abort();
@@ -187,6 +203,21 @@ export function CampaignReports({ campaign, campaignId, demoUser, onReturnToCamp
                   <section className="campaign-rewards panel" aria-label="Campaign rewards">
                     <div><small>SERVICE HISTORY</small><strong>RECORDED</strong><span>Every participating persistent unit received campaign credit.</span></div>
                     <div><small>REQUISITION AWARD</small><strong>BALANCE REQUIRED</strong><span>No Req was granted because campaign reward values remain unpublished under RC-V5-016.</span></div>
+                  </section>
+                  <section className="campaign-war-effects panel" aria-label="Strategic war effects">
+                    <header><span className="eyebrow">ACKNOWLEDGED WAR EFFECTS</span><strong>STRATEGIC RECONCILIATION</strong></header>
+                    {reportIndex?.strategicConsequences.length ? (
+                      <div>
+                        {reportIndex.strategicConsequences.map((effect) => (
+                          <article key={`${effect.effectType}:${effect.targetType}:${effect.targetId}`}>
+                            <i />
+                            <span><strong>{effect.effectType.replaceAll("_", " ")}</strong><p>{effect.summary}</p></span>
+                            <small>{effect.targetType.replaceAll("_", " ")}</small>
+                          </article>
+                        ))}
+                      </div>
+                    ) : <p>No additional node, route, or follow-on operation change was authored for this result.</p>}
+                    <button type="button" onClick={onReturnToGalactic}>RETURN SURVIVORS TO GALACTIC OPERATIONS</button>
                   </section>
                 </>
               )}

@@ -26,7 +26,8 @@ async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<
       url.searchParams.set("campaign", "campaign-k17-relay");
       await page.goto(url.toString());
     }
-    await expect(page.getByRole("heading", { name: "K-17: Hold the Relay" })).toBeVisible();
+    await expect(map).toBeVisible();
+    await expect(map).toContainText("K-17: HOLD THE RELAY");
   }
   if (await map.isVisible() && !deployFoundation) return;
   if (await join.isVisible()) {
@@ -915,6 +916,11 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(rewards.getByText("RECORDED", { exact: true })).toBeVisible();
   await expect(rewards.getByText("BALANCE REQUIRED", { exact: true })).toBeVisible();
   await expect(rewards).toContainText("RC-V5-016");
+  const warEffects = page.getByRole("region", { name: "Strategic war effects" });
+  await expect(warEffects.getByText("ACKNOWLEDGED WAR EFFECTS", { exact: true })).toBeVisible();
+  await expect(warEffects).toContainText("No additional node, route, or follow-on operation change was authored for this result.");
+  await warEffects.getByRole("button", { name: "RETURN SURVIVORS TO GALACTIC OPERATIONS" }).click();
+  await expect(page.getByText(/GALACTIC OPERATIONS/).first()).toBeVisible();
 });
 
 test("tactical roster scope and map layers provide live planning views", async ({ page }) => {

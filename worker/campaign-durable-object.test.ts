@@ -93,6 +93,17 @@ class EffectStatement {
     }
     return null;
   }
+
+  async all<T>(): Promise<D1Result<T>> {
+    if (this.query.includes("FROM strategic_effect_receipts AS receipts")) {
+      return {
+        success: true,
+        meta: {},
+        results: [...this.database.strategicConsequences.values()] as T[],
+      } as D1Result<T>;
+    }
+    return { success: true, meta: {}, results: [] } as unknown as D1Result<T>;
+  }
 }
 
 class EffectDatabase {
@@ -100,6 +111,13 @@ class EffectDatabase {
   readonly receipts = new Set<string>();
   readonly results = new Map<string, string>();
   readonly appliedQueries: string[] = [];
+  readonly strategicConsequences = new Map<string, {
+    effect_type: string;
+    target_type: string;
+    target_id: string;
+    event_type: string | null;
+    summary: string | null;
+  }>();
   linkedOperation: Record<string, unknown> | null = null;
 
   prepare(query: string): D1PreparedStatement {
@@ -116,6 +134,23 @@ class EffectDatabase {
       }
       if (statement.query.includes("INSERT INTO campaign_results")) {
         this.results.set(String(statement.bindings[0]), String(statement.bindings[9]));
+      }
+      if (statement.query.includes("INSERT INTO strategic_effect_receipts")) {
+        this.strategicConsequences.set(String(statement.bindings[0]), {
+          effect_type: String(statement.bindings[4]),
+          target_type: String(statement.bindings[5]),
+          target_id: String(statement.bindings[6]),
+          event_type: null,
+          summary: null,
+        });
+      }
+      if (statement.query.includes("INSERT INTO strategic_events")) {
+        const key = String(statement.bindings[10]).replace(/:event$/, "");
+        const consequence = this.strategicConsequences.get(key);
+        if (consequence) {
+          consequence.event_type = String(statement.bindings[3]);
+          consequence.summary = String(statement.bindings[7]);
+        }
       }
     }
     return statements.map(() => ({ success: true, meta: {} })) as D1Result[];
@@ -637,6 +672,29 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(reportIndex.status).toBe(200);
     expect(await reportIndex.json()).toMatchObject({
       campaignId: CAMPAIGN_ID,
+      strategicConsequences: [
+        {
+          effectType: "STRATEGIC_NODE_CAPTURED",
+          targetType: "STRATEGIC_NODE",
+          targetId: "node-outpost-k17",
+          eventType: "STRATEGIC_NODE_CONTROL_CHANGED",
+          summary: expect.stringContaining("secured node-outpost-k17"),
+        },
+        {
+          effectType: "ROUTE_UNLOCKED",
+          targetType: "STRATEGIC_ROUTE",
+          targetId: "route-kestrel-outpost-k17",
+          eventType: "STRATEGIC_ROUTE_STATUS_CHANGED",
+          summary: expect.stringContaining("unlocked strategic route"),
+        },
+        {
+          effectType: "OPERATION_ACTIVATED",
+          targetType: "STRATEGIC_OPERATION",
+          targetId: "strategic-operation-broken-road",
+          eventType: "STRATEGIC_OPERATION_STATUS_CHANGED",
+          summary: expect.stringContaining("opened strategic-operation-broken-road"),
+        },
+      ],
       reports: [{
         round: 21,
         status: "RESOLVED",

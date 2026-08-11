@@ -1108,6 +1108,7 @@ function GameApp() {
           campaignId={campaignId ?? campaign.campaignId}
           demoUser={import.meta.env.DEV ? DEMO_USER : undefined}
           onReturnToCampaign={() => navigate("Campaigns")}
+          onReturnToGalactic={() => navigate("Galactic")}
         />
       ) : activeNav === "Campaigns" && !campaignId ? (
         <main className="operations-layout">
