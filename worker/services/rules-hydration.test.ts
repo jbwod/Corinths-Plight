@@ -112,16 +112,21 @@ describe("server rules hydration", () => {
     expect(result.authority.profiles.cargoProfile).toMatchObject({ id: "cargo-logi-two-slot" });
   });
 
-  test.each([
-    "unit-heavy-air-transport",
-  ])("fails closed before non-handler transport %s can reach the replay catalogue", (definitionId) => {
-    const result = resolveUnitRulesAuthority(unitInput(definitionId), "development");
-
-    expect(result.ok).toBe(false);
-    expect(result).toMatchObject({ code: "NOT_EXECUTABLE" });
-    expect(result.authority).toMatchObject({
-      definitionId,
-      decision: { executable: false },
+  test("hydrates the executable Heavy Air Transport clear-drop subset", () => {
+    const result = resolveUnitRulesAuthority(unitInput("unit-heavy-air-transport"), "development");
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.message);
+    expect(result.legacyDefinition).toMatchObject({
+      id: "unit-heavy-air-transport",
+      stats: { healthModel: "HITS", maxHealth: 1, armor: 0, speed: 7 },
+      allowedOrders: ["HOLD", "ADVANCE"],
+      allowedActions: ["LOAD", "AIRDROP"],
+      tags: expect.arrayContaining(["AEROSPACE", "AIRDROP", "CANNOT_SPOT_GROUND"]),
+      weapons: [],
+    });
+    expect(result.authority.profiles.cargoProfile).toMatchObject({
+      id: "cargo-hat-five-slot",
+      capacity: { kind: "SLOT_CONVERSIONS", slotCapacityQuarters: 20 },
     });
   });
 

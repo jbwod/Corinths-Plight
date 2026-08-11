@@ -24,6 +24,7 @@ import {
   resupplyLogiTarget,
   validateArtilleryFire,
   validateBomberAttack,
+  validateHatClearAirDrop,
   validateLimitedForwardArc,
   validateOrder,
 } from "../packages/rules-engine/src";
@@ -60,6 +61,7 @@ const FOUNDATION_CAMPAIGN_ID = "outpost-k17";
 const MAX_ROUTE_LENGTH = 128;
 const EFFECT_RETRY_DELAY_MS = 5_000;
 const allowedActionTypes = new Set([
+  "AIRDROP",
   "ATTACK",
   "ASSAULT",
   "DIG_IN",
@@ -1131,6 +1133,38 @@ export class CampaignDurableObject extends DurableObject<Env> {
       )
     ) {
       return errorResponse(422, "TARGET_NOT_VISIBLE", "The target is not present in the unit's current battlefield intelligence.");
+    }
+    for (const action of actions.filter((candidate) => candidate.type === "AIRDROP")) {
+      const cargoId = typeof action.payload?.cargoDeploymentId === "string"
+        ? action.payload.cargoDeploymentId
+        : action.targetDeploymentId;
+      const cargo = state.deployments.find((candidate) => candidate.id === cargoId);
+      const item = deployment.cargo?.find((candidate) => candidate.unitId === cargo?.id);
+      const targetHex = action.targetHex;
+      const hex = targetHex && state.map.find((candidate) =>
+        candidate.coord.q === targetHex.q && candidate.coord.r === targetHex.r
+      );
+      const currentOccupancy = targetHex
+        ? state.deployments.filter((candidate) =>
+            candidate.id !== cargo?.id &&
+            candidate.status !== "DESTROYED" &&
+            candidate.status !== "WITHDRAWN" &&
+            (candidate.locationState ?? "ON_MAP") === "ON_MAP" &&
+            candidate.position.q === targetHex.q && candidate.position.r === targetHex.r
+          ).length
+        : 0;
+      if (!execution.legacyDefinition.tags.includes("AIRDROP") || !cargo || !item || !hex) {
+        return errorResponse(422, "AIRDROP_INELIGIBLE", "Airdrop requires a Heavy Air Transport and manifested cargo.");
+      }
+      if (action.targetDeploymentId !== cargo.id || cargo.id !== cargoId) {
+        return errorResponse(422, "AIRDROP_CARGO_INVALID", "Airdrop target and manifested cargo must identify the same unit.");
+      }
+      const validation = validateHatClearAirDrop({ flightPath: route, destination: hex, cargo: item, currentOccupancy });
+      if (!validation.legal) {
+        return errorResponse(422, "AIRDROP_DESTINATION_INVALID", validation.reasons.join(" "), {
+          hazardous: validation.hazardous,
+        });
+      }
     }
     for (const action of actions) {
       if (action.type !== "BOMBARDMENT") continue;

@@ -486,6 +486,12 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
     allowedActions: ["DIG_IN", "ARTILLERY_DIG_IN", "REPAIR", "CONSTRUCT", "LOAD", "UNLOAD"],
   },
+  "unit-heavy-air-transport": {
+    capacity: 1,
+    tags: ["AEROSPACE", "ATMO_FLIGHT", "VEHICLE", "TRANSPORT", "LOGISTICS", "AIRDROP", "CANNOT_SPOT_GROUND"],
+    allowedOrders: ["HOLD", "ADVANCE"],
+    allowedActions: ["LOAD", "AIRDROP"],
+  },
   "unit-infantry-squad": {
     capacity: 1,
     tags: ["GROUND", "PERSONNEL", "INFANTRY", "DIG_IN"],
@@ -500,7 +506,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
   },
   "unit-light-vehicle": {
     capacity: 1,
-    tags: ["GROUND", "VEHICLE", "SUB_SYSTEM", "EVASIVE"],
+    tags: ["GROUND", "VEHICLE", "LIGHT_VEHICLE", "SUB_SYSTEM", "EVASIVE"],
     allowedOrders: ["HOLD", "ADVANCE", "RUSH", "EVASIVE"],
     allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
   },
@@ -578,13 +584,21 @@ function buildDefinitionGroups(snapshot: LegacyCatalogueSnapshot): Record<string
     },
   ));
 
-  const actions = snapshot.tables.action_definitions.map((row) => baseDefinition(
-    row,
-    "ACTION",
-    definitionSource(requiredString(row, "source")),
-    { speedCostQuarters: published(requiredNumber(row, "speed_cost_quarters")) },
-    { economy: requiredString(row, "economy"), definition: jsonObject(row, "definition_json") },
-  ));
+  const actions = snapshot.tables.action_definitions.map((row) => {
+    const id = requiredString(row, "id");
+    const definition = jsonObject(row, "definition_json");
+    if (id === "action-airdrop") {
+      definition.costPerCargoSlotQuarters = 0;
+      definition.canonicalException = "HAT_CLEAR_IN_FLIGHT_EXIT_NO_SPEED_COST";
+    }
+    return baseDefinition(
+      row,
+      "ACTION",
+      definitionSource(requiredString(row, "source")),
+      { speedCostQuarters: published(id === "action-airdrop" ? 0 : requiredNumber(row, "speed_cost_quarters")) },
+      { economy: id === "action-airdrop" ? "INCIDENTAL" : requiredString(row, "economy"), definition },
+    );
+  });
 
   const orders = snapshot.tables.order_type_definitions.map((row) => baseDefinition(
     row,
@@ -795,6 +809,7 @@ const foundationUnitIds = [
   "unit-artillery",
   "unit-combat-medic",
   "unit-engineers",
+  "unit-heavy-air-transport",
   "unit-infantry-squad",
   "unit-infantry-fighting-vehicle",
   "unit-light-vehicle",
@@ -812,6 +827,7 @@ const foundationOrderIds = [
 ] as const;
 
 const foundationActionIds = [
+  "action-airdrop",
   "action-attack",
   "action-artillery-dig-in",
   "action-bombardment",
@@ -830,6 +846,15 @@ const foundationActionIds = [
 ] as const;
 
 const implementationCorrections: Record<string, Partial<RuleImplementationOverlayV1> & { explanation: string }> = {
+  "UNIT:unit-heavy-air-transport": {
+    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: "MISSING_CANONICAL_PRICE",
+    parameters: {
+      implementedSubset: ["HITS", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "FIVE_SLOT_CARGO", "CLEAR_ROUTE_AIRDROP", "NO_GROUND_SPOTTING"],
+      missing: ["LAND_TAKEOFF_STATE", "HAZARDOUS_DROP_RESULTS", "COORDINATED_SUPPLY_DROP"],
+    },
+    explanation: "The V5 Heavy Air Transport executes its chassis, five-slot conversion table, terrain-independent flight, loading, and no-cost clear route-bound Infantry/Light Vehicle airdrop. Hazardous outcomes, landing, and coordinated Supply drops remain gated.",
+  },
   "UNIT:unit-aerospace-bomber": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
@@ -874,11 +899,6 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
       missing: ["BRIDGES"],
     },
     explanation: "Engineer Repair, adjacent deployed-Artillery Dig In, and the source-complete V5 Sandbag, Razor Wire, and Tank Trap fieldworks execute end to end; Bridge remains gated.",
-  },
-  "UNIT:unit-heavy-air-transport": {
-    implementationStatus: "PARTIAL", executable: false, handlerId: null,
-    reasonCode: "CP_201_CATALOGUE_HANDLER_CUTOVER_PENDING",
-    explanation: "The final seed claimed transport execution before a generated-catalogue campaign handler existed.",
   },
   "UNIT:unit-infantry-fighting-vehicle": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",

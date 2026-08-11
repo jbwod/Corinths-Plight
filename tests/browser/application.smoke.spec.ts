@@ -433,7 +433,7 @@ test("strategic UI submits and resolves a Battlegroup disembark order", async ({
   }).toBe(true);
 });
 
-test("tactical API exposes Light Mech, VTOL, Fighter, and Bomber verticals and rejects client-authored action economy", async ({ page }) => {
+test("tactical API exposes Light Mech, VTOL, Fighter, Bomber, and HAT verticals and rejects client-authored action economy", async ({ page }) => {
   await page.goto("/");
 
   const foundation = await page.request.get("/api/campaigns/outpost-k17/state", {
@@ -477,6 +477,15 @@ test("tactical API exposes Light Mech, VTOL, Fighter, and Bomber verticals and r
         allowedActions: ["ATTACK"],
         ammunition: { "weapon-bomber-ordnance": 1 },
         tags: expect.arrayContaining(["AEROSPACE", "BOMBER", "FLY_OVER", "CANNOT_SPOT_GROUND"]),
+      }),
+      expect.objectContaining({
+        definitionId: "unit-heavy-air-transport",
+        callsign: "ATLAS-1",
+        allowedOrders: expect.arrayContaining(["HOLD", "ADVANCE"]),
+        allowedActions: expect.arrayContaining(["LOAD", "AIRDROP"]),
+        tags: expect.arrayContaining(["AEROSPACE", "AIRDROP", "CANNOT_SPOT_GROUND"]),
+        cargoProfile: expect.objectContaining({ id: "cargo-hat-five-slot" }),
+        cargo: [expect.objectContaining({ unitId: "dep-raven-drop", transportMode: "AIRLIFTED" })],
       }),
     ]),
   });
@@ -557,6 +566,43 @@ test("tactical API exposes Light Mech, VTOL, Fighter, and Bomber verticals and r
       },
     },
   });
+});
+
+test("Heavy Air Transport composer exposes a manifested clear-route drop", async ({ page }) => {
+  const response = await page.request.get("/api/campaigns/outpost-k17/state", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(response.status()).toBe(200);
+  const state = await response.json();
+  await page.route("**/api/campaigns", async (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      campaigns: [{
+        campaignId: "outpost-k17",
+        name: "Outpost K-17",
+        planetName: "Corinth",
+        status: "ACTIVE",
+        role: "PLAYER",
+        scenarioAvailable: true,
+        canEnter: true,
+      }],
+      availableCampaigns: [],
+    }),
+  }));
+  await page.route("**/api/campaigns/outpost-k17/state", async (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify(state),
+  }));
+  await page.goto("/?view=campaigns");
+  await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
+  await expect(page.locator(".unit-roster").getByRole("button", { name: /ATLAS-1/ })).toBeVisible();
+  await page.locator(".unit-roster").getByRole("button", { name: /ATLAS-1/ }).click();
+  const composer = page.locator(".right-panel");
+  await expect(composer.getByRole("button", { name: "AIRDROP", exact: true })).toBeVisible();
+  await composer.getByRole("button", { name: "AIRDROP", exact: true }).click();
+  await expect(composer.getByLabel("MANIFESTED DROP UNIT")).toContainText("RAVEN-DROP");
+  await expect(composer.getByText(/flight path must be straight/)).toBeVisible();
+  await expect(composer.getByText(/hazardous drops fail closed/)).toBeVisible();
 });
 
 test("tactical composer exposes every currently executable action and no catalogue-only controls", async ({ page }) => {

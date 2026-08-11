@@ -751,6 +751,7 @@ export type ActionType =
   | "GARRISON"
   | "LOAD"
   | "UNLOAD"
+  | "AIRDROP"
   | "RESUPPLY"
   | "RELOAD"
   | "SCAN"

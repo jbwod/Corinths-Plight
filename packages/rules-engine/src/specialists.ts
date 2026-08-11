@@ -508,3 +508,26 @@ export function validateAirDrop(input: AirDropInput): AirDropValidation {
   }
   return { legal: reasons.length === 0, reasons, hazardous };
 }
+
+export function validateHatClearAirDrop(input: Omit<AirDropInput, "profile">): AirDropValidation {
+  const validation = validateAirDrop({
+    ...input,
+    profile: {
+      id: "v5-hat-clear-airdrop",
+      allowedCargoKinds: ["PERSONNEL", "VEHICLE"],
+      destinationMustBeOnFlightPath: true,
+      requiresStraightFlightPath: true,
+      requiresClearDestination: true,
+      blockedTerrainIds: ["terrain-forest", "terrain-urban"],
+      blockedEnvironmentTags: ["HAZARD", "HAZARDOUS"],
+      allowStructuresAtDestination: false,
+      hazardousDestinationPolicy: "REJECT",
+    },
+  });
+  const eligible =
+    (input.cargo.kind === "PERSONNEL" && input.cargo.tags.includes("INFANTRY")) ||
+    (input.cargo.kind === "VEHICLE" && input.cargo.tags.includes("LIGHT_VEHICLE"));
+  return eligible
+    ? validation
+    : { ...validation, legal: false, reasons: [...validation.reasons, "Only Infantry and Light Vehicles may air drop from a Heavy Air Transport."] };
+}

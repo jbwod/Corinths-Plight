@@ -99,7 +99,7 @@ describe("authored scenario content", () => {
     expect(state.map).toHaveLength(169);
     expect(state.map.find((hex) => hex.coord.q === -6 && hex.coord.r === 2)?.capacity).toBe(8);
     expect(state.objectives.map((objective) => objective.name)).toEqual(["Hold Airfield", "Destroy Hive"]);
-    expect(state.deployments.filter((deployment) => deployment.side === "ALLIED")).toHaveLength(11);
+    expect(state.deployments.filter((deployment) => deployment.side === "ALLIED")).toHaveLength(13);
     expect(state.deployments.filter((deployment) => deployment.side === "ENEMY" && deployment.status === "ACTIVE")).toHaveLength(4);
     expect(state.deployments.filter((deployment) => deployment.locationState === "RESERVE")).toHaveLength(6);
     expect(state.reinforcementWaves).toEqual([

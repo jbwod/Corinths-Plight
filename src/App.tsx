@@ -88,9 +88,9 @@ interface CampaignDirectoryEntry {
 }
 const campaignCanOpen = (entry: CampaignDirectoryEntry): boolean => entry.canEnter || entry.outcome !== undefined;
 type Notice = { tone: "info" | "success" | "danger"; message: string };
-type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "ARTILLERY_DIG_IN" | "RELOAD" | "RESUPPLY" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "CREW_REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
+type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "ARTILLERY_DIG_IN" | "RELOAD" | "RESUPPLY" | "LOAD" | "UNLOAD" | "AIRDROP" | "HEAL" | "REPAIR" | "CREW_REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
 type RepairKind = "HIT" | "SUBSYSTEM";
-const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "ARTILLERY_DIG_IN", "RELOAD", "RESUPPLY", "LOAD", "UNLOAD", "HEAL", "REPAIR", "CREW_REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
+const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "ARTILLERY_DIG_IN", "RELOAD", "RESUPPLY", "LOAD", "UNLOAD", "AIRDROP", "HEAL", "REPAIR", "CREW_REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
 const constructibleFieldworks = CONSTRUCTIBLE_FIELDWORK_IDS.map(getFieldworkDefinition);
 
 function initialCampaign(): CampaignView {
@@ -154,6 +154,8 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "ARTILLERY_BOMBARDED") return `${event.actor ?? "Artillery"} fired a suppression mission.`;
   if (event.type === "BOMBARDMENT_APPLIED") return `${String(payload.targetId ?? "Hostile unit")} lost Defense under bombardment.`;
   if (event.type === "BOMBARDMENT_RECOVERED") return `${event.actor ?? "Unit"} recovered one Defense from bombardment.`;
+  if (event.type === "AIR_DROP_COMPLETED") return `${event.actor ?? "Heavy Air Transport"} dropped ${String(payload.cargoDeploymentId ?? "cargo")} at ${String((payload.targetHex as AxialCoord | undefined)?.q ?? "?")}.${String((payload.targetHex as AxialCoord | undefined)?.r ?? "?")}.`;
+  if (event.type === "AIR_DROP_FAILED") return `${event.actor ?? "Heavy Air Transport"} retained its cargo: ${String(payload.reason ?? "drop conditions were unsafe")}.`;
   if (event.type === "MEDICAL_SUPPLY_RELOADED") return `${event.actor ?? "Medic"} restored Medical Supply to ${String(payload.medicalSupplyAfter ?? "?")}.`;
   if (event.type === "UNIT_DESTROYED") return `${event.actor ?? "Unit"} was destroyed.`;
   if (event.type === "ROUND_FINISHED") return `Round ${event.round} resolved and archived.`;
@@ -504,7 +506,7 @@ function GameApp() {
   ) : [];
   const supportTargets = actionMode === "LOAD"
     ? loadTargets
-    : actionMode === "UNLOAD"
+    : actionMode === "UNLOAD" || actionMode === "AIRDROP"
       ? unloadTargets
       : actionMode === "HEAL"
         ? healTargets
@@ -636,7 +638,7 @@ function GameApp() {
     (actionMode === "BOMBARDMENT" && Boolean(
       isArtilleryUnit && artilleryDeployed && selectedBombardmentHex && (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0,
     )) ||
-    ((actionMode === "LOAD" || actionMode === "UNLOAD") && Boolean(supportTarget));
+    ((actionMode === "LOAD" || actionMode === "UNLOAD" || actionMode === "AIRDROP") && Boolean(supportTarget));
   const canSubmit = Boolean(
     selectedUnit &&
       selectedDefinition &&
@@ -658,6 +660,8 @@ function GameApp() {
         ? `${cargoPairIsTow ? "hitch for towing" : "coordinate loading"} with ${supportTarget.callsign}`
         : actionMode === "UNLOAD" && supportTarget
           ? `${cargoPairIsTow ? "unhitch" : "coordinate unloading"} with ${supportTarget.callsign}`
+          : actionMode === "AIRDROP" && supportTarget
+            ? `air drop ${supportTarget.callsign} at ${draftedRoute.at(-1)?.q}.${draftedRoute.at(-1)?.r}`
           : actionMode === "HEAL" && supportTarget
             ? `give First Aid to ${supportTarget.callsign}`
           : actionMode === "REPAIR" && supportTarget
@@ -704,7 +708,7 @@ function GameApp() {
     setActionMode(storedMode);
     setTargetUnitId(storedAction?.type === "ATTACK" ? storedAction.targetDeploymentId : undefined);
     setSupportTargetUnitId(
-      storedAction?.type === "LOAD" || storedAction?.type === "UNLOAD" || storedAction?.type === "HEAL" || storedAction?.type === "REPAIR" || storedAction?.type === "ARTILLERY_DIG_IN"
+      storedAction?.type === "LOAD" || storedAction?.type === "UNLOAD" || storedAction?.type === "AIRDROP" || storedAction?.type === "HEAL" || storedAction?.type === "REPAIR" || storedAction?.type === "ARTILLERY_DIG_IN"
         ? storedAction.targetDeploymentId ?? (typeof storedAction.payload?.cargoDeploymentId === "string" ? storedAction.payload.cargoDeploymentId : undefined)
         : undefined,
     );
@@ -804,6 +808,14 @@ function GameApp() {
         targetDeploymentId: supportTarget.id,
         targetHex: selectedUnit.cargoProfile ? draftedRoute.at(-1) ?? selectedUnit.position : undefined,
         equipmentIds: [],
+      });
+    } else if (actionMode === "AIRDROP" && supportTarget) {
+      actions.push({
+        type: "AIRDROP",
+        targetDeploymentId: supportTarget.id,
+        targetHex: draftedRoute.at(-1) ?? selectedUnit.position,
+        equipmentIds: [],
+        payload: { cargoDeploymentId: supportTarget.id },
       });
     } else if (actionMode === "HEAL" && supportTarget) {
       actions.push({ type: "HEAL", targetDeploymentId: supportTarget.id, equipmentIds: [] });
@@ -1290,6 +1302,8 @@ function GameApp() {
                             ? loadTargets[0]?.id
                             : type === "UNLOAD"
                               ? unloadTargets[0]?.id
+                              : type === "AIRDROP"
+                                ? unloadTargets[0]?.id
                               : type === "HEAL"
                                 ? healTargets[0]?.id
                                 : type === "REPAIR"
@@ -1609,10 +1623,10 @@ function GameApp() {
                     <p className="validation">PRIMARY ACTION · Radius 1 · hostile Defense −1 per active stack · requires a friendly spotter.</p>
                     {bombardmentHexes.length === 0 && <p className="validation danger">No known hex is within Artillery range.</p>}
                   </>
-                ) : actionMode === "LOAD" || actionMode === "UNLOAD" ? (
+                ) : actionMode === "LOAD" || actionMode === "UNLOAD" || actionMode === "AIRDROP" ? (
                   <>
                     <label className="field-label" htmlFor="cargo-target">
-                      {actionMode === "LOAD" ? "CARRIER / CARGO PARTNER" : "CARGO / CARRIER PARTNER"}
+                      {actionMode === "LOAD" ? "CARRIER / CARGO PARTNER" : actionMode === "AIRDROP" ? "MANIFESTED DROP UNIT" : "CARGO / CARRIER PARTNER"}
                     </label>
                     <select
                       id="cargo-target"
@@ -1627,7 +1641,9 @@ function GameApp() {
                       ))}
                     </select>
                     <p className="validation">
-                      {actionMode === "LOAD"
+                      {actionMode === "AIRDROP"
+                        ? "The selected Infantry or Light Vehicle exits at the route endpoint for no Speed cost. The flight path must be straight and the destination clear; hazardous drops fail closed."
+                        : actionMode === "LOAD"
                         ? cargoPairIsTow
                           ? "Packed Artillery and Logi must be co-located and both submit matching Load actions to hitch. Towing uses no cargo slot."
                           : "Carrier and cargo must be co-located and both submit matching Load actions."

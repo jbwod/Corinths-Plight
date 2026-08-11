@@ -11,6 +11,7 @@ export const CAMPAIGN_STORAGE_SCHEMA_VERSION = 1 as const;
 const identifierPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const orderTypes = new Set<OrderType>(["HOLD", "ADVANCE", "RUSH", "EVASIVE", "MELEE_CHARGE", "STEALTH"]);
 const actionTypes = new Set<ActionType>([
+  "AIRDROP",
   "ATTACK",
   "ASSAULT",
   "DIG_IN",
@@ -195,6 +196,7 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
   }
   const type = value.type as ActionType;
   const fieldsByType: Record<ActionType, string[]> = {
+    AIRDROP: ["targetDeploymentId", "targetHex", "payload"],
     ATTACK: ["targetDeploymentId", "targetHex", "weaponId"],
     ASSAULT: ["targetDeploymentId", "targetHex", "weaponId"],
     DIG_IN: [],
@@ -229,6 +231,9 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
   if (type === "ARTILLERY_DIG_IN" && parsed.targetDeploymentId === undefined) {
     requestFail(`${path}.targetDeploymentId`, "Dig In Artillery requires a target deployment.");
   }
+  if (type === "AIRDROP" && (parsed.targetDeploymentId === undefined || value.targetHex === undefined || value.payload === undefined)) {
+    requestFail(path, "Airdrop requires manifested cargo, a target hex, and a cargo payload.");
+  }
   if (type === "REPAIR" && parsed.targetDeploymentId === undefined) {
     requestFail(`${path}.targetDeploymentId`, "Engineer Repair requires a target deployment.");
   }
@@ -249,7 +254,7 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     parsed.equipmentIds = ids;
   }
   if (value.payload !== undefined) {
-    if (type !== "UNLOAD" && type !== "REPAIR" && type !== "CREW_REPAIR") requestFail(`${path}.payload`, "This action type does not accept a payload.");
+    if (type !== "UNLOAD" && type !== "AIRDROP" && type !== "REPAIR" && type !== "CREW_REPAIR") requestFail(`${path}.payload`, "This action type does not accept a payload.");
     if (!isRecord(value.payload)) requestFail(`${path}.payload`, "Expected an action payload object.");
     onlyKeys(
       value.payload,
@@ -257,7 +262,9 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
         ? ["repairKind", "subsystemId"]
         : type === "CREW_REPAIR"
           ? ["subsystemId"]
-          : ["cargoDeploymentId", "mode"],
+          : type === "AIRDROP"
+            ? ["cargoDeploymentId"]
+            : ["cargoDeploymentId", "mode"],
       `${path}.payload`,
     );
     const payload: NonNullable<CampaignActionIntent["payload"]> = {};

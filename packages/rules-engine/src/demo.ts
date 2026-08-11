@@ -105,7 +105,7 @@ function deployment(
       ? { SMALL_SUPPLY: definition.stats.maxHealth }
       : definition.tags.includes("ARTILLERY")
         ? { SMALL_SUPPLY: 2 }
-        : definition.tags.includes("LOGISTICS")
+        : definitionId === "unit-logi-truck"
           ? { SMALL_SUPPLY: 5 }
           : undefined,
     cargo: [],
@@ -167,6 +167,8 @@ export function createDemoCampaignState(
     deployment("dep-skyhook", "unit-vtol", "demo-user", "ALLIED", "SKYHOOK", { q: -3, r: -2 }, 2),
     deployment("dep-vulture-1", "unit-aerospace-fighter", "demo-user", "ALLIED", "VULT-1", { q: -2, r: -3 }, 2),
     deployment("dep-havoc-2", "unit-aerospace-bomber", "demo-user", "ALLIED", "HAVOC-2", { q: -1, r: -3 }, 2),
+    deployment("dep-atlas-1", "unit-heavy-air-transport", "demo-user", "ALLIED", "ATLAS-1", { q: -3, r: -2 }, 2),
+    deployment("dep-raven-drop", "unit-infantry-squad", "demo-user", "ALLIED", "RAVEN-DROP", { q: -3, r: -2 }, 2),
     deployment("bug-drone-1", "enemy-bug-drone", "enemy-doctrine", "ENEMY", "SKITTER-9", { q: 1, r: -1 }, 5, false),
     deployment("bug-warrior-1", "enemy-bug-warrior", "enemy-doctrine", "ENEMY", "CHITIN-4", { q: 3, r: -1 }, 5, false),
     deployment("bug-heavy-1", "enemy-bug-heavy", "enemy-doctrine", "ENEMY", "BEHEMOTH", { q: 4, r: -2 }, 4, false),
@@ -174,6 +176,17 @@ export function createDemoCampaignState(
   deployments.forEach((item) => {
     item.campaignId = campaignId;
   });
+  const airTransport = deployments.find((item) => item.id === "dep-atlas-1")!;
+  const airDropTeam = deployments.find((item) => item.id === "dep-raven-drop")!;
+  airDropTeam.locationState = "EMBARKED";
+  airTransport.cargo = [{
+    id: `campaign-cargo:${campaignId}:${airDropTeam.id}`,
+    kind: "PERSONNEL",
+    quantity: airDropTeam.currentHealth,
+    tags: [...(airDropTeam.tags ?? [])],
+    transportMode: "AIRLIFTED",
+    unitId: airDropTeam.id,
+  }];
   const orders = [
     demoOrder("order-longbow-18", "dep-longbow", "demo-user", round, "HOLD", [{ q: -5, r: 2 }], 2),
     demoOrder(

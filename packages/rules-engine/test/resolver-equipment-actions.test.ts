@@ -49,6 +49,65 @@ function input(orders: UnitOrder[]): RoundInput {
 }
 
 describe("equipment and transport actions", () => {
+  it("air drops manifested Infantry from a Heavy Air Transport on a clear straight flight path", () => {
+    const state = createDemoCampaignState(1_000);
+    const hat = state.deployments.find((deployment) => deployment.id === "dep-atlas-1")!;
+    const passenger = state.deployments.find((deployment) => deployment.id === "dep-raven-drop")!;
+    const dropOrder = order(state, hat, [action("hat-clear-drop", "AIRDROP", {
+      targetDeploymentId: passenger.id,
+      targetHex: { q: -2, r: -2 },
+      payload: { cargoDeploymentId: passenger.id },
+    })]);
+    dropOrder.orderType = "ADVANCE";
+    dropOrder.route = [{ q: -3, r: -2 }, { q: -2, r: -2 }, { q: -1, r: -2 }];
+    dropOrder.endHex = { q: -1, r: -2 };
+    state.orders = [dropOrder];
+
+    const output = resolveRound({ ...input([dropOrder]), previousState: state });
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "AIR_DROP_COMPLETED",
+      actor: hat.id,
+      payload: expect.objectContaining({
+        cargoDeploymentId: passenger.id,
+        targetHex: { q: -2, r: -2 },
+        speedCostQuarters: 0,
+      }),
+    }));
+    expect(output.state.deployments.find((deployment) => deployment.id === hat.id)).toMatchObject({
+      position: { q: -1, r: -2 },
+      cargo: [],
+    });
+    expect(output.state.deployments.find((deployment) => deployment.id === passenger.id)).toMatchObject({
+      locationState: "ON_MAP",
+      position: { q: -2, r: -2 },
+    });
+  });
+
+  it("keeps HAT cargo embarked when a hazardous or bent-path drop fails", () => {
+    const state = createDemoCampaignState(1_000);
+    const hat = state.deployments.find((deployment) => deployment.id === "dep-atlas-1")!;
+    const passenger = state.deployments.find((deployment) => deployment.id === "dep-raven-drop")!;
+    const dropOrder = order(state, hat, [action("hat-hazard-drop", "AIRDROP", {
+      targetDeploymentId: passenger.id,
+      targetHex: { q: -2, r: -1 },
+      payload: { cargoDeploymentId: passenger.id },
+    })]);
+    dropOrder.orderType = "ADVANCE";
+    dropOrder.route = [{ q: -3, r: -2 }, { q: -2, r: -2 }, { q: -2, r: -1 }];
+    dropOrder.endHex = { q: -2, r: -1 };
+    state.orders = [dropOrder];
+
+    const output = resolveRound({ ...input([dropOrder]), previousState: state });
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "AIR_DROP_FAILED",
+      actor: hat.id,
+      payload: expect.objectContaining({ cargoDeploymentId: passenger.id, hazardous: true }),
+    }));
+    expect(output.state.deployments.find((deployment) => deployment.id === passenger.id)?.locationState).toBe("EMBARKED");
+    expect(output.state.deployments.find((deployment) => deployment.id === hat.id)?.cargo)
+      .toContainEqual(expect.objectContaining({ unitId: passenger.id }));
+  });
+
   it("enforces the Fighter travel-path arc and consumes its one-shot ammunition only when firing", () => {
     const blockedState = createDemoCampaignState(1_000);
     const blockedFighter = blockedState.deployments.find((deployment) => deployment.id === "dep-vulture-1")!;

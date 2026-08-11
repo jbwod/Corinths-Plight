@@ -335,6 +335,61 @@ describe("CampaignDurableObject campaign contracts", () => {
     });
   });
 
+  it("accepts only a clear route-bound Heavy Air Transport drop", async () => {
+    const legal = campaignObject();
+    expect((await legal.campaign.fetch(request("/state"))).status).toBe(200);
+    const accepted = await legal.campaign.fetch(request("/orders", {
+      method: "POST",
+      body: orderBody({
+        commandId: "command-hat-clear-drop",
+        unitId: "dep-atlas-1",
+        orderType: "ADVANCE",
+        route: [{ q: -3, r: -2 }, { q: -2, r: -2 }, { q: -1, r: -2 }],
+        actions: [{
+          type: "AIRDROP",
+          targetDeploymentId: "dep-raven-drop",
+          targetHex: { q: -2, r: -2 },
+          payload: { cargoDeploymentId: "dep-raven-drop" },
+        }],
+      }),
+    }));
+    expect(accepted.status).toBe(201);
+    expect(await accepted.json()).toMatchObject({
+      order: {
+        unitId: "dep-atlas-1",
+        actions: [{
+          type: "AIRDROP",
+          economy: "INCIDENTAL",
+          speedCost: 0,
+          targetDeploymentId: "dep-raven-drop",
+          targetHex: { q: -2, r: -2 },
+        }],
+      },
+    });
+
+    const hazardous = campaignObject();
+    expect((await hazardous.campaign.fetch(request("/state"))).status).toBe(200);
+    const rejected = await hazardous.campaign.fetch(request("/orders", {
+      method: "POST",
+      body: orderBody({
+        commandId: "command-hat-hazard-drop",
+        unitId: "dep-atlas-1",
+        orderType: "ADVANCE",
+        route: [{ q: -3, r: -2 }, { q: -2, r: -2 }, { q: -2, r: -1 }],
+        actions: [{
+          type: "AIRDROP",
+          targetDeploymentId: "dep-raven-drop",
+          targetHex: { q: -2, r: -1 },
+          payload: { cargoDeploymentId: "dep-raven-drop" },
+        }],
+      }),
+    }));
+    expect(rejected.status).toBe(422);
+    expect(await rejected.json()).toMatchObject({
+      error: { code: "AIRDROP_DESTINATION_INVALID", details: { hazardous: true } },
+    });
+  });
+
   it("accepts governed Evasive orders only with the required displacement", async () => {
     const { campaign } = campaignObject();
     expect((await campaign.fetch(request("/state"))).status).toBe(200);
@@ -466,7 +521,7 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect((await campaign.fetch(request("/state"))).status).toBe(200);
     const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
     const originalOrderCount = seeded.orders.length;
-    seeded.deployments.find((deployment) => deployment.id === UNIT_ID)!.definitionId = "unit-heavy-air-transport";
+    seeded.deployments.find((deployment) => deployment.id === UNIT_ID)!.definitionId = "unit-special-forces";
     storage.values.set("state/current", encodeCampaignStoredState(seeded));
 
     const before = storage.values.get("state/current");
@@ -475,7 +530,7 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(await stateResponse.json()).toMatchObject({
       error: {
         code: "CAMPAIGN_ERROR",
-        details: { message: "CAMPAIGN_UNIT_DEFINITION_NOT_EXECUTABLE:unit-heavy-air-transport:NOT_EXECUTABLE" },
+        details: { message: "CAMPAIGN_UNIT_DEFINITION_NOT_EXECUTABLE:unit-special-forces:CATALOGUE_ONLY" },
       },
     });
     expect(storage.values.get("state/current")).toBe(before);

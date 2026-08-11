@@ -21,6 +21,7 @@ import {
   validateBomberFlyOver,
   validateBomberAttack,
   validateFighterAttack,
+  validateHatClearAirDrop,
   validateLimitedForwardArc,
 } from "../src";
 import { makeHex } from "./fixtures";
@@ -292,5 +293,31 @@ describe("aerospace attack paths, ammunition, and drops", () => {
         currentOccupancy: 0,
       }),
     ).toMatchObject({ legal: false, hazardous: true });
+
+    const flightPath = [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }];
+    expect(validateHatClearAirDrop({
+      flightPath,
+      destination: map[1],
+      cargo: { id: "infantry", kind: "PERSONNEL", quantity: 6, tags: ["INFANTRY"] },
+      currentOccupancy: 0,
+    })).toEqual({ legal: true, reasons: [], hazardous: false });
+    expect(validateHatClearAirDrop({
+      flightPath,
+      destination: map[1],
+      cargo: { id: "recon", kind: "VEHICLE", quantity: 1, tags: ["LIGHT_VEHICLE"] },
+      currentOccupancy: 0,
+    })).toEqual({ legal: true, reasons: [], hazardous: false });
+    expect(validateHatClearAirDrop({
+      flightPath,
+      destination: map[1],
+      cargo: { id: "tank", kind: "VEHICLE", quantity: 1, tags: ["ARMOUR"] },
+      currentOccupancy: 0,
+    })).toMatchObject({ legal: false, reasons: [expect.stringMatching(/Infantry and Light Vehicles/)] });
+    expect(validateHatClearAirDrop({
+      flightPath: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 1, r: 1 }],
+      destination: { ...map[1], terrainId: "terrain-forest" },
+      cargo: { id: "infantry", kind: "PERSONNEL", quantity: 6, tags: ["INFANTRY"] },
+      currentOccupancy: 0,
+    })).toMatchObject({ legal: false, hazardous: true });
   });
 });

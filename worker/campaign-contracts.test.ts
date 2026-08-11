@@ -277,6 +277,46 @@ describe("campaign order request contracts", () => {
     })).toThrow(/Only PARADROP/);
   });
 
+  it("accepts only the server-resolved Heavy Air Transport drop intent", () => {
+    expect(parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "hat-1",
+      orderType: "ADVANCE",
+      facing: 2,
+      route: [{ q: -3, r: -2 }, { q: -2, r: -2 }, { q: -1, r: -2 }],
+      actions: [{
+        type: "AIRDROP",
+        targetDeploymentId: "infantry-1",
+        targetHex: { q: -2, r: -2 },
+        payload: { cargoDeploymentId: "infantry-1" },
+      }],
+    }).actions).toEqual([{
+      type: "AIRDROP",
+      targetDeploymentId: "infantry-1",
+      targetHex: { q: -2, r: -2 },
+      payload: { cargoDeploymentId: "infantry-1" },
+    }]);
+    expect(() => parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "hat-1",
+      orderType: "ADVANCE",
+      facing: 2,
+      actions: [{ type: "AIRDROP", targetDeploymentId: "infantry-1" }],
+    })).toThrow(/Airdrop requires/);
+    expect(() => parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "hat-1",
+      orderType: "ADVANCE",
+      facing: 2,
+      actions: [{
+        type: "AIRDROP",
+        targetDeploymentId: "infantry-1",
+        targetHex: { q: -2, r: -2 },
+        payload: { cargoDeploymentId: "infantry-1", outcome: "SURVIVED" },
+      }],
+    })).toThrow(/Unknown field/);
+  });
+
   it("hashes canonical command content with SHA-256", async () => {
     expect(canonicalCampaignJson({ z: 1, a: { y: 2, b: 3 } })).toBe('{"a":{"b":3,"y":2},"z":1}');
     const left = await campaignCommandHash({ z: 1, a: { y: 2, b: 3 } });

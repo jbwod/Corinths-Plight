@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "205e71a85cf823eeee08e0abb563e078b910276559bc84e67bab4c32e67e81b9",
+  "contentHash": "6f4adbf5cc8ec1fe6604f8d6a3564aa2f09576374bb5802cecb22696c48abe4a",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1555,7 +1555,26 @@ const snapshot = {
             ],
             "weaponIds": []
           },
-          "execution": null,
+          "execution": {
+            "allowedActions": [
+              "LOAD",
+              "AIRDROP"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE"
+            ],
+            "capacity": 1,
+            "tags": [
+              "AEROSPACE",
+              "ATMO_FLIGHT",
+              "VEHICLE",
+              "TRANSPORT",
+              "LOGISTICS",
+              "AIRDROP",
+              "CANNOT_SPOT_GROUND"
+            ]
+          },
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -1948,6 +1967,7 @@ const snapshot = {
             "tags": [
               "GROUND",
               "VEHICLE",
+              "LIGHT_VEHICLE",
               "SUB_SYSTEM",
               "EVASIVE"
             ]
@@ -3693,30 +3713,31 @@ const snapshot = {
         "id": "action-airdrop",
         "kind": "ACTION",
         "name": "Airdrop",
-        "definitionStatus": "experimental",
+        "definitionStatus": "active",
         "sourceId": "source-v5-core",
         "sourcePath": null,
         "sourceLocator": "V5 / Heavy Air Transport",
-        "notes": "Clear-space path drops only; hazardous outcomes remain blocked by RC-V5-018. HAT slot cost and passenger cost follow RC-V5-010.",
+        "notes": "Clear-space in-flight Infantry/Light Vehicle exit is a no-Speed-cost HAT exception; hazardous outcomes remain blocked by RC-V5-018.",
         "sourcedNumbers": {
           "speedCostQuarters": {
             "status": "PUBLISHED",
-            "value": 2
+            "value": 0
           }
         },
         "references": [],
         "parameters": {
           "definition": {
+            "canonicalException": "HAT_CLEAR_IN_FLIGHT_EXIT_NO_SPEED_COST",
             "clearOpenHexOnly": true,
             "conflictIds": [
               "RC-V5-010",
               "RC-V5-018"
             ],
-            "costPerCargoSlotQuarters": 2,
+            "costPerCargoSlotQuarters": 0,
             "requiredAbility": "AIRDROP",
             "targetMustLieOnRoute": true
           },
-          "economy": "STANDARD"
+          "economy": "INCIDENTAL"
         }
       },
       {
@@ -7761,6 +7782,7 @@ const snapshot = {
             "unit-artillery",
             "unit-combat-medic",
             "unit-engineers",
+            "unit-heavy-air-transport",
             "unit-infantry-squad",
             "unit-infantry-fighting-vehicle",
             "unit-light-vehicle",
@@ -7792,6 +7814,7 @@ const snapshot = {
         "kind": "ACTION",
         "evidence": {
           "definitionIds": [
+            "action-airdrop",
             "action-attack",
             "action-artillery-dig-in",
             "action-bombardment",
@@ -7851,6 +7874,22 @@ const snapshot = {
       }
     ],
     "overlays": [
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-airdrop",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
       {
         "definitionKind": "ACTION",
         "definitionId": "action-artillery-dig-in",
@@ -8817,10 +8856,10 @@ const snapshot = {
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "BALANCE_REQUIRED",
         "availabilityStatus": "DEV_ONLY",
-        "executable": false,
+        "executable": true,
         "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "CP_201_CATALOGUE_HANDLER_CUTOVER_PENDING",
+        "handlerId": "foundation-generated-unit-class",
+        "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
@@ -8829,8 +8868,21 @@ const snapshot = {
             "UNLOAD",
             "AIRDROP"
           ],
+          "implementedSubset": [
+            "HITS",
+            "AEROSPACE_MOVEMENT",
+            "HOSTILE_PASSAGE",
+            "FIVE_SLOT_CARGO",
+            "CLEAR_ROUTE_AIRDROP",
+            "NO_GROUND_SPOTTING"
+          ],
+          "missing": [
+            "LAND_TAKEOFF_STATE",
+            "HAZARDOUS_DROP_RESULTS",
+            "COORDINATED_SUPPLY_DROP"
+          ],
           "publicationCorrection": {
-            "reason": "The final seed claimed transport execution before a generated-catalogue campaign handler existed.",
+            "reason": "The V5 Heavy Air Transport executes its chassis, five-slot conversion table, terrain-independent flight, loading, and no-cost clear route-bound Infantry/Light Vehicle airdrop. Hazardous outcomes, landing, and coordinated Supply drops remain gated.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": true,
@@ -14497,5 +14549,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "205e71a85cf823eeee08e0abb563e078b910276559bc84e67bab4c32e67e81b9" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "6f4adbf5cc8ec1fe6604f8d6a3564aa2f09576374bb5802cecb22696c48abe4a" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

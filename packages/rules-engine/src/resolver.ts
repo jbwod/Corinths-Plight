@@ -37,6 +37,7 @@ import {
   recoverBombardmentSuppression,
   validateArtilleryFire,
   validateBomberAttack,
+  validateHatClearAirDrop,
   validateLimitedForwardArc,
 } from "./specialists";
 import { createSeededRandom, hashSeed } from "./rng";
@@ -800,6 +801,66 @@ export function resolveRound(input: RoundInput): RoundOutput {
           cargoDeploymentId: cargo.id,
           transportMode,
           speedCostQuarters: loaded.speedCostQuarters,
+        }, actorVisibility);
+      }
+      if (action.type === "AIRDROP") {
+        const cargoId = typeof action.payload?.cargoDeploymentId === "string"
+          ? action.payload.cargoDeploymentId
+          : action.targetDeploymentId;
+        const cargo = state.deployments.find((candidate) => candidate.id === cargoId);
+        const item = actor.cargo?.find((candidate) => candidate.unitId === cargo?.id);
+        const targetHex = action.targetHex;
+        const hex = targetHex && state.map.find((candidate) => sameCoord(candidate.coord, targetHex));
+        const currentOccupancy = targetHex
+          ? state.deployments.filter((candidate) =>
+              candidate.id !== cargo?.id &&
+              candidate.status !== "DESTROYED" &&
+              candidate.status !== "WITHDRAWN" &&
+              (candidate.locationState ?? "ON_MAP") === "ON_MAP" &&
+              sameCoord(candidate.position, targetHex)
+            ).length
+          : 0;
+        const validation = cargo && item && hex
+          ? validateHatClearAirDrop({ flightPath: order.route, destination: hex, cargo: item, currentOccupancy })
+          : { legal: false, reasons: ["Airdrop requires manifested cargo and a battlefield target hex."], hazardous: false };
+        if (
+          !actor.cargoProfile ||
+          !deploymentTags(actor).includes("AIRDROP") ||
+          !cargo ||
+          !item ||
+          !targetHex ||
+          !hex ||
+          !validation.legal ||
+          !canOccupyHex(targetHex, cargo.id, state.deployments, state.map)
+        ) {
+          event("AIR_DROP_FAILED", actor.id, {
+            actionId: action.id,
+            cargoDeploymentId: cargo?.id ?? cargoId,
+            targetHex,
+            reason: validation.reasons.join(" ") || "DROP_HEX_BLOCKED",
+            hazardous: validation.hazardous,
+          }, actorVisibility);
+          continue;
+        }
+        const unloaded = disembarkCargo(actor.cargoProfile, actor.cargo ?? [], [item.id], Math.round(actor.stats.speed * 4));
+        if (!unloaded.legal) {
+          event("AIR_DROP_FAILED", actor.id, {
+            actionId: action.id,
+            cargoDeploymentId: cargo.id,
+            targetHex,
+            reason: unloaded.reason ?? "Cargo cannot air drop.",
+          }, actorVisibility);
+          continue;
+        }
+        actor.cargo = unloaded.manifest;
+        cargo.locationState = "ON_MAP";
+        cargo.position = { ...targetHex };
+        event("AIR_DROP_COMPLETED", actor.id, {
+          actionId: action.id,
+          cargoDeploymentId: cargo.id,
+          transportMode: "AIRLIFTED",
+          targetHex,
+          speedCostQuarters: 0,
         }, actorVisibility);
       }
       if (action.type === "UNLOAD") {
