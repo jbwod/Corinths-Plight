@@ -1308,6 +1308,31 @@ summary:focus-visible {
   font: 500 8px/1 var(--mono);
 }
 
+.marker-tools {
+  position: absolute;
+  z-index: 5;
+  top: 58px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 260px);
+  padding: 5px;
+  border: 1px solid rgba(102, 147, 147, .28);
+  background: rgba(5, 15, 18, .9);
+  transform: translateX(-50%);
+  backdrop-filter: blur(8px);
+}
+.marker-tools > span { padding: 0 5px; color: var(--dim); font: 600 6px/1 var(--mono); letter-spacing: .1em; }
+.marker-tools button { min-height: 25px; padding: 0 7px; border: 1px solid rgba(120, 157, 157, .25); background: transparent; color: var(--muted); font: 600 6px/1 var(--mono); cursor: pointer; }
+.marker-tools button.active { border-color: currentColor; background: rgba(52, 103, 102, .34); box-shadow: 0 0 12px rgba(107, 219, 207, .13); }
+.marker-tools button.attack { color: #ff8067; }
+.marker-tools button.move { color: #65d6e8; }
+.marker-tools button.defend { color: #8ea9f2; }
+.marker-tools button.support { color: #75d89b; }
+.marker-tools button.ping { color: #f1c96b; }
+.marker-tools input { width: 145px; min-height: 25px; padding: 0 7px; border: 1px solid rgba(120, 157, 157, .25); background: rgba(2, 8, 10, .8); color: #d5e4e1; font: 600 6px/1 var(--mono); }
+
 .map-canvas-shell {
   position: absolute;
   inset: 0;
@@ -1377,6 +1402,29 @@ summary:focus-visible {
 .map-intent-roster > div strong { overflow: hidden; color: #c6d8d5; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
 .map-intent-roster > div small { overflow: hidden; color: var(--dim); font-size: 5px; text-overflow: ellipsis; white-space: nowrap; }
 .map-intent-roster > p { margin: 0; padding: 7px 9px; color: var(--gold); font-size: 5px; }
+
+.map-marker-roster {
+  position: absolute;
+  z-index: 3;
+  left: 14px;
+  bottom: 83px;
+  width: min(225px, calc(100% - 28px));
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid rgba(102, 147, 147, .3);
+  background: rgba(5, 15, 18, .88);
+  backdrop-filter: blur(8px);
+  color: var(--muted);
+  font-family: var(--mono);
+}
+.map-marker-roster > header { min-height: 27px; display: flex; align-items: center; justify-content: space-between; padding: 0 9px; border-bottom: 1px solid var(--line); color: var(--teal); font-size: 6px; letter-spacing: .12em; }
+.map-marker-roster > div { min-height: 35px; display: grid; grid-template-columns: 7px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 5px 7px 5px 9px; border-bottom: 1px solid rgba(99, 134, 135, .13); }
+.map-marker-roster > div i { width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+.map-marker-roster > div span { min-width: 0; display: grid; gap: 3px; }
+.map-marker-roster > div strong, .map-marker-roster > div small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-marker-roster > div strong { color: #c6d8d5; font-size: 7px; }
+.map-marker-roster > div small { color: var(--dim); font-size: 5px; }
+.map-marker-roster button { min-height: 21px; padding: 0 6px; border: 1px solid rgba(239, 128, 103, .3); background: transparent; color: #ff927b; font: 600 5px/1 var(--mono); cursor: pointer; }
 
 .map-zoom-controls {
   top: 66px;
@@ -2032,6 +2080,11 @@ summary:focus-visible {
   .map-legend { right: auto; left: 14px; bottom: 47px; }
   .hover-inspector { bottom: 12px; }
   .map-toolbar { padding: 0 12px; }
+  .marker-tools { top: 91px; left: 8px; right: 8px; max-width: none; overflow-x: auto; transform: none; }
+  .marker-tools > span { display: none; }
+  .marker-tools button { flex: 0 0 auto; }
+  .marker-tools input { flex: 0 0 130px; }
+  .map-intent-roster { top: 132px; }
   .map-version { margin-left: auto; }
   .event-strip article { min-width: 175px; }
   .notice { bottom: 70px; }

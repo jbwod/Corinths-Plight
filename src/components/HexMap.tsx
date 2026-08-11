@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AxialCoord, CampaignDeployment, CampaignView, UnitOrder } from "../../packages/domain/src";
+import type { AxialCoord, CampaignDeployment, CampaignMarkerDto, CampaignView, UnitOrder } from "../../packages/domain/src";
 import { coordKey, FACING_LABELS, getUnitClass } from "../../packages/rules-engine/src";
 
 interface HexMapProps {
   campaign: CampaignView;
+  markers: CampaignMarkerDto[];
   layer: TacticalMapLayer;
   selectedUnitId?: string;
   draftedRoute: AxialCoord[];
@@ -11,6 +12,7 @@ interface HexMapProps {
   targetUnitId?: string;
   targetHex?: AxialCoord;
   onMapClick: (coord: AxialCoord, unit?: CampaignDeployment) => void;
+  onRemoveMarker: (markerId: string) => void;
   onHover: (coord?: AxialCoord, unit?: CampaignDeployment) => void;
 }
 
@@ -25,6 +27,7 @@ interface Viewport {
 const HEX_SIZE = 39;
 const SQRT_THREE = Math.sqrt(3);
 const ALLIED_INTENT_COLORS = ["#e6bd68", "#bb8cff", "#6fc8ff", "#ff9271", "#8edb8a", "#e982c8"] as const;
+const MARKER_COLORS = { PING: "#f1c96b", MOVE: "#65d6e8", ATTACK: "#ff765d", DEFEND: "#7e9ff2", SUPPORT: "#75d89b" } as const;
 
 function intentActionLabel(order: UnitOrder): string | undefined {
   const action = order.actions[0] ?? order.incidentalActions[0];
@@ -129,6 +132,7 @@ function drawArrow(
 
 export function HexMap({
   campaign,
+  markers,
   layer,
   selectedUnitId,
   draftedRoute,
@@ -136,6 +140,7 @@ export function HexMap({
   targetUnitId,
   targetHex,
   onMapClick,
+  onRemoveMarker,
   onHover,
 }: HexMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -378,6 +383,31 @@ export function HexMap({
       ctx.stroke();
     }
 
+    for (const marker of markers) {
+      const point = axialToWorld(marker.coord);
+      const color = MARKER_COLORS[marker.kind];
+      ctx.save();
+      ctx.translate(point.x, point.y);
+      ctx.strokeStyle = color;
+      ctx.fillStyle = "rgba(5,14,16,.9)";
+      ctx.shadowColor = color;
+      ctx.shadowBlur = marker.own ? 13 : 7;
+      ctx.lineWidth = marker.own ? 3 : 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, marker.kind === "PING" ? 19 : 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = color;
+      ctx.font = "bold 8px ui-monospace, SFMono-Regular, monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(marker.kind === "ATTACK" ? "X" : marker.kind === "DEFEND" ? "D" : marker.kind === "SUPPORT" ? "+" : marker.kind === "MOVE" ? "→" : "!", 0, 0);
+      ctx.font = "bold 6px ui-monospace, SFMono-Regular, monospace";
+      ctx.fillText(marker.label?.slice(0, 18) || marker.kind, 0, 27);
+      ctx.restore();
+    }
+
     for (const order of showAlliedIntents ? submittedAlliedIntents : []) {
       const deployment = campaign.deployments.find((candidate) => candidate.id === order.unitId);
       if (!deployment) continue;
@@ -552,7 +582,7 @@ export function HexMap({
     vignette.addColorStop(1, "rgba(0,0,0,.48)");
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, size.width, size.height);
-  }, [campaign, draftedFacing, draftedRoute, hovered, intentColors, layer, mapIndex, selectedUnitId, showAlliedIntents, size, submittedAlliedIntents, targetHex, targetUnitId, unitIndex, viewport]);
+  }, [campaign, draftedFacing, draftedRoute, hovered, intentColors, layer, mapIndex, markers, selectedUnitId, showAlliedIntents, size, submittedAlliedIntents, targetHex, targetUnitId, unitIndex, viewport]);
 
   const screenToCoord = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -652,6 +682,18 @@ export function HexMap({
             );
           })}
           {showAlliedIntents && submittedAlliedIntents.length > 6 && <p>+{submittedAlliedIntents.length - 6} MORE SUBMITTED INTENTS</p>}
+        </div>
+      )}
+      {markers.length > 0 && (
+        <div className="map-marker-roster" role="region" aria-label="Shared Allied tactical markers">
+          <header><span>COMMAND MARKERS</span><b>{markers.length}</b></header>
+          {markers.slice(-6).map((marker) => (
+            <div key={marker.id}>
+              <i style={{ backgroundColor: MARKER_COLORS[marker.kind] }} />
+              <span><strong>{marker.kind} · {marker.coord.q}.{marker.coord.r}</strong><small>{marker.label || (marker.own ? "YOUR MARKER" : "ALLIED COMMAND")}</small></span>
+              {marker.canRemove && <button type="button" onClick={() => onRemoveMarker(marker.id)} aria-label={`Clear ${marker.kind} marker at ${marker.coord.q}.${marker.coord.r}`}>CLEAR</button>}
+            </div>
+          ))}
         </div>
       )}
       <div className="map-legend">

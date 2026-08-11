@@ -1,5 +1,19 @@
 export const RULESET_VERSION = "v5-core-curated@1" as const;
 
+export type CampaignMarkerKind = "PING" | "MOVE" | "ATTACK" | "DEFEND" | "SUPPORT";
+
+export interface CampaignMarkerDto {
+  id: string;
+  campaignId: string;
+  round: number;
+  kind: CampaignMarkerKind;
+  coord: AxialCoord;
+  label?: string;
+  createdAt: number;
+  own: boolean;
+  canRemove: boolean;
+}
+
 export * from "./json-contract";
 export * from "./rules-catalogue-contract";
 export * from "./governed-cargo";

@@ -2,6 +2,8 @@ import { DurableObject } from "cloudflare:workers";
 import type {
   CampaignDeployment,
   CampaignEvent,
+  CampaignMarkerDto,
+  CampaignMarkerKind,
   CampaignRuntimeState,
   ResolutionRecord,
   StructuredAction,
@@ -43,6 +45,7 @@ import {
   campaignCommandHash,
   encodeCampaignStoredState,
   parseCampaignClockIntent,
+  parseCampaignMarkerIntent,
   parseCampaignOrderIntent,
   parseCampaignStoredState,
   type CampaignActionIntent,
@@ -95,7 +98,7 @@ interface WebSocketAttachment {
   role: string;
 }
 
-type CampaignCommandOperation = "ORDER_UPSERT" | "CLOCK_UPDATE";
+type CampaignCommandOperation = "ORDER_UPSERT" | "CLOCK_UPDATE" | "MARKER_UPDATE";
 
 interface CampaignCommandReceipt<TResponse extends object> {
   schemaVersion: 1;
@@ -117,6 +120,24 @@ interface ClockCommandResponse {
   clock: CampaignRuntimeState["clock"];
   preset: string;
   campaignVersion: number;
+}
+
+interface StoredCampaignMarker {
+  schemaVersion: 1;
+  id: string;
+  campaignId: string;
+  round: number;
+  side: ViewerContext["side"];
+  kind: CampaignMarkerKind;
+  coord: { q: number; r: number };
+  label?: string;
+  createdByUserId: string;
+  createdAt: number;
+}
+
+interface MarkerCommandResponse {
+  marker?: CampaignMarkerDto;
+  removedMarkerId?: string;
 }
 
 function commandReceipt<TResponse extends object>(
@@ -251,6 +272,29 @@ export class CampaignDurableObject extends DurableObject<Env> {
 
   private clockReceiptKey(userId: string, commandId: string): string {
     return `command/clock/${encodeURIComponent(userId)}/${encodeURIComponent(commandId)}`;
+  }
+
+  private markerReceiptKey(userId: string, commandId: string): string {
+    return `command/marker/${encodeURIComponent(userId)}/${encodeURIComponent(commandId)}`;
+  }
+
+  private markerStorageKey(round: number, markerId: string): string {
+    return `marker/${String(round).padStart(8, "0")}/${encodeURIComponent(markerId)}`;
+  }
+
+  private markerDto(marker: StoredCampaignMarker, viewer: ViewerContext): CampaignMarkerDto {
+    const own = marker.createdByUserId === viewer.userId;
+    return {
+      id: marker.id,
+      campaignId: marker.campaignId,
+      round: marker.round,
+      kind: marker.kind,
+      coord: { ...marker.coord },
+      label: marker.label,
+      createdAt: marker.createdAt,
+      own,
+      canRemove: own || viewer.role === "BATTALION_COMMAND" || viewer.role === "ADMIN",
+    };
   }
 
   private async createPersistentCampaignState(): Promise<CampaignRuntimeState> {
@@ -852,6 +896,8 @@ export class CampaignDurableObject extends DurableObject<Env> {
     const url = new URL(request.url);
     try {
       if (url.pathname === "/state" && request.method === "GET") return await this.handleState(request);
+      if (url.pathname === "/markers" && request.method === "GET") return await this.handleMarkers(request);
+      if (url.pathname === "/markers" && request.method === "POST") return await this.handleMarkerCommand(request);
       if (url.pathname === "/orders" && request.method === "POST") return await this.handleOrder(request);
       if (url.pathname.startsWith("/orders/") && request.method === "DELETE") {
         return await this.handleCancelOrder(request, decodeURIComponent(url.pathname.slice("/orders/".length)));
@@ -891,6 +937,110 @@ export class CampaignDurableObject extends DurableObject<Env> {
     const state = await this.getState();
     const view = projectCampaignState(state, this.viewer(request), Date.now());
     return json(view);
+  }
+
+  private async handleMarkers(request: Request): Promise<Response> {
+    const viewer = this.viewer(request);
+    const state = await this.getState();
+    const stored = await this.ctx.storage.list<StoredCampaignMarker>({
+      prefix: `marker/${String(state.round).padStart(8, "0")}/`,
+    });
+    const markers = [...stored.values()]
+      .filter((marker) => marker.campaignId === state.campaignId && marker.round === state.round)
+      .filter((marker) => viewer.role === "ADMIN" || marker.side === viewer.side)
+      .sort((left, right) => left.createdAt - right.createdAt || (left.id < right.id ? -1 : 1))
+      .map((marker) => this.markerDto(marker, viewer));
+    return json({ markers, round: state.round });
+  }
+
+  private async handleMarkerCommand(request: Request): Promise<Response> {
+    const viewer = this.viewer(request);
+    const intent = parseCampaignMarkerIntent(await readJson<unknown>(request));
+    const requestHash = await campaignCommandHash(intent);
+    const receiptKey = this.markerReceiptKey(viewer.userId, intent.commandId);
+    const storedReceipt = await this.ctx.storage.get<unknown>(receiptKey);
+    if (storedReceipt !== undefined) {
+      const prior = commandReceipt<MarkerCommandResponse>(storedReceipt, "MARKER_UPDATE");
+      if (prior.actorUserId !== viewer.userId || prior.commandId !== intent.commandId || prior.requestHash !== requestHash) {
+        return errorResponse(409, "COMMAND_REUSED", "commandId was already used with a different marker command.");
+      }
+      return json(prior.response, { status: prior.status });
+    }
+    const state = await this.getState();
+    if (state.phase !== "PLANNING") {
+      return errorResponse(409, "MARKERS_LOCKED", "Tactical markers can only be changed during planning.");
+    }
+    const now = Date.now();
+    let response: MarkerCommandResponse;
+    let status: 200 | 201;
+    let storageKey: string;
+    let marker: StoredCampaignMarker | undefined;
+    if (intent.operation === "PLACE") {
+      const projected = projectCampaignState(state, viewer, now);
+      const knownHex = projected.map.find((hex) =>
+        hex.coord.q === intent.coord.q && hex.coord.r === intent.coord.r && hex.visibility !== "UNKNOWN"
+      );
+      if (!knownHex) {
+        return errorResponse(422, "MARKER_HEX_UNKNOWN", "Markers may only be placed on known battlefield hexes.");
+      }
+      const current = await this.ctx.storage.list<StoredCampaignMarker>({
+        prefix: `marker/${String(state.round).padStart(8, "0")}/`,
+      });
+      const visible = [...current.values()].filter((item) => item.side === viewer.side);
+      if (visible.length >= 32 || visible.filter((item) => item.createdByUserId === viewer.userId).length >= 8) {
+        return errorResponse(409, "MARKER_LIMIT", "Clear an existing tactical marker before placing another.");
+      }
+      const markerId = `marker-${requestHash.slice(0, 24)}`;
+      marker = {
+        schemaVersion: 1,
+        id: markerId,
+        campaignId: state.campaignId,
+        round: state.round,
+        side: viewer.side,
+        kind: intent.kind,
+        coord: { ...intent.coord },
+        label: intent.label,
+        createdByUserId: viewer.userId,
+        createdAt: now,
+      };
+      storageKey = this.markerStorageKey(state.round, markerId);
+      response = { marker: this.markerDto(marker, viewer) };
+      status = 201;
+    } else {
+      storageKey = this.markerStorageKey(state.round, intent.markerId);
+      marker = await this.ctx.storage.get<StoredCampaignMarker>(storageKey);
+      if (!marker || marker.campaignId !== state.campaignId || marker.round !== state.round) {
+        return errorResponse(404, "MARKER_NOT_FOUND", "Tactical marker was not found.");
+      }
+      if (
+        marker.createdByUserId !== viewer.userId &&
+        viewer.role !== "BATTALION_COMMAND" &&
+        viewer.role !== "ADMIN"
+      ) {
+        return errorResponse(403, "MARKER_FORBIDDEN", "Only the marker author or command staff may clear it.");
+      }
+      response = { removedMarkerId: marker.id };
+      status = 200;
+    }
+    const receipt: CampaignCommandReceipt<MarkerCommandResponse> = {
+      schemaVersion: 1,
+      operation: "MARKER_UPDATE",
+      actorUserId: viewer.userId,
+      commandId: intent.commandId,
+      requestHash,
+      status,
+      response,
+      createdAt: now,
+    };
+    await this.ctx.storage.transaction(async (transaction) => {
+      const concurrent = await transaction.get<unknown>(receiptKey);
+      if (concurrent !== undefined) return;
+      if (intent.operation === "PLACE") await transaction.put(storageKey, marker!);
+      else await transaction.delete(storageKey);
+      await transaction.put(receiptKey, receipt);
+    });
+    this.broadcast(intent.operation === "PLACE" ? "marker-placed" : "marker-removed", state);
+    return json(response, { status });
   }
 
   private sanitiseActions(

@@ -1,5 +1,6 @@
 import type {
   ActionType,
+  CampaignMarkerKind,
   CampaignRuntimeState,
   Facing,
   OrderType,
@@ -143,6 +144,20 @@ export interface CampaignClockIntent {
   preset?: ClockPreset;
   durationMs?: number;
 }
+
+export type CampaignMarkerIntent =
+  | {
+      commandId: string;
+      operation: "PLACE";
+      kind: CampaignMarkerKind;
+      coord: { q: number; r: number };
+      label?: string;
+    }
+  | {
+      commandId: string;
+      operation: "REMOVE";
+      markerId: string;
+    };
 
 export interface StoredCampaignStateV1 {
   schemaVersion: typeof CAMPAIGN_STORAGE_SCHEMA_VERSION;
@@ -442,6 +457,40 @@ export function parseCampaignClockIntent(value: unknown): CampaignClockIntent {
     requestFail("$", "Choose a preset or a duration, not both.");
   }
   return parsed;
+}
+
+export function parseCampaignMarkerIntent(value: unknown): CampaignMarkerIntent {
+  if (!isRecord(value)) requestFail("$", "Expected a tactical marker command.");
+  if (value.operation === "PLACE") {
+    onlyKeys(value, ["commandId", "operation", "kind", "coord", "label"], "$");
+    const kinds = new Set<CampaignMarkerKind>(["PING", "MOVE", "ATTACK", "DEFEND", "SUPPORT"]);
+    if (typeof value.kind !== "string" || !kinds.has(value.kind as CampaignMarkerKind)) {
+      requestFail("$.kind", "Unknown tactical marker kind.");
+    }
+    const parsed: CampaignMarkerIntent = {
+      commandId: identifier(value.commandId, "$.commandId"),
+      operation: "PLACE",
+      kind: value.kind as CampaignMarkerKind,
+      coord: coordinate(value.coord, "$.coord"),
+    };
+    if (value.label !== undefined) {
+      if (typeof value.label !== "string" || value.label.length > 80) {
+        requestFail("$.label", "Marker label must be at most 80 characters.");
+      }
+      const label = value.label.trim();
+      if (label.length > 0) parsed.label = label;
+    }
+    return parsed;
+  }
+  if (value.operation === "REMOVE") {
+    onlyKeys(value, ["commandId", "operation", "markerId"], "$");
+    return {
+      commandId: identifier(value.commandId, "$.commandId"),
+      operation: "REMOVE",
+      markerId: identifier(value.markerId, "$.markerId"),
+    };
+  }
+  requestFail("$.operation", "Marker operation must be PLACE or REMOVE.");
 }
 
 export async function assertCampaignMutationBodyEmpty(request: Request): Promise<void> {

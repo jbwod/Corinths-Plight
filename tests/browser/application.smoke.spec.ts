@@ -773,6 +773,32 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(mapIntentions).toContainText("LONGBOW");
   await expect(mapIntentions).toContainText("DEPLOY");
 
+  const tacticalState = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  const markerState = await tacticalState.json() as CampaignView;
+  const markerHex = markerState.map.find((hex) => hex.visibility !== "UNKNOWN")!;
+  const markerResponse = await page.evaluate(async ({ coord }) => {
+    const response = await fetch("/api/campaigns/campaign-k17-relay/markers", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-demo-user": "demo-user" },
+      body: JSON.stringify({
+        commandId: `browser-marker-${crypto.randomUUID()}`,
+        operation: "PLACE",
+        kind: "ATTACK",
+        coord,
+        label: "FOCUS FIRE",
+      }),
+    });
+    return { status: response.status, body: await response.text() };
+  }, { coord: markerHex.coord });
+  expect(markerResponse, markerResponse.body).toMatchObject({ status: 201 });
+  const commandMarkers = page.getByRole("region", { name: "Shared Allied tactical markers" });
+  await expect(commandMarkers).toContainText("ATTACK");
+  await expect(commandMarkers).toContainText("FOCUS FIRE");
+  await commandMarkers.getByRole("button", { name: /Clear ATTACK marker/ }).click();
+  await expect(commandMarkers).toHaveCount(0);
+
   await page.locator(".unit-roster").getByRole("button", { name: /DOC-7/ }).click();
   await expect(composer.getByRole("button", { name: "HEAL", exact: true })).toBeVisible();
   await composer.getByRole("button", { name: "HEAL", exact: true }).click();

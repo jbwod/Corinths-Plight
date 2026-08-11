@@ -47,6 +47,7 @@ class MemoryStorage {
     return closure({
       get: this.get.bind(this),
       put: this.put.bind(this),
+      delete: this.delete.bind(this),
     } as unknown as DurableObjectTransaction);
   }
 
@@ -196,6 +197,44 @@ function orderBody(overrides: Record<string, unknown> = {}): string {
 }
 
 describe("CampaignDurableObject campaign contracts", () => {
+  it("persists, projects, replays, and clears round-scoped Allied command markers", async () => {
+    const { campaign, storage } = campaignObject();
+    const stateResponse = await campaign.fetch(request("/state"));
+    expect(stateResponse.status).toBe(200);
+    const state = await stateResponse.json() as { map: Array<{ coord: { q: number; r: number }; visibility: string }> };
+    const known = state.map.find((hex) => hex.visibility !== "UNKNOWN")!;
+    const body = JSON.stringify({
+      commandId: "marker-command-0001",
+      operation: "PLACE",
+      kind: "ATTACK",
+      coord: known.coord,
+      label: "FOCUS FIRE",
+    });
+    const placed = await campaign.fetch(request("/markers", { method: "POST", body }));
+    const replay = await campaign.fetch(request("/markers", { method: "POST", body }));
+    expect(placed.status).toBe(201);
+    expect(replay.status).toBe(201);
+    const placedBody = await placed.json() as { marker: { id: string; own: boolean; canRemove: boolean } };
+    expect(placedBody.marker).toMatchObject({ own: true, canRemove: true });
+    expect([...storage.values.keys()].filter((key) => key.startsWith("marker/"))).toHaveLength(1);
+
+    const listed = await campaign.fetch(request("/markers"));
+    expect(await listed.json()).toMatchObject({
+      markers: [{ id: placedBody.marker.id, kind: "ATTACK", label: "FOCUS FIRE", own: true }],
+    });
+
+    const removed = await campaign.fetch(request("/markers", {
+      method: "POST",
+      body: JSON.stringify({
+        commandId: "marker-command-0002",
+        operation: "REMOVE",
+        markerId: placedBody.marker.id,
+      }),
+    }));
+    expect(removed.status).toBe(200);
+    await expect((await campaign.fetch(request("/markers"))).json()).resolves.toMatchObject({ markers: [] });
+  });
+
   it("hydrates governed Supply cargo and towing actions into the tactical state", async () => {
     const { campaign } = campaignObject();
     const response = await campaign.fetch(request("/state"));

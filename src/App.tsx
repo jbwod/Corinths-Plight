@@ -3,6 +3,8 @@ import type {
   AxialCoord,
   CampaignDeployment,
   CampaignEvent,
+  CampaignMarkerDto,
+  CampaignMarkerKind,
   CampaignView,
   Facing,
   OrderType,
@@ -205,6 +207,9 @@ async function errorMessage(response: Response): Promise<string> {
 
 function GameApp() {
   const [campaign, setCampaign] = useState<CampaignView>(initialCampaign);
+  const [campaignMarkers, setCampaignMarkers] = useState<CampaignMarkerDto[]>([]);
+  const [markerMode, setMarkerMode] = useState<CampaignMarkerKind>();
+  const [markerLabel, setMarkerLabel] = useState("");
   const [connection, setConnection] = useState<ConnectionState>("CONNECTING");
   const [now, setNow] = useState(() => Date.now());
   const [selectedUnitId, setSelectedUnitId] = useState("dep-rook-7");
@@ -260,10 +265,16 @@ function GameApp() {
   const loadCampaign = useCallback(async (quiet = false, requestedCampaignId = campaignId) => {
     if (!requestedCampaignId) return undefined;
     try {
-      const response = await fetch(`/api/campaigns/${requestedCampaignId}/state`, { headers: DEMO_HEADERS });
+      const [response, markerResponse] = await Promise.all([
+        fetch(`/api/campaigns/${requestedCampaignId}/state`, { headers: DEMO_HEADERS }),
+        fetch(`/api/campaigns/${requestedCampaignId}/markers`, { headers: DEMO_HEADERS }),
+      ]);
       if (!response.ok) throw new Error(await errorMessage(response));
+      if (!markerResponse.ok) throw new Error(await errorMessage(markerResponse));
       const next = (await response.json()) as CampaignView;
+      const markerBody = await markerResponse.json() as { markers?: CampaignMarkerDto[] };
       setCampaign(next);
+      setCampaignMarkers(Array.isArray(markerBody.markers) ? markerBody.markers : []);
       const latestEvent = [...next.events].sort((left, right) =>
         left.round - right.round || left.sequence - right.sequence
       ).at(-1);
@@ -843,6 +854,56 @@ function GameApp() {
     setNotice(undefined);
   }
 
+  async function placeCampaignMarker(coord: AxialCoord) {
+    if (!campaignId || !markerMode || busy) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/campaigns/${campaignId}/markers`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(DEMO_HEADERS ?? {}) },
+        body: JSON.stringify({
+          commandId: `marker-${crypto.randomUUID()}`,
+          operation: "PLACE",
+          kind: markerMode,
+          coord,
+          label: markerLabel,
+        }),
+      });
+      if (!response.ok) throw new Error(await errorMessage(response));
+      await loadCampaign(true, campaignId);
+      setMarkerLabel("");
+      setMarkerMode(undefined);
+      setNotice({ tone: "success", message: `${markerMode} marker shared at ${coord.q}.${coord.r}.` });
+    } catch (error) {
+      setNotice({ tone: "danger", message: error instanceof Error ? error.message : "Marker placement failed." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeCampaignMarker(markerId: string) {
+    if (!campaignId || busy) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/campaigns/${campaignId}/markers`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(DEMO_HEADERS ?? {}) },
+        body: JSON.stringify({
+          commandId: `marker-${crypto.randomUUID()}`,
+          operation: "REMOVE",
+          markerId,
+        }),
+      });
+      if (!response.ok) throw new Error(await errorMessage(response));
+      await loadCampaign(true, campaignId);
+      setNotice({ tone: "success", message: "Tactical marker cleared." });
+    } catch (error) {
+      setNotice({ tone: "danger", message: error instanceof Error ? error.message : "Marker removal failed." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function submitOrder(lifecycle: "DRAFT" | "SUBMITTED" = "SUBMITTED") {
     if (!campaignId || !selectedUnit || (lifecycle === "SUBMITTED" && !canSubmit)) return;
     const actions: Array<Partial<StructuredAction>> = [];
@@ -1223,6 +1284,27 @@ function GameApp() {
             </div>
             <span className="map-version">STATE v{campaign.version}</span>
           </div>
+          <div className="marker-tools" aria-label="Shared tactical marker controls">
+            <span>SHARED MARKER</span>
+            {(["PING", "MOVE", "ATTACK", "DEFEND", "SUPPORT"] as CampaignMarkerKind[]).map((kind) => (
+              <button
+                type="button"
+                className={markerMode === kind ? `active ${kind.toLowerCase()}` : kind.toLowerCase()}
+                key={kind}
+                aria-pressed={markerMode === kind}
+                disabled={campaign.phase !== "PLANNING" || busy}
+                onClick={() => setMarkerMode((current) => current === kind ? undefined : kind)}
+              >{kind}</button>
+            ))}
+            <input
+              aria-label="Optional tactical marker label"
+              maxLength={80}
+              placeholder={markerMode ? "OPTIONAL CALL-OUT" : "SELECT MARKER, THEN HEX"}
+              value={markerLabel}
+              disabled={!markerMode}
+              onChange={(event) => setMarkerLabel(event.target.value)}
+            />
+          </div>
           {campaign.outcome && (
             <div className={`campaign-terminal-overlay ${campaign.outcome.result.toLowerCase()}`} role="status">
               <span>{campaign.outcome.result === "VICTORY" ? "MISSION ACCOMPLISHED" : "MISSION FAILED"}</span>
@@ -1234,13 +1316,15 @@ function GameApp() {
           )}
           <HexMap
             campaign={campaign}
+            markers={campaignMarkers}
             layer={mapLayer}
             selectedUnitId={selectedUnit?.id}
             draftedRoute={draftedRoute}
             draftedFacing={draftedFacing}
             targetUnitId={targetUnitId}
             targetHex={actionMode === "BOMBARDMENT" ? selectedBombardmentHex : actionMode === "CONSTRUCT" ? selectedConstructionHex : undefined}
-            onMapClick={planDestination}
+            onMapClick={(coord, unit) => markerMode ? void placeCampaignMarker(coord) : planDestination(coord, unit)}
+            onRemoveMarker={(markerId) => void removeCampaignMarker(markerId)}
             onHover={(coord, unit) => setHovered({ coord, unit })}
           />
           <div className="hover-inspector">
