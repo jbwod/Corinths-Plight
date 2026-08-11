@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "46a841f20ad925e3ef766d092c63c04cb4146539cce66c1c27480bd937c98042",
+  "contentHash": "10985d65e84fb052986b14c3550968eba196796844e5392447263abc6c8492f1",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1585,7 +1585,27 @@ const snapshot = {
               "weapon-ifv-snub-autocannon"
             ]
           },
-          "execution": null,
+          "execution": {
+            "allowedActions": [
+              "ATTACK",
+              "LOAD",
+              "UNLOAD"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "RUSH"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "VEHICLE",
+              "ARMOURED",
+              "HEAVY",
+              "SUBSYSTEMS",
+              "TRANSPORT"
+            ]
+          },
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -8680,10 +8700,10 @@ const snapshot = {
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "BALANCE_REQUIRED",
         "availabilityStatus": "DEV_ONLY",
-        "executable": false,
+        "executable": true,
         "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "CP_201_CATALOGUE_HANDLER_CUTOVER_PENDING",
+        "handlerId": "foundation-generated-unit-class",
+        "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
@@ -8692,8 +8712,20 @@ const snapshot = {
             "UNLOAD",
             "AIRDROP"
           ],
+          "implementedSubset": [
+            "HITS",
+            "ARMOUR",
+            "AP",
+            "ATTACK",
+            "MOVEMENT",
+            "SUBSYSTEMS",
+            "INFANTRY_CARGO"
+          ],
+          "missing": [
+            "CREW_REPAIR"
+          ],
           "publicationCorrection": {
-            "reason": "The final seed claimed transport execution before a generated-catalogue campaign handler existed.",
+            "reason": "The generated tactical handler executes the V5 IFV chassis, Snub Auto-Cannon, subsystem failures, and six-FS infantry compartment; full-round Crew Repair remains gated.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": true,
@@ -14284,5 +14316,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "46a841f20ad925e3ef766d092c63c04cb4146539cce66c1c27480bd937c98042" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "10985d65e84fb052986b14c3550968eba196796844e5392447263abc6c8492f1" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

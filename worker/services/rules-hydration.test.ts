@@ -113,7 +113,6 @@ describe("server rules hydration", () => {
   });
 
   test.each([
-    "unit-infantry-fighting-vehicle",
     "unit-vtol",
     "unit-heavy-air-transport",
   ])("fails closed before non-handler transport %s can reach the replay catalogue", (definitionId) => {
@@ -124,6 +123,21 @@ describe("server rules hydration", () => {
     expect(result.authority).toMatchObject({
       definitionId,
       decision: { executable: false },
+    });
+  });
+
+  test("hydrates the executable IFV attack, subsystem, and infantry-cargo subset", () => {
+    const result = resolveUnitRulesAuthority(unitInput("unit-infantry-fighting-vehicle"), "development");
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.message);
+    expect(result.legacyDefinition).toMatchObject({
+      id: "unit-infantry-fighting-vehicle",
+      stats: { healthModel: "HITS", maxHealth: 3, armor: 2, speed: 2 },
+      allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+    });
+    expect(result.authority.profiles.cargoProfile).toMatchObject({
+      id: "cargo-ifv-infantry",
+      capacity: { kind: "MAXIMUM_FORCE_STRENGTH", maximumForceStrength: 6 },
     });
   });
 

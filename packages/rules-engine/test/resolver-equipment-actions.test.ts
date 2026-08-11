@@ -351,6 +351,28 @@ describe("equipment and transport actions", () => {
     ]);
   });
 
+  it("loads one full infantry squad into the governed IFV compartment", () => {
+    const base = createDemoCampaignState(1_000);
+    const ifv = base.deployments.find((unit) => unit.definitionId === "unit-infantry-fighting-vehicle")!;
+    const infantry = base.deployments.find((unit) => unit.definitionId === "unit-infantry-squad")!;
+    infantry.position = { ...ifv.position };
+    expect(ifv.cargoProfile).toMatchObject({
+      id: "cargo-ifv-infantry",
+      capacitySlotsQuarters: 4,
+      rules: [expect.objectContaining({ quantityPerSlot: 6 })],
+    });
+    const orders = [
+      order(base, ifv, [action("ifv-load-infantry", "LOAD", { targetDeploymentId: infantry.id })]),
+      order(base, infantry, [action("infantry-board-ifv", "LOAD", { targetDeploymentId: ifv.id })]),
+    ];
+    base.orders = orders;
+    const output = resolveRound({ ...input(orders), previousState: base });
+    expect(output.state.deployments.find((unit) => unit.id === ifv.id)?.cargo).toContainEqual(
+      expect.objectContaining({ unitId: infantry.id, kind: "PERSONNEL", quantity: 6 }),
+    );
+    expect(output.state.deployments.find((unit) => unit.id === infantry.id)?.locationState).toBe("EMBARKED");
+  });
+
   it("counts onboard Small Supply against Logi capacity before loading units", () => {
     const base = createDemoCampaignState(1_000);
     const logi = base.deployments.find((unit) => unit.definitionId === "unit-logi-truck")!;

@@ -438,6 +438,20 @@ test("tactical API rejects client-authored action economy", async ({ page }) => 
   await ensurePlayableK17(page);
   await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
 
+  const foundation = await page.request.get("/api/campaigns/outpost-k17/state", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(foundation.status()).toBe(200);
+  await expect(foundation.json()).resolves.toMatchObject({
+    deployments: expect.arrayContaining([
+      expect.objectContaining({
+        definitionId: "unit-infantry-fighting-vehicle",
+        callsign: "CARR-6",
+        allowedActions: expect.arrayContaining(["ATTACK", "LOAD", "UNLOAD"]),
+      }),
+    ]),
+  });
+
   const rejected = await page.evaluate(async () => {
     const response = await fetch("/api/campaigns/outpost-k17/orders", {
       method: "POST",

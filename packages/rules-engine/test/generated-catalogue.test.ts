@@ -105,7 +105,7 @@ describe("rules catalogue bootstrap", () => {
     expect(content.movementProfiles.every((profile) => profile.definitionStatus === "unspecified")).toBe(true);
 
     const overlays = new Map(content.overlays.map((overlay) => [`${overlay.definitionKind}:${overlay.definitionId}`, overlay]));
-    for (const unitId of ["unit-heavy-air-transport", "unit-infantry-fighting-vehicle", "unit-vtol"]) {
+    for (const unitId of ["unit-heavy-air-transport", "unit-vtol"]) {
       expect(overlays.get(`UNIT:${unitId}`)).toMatchObject({
         implementationStatus: "PARTIAL",
         executable: false,
@@ -114,6 +114,12 @@ describe("rules catalogue bootstrap", () => {
       });
     }
     expect(overlays.get("UNIT:unit-logi-truck")).toMatchObject({
+      implementationStatus: "PARTIAL",
+      executable: true,
+      handlerId: "foundation-generated-unit-class",
+      reasonCode: "MISSING_CANONICAL_PRICE",
+    });
+    expect(overlays.get("UNIT:unit-infantry-fighting-vehicle")).toMatchObject({
       implementationStatus: "PARTIAL",
       executable: true,
       handlerId: "foundation-generated-unit-class",
@@ -156,6 +162,7 @@ describe("rules catalogue bootstrap", () => {
       "UNIT:unit-artillery",
       "UNIT:unit-combat-medic",
       "UNIT:unit-engineers",
+      "UNIT:unit-infantry-fighting-vehicle",
       "UNIT:unit-infantry-squad",
       "UNIT:unit-light-vehicle",
       "UNIT:unit-logi-truck",

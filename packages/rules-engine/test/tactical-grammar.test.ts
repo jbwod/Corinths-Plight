@@ -70,6 +70,14 @@ describe("generated tactical grammar", () => {
       allowedActions: ["RESUPPLY", "LOAD", "UNLOAD"],
       weapons: [],
     });
+    expect(getTacticalUnitClass("unit-infantry-fighting-vehicle")).toMatchObject({
+      category: "ARMOUR",
+      tags: expect.arrayContaining(["ARMOURED", "SUBSYSTEMS", "TRANSPORT"]),
+      stats: { healthModel: "HITS", maxHealth: 3, armor: 2, speed: 2, capacity: 1 },
+      allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+      allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+      weapons: [expect.objectContaining({ id: "weapon-ifv-snub-autocannon", range: 1, armorPiercing: 1 })],
+    });
   });
 
   it("materializes the V5 subsystem malfunction profile from the governed durability record", () => {

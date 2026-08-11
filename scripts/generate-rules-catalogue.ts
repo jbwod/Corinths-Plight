@@ -480,6 +480,12 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
     allowedActions: ["ATTACK", "DIG_IN", "TRENCH_UPGRADE", "LOAD", "UNLOAD"],
   },
+  "unit-infantry-fighting-vehicle": {
+    capacity: 1,
+    tags: ["GROUND", "VEHICLE", "ARMOURED", "HEAVY", "SUBSYSTEMS", "TRANSPORT"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+    allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+  },
   "unit-light-vehicle": {
     capacity: 1,
     tags: ["GROUND", "VEHICLE", "SUB_SYSTEM", "EVASIVE"],
@@ -827,9 +833,13 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     explanation: "The final seed claimed transport execution before a generated-catalogue campaign handler existed.",
   },
   "UNIT:unit-infantry-fighting-vehicle": {
-    implementationStatus: "PARTIAL", executable: false, handlerId: null,
-    reasonCode: "CP_201_CATALOGUE_HANDLER_CUTOVER_PENDING",
-    explanation: "The final seed claimed transport execution before a generated-catalogue campaign handler existed.",
+    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: "MISSING_CANONICAL_PRICE",
+    parameters: {
+      implementedSubset: ["HITS", "ARMOUR", "AP", "ATTACK", "MOVEMENT", "SUBSYSTEMS", "INFANTRY_CARGO"],
+      missing: ["CREW_REPAIR"],
+    },
+    explanation: "The generated tactical handler executes the V5 IFV chassis, Snub Auto-Cannon, subsystem failures, and six-FS infantry compartment; full-round Crew Repair remains gated.",
   },
   "UNIT:unit-logi-truck": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
