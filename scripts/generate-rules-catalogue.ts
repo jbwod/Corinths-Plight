@@ -460,7 +460,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     capacity: 1,
     tags: ["GROUND", "PERSONNEL", "ARTILLERY", "INDIRECT", "DEPLOYABLE"],
     allowedOrders: ["HOLD", "ADVANCE"],
-    allowedActions: ["ATTACK", "BOMBARDMENT", "DEPLOY", "PACK_UP", "RELOAD"],
+    allowedActions: ["ATTACK", "BOMBARDMENT", "DEPLOY", "PACK_UP", "RELOAD", "LOAD", "UNLOAD"],
   },
   "unit-combat-medic": {
     capacity: 1,
@@ -490,7 +490,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     capacity: 1,
     tags: ["GROUND", "VEHICLE", "LOGISTICS", "TRANSPORT"],
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-    allowedActions: ["RESUPPLY"],
+    allowedActions: ["RESUPPLY", "LOAD", "UNLOAD"],
   },
   "unit-main-battle-tank": {
     capacity: 1,
@@ -798,7 +798,7 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "EXPERIMENTAL_DAMAGE_PROFILE",
     parameters: {
-      implementedSubset: ["FS", "MOVEMENT", "DEPLOY_PACK_STATE", "BOMBARDMENT", "EXPERIMENTAL_ATTACK"],
+      implementedSubset: ["FS", "MOVEMENT", "DEPLOY_PACK_STATE", "BOMBARDMENT", "TOWING", "EXPERIMENTAL_ATTACK"],
       missing: ["FUNNEL", "ANTI_ORBITAL"],
     },
     explanation: "Artillery can deploy/pack and use the V5 Bombardment defense-suppression action while Funnel remains deferred.",
@@ -835,17 +835,17 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["HITS", "MOVEMENT", "ARTILLERY_SMALL_SUPPLY_TRANSFER"],
-      missing: ["TOWING", "PASSENGER_CARGO", "COORDINATED_AIRDROP", "GENERAL_RESUPPLY"],
+      implementedSubset: ["HITS", "MOVEMENT", "ARTILLERY_SMALL_SUPPLY_TRANSFER", "SUPPLY_CARGO", "PASSENGER_CARGO", "ARTILLERY_TOWING"],
+      missing: ["COORDINATED_AIRDROP", "GENERAL_RESUPPLY"],
     },
-    explanation: "The generated tactical handler executes the V5 Logi chassis and its narrow one-crate Artillery reload path; wider cargo and logistics remain gated.",
+    explanation: "The generated tactical handler executes the V5 Logi chassis, capacity-counted Small Supply and unit cargo, packed Artillery towing, and the narrow one-crate Artillery reload path; wider logistics remain gated.",
   },
   "UNIT:unit-light-vehicle": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["HITS", "ATTACK", "MOVEMENT", "SUBSYSTEMS", "RAPID_FIRE", "EVASIVE"],
-      missing: ["CARGO"],
+      implementedSubset: ["HITS", "ATTACK", "MOVEMENT", "SUBSYSTEMS", "RAPID_FIRE", "EVASIVE", "PASSENGER_OR_SUPPLY_CARGO"],
+      missing: [],
     },
     explanation: "Subsystem malfunctions and Evasive movement now resolve through the generated tactical handler.",
   },

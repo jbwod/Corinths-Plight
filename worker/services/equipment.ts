@@ -9,7 +9,7 @@ import type {
   WeaponProfile,
 } from "../../packages/domain/src";
 import { RULESET_VERSION } from "../../packages/domain/src";
-import { buildEffectiveUnit, normalizeTacticalSupplyInventory } from "../../packages/rules-engine/src";
+import { buildEffectiveUnit, normalizeTacticalSupplyInventory, projectGovernedCargoProfile } from "../../packages/rules-engine/src";
 import type { Env } from "../env";
 import type { LoadoutChangeCommand, PurchaseEquipmentCommand } from "../equipment-validation";
 import { commandHash } from "../forces-validation";
@@ -301,6 +301,9 @@ export async function buildStoredEffectiveUnit(
       terrainCostMode: mode === "GROUND" ? "BATTLEFIELD" : "FLAT",
     },
     durabilityProfile,
+    cargoProfile: rulesResolution.authority.profiles.cargoProfile
+      ? projectGovernedCargoProfile(rulesResolution.authority.profiles.cargoProfile)
+      : undefined,
     abilities: abilityRefs,
     deploymentProfile: context.deployment_profile_id ? { id: context.deployment_profile_id, allowedLocationStates: ["RESERVE", "ON_SHIP"], requiredTags: [], prohibitedStatuses: ["DESTROYED"] } : undefined,
   };

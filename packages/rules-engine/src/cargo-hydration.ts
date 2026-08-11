@@ -10,6 +10,7 @@ import {
   type CargoSlotConversionV1,
   type CargoSlotConversionsCapacityV1,
   type CargoTowRuleV1,
+  type CargoProfile,
   type GovernedCargoCapacityV1,
   type GovernedCargoLoadingRulesV1,
   type GovernedCargoProfileV1,
@@ -406,4 +407,88 @@ export function hydrateGovernedCargoProfile(
     if (error instanceof CargoHydrationError) return { ok: false, issues: [error.issue] };
     throw error;
   }
+}
+
+/**
+ * Projects a governed catalogue profile into the tactical manifest model.
+ * The projection is lossless for the currently executable ground transports:
+ * fixed Standard Actions cost 0.5 Speed, slot conversions retain quarter-slot
+ * capacity, and alternative modes become mutually-exclusive load groups.
+ */
+export function projectGovernedCargoProfile(profile: GovernedCargoProfileV1): CargoProfile {
+  const flatCost = profile.loading.cost.kind === "STANDARD_ACTION" ? 2 : undefined;
+  const perSlotCost = profile.loading.cost.kind === "STANDARD_ACTION_PER_SLOT"
+    ? profile.loading.cost.costPerCargoSlotQuarters
+    : undefined;
+  const common = {
+    id: profile.id,
+    allowMixedLoadGroups: profile.capacity.mixedLoadingPolicy !== "MUTUALLY_EXCLUSIVE",
+    embarkFlatSpeedCostQuarters: flatCost,
+    disembarkFlatSpeedCostQuarters: flatCost,
+    embarkSpeedCostQuartersPerCargoSlot: perSlotCost,
+    disembarkSpeedCostQuartersPerCargoSlot: perSlotCost,
+    handlerId: "governed-cargo-v1",
+  };
+  if (profile.capacity.kind === "SLOT_CONVERSIONS") {
+    return {
+      ...common,
+      capacitySlotsQuarters: profile.capacity.slotCapacityQuarters,
+      rules: profile.capacity.conversions.map((conversion, index) => {
+        if (conversion.kind === "RESOURCE_QUANTITY") {
+          return {
+            id: `${profile.id}:conversion:${index}`,
+            cargoKind: "SUPPLY" as const,
+            supplyType: conversion.resourceType,
+            quantityPerSlot: conversion.quantity,
+          };
+        }
+        if (conversion.kind === "MAXIMUM_FORCE_STRENGTH") {
+          return {
+            id: `${profile.id}:conversion:${index}`,
+            cargoKind: "PERSONNEL" as const,
+            requiredTags: [...conversion.itemTagsAny],
+            quantityPerSlot: conversion.maximumForceStrength,
+          };
+        }
+        return {
+          id: `${profile.id}:conversion:${index}`,
+          requiredTags: [...conversion.itemTagsAny],
+          slotsPerItemQuarters: conversion.slotCostQuarters,
+        };
+      }),
+      towCapacity: profile.capacity.tow?.count,
+      towRequiredTags: profile.capacity.tow ? [...profile.capacity.tow.itemTagsAny] : undefined,
+    };
+  }
+  if (profile.capacity.kind === "MAXIMUM_FORCE_STRENGTH") {
+    return {
+      ...common,
+      capacitySlotsQuarters: 4,
+      rules: [{
+        id: `${profile.id}:force-strength`,
+        cargoKind: "PERSONNEL",
+        requiredTags: [...profile.capacity.itemTagsAny],
+        quantityPerSlot: profile.capacity.maximumForceStrength,
+      }],
+    };
+  }
+  return {
+    ...common,
+    capacitySlotsQuarters: 4,
+    rules: profile.capacity.modes.map((mode, index) => mode.kind === "RESOURCE_QUANTITY"
+      ? {
+          id: `${profile.id}:mode:${index}`,
+          cargoKind: "SUPPLY" as const,
+          supplyType: mode.resourceType,
+          quantityPerSlot: mode.quantity,
+          loadGroup: `${profile.id}:mode:${index}`,
+        }
+      : {
+          id: `${profile.id}:mode:${index}`,
+          cargoKind: "PERSONNEL" as const,
+          requiredTags: [...mode.itemTagsAny],
+          quantityPerSlot: mode.maximumForceStrength,
+          loadGroup: `${profile.id}:mode:${index}`,
+        }),
+  };
 }

@@ -23,6 +23,7 @@ import {
   resolveTacticalCover,
   shortestPath,
   structureInstanceMatches,
+  validateCargoManifest,
   type ConstructibleFieldworkId,
 } from "../packages/rules-engine/src";
 import brandMark from "../app/static/img/brand-icon.gif";
@@ -363,6 +364,9 @@ function GameApp() {
   const dugIn = selectedUnit?.statuses.includes("DUG_IN") === true;
   const artilleryWeapon = selectedUnit?.weapons.find((weapon) => weapon.indirect) ?? selectedUnit?.weapons[0];
   const medicalSupplyCapacity = selectedUnit ? Math.max(0, Math.floor(selectedUnit.currentHealth)) : 0;
+  const selectedCargoValidation = selectedUnit?.cargoProfile
+    ? validateCargoManifest(selectedUnit.cargoProfile, selectedUnit.cargo ?? [])
+    : undefined;
   const executableComposerActions = composerActionModes.filter((type) =>
     selectedAllowedActions.includes(type) &&
     getTacticalActionRule(type).executable &&
@@ -415,8 +419,16 @@ function GameApp() {
   ) : [];
   const loadTargets = selectedUnit
     ? selectedUnit.cargoProfile
-      ? coLocatedAllies.filter((deployment) => (deployment.locationState ?? "ON_MAP") === "ON_MAP")
-      : coLocatedAllies.filter((deployment) => deployment.cargoProfile !== undefined)
+      ? coLocatedAllies.filter((deployment) =>
+          (deployment.locationState ?? "ON_MAP") === "ON_MAP" &&
+          (!deployment.tags?.includes("ARTILLERY") ||
+            ((selectedUnit.cargoProfile?.towCapacity ?? 0) > 0 && deployment.artilleryDeployment !== "DEPLOYED"))
+        )
+      : coLocatedAllies.filter((deployment) =>
+          deployment.cargoProfile !== undefined &&
+          (!selectedUnit.tags?.includes("ARTILLERY") ||
+            ((deployment.cargoProfile?.towCapacity ?? 0) > 0 && selectedUnit.artilleryDeployment !== "DEPLOYED"))
+        )
     : [];
   const unloadTargets = selectedUnit
     ? selectedUnit.cargoProfile
@@ -482,6 +494,11 @@ function GameApp() {
           ? resupplyTargets
         : [];
   const supportTarget = supportTargets.find((deployment) => deployment.id === supportTargetUnitId) ?? supportTargets[0];
+  const cargoPairIsTow = Boolean(
+    supportTarget &&
+    (selectedUnit?.tags?.includes("ARTILLERY") || supportTarget.tags?.includes("ARTILLERY")) &&
+    ((selectedUnit?.cargoProfile?.towCapacity ?? 0) > 0 || (supportTarget.cargoProfile?.towCapacity ?? 0) > 0),
+  );
   const repairableSubsystems = supportTarget?.subsystems?.filter((subsystem) => subsystem.state !== "OPERATIONAL") ?? [];
   const selectedRepairSubsystem = repairableSubsystems.find((subsystem) => subsystem.subsystemId === repairSubsystemId)
     ?? repairableSubsystems[0];
@@ -610,9 +627,9 @@ function GameApp() {
       : actionMode === "RELOAD" && selectedWeapon
         ? `reload ${selectedWeapon.name} using one Small Supply`
       : actionMode === "LOAD" && supportTarget
-        ? `coordinate loading with ${supportTarget.callsign}`
+        ? `${cargoPairIsTow ? "hitch for towing" : "coordinate loading"} with ${supportTarget.callsign}`
         : actionMode === "UNLOAD" && supportTarget
-          ? `coordinate unloading with ${supportTarget.callsign}`
+          ? `${cargoPairIsTow ? "unhitch" : "coordinate unloading"} with ${supportTarget.callsign}`
           : actionMode === "HEAL" && supportTarget
             ? `give First Aid to ${supportTarget.callsign}`
           : actionMode === "REPAIR" && supportTarget
@@ -1135,6 +1152,20 @@ function GameApp() {
                   <span><small>SENSORS</small><b>{selectedUnit.stats.sensors}</b></span>
                   <span><small>FACING</small><b>{FACING_LABELS[selectedUnit.facing]}</b></span>
                 </div>
+                {selectedCargoValidation && (
+                  <p className={`validation ${selectedCargoValidation.legal ? "" : "danger"}`}>
+                    CARGO {selectedCargoValidation.slotsUsedQuarters / 4}/{selectedCargoValidation.capacitySlotsQuarters / 4} SLOTS
+                    {(selectedUnit.cargo ?? []).length > 0
+                      ? ` · ${(selectedUnit.cargo ?? []).map((item) =>
+                          item.transportMode === "TOWED"
+                            ? `TOWING ${campaign.deployments.find((unit) => unit.id === item.unitId)?.callsign ?? item.unitId ?? "UNIT"}`
+                            : item.kind === "SUPPLY"
+                              ? `${item.quantity} ${String(item.supplyType ?? "SUPPLY").replaceAll("_", " ")}`
+                              : campaign.deployments.find((unit) => unit.id === item.unitId)?.callsign ?? item.kind
+                        ).join(" · ")}`
+                      : " · EMPTY"}
+                  </p>
+                )}
               </div>
 
               <section className="composer-step">
@@ -1535,8 +1566,12 @@ function GameApp() {
                     </select>
                     <p className="validation">
                       {actionMode === "LOAD"
-                        ? "Carrier and cargo must be co-located and both submit matching Load actions."
-                        : "Carrier and embarked cargo must both submit matching Unload actions before lock."}
+                        ? cargoPairIsTow
+                          ? "Packed Artillery and Logi must be co-located and both submit matching Load actions to hitch. Towing uses no cargo slot."
+                          : "Carrier and cargo must be co-located and both submit matching Load actions."
+                        : cargoPairIsTow
+                          ? "Logi and towed Artillery must both submit matching Unload actions to unhitch in the carrier hex."
+                          : "Carrier and embarked cargo must both submit matching Unload actions before lock."}
                     </p>
                     {supportTargets.length === 0 && (
                       <p className="validation danger">

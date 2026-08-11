@@ -161,6 +161,28 @@ function orderBody(overrides: Record<string, unknown> = {}): string {
 }
 
 describe("CampaignDurableObject campaign contracts", () => {
+  it("hydrates governed Supply cargo and towing actions into the tactical state", async () => {
+    const { campaign } = campaignObject();
+    const response = await campaign.fetch(request("/state"));
+    expect(response.status).toBe(200);
+    const view = await response.json() as {
+      deployments: Array<{
+        definitionId: string;
+        allowedActions?: string[];
+        cargo?: Array<Record<string, unknown>>;
+      }>;
+    };
+    expect(view.deployments.find((deployment) => deployment.definitionId === "unit-logi-truck")?.cargo)
+      .toContainEqual(expect.objectContaining({
+        kind: "SUPPLY",
+        supplyType: "SMALL_SUPPLY",
+        quantity: 5,
+        transportMode: "STOWED",
+      }));
+    expect(view.deployments.find((deployment) => deployment.definitionId === "unit-artillery")?.allowedActions)
+      .toEqual(expect.arrayContaining(["LOAD", "UNLOAD"]));
+  });
+
   it("accepts a governed Logi transfer without trusting client quantity or economy", async () => {
     const { campaign, storage } = campaignObject();
     expect((await campaign.fetch(request("/state"))).status).toBe(200);

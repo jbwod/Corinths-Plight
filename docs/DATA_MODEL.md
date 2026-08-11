@@ -78,7 +78,7 @@ Every definition table has composite PK `(id, ruleset_id)` and a foreign key to 
 
 Definition status is lower-case `active`, `experimental`, `legacy`, or `incomplete`. JSON columns have syntax checks; table-specific numeric/boolean checks are in the migration.
 
-The running `/api/rulesets/v5-core-curated` endpoint serves the redacted, hash-bearing `v5-core-curated@2` generated catalogue. Six allied classes currently have registered tactical execution projections; the D1 Phase-2 catalogue still stores all thirteen V5 starting classes plus three companion catalogue classes under the legacy `@1` relational identity. Runtime hydration fails closed when a D1 record lacks the matching generated handler, but D1 publication and instance foreign keys have not yet fully moved to `@2`, so the catalogue cutover remains partial rather than a single storage authority.
+The running `/api/rulesets/v5-core-curated` endpoint serves the redacted, hash-bearing `v5-core-curated@2` generated catalogue. Seven allied classes currently have registered tactical execution projections; the D1 Phase-2 catalogue still stores all thirteen V5 starting classes plus three companion catalogue classes under the legacy `@1` relational identity. Runtime hydration fails closed when a D1 record lacks the matching generated handler, but D1 publication and instance foreign keys have not yet fully moved to `@2`, so the catalogue cutover remains partial rather than a single storage authority.
 
 ### 3.4 Persistent forces and economy
 

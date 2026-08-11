@@ -342,10 +342,7 @@ export function resolveUnitExecutionAdapter(
   }
   try {
     const legacyDefinition = unitHandlerAdapters.get(handlerId)!(definitionId);
-    const profileBindings = generatedUnitProfileBindings(definitionId);
-    const governedCargo = governedCargoProfile(profileBindings.cargoProfileId);
-    const executableActions = executableLegacyActions(legacyDefinition, mode)
-      .filter(({ type }) => governedCargo === null || (type !== "LOAD" && type !== "UNLOAD"));
+    const executableActions = executableLegacyActions(legacyDefinition, mode);
     return {
       ok: true,
       code,

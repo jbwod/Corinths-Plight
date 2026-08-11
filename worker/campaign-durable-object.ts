@@ -14,11 +14,13 @@ import {
   createScenarioCampaignState,
   getFieldworkDefinition,
   getTacticalActionRule,
+  getTacticalCargoProfile,
   getTacticalOrderRule,
   hexDistance,
   isConstructibleFieldworkId,
   projectCampaignState,
   resolveRound,
+  synchronizeSupplyCargo,
   transferLogiArtillerySupply,
   validateArtilleryFire,
   validateOrder,
@@ -155,7 +157,8 @@ export class CampaignDurableObject extends DurableObject<Env> {
     return Number.isFinite(parsed) && parsed >= 1_000 ? parsed : 30_000;
   }
 
-  private assertAlliedExecutionSupport(state: CampaignRuntimeState): void {
+  private hydrateAlliedExecutionSupport(state: CampaignRuntimeState): boolean {
+    let changed = false;
     for (const deployment of state.deployments) {
       if (deployment.side !== "ALLIED") continue;
       const execution = resolveUnitExecutionAdapter(
@@ -168,15 +171,50 @@ export class CampaignDurableObject extends DurableObject<Env> {
           `CAMPAIGN_UNIT_DEFINITION_NOT_EXECUTABLE:${deployment.definitionId}:${execution.code}`,
         );
       }
+      const allowedActions = [...new Set([...(deployment.allowedActions ?? []), ...execution.allowedActionTypes])]
+        .filter((action): action is NonNullable<CampaignDeployment["allowedActions"]>[number] =>
+          execution.allowedActionTypes.includes(action));
+      if (JSON.stringify(allowedActions) !== JSON.stringify(deployment.allowedActions ?? [])) {
+        deployment.allowedActions = allowedActions;
+        changed = true;
+      }
+      const allowedOrders = [...new Set([...(deployment.allowedOrders ?? []), ...execution.allowedOrderTypes])]
+        .filter((order): order is NonNullable<CampaignDeployment["allowedOrders"]>[number] =>
+          execution.allowedOrderTypes.includes(order));
+      if (JSON.stringify(allowedOrders) !== JSON.stringify(deployment.allowedOrders ?? [])) {
+        deployment.allowedOrders = allowedOrders;
+        changed = true;
+      }
+      if (!deployment.cargoProfile) {
+        const cargoProfile = getTacticalCargoProfile(deployment.definitionId);
+        if (cargoProfile) {
+          deployment.cargoProfile = cargoProfile;
+          deployment.cargo ??= [];
+          changed = true;
+        }
+      }
+      if (deployment.cargoProfile) {
+        const synchronizedCargo = synchronizeSupplyCargo(
+          deployment.cargoProfile,
+          deployment.cargo ?? [],
+          deployment.supplies ?? {},
+          `campaign-cargo:${state.campaignId}:${deployment.id}:supply`,
+        );
+        if (JSON.stringify(synchronizedCargo) !== JSON.stringify(deployment.cargo ?? [])) {
+          deployment.cargo = synchronizedCargo;
+          changed = true;
+        }
+      }
     }
+    return changed;
   }
 
   private async getState(): Promise<CampaignRuntimeState> {
     const stored = await this.ctx.storage.get<unknown>(STATE_KEY);
     if (stored !== undefined) {
       const parsed = parseCampaignStoredState(stored, this.campaignId());
-      this.assertAlliedExecutionSupport(parsed.state);
-      if (parsed.legacy) await this.ctx.storage.put(STATE_KEY, encodeCampaignStoredState(parsed.state));
+      const hydrated = this.hydrateAlliedExecutionSupport(parsed.state);
+      if (parsed.legacy || hydrated) await this.ctx.storage.put(STATE_KEY, encodeCampaignStoredState(parsed.state));
       return parsed.state;
     }
     const created = this.campaignId() === FOUNDATION_CAMPAIGN_ID && this.env.ENVIRONMENT === "development"
@@ -189,7 +227,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       this.configuredDuration(),
       this.configuredLockLead(),
     );
-    this.assertAlliedExecutionSupport(created);
+    this.hydrateAlliedExecutionSupport(created);
     await this.ctx.storage.put(STATE_KEY, encodeCampaignStoredState(created));
     await this.scheduleNextAlarm(created);
     return created;
@@ -230,6 +268,40 @@ export class CampaignDurableObject extends DurableObject<Env> {
         persistent_unit_id: string; ruleset_id: string; definition_id: string; callsign: string;
       }>();
     if (rows.results.length === 0) throw new Error("CAMPAIGN_NOT_INITIALISED");
+    const supplyRows = await this.env.DB.prepare(`SELECT supplies.player_unit_id,
+        supplies.resource_type,supplies.current_quantity
+      FROM player_unit_supplies AS supplies
+      JOIN deployments ON deployments.player_unit_id=supplies.player_unit_id
+      WHERE deployments.campaign_id=?1
+        AND deployments.status IN ('READY','ACTIVE','IMMOBILISED')
+      ORDER BY supplies.player_unit_id,supplies.resource_type`).bind(campaign.id).all<{
+        player_unit_id: string;
+        resource_type: string;
+        current_quantity: number;
+      }>();
+    const liveSuppliesByUnit = new Map<string, Record<string, number>>();
+    for (const supply of supplyRows.results) {
+      const inventory = liveSuppliesByUnit.get(supply.player_unit_id) ?? {};
+      inventory[supply.resource_type] = supply.current_quantity;
+      liveSuppliesByUnit.set(supply.player_unit_id, inventory);
+    }
+    const cargoRows = await this.env.DB.prepare(`SELECT cargo.carrier_unit_id,cargo.carried_unit_id,
+        cargo.transport_mode,cargo.state_json
+      FROM unit_cargo_items AS cargo
+      JOIN deployments AS carrier_deployment
+        ON carrier_deployment.player_unit_id=cargo.carrier_unit_id AND carrier_deployment.campaign_id=?1
+      JOIN deployments AS passenger_deployment
+        ON passenger_deployment.player_unit_id=cargo.carried_unit_id AND passenger_deployment.campaign_id=?1
+      WHERE cargo.state='LOADED' AND cargo.carried_unit_id IS NOT NULL
+      ORDER BY cargo.id`).bind(campaign.id).all<{
+        carrier_unit_id: string;
+        carried_unit_id: string;
+        transport_mode: "STOWED" | "EMBARKED" | "TOWED" | "AIRLIFTED";
+        state_json: string;
+      }>();
+    const activeCarrierByPassenger = new Map(
+      cargoRows.results.map((cargo) => [cargo.carried_unit_id, cargo.carrier_unit_id]),
+    );
     const alliedDeployments = rows.results.map((row): CampaignDeployment => {
       const snapshot = JSON.parse(row.snapshot_json) as Record<string, unknown>;
       const execution = resolveUnitExecutionAdapter(row.ruleset_id, row.definition_id, this.env.ENVIRONMENT);
@@ -281,31 +353,51 @@ export class CampaignDurableObject extends DurableObject<Env> {
         subsystems: Array.isArray(snapshot.subsystems)
           ? snapshot.subsystems as CampaignDeployment["subsystems"]
           : [],
-        supplies: snapshot.supplies && typeof snapshot.supplies === "object"
-          ? snapshot.supplies as CampaignDeployment["supplies"]
-          : {},
+        supplies: liveSuppliesByUnit.get(row.persistent_unit_id) ?? (
+          snapshot.supplies && typeof snapshot.supplies === "object"
+            ? snapshot.supplies as CampaignDeployment["supplies"]
+            : {}
+        ),
         cargo: [],
         cargoProfile: snapshot.cargoProfile && typeof snapshot.cargoProfile === "object"
           ? snapshot.cargoProfile as CampaignDeployment["cargoProfile"]
-          : undefined,
-        locationState: typeof snapshot.carrierUnitId === "string" ? "EMBARKED" : "ON_MAP",
+          : getTacticalCargoProfile(row.definition_id),
+        locationState: activeCarrierByPassenger.has(row.persistent_unit_id) ? "EMBARKED" : "ON_MAP",
       };
     });
-    for (const row of rows.results) {
-      const snapshot = JSON.parse(row.snapshot_json) as Record<string, unknown>;
-      if (typeof snapshot.carrierUnitId !== "string") continue;
-      const carrier = alliedDeployments.find((deployment) => deployment.persistentUnitId === snapshot.carrierUnitId);
-      const cargo = alliedDeployments.find((deployment) => deployment.persistentUnitId === row.persistent_unit_id);
+    for (const cargoRow of cargoRows.results) {
+      const carrier = alliedDeployments.find((deployment) => deployment.persistentUnitId === cargoRow.carrier_unit_id);
+      const cargo = alliedDeployments.find((deployment) => deployment.persistentUnitId === cargoRow.carried_unit_id);
       if (!carrier || !cargo) continue;
+      let storedState: Record<string, unknown> = {};
+      try { storedState = JSON.parse(cargoRow.state_json) as Record<string, unknown>; } catch { /* legacy row */ }
       cargo.position = { ...carrier.position };
       carrier.cargo = [...(carrier.cargo ?? []), {
         id: `campaign-cargo:${campaign.id}:${cargo.id}`,
         kind: cargo.stats.healthModel === "FORCE_STRENGTH" ? "PERSONNEL" : "VEHICLE",
-        quantity: 1,
-        tags: cargo.stats.healthModel === "FORCE_STRENGTH" ? ["INFANTRY"] : ["VEHICLE"],
-        transportMode: "EMBARKED",
+        quantity: typeof storedState.tacticalQuantity === "number"
+          ? storedState.tacticalQuantity
+          : cargo.stats.healthModel === "FORCE_STRENGTH" ? cargo.currentHealth : 1,
+        tags: Array.isArray(storedState.tags)
+          ? storedState.tags.filter((tag): tag is string => typeof tag === "string")
+          : [...(cargo.tags ?? [])],
+        transportMode: cargoRow.transport_mode === "AIRLIFTED"
+          ? "AIRLIFTED"
+          : cargoRow.transport_mode === "TOWED"
+            ? "TOWED"
+            : "EMBARKED",
         unitId: cargo.id,
       }];
+      if (cargoRow.transport_mode === "TOWED") carrier.towedUnitId = cargo.id;
+    }
+    for (const deployment of alliedDeployments) {
+      if (!deployment.cargoProfile) continue;
+      deployment.cargo = synchronizeSupplyCargo(
+        deployment.cargoProfile,
+        deployment.cargo ?? [],
+        deployment.supplies ?? {},
+        `campaign-cargo:${campaign.id}:${deployment.id}:supply`,
+      );
     }
     return createScenarioCampaignState({
       mapSourceKey: campaign.map_source_key,
@@ -606,10 +698,12 @@ export class CampaignDurableObject extends DurableObject<Env> {
           ? effect.payload.supplies as Record<string, number> : {};
         const locationState = typeof effect.payload.locationState === "string" ? effect.payload.locationState : "ON_MAP";
         statements.push(this.env.DB.prepare(`UPDATE player_units SET ammunition_json = ?1,
-          location_state = ?2,
-          current_health = CASE WHEN status = 'DESTROYED' OR ?3 < 0 THEN current_health ELSE ?3 END,
-          version = version + 1, updated_at = unixepoch() WHERE id = ?4`)
-          .bind(JSON.stringify(ammunition), locationState,
+          location_kind = CASE WHEN status='DESTROYED' THEN location_kind ELSE 'CAMPAIGN' END,
+          location_state = CASE WHEN status='DESTROYED' THEN location_state ELSE ?2 END,
+          location_id = CASE WHEN status='DESTROYED' THEN location_id ELSE ?3 END,
+          current_health = CASE WHEN status = 'DESTROYED' OR ?4 < 0 THEN current_health ELSE ?4 END,
+          version = version + 1, updated_at = unixepoch() WHERE id = ?5`)
+          .bind(JSON.stringify(ammunition), locationState, campaignId,
             Number.isFinite(currentHealth) ? currentHealth : -1, effect.unitId));
         for (const [weaponId, amount] of Object.entries(ammunition)) {
           statements.push(this.env.DB.prepare(`UPDATE player_unit_weapon_mounts SET current_ammo = ?1,
@@ -642,18 +736,22 @@ export class CampaignDurableObject extends DurableObject<Env> {
         const cargo = Array.isArray(effect.payload.cargo) ? effect.payload.cargo as Array<Record<string, unknown>> : [];
         statements.push(this.env.DB.prepare(`DELETE FROM unit_cargo_items
           WHERE carrier_unit_id = ?1 AND state = 'LOADED'`).bind(effect.unitId));
+        statements.push(this.env.DB.prepare(`UPDATE unit_cargo_manifests SET revision=revision+1,
+          updated_at=unixepoch() WHERE carrier_unit_id=?1`).bind(effect.unitId));
         for (const item of cargo) {
           if (typeof item.id !== "string" || typeof item.kind !== "string" || typeof item.quantity !== "number") continue;
           statements.push(this.env.DB.prepare(`INSERT INTO unit_cargo_items (
             id,carrier_unit_id,item_kind,carried_unit_id,reference_id,resource_type,
             quantity,transport_mode,cargo_slots_quarters,state,state_json
-          ) SELECT ?1,?2,?3,?4,NULL,?5,?6,?7,?8,'LOADED','{}'
+          ) SELECT ?1,?2,?3,?4,NULL,?5,?6,?7,?8,'LOADED',?9
             WHERE EXISTS (SELECT 1 FROM unit_cargo_manifests WHERE carrier_unit_id = ?2)`)
             .bind(item.id, effect.unitId, item.kind === "SUPPLY" ? "SUPPLY" : "UNIT",
               typeof item.unitId === "string" ? item.unitId : null,
               typeof item.supplyType === "string" ? item.supplyType : null,
-              item.quantity, typeof item.transportMode === "string" ? item.transportMode : "EMBARKED",
-              typeof item.slotsQuarters === "number" ? item.slotsQuarters : 1));
+              item.kind === "SUPPLY" ? item.quantity : 1,
+              typeof item.transportMode === "string" ? item.transportMode : "EMBARKED",
+              typeof item.slotsQuarters === "number" ? item.slotsQuarters : 1,
+              JSON.stringify({ tacticalKind: item.kind, tacticalQuantity: item.quantity, tags: item.tags ?? [] })));
         }
       } else if (effect.type === "CAMPAIGN_HISTORY") {
         const campaignCompleted = effect.payload.campaignCompleted === true ? 1 : 0;

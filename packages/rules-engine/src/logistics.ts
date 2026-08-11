@@ -35,6 +35,18 @@ export function cargoSlotsForItem(profile: CargoProfile, item: CargoManifestItem
   if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
     return { legal: false, reason: "Cargo quantity must be a positive integer.", slotsQuarters: 0 };
   }
+  if (item.transportMode === "TOWED") {
+    if (!item.unitId) {
+      return { legal: false, reason: "Towed cargo requires a unit identifier.", slotsQuarters: 0 };
+    }
+    if (!Number.isInteger(profile.towCapacity) || (profile.towCapacity ?? 0) <= 0) {
+      return { legal: false, reason: "Carrier cannot tow units.", slotsQuarters: 0 };
+    }
+    if ((profile.towRequiredTags?.length ?? 0) > 0 && !hasAnyTag(item.tags, profile.towRequiredTags)) {
+      return { legal: false, reason: "Unit lacks an eligible tow tag.", slotsQuarters: 0 };
+    }
+    return { legal: true, slotsQuarters: 0, ruleId: "tow" };
+  }
   const rule = matchingCargoRule(profile, item);
   if (!rule) return { legal: false, reason: "Cargo item is ineligible for this carrier.", slotsQuarters: 0 };
   const hasQuantityRule = rule.quantityPerSlot !== undefined;
@@ -75,6 +87,7 @@ export function validateCargoManifest(
   }
   const ids = new Set<string>();
   const loadGroups = new Set<string>();
+  let towedUnits = 0;
   let slotsUsedQuarters = 0;
   for (const item of manifest) {
     if (ids.has(item.id)) reasons.push(`Cargo item ${item.id} appears more than once.`);
@@ -83,8 +96,12 @@ export function validateCargoManifest(
     if (!usage.legal) reasons.push(`${item.id}: ${usage.reason}`);
     else {
       slotsUsedQuarters += usage.slotsQuarters;
+      if (item.transportMode === "TOWED") towedUnits += 1;
       if (usage.loadGroup) loadGroups.add(usage.loadGroup);
     }
+  }
+  if (towedUnits > (profile.towCapacity ?? 0)) {
+    reasons.push(`Tow capacity exceeded (${towedUnits}/${profile.towCapacity ?? 0}).`);
   }
   if (!profile.allowMixedLoadGroups && loadGroups.size > 1) reasons.push("Carrier cannot mix these cargo load groups.");
   if (slotsUsedQuarters > profile.capacitySlotsQuarters) {
@@ -100,6 +117,36 @@ export function validateCargoManifest(
 
 export function cargoSlotsUsed(profile: CargoProfile, manifest: readonly CargoManifestItem[]): number {
   return validateCargoManifest(profile, manifest).slotsUsedQuarters;
+}
+
+/**
+ * Projects an authoritative tactical supply inventory into a carrier manifest.
+ * Existing unit/tow cargo is preserved; supply rows are rebuilt from inventory so
+ * capacity checks cannot drift from the quantities used by tactical actions.
+ */
+export function synchronizeSupplyCargo(
+  profile: CargoProfile,
+  manifest: readonly CargoManifestItem[],
+  supplies: SupplyInventory,
+  itemIdPrefix: string,
+): CargoManifestItem[] {
+  const next = manifest
+    .filter((item) => item.kind !== "SUPPLY")
+    .map((item) => structuredClone(item));
+  for (const supplyType of Object.keys(supplies).sort()) {
+    const quantity = supplies[supplyType] ?? 0;
+    if (!isTacticalSupplyResourceId(supplyType) || !Number.isInteger(quantity) || quantity <= 0) continue;
+    const item: CargoManifestItem = {
+      id: `${itemIdPrefix}:${supplyType}`,
+      kind: "SUPPLY",
+      quantity,
+      tags: ["SUPPLY", supplyType],
+      transportMode: "STOWED",
+      supplyType,
+    };
+    if (matchingCargoRule(profile, item)) next.push(item);
+  }
+  return next;
 }
 
 export interface CargoActionResult {
@@ -270,7 +317,7 @@ export function attachTow(
   if (currentTowedUnitIds.length >= capacity) {
     return { legal: false, reason: "Tow capacity is full.", towedUnitIds: [...currentTowedUnitIds] };
   }
-  if (!hasAllTags(unit.tags, profile.towRequiredTags)) {
+  if ((profile.towRequiredTags?.length ?? 0) > 0 && !hasAnyTag(unit.tags, profile.towRequiredTags)) {
     return { legal: false, reason: "Unit lacks a required tow tag.", towedUnitIds: [...currentTowedUnitIds] };
   }
   return { legal: true, towedUnitIds: [...currentTowedUnitIds, unit.unitId] };

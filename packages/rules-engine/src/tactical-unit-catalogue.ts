@@ -6,10 +6,12 @@ import type {
   SubsystemDefinition,
   UnitClassDefinition,
   WeaponProfile,
+  CargoProfile,
 } from "../../domain/src";
 import type { RuleDefinitionRecordV1, RuleNullableNumberV1 } from "../../domain/src/rules-catalogue-contract";
 import { V5_CORE_CURATED_2_RULESET_VERSION } from "./generated/v5-core-curated-2";
 import { getTacticalActionRule, getTacticalOrderRule, tacticalRulesCatalogueRuntime } from "./tactical-grammar";
+import { hydrateGovernedCargoProfile, projectGovernedCargoProfile } from "./cargo-hydration";
 
 interface FoundationExecutionProjection {
   capacity: number;
@@ -168,6 +170,22 @@ export function getTacticalUnitClass(
     status: definition.definitionStatus as DefinitionStatus,
     notes: definition.notes,
   };
+}
+
+export function getTacticalCargoProfile(unitId: string): CargoProfile | undefined {
+  const relation = tacticalRulesCatalogueRuntime
+    .relationsFrom({ definitionKind: "UNIT", definitionId: unitId })
+    .find((candidate) =>
+      candidate.kind === "UNIT_PROFILE" &&
+      candidate.to?.definitionKind === "CARGO_PROFILE" &&
+      record(candidate.parameters, `${candidate.id}:parameters`).profileRole === "cargo"
+    );
+  if (!relation?.to) return undefined;
+  const definition = tacticalRulesCatalogueRuntime.lookupDefinition("CARGO_PROFILE", relation.to.definitionId);
+  if (!definition.found) throw new Error(`TACTICAL_CARGO_PROFILE_MISSING:${relation.to.definitionId}`);
+  const hydrated = hydrateGovernedCargoProfile({ id: definition.value.id, parameters: definition.value.parameters });
+  if (!hydrated.ok) throw new Error(`TACTICAL_CARGO_PROFILE_INVALID:${definition.value.id}:${hydrated.issues[0]?.code ?? "UNKNOWN"}`);
+  return projectGovernedCargoProfile(hydrated.profile);
 }
 
 export function getTacticalSubsystemRules(unitId: string): TacticalSubsystemRules | undefined {

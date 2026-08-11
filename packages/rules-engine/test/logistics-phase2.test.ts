@@ -5,7 +5,9 @@ import {
   cargoSlotsUsed,
   disembarkCargo,
   embarkCargo,
+  getTacticalCargoProfile,
   reloadAmmunition,
+  synchronizeSupplyCargo,
   transferProfiledSupply,
   validateCargoManifest,
   validateSupplyInventory,
@@ -60,7 +62,50 @@ describe("cargo capacity and transport actions", () => {
       legal: true,
       towedUnitIds: ["artillery"],
     });
+    const towingProfile: CargoProfile = {
+      ...transport,
+      embarkSpeedCostQuartersPerCargoSlot: undefined,
+      disembarkSpeedCostQuartersPerCargoSlot: undefined,
+      embarkFlatSpeedCostQuarters: 2,
+      disembarkFlatSpeedCostQuarters: 2,
+    };
+    const towed = embarkCargo(towingProfile, original, {
+      id: "artillery",
+      kind: "VEHICLE",
+      quantity: 1,
+      tags: ["TOWABLE_ARTILLERY"],
+      transportMode: "TOWED",
+      unitId: "artillery",
+    }, 2);
+    expect(towed).toMatchObject({ legal: true, slotsUsedQuarters: 4, speedCostQuarters: 2 });
     expect(cargoSlotsUsed(transport, original)).toBe(4);
+  });
+
+  it("rebuilds carried Small Supply from the authoritative inventory and consumes capacity", () => {
+    const manifest = synchronizeSupplyCargo(transport, [], { SMALL_SUPPLY: 5 }, "carrier:supply");
+    expect(manifest).toEqual([expect.objectContaining({
+      id: "carrier:supply:SMALL_SUPPLY",
+      kind: "SUPPLY",
+      quantity: 5,
+      supplyType: "SMALL_SUPPLY",
+      transportMode: "STOWED",
+    })]);
+    expect(validateCargoManifest(transport, manifest)).toMatchObject({ legal: true, slotsUsedQuarters: 4 });
+    expect(synchronizeSupplyCargo(transport, manifest, { SMALL_SUPPLY: 10 }, "carrier:supply"))
+      .toEqual([expect.objectContaining({ quantity: 10 })]);
+  });
+
+  it("keeps the Light Vehicle's passenger and Small Supply modes mutually exclusive", () => {
+    const profile = getTacticalCargoProfile("unit-light-vehicle")!;
+    const supply = synchronizeSupplyCargo(profile, [], { SMALL_SUPPLY: 1 }, "light-vehicle:supply");
+    expect(validateCargoManifest(profile, supply)).toMatchObject({ legal: true, slotsUsedQuarters: 4 });
+    expect(embarkCargo(profile, supply, {
+      id: "scouts",
+      kind: "PERSONNEL",
+      quantity: 4,
+      tags: ["PERSONNEL", "INFANTRY"],
+      unitId: "scouts",
+    }, 2)).toMatchObject({ legal: false, reason: "Carrier cannot mix these cargo load groups." });
   });
 
   it("supports fixed Standard-Action cargo costs without class-name branching", () => {

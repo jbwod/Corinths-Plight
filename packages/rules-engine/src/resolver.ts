@@ -19,10 +19,13 @@ import {
   sameCoord,
 } from "./hex";
 import {
+  attachTow,
   cargoSlotsForItem,
+  detachTow,
   disembarkCargo,
   embarkCargo,
   reloadAmmunition,
+  synchronizeSupplyCargo,
   transferLogiArtillerySupply,
 } from "./logistics";
 import { hasDisabledSubsystem, resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
@@ -77,6 +80,60 @@ function deploymentTags(deployment: CampaignDeployment): string[] {
   } catch {
     return [];
   }
+}
+
+function synchronizeEmbarkedCargo(deployments: CampaignDeployment[]): void {
+  const byId = new Map(deployments.map((deployment) => [deployment.id, deployment]));
+  for (const carrier of deployments) {
+    for (const item of carrier.cargo ?? []) {
+      if (!item.unitId) continue;
+      const passenger = byId.get(item.unitId);
+      if (!passenger || passenger.locationState !== "EMBARKED") continue;
+      passenger.position = { ...carrier.position };
+    }
+  }
+}
+
+function synchronizeDeploymentSupplyCargo(campaignId: string, deployments: CampaignDeployment[]): void {
+  for (const deployment of deployments) {
+    if (!deployment.cargoProfile) continue;
+    deployment.cargo = synchronizeSupplyCargo(
+      deployment.cargoProfile,
+      deployment.cargo ?? [],
+      deployment.supplies ?? {},
+      `campaign-cargo:${campaignId}:${deployment.id}:supply`,
+    );
+  }
+}
+
+function campaignCargoItem(
+  campaignId: string,
+  cargo: CampaignDeployment,
+  transportMode: "EMBARKED" | "TOWED" = "EMBARKED",
+) {
+  return {
+    id: `campaign-cargo:${campaignId}:${cargo.id}`,
+    kind: cargo.stats.healthModel === "FORCE_STRENGTH" ? "PERSONNEL" as const : "VEHICLE" as const,
+    quantity: cargo.stats.healthModel === "FORCE_STRENGTH" ? cargo.currentHealth : 1,
+    tags: deploymentTags(cargo),
+    transportMode,
+    unitId: cargo.id,
+  };
+}
+
+function cargoTransportMode(
+  carrier: CampaignDeployment,
+  cargo: CampaignDeployment,
+): "EMBARKED" | "TOWED" | undefined {
+  if (isArtilleryDeployment(cargo)) {
+    if (
+      carrier.cargoProfile &&
+      artilleryState(cargo) === "PACKED" &&
+      attachTow(carrier.cargoProfile, [], { unitId: cargo.id, tags: deploymentTags(cargo) }).legal
+    ) return "TOWED";
+    return undefined;
+  }
+  return "EMBARKED";
 }
 
 function artillerySpotters(state: RoundOutput["state"], artillery: CampaignDeployment) {
@@ -285,6 +342,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
   }
 
   const state = structuredClone(input.previousState);
+  synchronizeDeploymentSupplyCargo(state.campaignId, state.deployments);
   const participatingPersistentUnitIds = state.deployments
     .filter((deployment) =>
       deployment.side === "ALLIED" &&
@@ -416,6 +474,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
       });
     }
   }
+  synchronizeEmbarkedCargo(state.deployments);
 
   const evasiveUnits = new Set<string>();
   for (const order of validOrders.values()) {
@@ -694,33 +753,58 @@ export function resolveRound(input: RoundInput): RoundOutput {
         }
       }
       if (action.type === "LOAD") {
-        if (!actor.cargoProfile && action.targetDeploymentId && state.deployments.find((candidate) => candidate.id === action.targetDeploymentId)?.cargoProfile) continue;
         const cargo = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+        const actorCandidateMode = cargo && actor.cargoProfile ? cargoTransportMode(actor, cargo) : undefined;
+        const actorCandidateItem = cargo && actor.cargoProfile && actorCandidateMode
+          ? campaignCargoItem(state.campaignId, cargo, actorCandidateMode)
+          : undefined;
+        const cargoCandidateMode = cargo?.cargoProfile ? cargoTransportMode(cargo, actor) : undefined;
+        const cargoCandidateItem = cargo?.cargoProfile && cargoCandidateMode
+          ? campaignCargoItem(state.campaignId, actor, cargoCandidateMode)
+          : undefined;
+        if (
+          cargo?.cargoProfile &&
+          cargo.cargo?.some((item) => item.unitId === actor.id) !== true &&
+          actor.cargoProfile &&
+          actorCandidateItem &&
+          !embarkCargo(actor.cargoProfile, actor.cargo ?? [], actorCandidateItem, Math.round(actor.stats.speed * 4)).legal &&
+          cargoCandidateItem &&
+          embarkCargo(cargo.cargoProfile, cargo.cargo ?? [], cargoCandidateItem, Math.round(cargo.stats.speed * 4)).legal
+        ) continue;
+        if (!actor.cargoProfile && cargo?.cargoProfile) continue;
         const matching = cargo && validOrders.get(cargo.id)?.actions.some((candidate) => candidate.type === "LOAD" && candidate.targetDeploymentId === actor.id);
         if (!cargo || !matching || !actor.cargoProfile || !sameCoord(actor.position, cargo.position) || cargo.locationState === "EMBARKED") {
           event("ORDER_REJECTED", actor.id, { orderId: order.id, actionId: action.id, reasons: ["Loading requires an eligible co-located carrier and matching cargo action."] }, actorVisibility);
           continue;
         }
-        const item = {
-          id: `campaign-cargo:${state.campaignId}:${cargo.id}`,
-          kind: cargo.stats.healthModel === "FORCE_STRENGTH" ? "PERSONNEL" as const : "VEHICLE" as const,
-          quantity: 1,
-          tags: cargo.stats.healthModel === "FORCE_STRENGTH" ? ["INFANTRY"] : ["VEHICLE"],
-          transportMode: "EMBARKED" as const,
-          unitId: cargo.id,
-        };
+        const transportMode = cargoTransportMode(actor, cargo);
+        if (!transportMode) {
+          event("ORDER_REJECTED", actor.id, { orderId: order.id, actionId: action.id, reasons: ["Artillery must be packed and paired with an eligible towing carrier before it can move as cargo."] }, actorVisibility);
+          continue;
+        }
+        const item = campaignCargoItem(state.campaignId, cargo, transportMode);
         const loaded = embarkCargo(actor.cargoProfile, actor.cargo ?? [], item, Math.round(actor.stats.speed * 4));
         if (!loaded.legal) {
           event("ORDER_REJECTED", actor.id, { orderId: order.id, actionId: action.id, reasons: [loaded.reason ?? "Cargo cannot be loaded."] }, actorVisibility);
           continue;
         }
         actor.cargo = loaded.manifest;
+        if (transportMode === "TOWED") actor.towedUnitId = cargo.id;
         cargo.locationState = "EMBARKED";
         cargo.position = { ...actor.position };
-        event("CARGO_LOADED", actor.id, { actionId: action.id, cargoDeploymentId: cargo.id, speedCostQuarters: loaded.speedCostQuarters }, actorVisibility);
+        event("CARGO_LOADED", actor.id, {
+          actionId: action.id,
+          cargoDeploymentId: cargo.id,
+          transportMode,
+          speedCostQuarters: loaded.speedCostQuarters,
+        }, actorVisibility);
       }
       if (action.type === "UNLOAD") {
-        if (!actor.cargoProfile && action.targetDeploymentId && state.deployments.find((candidate) => candidate.id === action.targetDeploymentId)?.cargoProfile) continue;
+        const targetCarrier = action.targetDeploymentId
+          ? state.deployments.find((candidate) => candidate.id === action.targetDeploymentId)
+          : undefined;
+        if (targetCarrier?.cargo?.some((item) => item.unitId === actor.id)) continue;
+        if (!actor.cargoProfile && targetCarrier?.cargoProfile) continue;
         const cargoId = typeof action.payload?.cargoDeploymentId === "string" ? action.payload.cargoDeploymentId : action.targetDeploymentId;
         const cargo = state.deployments.find((candidate) => candidate.id === cargoId);
         const item = actor.cargo?.find((candidate) => candidate.unitId === cargo?.id);
@@ -732,8 +816,10 @@ export function resolveRound(input: RoundInput): RoundOutput {
         const targetHex = action.targetHex ?? actor.position;
         const hex = state.map.find((candidate) => sameCoord(candidate.coord, targetHex));
         const isAirDrop = item.transportMode === "AIRLIFTED" || action.payload?.mode === "PARADROP";
-        if (!hex || (isAirDrop && !canOccupyHex(targetHex, cargo.id, state.deployments, state.map))) {
-          event("AIR_DROP_FAILED", actor.id, { actionId: action.id, cargoDeploymentId: cargo.id, targetHex, reason: "DROP_HEX_BLOCKED" }, actorVisibility);
+        if (!hex || !canOccupyHex(targetHex, cargo.id, state.deployments, state.map)) {
+          event(isAirDrop ? "AIR_DROP_FAILED" : "ORDER_REJECTED", actor.id, isAirDrop
+            ? { actionId: action.id, cargoDeploymentId: cargo.id, targetHex, reason: "DROP_HEX_BLOCKED" }
+            : { orderId: order.id, actionId: action.id, reasons: ["The carrier hex has no room to unload this unit."] }, actorVisibility);
           continue;
         }
         if (!isAirDrop && !sameCoord(targetHex, actor.position)) {
@@ -746,10 +832,18 @@ export function resolveRound(input: RoundInput): RoundOutput {
           continue;
         }
         actor.cargo = unloaded.manifest;
+        if (item.transportMode === "TOWED") {
+          const detached = detachTow(actor.towedUnitId ? [actor.towedUnitId] : [], cargo.id);
+          if (detached.legal) actor.towedUnitId = detached.towedUnitIds[0];
+        }
         cargo.locationState = "ON_MAP";
         cargo.position = { ...targetHex };
         event(isAirDrop ? "AIR_DROP_COMPLETED" : "CARGO_UNLOADED", actor.id, {
-          actionId: action.id, cargoDeploymentId: cargo.id, targetHex, speedCostQuarters: unloaded.speedCostQuarters,
+          actionId: action.id,
+          cargoDeploymentId: cargo.id,
+          transportMode: item.transportMode ?? "EMBARKED",
+          targetHex,
+          speedCostQuarters: unloaded.speedCostQuarters,
         }, actorVisibility);
       }
       if (action.type === "RELOAD") {
@@ -1213,7 +1307,15 @@ export function resolveRound(input: RoundInput): RoundOutput {
     }
   }
 
+  synchronizeDeploymentSupplyCargo(state.campaignId, state.deployments);
+  const carrierByCargoDeployment = new Map<string, CampaignDeployment>();
+  for (const carrier of state.deployments) {
+    for (const item of carrier.cargo ?? []) {
+      if (item.unitId) carrierByCargoDeployment.set(item.unitId, carrier);
+    }
+  }
   for (const deployment of state.deployments.filter((candidate) => candidate.persistentUnitId)) {
+    const carrier = carrierByCargoDeployment.get(deployment.id);
     effects.push({
       idempotencyKey: `${state.campaignId}:${state.round}:state:${deployment.persistentUnitId}`,
       type: "UNIT_STATE_UPDATED",
@@ -1222,6 +1324,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         campaignId: state.campaignId,
         round: state.round,
         locationState: deployment.locationState ?? "ON_MAP",
+        carrierPersistentUnitId: carrier?.persistentUnitId,
         ammunition: deployment.ammunition,
         cooldowns: deployment.cooldowns,
         supplies: deployment.supplies ?? {},

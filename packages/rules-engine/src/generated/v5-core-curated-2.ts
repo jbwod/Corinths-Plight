@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "a1a3ae78cc7511d9119dbf431318a46f0172e83497baf6e556c12218cd74f225",
+  "contentHash": "46a841f20ad925e3ef766d092c63c04cb4146539cce66c1c27480bd937c98042",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1281,7 +1281,9 @@ const snapshot = {
               "BOMBARDMENT",
               "DEPLOY",
               "PACK_UP",
-              "RELOAD"
+              "RELOAD",
+              "LOAD",
+              "UNLOAD"
             ],
             "allowedOrders": [
               "HOLD",
@@ -1938,7 +1940,9 @@ const snapshot = {
           },
           "execution": {
             "allowedActions": [
-              "RESUPPLY"
+              "RESUPPLY",
+              "LOAD",
+              "UNLOAD"
             ],
             "allowedOrders": [
               "HOLD",
@@ -8558,6 +8562,7 @@ const snapshot = {
             "MOVEMENT",
             "DEPLOY_PACK_STATE",
             "BOMBARDMENT",
+            "TOWING",
             "EXPERIMENTAL_ATTACK"
           ],
           "missing": [
@@ -8796,11 +8801,10 @@ const snapshot = {
             "MOVEMENT",
             "SUBSYSTEMS",
             "RAPID_FIRE",
-            "EVASIVE"
+            "EVASIVE",
+            "PASSENGER_OR_SUPPLY_CARGO"
           ],
-          "missing": [
-            "CARGO"
-          ],
+          "missing": [],
           "publicationCorrection": {
             "reason": "Subsystem malfunctions and Evasive movement now resolve through the generated tactical handler.",
             "seedOverlay": {
@@ -8835,16 +8839,17 @@ const snapshot = {
           "implementedSubset": [
             "HITS",
             "MOVEMENT",
-            "ARTILLERY_SMALL_SUPPLY_TRANSFER"
+            "ARTILLERY_SMALL_SUPPLY_TRANSFER",
+            "SUPPLY_CARGO",
+            "PASSENGER_CARGO",
+            "ARTILLERY_TOWING"
           ],
           "missing": [
-            "TOWING",
-            "PASSENGER_CARGO",
             "COORDINATED_AIRDROP",
             "GENERAL_RESUPPLY"
           ],
           "publicationCorrection": {
-            "reason": "The generated tactical handler executes the V5 Logi chassis and its narrow one-crate Artillery reload path; wider cargo and logistics remain gated.",
+            "reason": "The generated tactical handler executes the V5 Logi chassis, capacity-counted Small Supply and unit cargo, packed Artillery towing, and the narrow one-crate Artillery reload path; wider logistics remain gated.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": true,
@@ -14279,5 +14284,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "a1a3ae78cc7511d9119dbf431318a46f0172e83497baf6e556c12218cd74f225" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "46a841f20ad925e3ef766d092c63c04cb4146539cce66c1c27480bd937c98042" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

@@ -67,7 +67,7 @@ describe("generated tactical grammar", () => {
       category: "SUPPORT",
       stats: { healthModel: "HITS", maxHealth: 1, speed: 3, capacity: 1 },
       allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-      allowedActions: ["RESUPPLY"],
+      allowedActions: ["RESUPPLY", "LOAD", "UNLOAD"],
       weapons: [],
     });
   });

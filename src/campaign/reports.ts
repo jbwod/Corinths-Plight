@@ -185,9 +185,13 @@ export function describeCampaignReportEvent(
     case "UNIT_DESTROYED":
       return `${actor} was destroyed.`;
     case "CARGO_LOADED":
-      return `${actor} embarked ${String(payload.cargoDeploymentId ?? "cargo")}.`;
+      return payload.transportMode === "TOWED"
+        ? `${actor} hitched ${String(payload.cargoDeploymentId ?? "artillery")} for towing.`
+        : `${actor} embarked ${String(payload.cargoDeploymentId ?? "cargo")}.`;
     case "CARGO_UNLOADED":
-      return `${actor} disembarked ${String(payload.cargoDeploymentId ?? "cargo")}.`;
+      return payload.transportMode === "TOWED"
+        ? `${actor} unhitched ${String(payload.cargoDeploymentId ?? "artillery")}.`
+        : `${actor} disembarked ${String(payload.cargoDeploymentId ?? "cargo")}.`;
     case "AIR_DROP_COMPLETED":
       return `${actor} completed an air drop.`;
     case "AIR_DROP_FAILED":

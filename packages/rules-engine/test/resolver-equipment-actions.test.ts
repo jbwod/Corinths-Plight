@@ -242,7 +242,7 @@ describe("equipment and transport actions", () => {
     carrier.cargoProfile = {
       id: "cargo-test", capacitySlotsQuarters: 4, allowMixedLoadGroups: true,
       embarkFlatSpeedCostQuarters: 2, disembarkFlatSpeedCostQuarters: 2,
-      rules: [{ id: "infantry", cargoKind: "PERSONNEL", requiredTags: ["INFANTRY"], slotsPerItemQuarters: 4 }],
+      rules: [{ id: "personnel", cargoKind: "PERSONNEL", requiredTags: ["PERSONNEL"], quantityPerSlot: 4 }],
     };
     const orders = [
       order(base, carrier, [action("load-carrier", "LOAD", { targetDeploymentId: cargo.id })]),
@@ -253,6 +253,234 @@ describe("equipment and transport actions", () => {
     expect(output.events).toContainEqual(expect.objectContaining({ type: "CARGO_LOADED", actor: carrier.id }));
     expect(output.state.deployments.find((unit) => unit.id === cargo.id)?.locationState).toBe("EMBARKED");
     expect(output.state.deployments.find((unit) => unit.id === carrier.id)?.cargo?.[0].unitId).toBe(cargo.id);
+  });
+
+  it("loads infantry into a governed Logi profile, carries it during movement, and unloads into available capacity", () => {
+    const base = createDemoCampaignState(1_000);
+    const carrier = base.deployments.find((unit) => unit.definitionId === "unit-logi-truck")!;
+    const passenger = base.deployments.find((unit) => unit.definitionId === "unit-infantry-squad")!;
+    passenger.position = { ...carrier.position };
+    expect(carrier.cargoProfile?.id).toBe("cargo-logi-two-slot");
+
+    const loadOrders = [
+      order(base, carrier, [action("load-carrier", "LOAD", { targetDeploymentId: passenger.id })]),
+      order(base, passenger, [action("load-passenger", "LOAD", { targetDeploymentId: carrier.id })]),
+    ];
+    base.orders = loadOrders;
+    const loaded = resolveRound({ ...input(loadOrders), previousState: base });
+    const loadedCarrier = loaded.state.deployments.find((unit) => unit.id === carrier.id)!;
+    const loadedPassenger = loaded.state.deployments.find((unit) => unit.id === passenger.id)!;
+    expect(loadedCarrier.cargo).toContainEqual(expect.objectContaining({
+      unitId: passenger.id,
+      kind: "PERSONNEL",
+      quantity: passenger.currentHealth,
+    }));
+    expect(loadedPassenger.locationState).toBe("EMBARKED");
+
+    const movingState = structuredClone(loaded.state);
+    movingState.round += 1;
+    movingState.phase = "PLANNING";
+    const destination = { q: -4, r: 1 };
+    const carrierMove = {
+      ...order(movingState, movingState.deployments.find((unit) => unit.id === carrier.id)!, []),
+      orderType: "ADVANCE" as const,
+      route: [{ ...carrier.position }, destination],
+      endHex: destination,
+    };
+    const passengerHold = order(movingState, movingState.deployments.find((unit) => unit.id === passenger.id)!, []);
+    movingState.orders = [carrierMove, passengerHold];
+    const moved = resolveRound({
+      previousState: movingState,
+      rulesetVersion: movingState.rulesetVersion,
+      playerOrders: [carrierMove, passengerHold],
+      enemyOrders: [],
+      seed: "cargo-move",
+      resolutionTime: 3_000,
+    });
+    expect(moved.state.deployments.find((unit) => unit.id === carrier.id)?.position).toEqual(destination);
+    expect(moved.state.deployments.find((unit) => unit.id === passenger.id)?.position).toEqual(destination);
+
+    const unloadState = structuredClone(moved.state);
+    unloadState.round += 1;
+    unloadState.phase = "PLANNING";
+    const unloadCarrier = unloadState.deployments.find((unit) => unit.id === carrier.id)!;
+    const unloadPassenger = unloadState.deployments.find((unit) => unit.id === passenger.id)!;
+    const unloadOrders = [
+      order(unloadState, unloadCarrier, [action("unload-carrier", "UNLOAD", {
+        targetDeploymentId: unloadPassenger.id,
+        targetHex: destination,
+      })]),
+      order(unloadState, unloadPassenger, [action("unload-passenger", "UNLOAD", { targetDeploymentId: unloadCarrier.id })]),
+    ];
+    unloadState.orders = unloadOrders;
+    const unloaded = resolveRound({
+      previousState: unloadState,
+      rulesetVersion: unloadState.rulesetVersion,
+      playerOrders: unloadOrders,
+      enemyOrders: [],
+      seed: "cargo-unload",
+      resolutionTime: 4_000,
+    });
+    expect(unloaded.state.deployments.find((unit) => unit.id === passenger.id)?.locationState).toBe("ON_MAP");
+    expect(unloaded.state.deployments.find((unit) => unit.id === carrier.id)?.cargo).toEqual([
+      expect.objectContaining({ kind: "SUPPLY", supplyType: "SMALL_SUPPLY", quantity: 5 }),
+    ]);
+    expect(unloaded.events).toContainEqual(expect.objectContaining({ type: "CARGO_UNLOADED", actor: carrier.id }));
+  });
+
+  it("treats a Light Vehicle as Logi cargo when both units have transport profiles", () => {
+    const base = createDemoCampaignState(1_000);
+    const logi = base.deployments.find((unit) => unit.definitionId === "unit-logi-truck")!;
+    logi.supplies = { SMALL_SUPPLY: 0 };
+    const lightVehicle = base.deployments.find((unit) => unit.definitionId === "unit-light-vehicle")!;
+    lightVehicle.position = { ...logi.position };
+    const orders = [
+      order(base, logi, [action("logi-load-vehicle", "LOAD", { targetDeploymentId: lightVehicle.id })]),
+      order(base, lightVehicle, [action("vehicle-board-logi", "LOAD", { targetDeploymentId: logi.id })]),
+    ];
+    base.orders = orders;
+
+    const output = resolveRound({ ...input(orders), previousState: base });
+
+    expect(output.state.deployments.find((unit) => unit.id === logi.id)?.cargo).toContainEqual(
+      expect.objectContaining({ unitId: lightVehicle.id, kind: "VEHICLE", quantity: 1 }),
+    );
+    expect(output.state.deployments.find((unit) => unit.id === lightVehicle.id)?.locationState).toBe("EMBARKED");
+    expect(output.events.filter((event) => event.type === "CARGO_LOADED")).toEqual([
+      expect.objectContaining({ actor: logi.id }),
+    ]);
+  });
+
+  it("counts onboard Small Supply against Logi capacity before loading units", () => {
+    const base = createDemoCampaignState(1_000);
+    const logi = base.deployments.find((unit) => unit.definitionId === "unit-logi-truck")!;
+    const firstSquad = base.deployments.find((unit) => unit.definitionId === "unit-infantry-squad")!;
+    const secondSquad = structuredClone(firstSquad);
+    secondSquad.id = "dep-second-squad";
+    secondSquad.callsign = "ROOK-8";
+    firstSquad.position = { ...logi.position };
+    secondSquad.position = { ...logi.position };
+    base.deployments.push(secondSquad);
+    const orders = [
+      order(base, logi, [
+        action("logi-load-first", "LOAD", { targetDeploymentId: firstSquad.id }),
+        action("logi-load-second", "LOAD", { targetDeploymentId: secondSquad.id }),
+      ]),
+      order(base, firstSquad, [action("first-load-logi", "LOAD", { targetDeploymentId: logi.id })]),
+      order(base, secondSquad, [action("second-load-logi", "LOAD", { targetDeploymentId: logi.id })]),
+    ];
+    base.orders = orders;
+
+    const output = resolveRound({ ...input(orders), previousState: base });
+    const manifest = output.state.deployments.find((unit) => unit.id === logi.id)?.cargo ?? [];
+    expect(manifest).toContainEqual(expect.objectContaining({
+      kind: "SUPPLY",
+      supplyType: "SMALL_SUPPLY",
+      quantity: 5,
+    }));
+    expect(manifest.filter((item) => item.unitId)).toHaveLength(1);
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "ORDER_REJECTED",
+      actor: logi.id,
+      payload: expect.objectContaining({ reasons: [expect.stringContaining("capacity exceeded")] }),
+    }));
+  });
+
+  it("hitches packed Artillery to Logi, moves it, and unhitches without consuming cargo slots", () => {
+    const base = createDemoCampaignState(1_000);
+    const logi = base.deployments.find((unit) => unit.definitionId === "unit-logi-truck")!;
+    const artillery = base.deployments.find((unit) => unit.definitionId === "unit-artillery")!;
+    artillery.position = { ...logi.position };
+    const hitchOrders = [
+      order(base, logi, [action("logi-hitch", "LOAD", { targetDeploymentId: artillery.id })]),
+      order(base, artillery, [action("artillery-hitch", "LOAD", { targetDeploymentId: logi.id })]),
+    ];
+    base.orders = hitchOrders;
+    const hitched = resolveRound({ ...input(hitchOrders), previousState: base });
+    const hitchedLogi = hitched.state.deployments.find((unit) => unit.id === logi.id)!;
+    expect(hitchedLogi.towedUnitId).toBe(artillery.id);
+    expect(hitchedLogi.cargo).toContainEqual(expect.objectContaining({
+      unitId: artillery.id,
+      transportMode: "TOWED",
+    }));
+    expect(hitched.events).toContainEqual(expect.objectContaining({
+      type: "CARGO_LOADED",
+      actor: logi.id,
+      payload: expect.objectContaining({ transportMode: "TOWED" }),
+    }));
+
+    const movingState = structuredClone(hitched.state);
+    movingState.round += 1;
+    movingState.phase = "PLANNING";
+    const movingLogi = movingState.deployments.find((unit) => unit.id === logi.id)!;
+    const destination = { q: -4, r: 1 };
+    const moveOrder = {
+      ...order(movingState, movingLogi, []),
+      orderType: "ADVANCE" as const,
+      route: [{ ...movingLogi.position }, destination],
+      endHex: destination,
+    };
+    movingState.orders = [moveOrder];
+    const moved = resolveRound({
+      previousState: movingState,
+      rulesetVersion: movingState.rulesetVersion,
+      playerOrders: [moveOrder],
+      enemyOrders: [],
+      seed: "tow-move",
+      resolutionTime: 3_000,
+    });
+    expect(moved.state.deployments.find((unit) => unit.id === artillery.id)?.position).toEqual(destination);
+
+    const unloadState = structuredClone(moved.state);
+    unloadState.round += 1;
+    unloadState.phase = "PLANNING";
+    const unloadLogi = unloadState.deployments.find((unit) => unit.id === logi.id)!;
+    const unloadArtillery = unloadState.deployments.find((unit) => unit.id === artillery.id)!;
+    const unhitchOrders = [
+      order(unloadState, unloadLogi, [action("logi-unhitch", "UNLOAD", {
+        targetDeploymentId: unloadArtillery.id,
+        targetHex: destination,
+      })]),
+      order(unloadState, unloadArtillery, [action("artillery-unhitch", "UNLOAD", { targetDeploymentId: unloadLogi.id })]),
+    ];
+    unloadState.orders = unhitchOrders;
+    const unhitched = resolveRound({
+      previousState: unloadState,
+      rulesetVersion: unloadState.rulesetVersion,
+      playerOrders: unhitchOrders,
+      enemyOrders: [],
+      seed: "tow-unhitch",
+      resolutionTime: 4_000,
+    });
+    expect(unhitched.state.deployments.find((unit) => unit.id === logi.id)?.towedUnitId).toBeUndefined();
+    expect(unhitched.state.deployments.find((unit) => unit.id === artillery.id)?.locationState).toBe("ON_MAP");
+    expect(unhitched.events).toContainEqual(expect.objectContaining({
+      type: "CARGO_UNLOADED",
+      actor: logi.id,
+      payload: expect.objectContaining({ transportMode: "TOWED" }),
+    }));
+  });
+
+  it("does not treat deployed Artillery as ordinary personnel cargo", () => {
+    const base = createDemoCampaignState(1_000);
+    const logi = base.deployments.find((unit) => unit.definitionId === "unit-logi-truck")!;
+    const artillery = base.deployments.find((unit) => unit.definitionId === "unit-artillery")!;
+    artillery.position = { ...logi.position };
+    artillery.artilleryDeployment = "DEPLOYED";
+    artillery.statuses = ["DEPLOYED"];
+    const orders = [
+      order(base, logi, [action("logi-invalid-hitch", "LOAD", { targetDeploymentId: artillery.id })]),
+      order(base, artillery, [action("artillery-invalid-hitch", "LOAD", { targetDeploymentId: logi.id })]),
+    ];
+    base.orders = orders;
+    const output = resolveRound({ ...input(orders), previousState: base });
+    expect(output.state.deployments.find((unit) => unit.id === logi.id)?.cargo)
+      .not.toContainEqual(expect.objectContaining({ unitId: artillery.id }));
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "ORDER_REJECTED",
+      actor: logi.id,
+      payload: expect.objectContaining({ reasons: [expect.stringContaining("packed")] }),
+    }));
   });
 
   it("reloads finite ammunition from Small Supply", () => {

@@ -34,7 +34,7 @@ For every `PENDING` row:
 | DEC-005 | Strategic route travel time/cost/supply model | No stable conflict ID yet | PENDING | Public strategic movement |
 | DEC-006 | Structure/build/repair values | RC-BUILD-002/004/005/006/007 | PENDING | Construction/attackable structures |
 | DEC-007 | Scenario terrain/cover/high-ground/LOS profile | RC-V5-005/014/021 plus road/river conflict | PENDING | General tactical maps |
-| DEC-008 | Cargo and transport destruction | RC-V5-030, RC-V5-029 | PENDING | Safe transport/logistics |
+| DEC-008 | Carrier destruction and excess FS-linked Supply | RC-V5-030, RC-V5-029 | PENDING | Carrier-loss adjudication; ordinary governed loading is not blocked |
 | DEC-009 | Hazardous drops and aerospace operational details | RC-V5-018, RC-V5-017/023/028 | PENDING/PARTIAL | HAT/VTOL/fighter/bomber release |
 | DEC-010 | Ship acquisition, hull/module catalogue and upgrade economy | RC-UNIT-014, RC-EQP-* | PENDING | Ship mutations |
 | DEC-011 | Large Supply and Atmo-Fuel | RC-SUP-004, RC-V5-015 | PENDING | Orbital logistics/travel |

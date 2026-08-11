@@ -486,6 +486,8 @@ test("tactical composer exposes every currently executable action and no catalog
   await page.locator(".unit-roster").getByRole("button", { name: /LONGBOW/ }).click();
   await expect(composer.getByRole("button", { name: "ATTACK", exact: true })).toBeVisible();
   await expect(composer.getByRole("button", { name: "RELOAD", exact: true })).toBeVisible();
+  await expect(composer.getByRole("button", { name: "LOAD", exact: true })).toBeVisible();
+  await expect(composer.getByRole("button", { name: "UNLOAD", exact: true })).toBeVisible();
   await composer.getByRole("button", { name: "RELOAD", exact: true }).click();
   await expect(composer.getByText(/SMALL SUPPLY:/)).toBeVisible();
   await expect(composer.getByRole("button", { name: "DEPLOY", exact: true })).toBeVisible();
@@ -589,6 +591,9 @@ test("tactical composer exposes every currently executable action and no catalog
   expect(roundThreeState.phase).toBe("PLANNING");
 
   await page.locator(".unit-roster").getByRole("button", { name: /MULE-3/ }).click();
+  await expect(composer.getByRole("button", { name: "LOAD", exact: true })).toBeVisible();
+  await expect(composer.getByRole("button", { name: "UNLOAD", exact: true })).toBeVisible();
+  await expect(composer.getByText(/CARGO 1\/2 SLOTS · 5 SMALL SUPPLY/)).toBeVisible();
   await expect(composer.getByRole("button", { name: "RESUPPLY", exact: true })).toBeVisible();
   await composer.getByRole("button", { name: "RESUPPLY", exact: true }).click();
   await expect(composer.getByLabel("ARTILLERY STOCKPILE")).toContainText("LONGBOW");

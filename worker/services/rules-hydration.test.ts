@@ -99,16 +99,16 @@ describe("server rules hydration", () => {
     expect(result.legacyDefinition.id).toBe("unit-infantry-squad");
   });
 
-  test("hydrates the executable Logi subset and withholds unresolved cargo actions", () => {
+  test("hydrates the executable Logi subset including governed passenger cargo actions", () => {
     const result = resolveUnitRulesAuthority(unitInput("unit-logi-truck"), "development");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.message);
     expect(result.legacyDefinition).toMatchObject({
       id: "unit-logi-truck",
       stats: { healthModel: "HITS", maxHealth: 1, speed: 3 },
-      allowedActions: ["RESUPPLY"],
+      allowedActions: ["RESUPPLY", "LOAD", "UNLOAD"],
     });
-    expect(result.authority.links.allowedActionTypes).toEqual(["RESUPPLY"]);
+    expect(result.authority.links.allowedActionTypes).toEqual(["LOAD", "RESUPPLY", "UNLOAD"]);
     expect(result.authority.profiles.cargoProfile).toMatchObject({ id: "cargo-logi-two-slot" });
   });
 
@@ -127,7 +127,7 @@ describe("server rules hydration", () => {
     });
   });
 
-  test("preserves Light Vehicle alternative cargo modes while withholding the lossy legacy cargo actions", () => {
+  test("preserves Light Vehicle alternative cargo modes and exposes governed cargo actions", () => {
     const result = resolveUnitRulesAuthority(unitInput("unit-light-vehicle"), "development");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.message);
@@ -143,8 +143,7 @@ describe("server rules hydration", () => {
         ],
       },
     });
-    expect(result.authority.links.allowedActionTypes).not.toContain("LOAD");
-    expect(result.authority.links.allowedActionTypes).not.toContain("UNLOAD");
+    expect(result.authority.links.allowedActionTypes).toEqual(["ATTACK", "LOAD", "UNLOAD"]);
   });
 
   test("hydrates Artillery's exact Small Supply profile without a legacy size alias", () => {

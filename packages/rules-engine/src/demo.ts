@@ -8,6 +8,7 @@ import type {
 } from "../../domain/src";
 import { RULESET_VERSION } from "../../domain/src";
 import { getUnitClass } from "./catalogue";
+import { getTacticalCargoProfile } from "./tactical-unit-catalogue";
 import { INFANTRY_COVER_ARMOR_1 } from "./cover";
 import { ENGINE_VERSION } from "./resolver";
 
@@ -107,6 +108,8 @@ function deployment(
         : definition.tags.includes("LOGISTICS")
           ? { SMALL_SUPPLY: 5 }
           : undefined,
+    cargo: [],
+    cargoProfile: getTacticalCargoProfile(definitionId),
     battlegroupId: side === "ALLIED" ? "hammer" : undefined,
   };
 }
