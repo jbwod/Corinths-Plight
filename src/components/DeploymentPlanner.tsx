@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DeploymentMethodId, EffectiveUnit } from "../../packages/domain/src";
-import { Glyph } from "./Glyph";
+import { UnitPortrait } from "./UnitVisual";
 
 const DEMO_USER = "demo-user";
 const headers = import.meta.env.DEV ? { "x-demo-user": DEMO_USER } : undefined;
@@ -197,14 +197,14 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
       <div>{units.map((unit) => {
         const loadout = loadouts.get(unit.unitId);
         const checked = selected.includes(unit.unitId);
-        return <label key={unit.unitId} className={checked ? "selected" : ""}><input type="checkbox" checked={checked} disabled={mode !== "LIVE" || !loadout?.validation.valid} onChange={() => setSelected((current) => checked ? current.filter((id) => id !== unit.unitId) : [...current, unit.unitId])} /><span><strong>{unit.callsign}</strong><small>{unit.name} · {unit.locationState.replaceAll("_", " ")} · {unit.battlegroups[0]?.name ?? "UNASSIGNED"}</small></span><b>{loadout?.validation.valid ? `v${loadout.unitVersion}/${loadout.loadout.revision}` : "BLOCKED"}</b></label>;
+        return <label key={unit.unitId} className={checked ? "selected" : ""}><input type="checkbox" checked={checked} disabled={mode !== "LIVE" || !loadout?.validation.valid} onChange={() => setSelected((current) => checked ? current.filter((id) => id !== unit.unitId) : [...current, unit.unitId])} /><UnitPortrait definitionId={unit.definitionId} label={unit.name} className="deployment-unit-portrait" /><span><strong>{unit.callsign}</strong><small>{unit.name} · {unit.locationState.replaceAll("_", " ")} · {unit.battlegroups[0]?.name ?? "UNASSIGNED"}</small></span><b>{loadout?.validation.valid ? `v${loadout.unitVersion}/${loadout.loadout.revision}` : "BLOCKED"}</b></label>;
       })}</div>
     </section>
     <section className="deployment-lift panel">
       <header><div><span className="eyebrow">STEP 02</span><h2>Lift plan</h2></div></header>
       <label>INSERTION METHOD<select value={method} onChange={(event) => { setMethod(event.target.value as DeploymentMethodId); setCarrierId(""); }} disabled={mode !== "LIVE"}>{implementedMethods.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
       {transportRequired ? <label>AUTHORITATIVE CARRIER<select value={carrierId} onChange={(event) => setCarrierId(event.target.value)}><option value="">Select transport…</option>{carriers.map((carrier) => <option key={carrier.id} value={carrier.id}>{carrier.callsign} · {carrier.effective.cargoProfile?.capacitySlotsQuarters ?? 0}/4 slots</option>)}</select></label> : <p>Ground deployment does not require a carrier manifest.</p>}
-      <div className="lift-manifest">{selectedUnits.map(({ unit, loadout }) => <span key={unit.unitId}><Glyph name={unit.unitId === carrierId ? "ship" : "forces"} size={16} /><b>{unit.callsign}</b><small>{unit.unitId === carrierId ? "CARRIER" : loadout?.effectiveUnit?.tags.join(" · ")}</small></span>)}</div>
+      <div className="lift-manifest">{selectedUnits.map(({ unit, loadout }) => <span key={unit.unitId}><UnitPortrait definitionId={unit.definitionId} tags={loadout?.effectiveUnit?.tags} label={unit.name} className="deployment-unit-portrait small" /><b>{unit.callsign}</b><small>{unit.unitId === carrierId ? "CARRIER" : loadout?.effectiveUnit?.tags.join(" · ")}</small></span>)}</div>
     </section>
     <section className="deployment-insertion panel">
       <header><div><span className="eyebrow">STEP 03</span><h2>Insertion zone</h2></div></header>

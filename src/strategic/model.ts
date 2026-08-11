@@ -81,6 +81,7 @@ export interface ActivityView {
 
 export interface ModuleView {
   id: string;
+  definitionId?: string;
   name: string;
   slotType: "INTERNAL" | "EXTERNAL" | "EXTERNAL_INTERNAL";
   slotIndex: number;

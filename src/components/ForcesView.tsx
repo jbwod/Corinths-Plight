@@ -36,6 +36,8 @@ import {
   type ForceUnitView,
 } from "../forces/model";
 import { Glyph } from "./Glyph";
+import { EquipmentIcon } from "./EquipmentVisual";
+import { UnitPortrait } from "./UnitVisual";
 
 const DEMO_USER = "demo-user";
 const DEMO_HEADERS = import.meta.env.DEV ? { "x-demo-user": DEMO_USER } : undefined;
@@ -141,6 +143,7 @@ function normalizeEquipment(value: unknown): ForceEquipmentView | undefined {
   if (!id) return undefined;
   return {
     id,
+    definitionId: asString(record.definitionId, id),
     name: asString(record.name, readableId(id)),
     slot: asString(record.slot, asString(record.slotType, "EQUIPMENT")).toUpperCase(),
     description: asString(record.description, asString(record.rulesText, "Rules-defined equipment.")),
@@ -364,7 +367,7 @@ function IdentityDialog({
         <button type="button" aria-label="Close unit identity editor" onClick={onClose}>×</button>
       </header>
       <section>
-        <div className={`force-marker hero role-${unit.role.toLowerCase()}`}>{markerCode(unit)}</div>
+        <UnitPortrait definitionId={unit.definitionId} tags={unit.tags} label={unit.className} className={`force-marker hero role-${unit.role.toLowerCase()}`} />
         <div className="identity-fields">
           <label>UNIT NAME<input autoFocus required minLength={2} maxLength={80} value={name} onChange={(event) => setName(event.target.value)} /></label>
           <label>CALLSIGN<input required maxLength={7} pattern="[A-Z0-9][A-Z0-9-]{0,6}" value={callsign} onChange={(event) => setCallsign(event.target.value.toUpperCase())} /></label>
@@ -497,10 +500,10 @@ function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClos
   return <dialog ref={ref} className="loadout-dialog" aria-labelledby="loadout-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
     <header><div><span className="eyebrow">AUTHORITATIVE QUARTERMASTER</span><h2 id="loadout-title">{unit.callsign} loadout</h2></div><button aria-label="Close loadout" onClick={onClose}>×</button></header>
     <div className="loadout-state"><span>UNIT VERSION <b>{payload?.unitVersion ?? "—"}</b></span><span>LOADOUT REVISION <b>{payload?.loadout.revision ?? "—"}</b></span><span>STATE <b>{payload?.loadout.lockedAt ? "LOCKED" : payload?.loadout.status ?? "LOADING"}</b></span></div>
-    <section><div className="slot-board">{Object.entries(payload?.slots ?? {}).map(([type, count]) => <article key={type}><strong>{type}</strong>{Array.from({ length: count }, (_, index) => { const item = items.find((candidate) => candidate.slotType === type && candidate.slotIndex === index); return <span className={item ? "occupied" : ""} key={index}><b>{index + 1}</b>{item?.name ?? "EMPTY"}</span>; })}</article>)}
+    <section><div className="slot-board">{Object.entries(payload?.slots ?? {}).map(([type, count]) => <article key={type}><strong>{type}</strong>{Array.from({ length: count }, (_, index) => { const item = items.find((candidate) => candidate.slotType === type && candidate.slotIndex === index); return <span className={item ? "occupied" : ""} key={index}><b>{index + 1}</b>{item ? <EquipmentIcon definitionId={item.definitionId} label={item.name} className="loadout-slot-icon" /> : <i className="loadout-slot-empty">—</i>}<em>{item?.name ?? "EMPTY"}</em></span>; })}</article>)}
       <LoadoutCombatPreview current={payload?.effectiveUnit ?? null} preview={preview} busy={previewing} />
     </div>
-      <div className="owned-equipment"><span className="eyebrow">OWNED EQUIPMENT</span>{payload?.ownedEquipment.map((equipment) => { const selected = items.some((item) => item.inventoryId === equipment.inventoryId); return <button key={equipment.inventoryId} className={selected ? "selected" : ""} title={equipment.availabilityReason?.replaceAll("_", " ")} disabled={!equipment.executable || (Boolean(equipment.assignedUnitId) && equipment.assignedUnitId !== unit.unitId)} onClick={() => toggle(equipment)}><i>{selected ? "✓" : equipment.executable ? "+" : "×"}</i><span><strong>{equipment.name}</strong><small>{equipment.allowedSlots.join(" / ")} · {equipment.implementationStatus.replaceAll("_", " ")} · {equipment.availabilityStatus.replaceAll("_", " ")}</small></span></button>; })}<span className="eyebrow requisition-heading">ELIGIBLE REQUISITION</span>{eligible.map((equipment) => <button key={equipment.id} title={equipment.reason_code?.replaceAll("_", " ")} disabled={busy || !equipment.executable || !equipment.purchasable || equipment.requisition_status !== "PUBLISHED" || equipment.requisition_cost === null} onClick={() => void requisition(equipment.id)}><i>{equipment.executable ? "RP" : "×"}</i><span><strong>{equipment.name}</strong><small>{equipment.implementation_status.replaceAll("_", " ")} · {equipment.availability_status.replaceAll("_", " ")} · {equipment.requisition_cost === null ? "BALANCE REQUIRED" : `${equipment.requisition_cost} RP`}</small></span></button>)}</div>
+      <div className="owned-equipment"><span className="eyebrow">OWNED EQUIPMENT</span>{payload?.ownedEquipment.map((equipment) => { const selected = items.some((item) => item.inventoryId === equipment.inventoryId); return <button key={equipment.inventoryId} className={selected ? "selected" : ""} aria-label={`${selected ? "−" : "+"} ${equipment.name} ${equipment.allowedSlots.join(" / ")} ${equipment.implementationStatus.replaceAll("_", " ")} ${equipment.availabilityStatus.replaceAll("_", " ")}`} aria-pressed={selected} title={equipment.availabilityReason?.replaceAll("_", " ")} disabled={!equipment.executable || (Boolean(equipment.assignedUnitId) && equipment.assignedUnitId !== unit.unitId)} onClick={() => toggle(equipment)}><EquipmentIcon definitionId={equipment.definitionId} label={equipment.name} className="loadout-equipment-icon" /><span><strong>{equipment.name}</strong><small>{equipment.allowedSlots.join(" / ")} · {equipment.implementationStatus.replaceAll("_", " ")} · {equipment.availabilityStatus.replaceAll("_", " ")}{selected ? " · INSTALLED" : ""}</small></span></button>; })}<span className="eyebrow requisition-heading">ELIGIBLE REQUISITION</span>{eligible.map((equipment) => <button key={equipment.id} aria-label={`+ ${equipment.name} requisition`} title={equipment.reason_code?.replaceAll("_", " ")} disabled={busy || !equipment.executable || !equipment.purchasable || equipment.requisition_status !== "PUBLISHED" || equipment.requisition_cost === null} onClick={() => void requisition(equipment.id)}><EquipmentIcon definitionId={equipment.id} label={equipment.name} className="loadout-equipment-icon" /><span><strong>{equipment.name}</strong><small>{equipment.implementation_status.replaceAll("_", " ")} · {equipment.availability_status.replaceAll("_", " ")} · {equipment.requisition_cost === null ? "BALANCE REQUIRED" : `${equipment.requisition_cost} RP`}</small></span></button>)}</div>
     </section>
     <footer><div>{error && <p role="alert">{error}</p>}<small>Server rebuilds effective stats, weapons, ammo, actions and eligibility before committing.</small></div><button onClick={onClose}>CANCEL</button><button className="primary" disabled={!payload || busy || previewing || !preview?.validation.valid || Boolean(payload.loadout.lockedAt)} onClick={() => void save()}>{busy ? "VALIDATING…" : previewing ? "PREVIEWING…" : "COMMIT LOADOUT"}</button></footer>
   </dialog>;
@@ -774,23 +777,6 @@ function errorMessage(status: number): string {
   return `Force registry request failed (${status}).`;
 }
 
-function markerCode(unit: Pick<ForceUnitView, "role" | "tags">): string {
-  const tags = new Set(unit.tags);
-  if (tags.has("MEDICAL")) return "MED";
-  if (tags.has("ENGINEER")) return "ENG";
-  if ([...tags].some((tag) => tag.includes("STEALTH"))) return "SF";
-  if (tags.has("LOGISTICS")) return "LOG";
-  if (tags.has("BOMBER")) return "BMB";
-  if (tags.has("INTERCEPTOR") || tags.has("AEROSPACE_INTERCEPTOR")) return "FTR";
-  if (tags.has("VTOL")) return "VTL";
-  if (tags.has("TRANSPORT") && tags.has("AEROSPACE")) return "HAT";
-  if (unit.role === "ARTILLERY") return "ART";
-  if (unit.role === "MECH") return "MCH";
-  if (unit.role === "ARMOUR") return tags.has("HEAVY") ? "MBT" : "AFV";
-  if (unit.role === "AEROSPACE") return "AIR";
-  return "INF";
-}
-
 function durabilityPercent(unit: ForceUnitView): number {
   return unit.maximumHealth > 0 ? Math.max(0, Math.min(100, unit.currentHealth / unit.maximumHealth * 100)) : 0;
 }
@@ -913,7 +899,7 @@ function RequisitionDialog({
             <div className="catalogue-list">
               {catalogue.filter((item) => item.availabilityStatus !== "HIDDEN").map((item) => (
                 <button className={item.id === selectedId ? "selected" : ""} key={item.id} onClick={() => { setSelectedId(item.id); setEquipmentIds(item.initialEquipment.map((equipment) => equipment.id)); setError(undefined); }}>
-                  <span className={`force-marker role-${item.role.toLowerCase()}`}>{markerCode({ role: item.role, tags: item.tags })}</span>
+                  <UnitPortrait definitionId={item.id} tags={item.tags} label={item.name} className={`force-marker role-${item.role.toLowerCase()}`} />
                   <span><strong>{item.name}</strong><small>{item.role} · {item.movementLabel}</small></span>
                   <i className={`availability-dot ${item.availabilityStatus.toLowerCase()}`} title={item.availabilityStatus} />
                 </button>
@@ -924,7 +910,7 @@ function RequisitionDialog({
             {selected ? (
               <>
                 <div className="catalogue-hero">
-                  <span className={`force-marker large role-${selected.role.toLowerCase()}`}>{markerCode({ role: selected.role, tags: selected.tags })}</span>
+                  <UnitPortrait definitionId={selected.id} tags={selected.tags} label={selected.name} className={`force-marker large role-${selected.role.toLowerCase()}`} />
                   <div><span className="eyebrow">{selected.role} // {selected.category}</span><h3>{selected.name}</h3><p>{selected.description}</p></div>
                 </div>
                 <div className="catalogue-status-row">
@@ -970,7 +956,7 @@ function RequisitionDialog({
                   {selected.initialEquipment.length ? (
                     <div className="initial-equipment-list">
                       {selected.initialEquipment.map((equipment) => (
-                        <label key={equipment.id}><input type="checkbox" checked={equipmentIds.includes(equipment.id)} onChange={(event) => setEquipmentIds((current) => event.target.checked ? [...current, equipment.id] : current.filter((id) => id !== equipment.id))} /><span><b>{equipment.name}</b><small>{equipment.slot} · {equipment.description}</small></span></label>
+                        <label key={equipment.id}><input type="checkbox" checked={equipmentIds.includes(equipment.id)} onChange={(event) => setEquipmentIds((current) => event.target.checked ? [...current, equipment.id] : current.filter((id) => id !== equipment.id))} /><EquipmentIcon definitionId={equipment.definitionId ?? equipment.id} label={equipment.name} className="initial-equipment-icon" /><span><b>{equipment.name}</b><small>{equipment.slot} · {equipment.description}</small></span></label>
                       ))}
                     </div>
                   ) : <p className="catalogue-note">No initial equipment package is published for this class. Eligible loadout options are derived by the server after requisition.</p>}
@@ -1141,7 +1127,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
               <header><span>{group.role}</span><b>{group.units.length}</b></header>
               {group.units.map((unit) => (
                 <button className={`force-roster-card ${unit.unitId === selectedUnit?.unitId ? "selected" : ""}`} key={unit.unitId} onClick={() => void inspect(unit)}>
-                  <span className={`force-marker role-${unit.role.toLowerCase()}`}>{markerCode(unit)}</span>
+                  <UnitPortrait definitionId={unit.definitionId} tags={unit.tags} label={unit.className} className={`force-marker role-${unit.role.toLowerCase()}`} />
                   <span className="force-roster-identity"><strong>{unit.callsign}</strong><small>{unit.className}</small><i><b style={{ width: `${durabilityPercent(unit)}%` }} /></i></span>
                   <span className={`force-state state-${statusLabel(unit).toLowerCase()}`}>{statusLabel(unit)}</span>
                 </button>
@@ -1158,7 +1144,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
         {selectedUnit ? (
           <>
             <header className="inspection-hero">
-              <span className={`force-marker hero role-${selectedUnit.role.toLowerCase()}`}>{markerCode(selectedUnit)}</span>
+              <UnitPortrait definitionId={selectedUnit.definitionId} tags={selectedUnit.tags} label={selectedUnit.className} className={`force-marker hero role-${selectedUnit.role.toLowerCase()}`} />
               <div className="inspection-identity">
                 <span className="eyebrow">{selectedUnit.role} // {selectedUnit.movementLabel.toUpperCase()}</span>
                 <h2>{selectedUnit.callsign}</h2>
@@ -1211,7 +1197,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
                   <section className="inspection-section equipment-section">
                     <header><div><span className="eyebrow">PERSISTENT OWNERSHIP</span><h3>Equipment</h3></div><span className="equipment-header-actions"><b>{selectedUnit.equipment.length}</b><button disabled={mode !== "LIVE" || !["RESERVE", "ON_SHIP"].includes(selectedUnit.locationState)} onClick={() => setLoadoutOpen(true)}>MANAGE LOADOUT</button></span></header>
                     <div className="equipment-list">
-                      {selectedUnit.equipment.map((equipment) => <article key={equipment.id}><span>{equipment.slot}</span><div><strong>{equipment.name}</strong><p>{equipment.description}</p></div></article>)}
+                      {selectedUnit.equipment.map((equipment) => <article key={equipment.id}><EquipmentIcon definitionId={equipment.definitionId ?? equipment.id} label={equipment.name} className="inspection-equipment-icon" /><span>{equipment.slot}</span><div><strong>{equipment.name}</strong><p>{equipment.description}</p></div></article>)}
                       {!selectedUnit.equipment.length && <p className="section-empty">No installed equipment returned by the registry.</p>}
                     </div>
                     <div className="tag-cloud" aria-label="Unit tags">{selectedUnit.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
@@ -1246,7 +1232,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
           <header><div><span className="eyebrow">OPERATIONAL FORMATION</span><h2>{activeBattlegroup ? `Battlegroup ${activeBattlegroup.name}` : "No battlegroup"}</h2></div><span>{battlegroupUnits.length}</span></header>
           <p>{activeBattlegroup?.objective || "No persistent formation is assigned to the selected unit."}</p>
           <div className="battlegroup-stack">
-            {battlegroupUnits.map((unit) => <button key={unit.unitId} onClick={() => void inspect(unit)}><span className={`force-marker small role-${unit.role.toLowerCase()}`}>{markerCode(unit)}</span><span><strong>{unit.callsign}</strong><small>{unit.className}</small></span><b className={unit.readiness?.ready ? "ready" : "blocked"}>{unit.readiness?.ready ? "READY" : "CHECK"}</b></button>)}
+            {battlegroupUnits.map((unit) => <button key={unit.unitId} onClick={() => void inspect(unit)}><UnitPortrait definitionId={unit.definitionId} tags={unit.tags} label={unit.className} className={`force-marker small role-${unit.role.toLowerCase()}`} /><span><strong>{unit.callsign}</strong><small>{unit.className}</small></span><b className={unit.readiness?.ready ? "ready" : "blocked"}>{unit.readiness?.ready ? "READY" : "CHECK"}</b></button>)}
           </div>
           <button className="formation-action" disabled={mode !== "LIVE"} onClick={() => setBattlegroupOpen(true)}>MANAGE BATTLEGROUPS</button>
         </section>

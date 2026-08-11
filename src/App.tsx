@@ -38,6 +38,7 @@ import { HexMap, type TacticalMapLayer } from "./components/HexMap";
 import { StrategicWorkspace, type StrategicView } from "./components/StrategicWorkspace";
 import { AuthGateway } from "./components/AuthGateway";
 import { CampaignReports } from "./components/CampaignReports";
+import { UnitPortrait } from "./components/UnitVisual";
 
 const DEMO_USER = "demo-user";
 const DEFAULT_DEVELOPMENT_CAMPAIGN_ID = "outpost-k17";
@@ -1370,7 +1371,15 @@ function GameApp() {
                     : selectUnit(unit)}
                   title={inspectOnly ? "Allied formation: shared intention and status inspection only" : "Compose this unit's order"}
                 >
-                  <span className="unit-monogram">{unit.callsign.slice(0, 2)}</span>
+                  <UnitPortrait
+                    definitionId={unit.definitionId}
+                    tags={[
+                      ...unit.weapons.flatMap((weapon) => weapon.tags),
+                      ...(unit.abilities ?? []).map((ability) => ability.abilityId),
+                    ]}
+                    label={definitionLabel(unit)}
+                    className="unit-monogram"
+                  />
                   <span className="unit-card-body">
                     <strong>{unit.callsign}</strong>
                     <small>{definitionLabel(unit)}</small>

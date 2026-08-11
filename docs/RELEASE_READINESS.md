@@ -129,7 +129,7 @@ No external state was changed during this Phase-0 assessment.
 | Secrets scan/dependency/code scan | missing release evidence | Add CI scanners and triage policy. |
 | Data export/delete/anonymisation | missing | Depends on DEC-016. |
 | Privacy/terms/support/security route | missing | Depends on DEC-016. |
-| Asset provenance/licensing | missing evidence | 699+ legacy/current files need per-file manifest or quarantine. |
+| Asset provenance/licensing | partial evidence | The 35 active generated gameplay visuals plus one retained alternate have stable keys, hashes, source renders, processing history and fallbacks in `src/assets/gameplay-visuals.manifest.json`; final public terms/ownership approval and the remaining legacy assets still require manifest coverage or quarantine. |
 
 ## Reliability and operations checklist
 

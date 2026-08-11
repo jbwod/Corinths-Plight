@@ -90,7 +90,7 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 | AUD-OPS-001 — preview is a placeholder | P0 | blocked | High | Preview D1 ID is `00000000-0000-0000-0000-000000000002`; no preview migration/seed/deploy/smoke workflow. | CP-101 |
 | AUD-OPS-002 — no recovery evidence | P0 | open | High | No executable backup/restore/DO reconstruction/RPO/RTO rehearsal; health is shallow; release metadata/SLO dashboards/alerts absent. | CP-005/CP-105/CP-106 |
 | AUD-QA-001 — browser baseline is not the release matrix | P0 | partial | High | Four local Playwright canaries and CI artifact wiring now exist, but there is no production-like multi-user/game-loop run, Axe/screen-reader/visual evidence, load or soak suite. Tactical canvas still lacks a semantic route/target alternative. | CP-002/CP-702/CP-800/CP-802 |
-| AUD-LEGAL-001 — public policy and asset-rights evidence absent | P0 | blocked | High for missing evidence | No privacy/terms/security/support/data-rights flow or asset provenance manifest. This does not prove assets are unlicensed; it proves clearance evidence is absent. | CP-107/CP-205/CP-804 |
+| AUD-LEGAL-001 — public policy and complete asset-rights evidence absent | P0 | blocked | High for missing evidence | No privacy/terms/security/support/data-rights flow. The new gameplay visual pack has a per-file hash/provenance manifest and no third-party reference inputs, but final terms/ownership approval and the unrelated legacy-asset register remain open. This does not prove legacy assets are unlicensed; it proves complete clearance evidence is absent. | CP-107/CP-205/CP-804 |
 
 ## Public HTTP route inventory
 
@@ -198,7 +198,7 @@ No public campaign directory/create/join/leave, profile/settings/session-managem
 | Ship configure/upgrade/movement/transfer/consumption/combat | blocked/notice-only | Explicit deferred controls. |
 | Strategic order | functional supported slice | UI submits Disembark, Task Force resupply and campaign Support, and exposes approval-gated round resolution; unresolved movement remains unavailable. |
 | Strategic-to-tactical deploy/result reconciliation | blocked/notice-only | No bootstrap/effect flow. |
-| Unit/planet/ship imagery | prototype | React uses text markers; supplied unit/sprite library is not integrated or licensed in a manifest. |
+| Unit/equipment gameplay imagery | integrated local slice | Stable registries cover all 13 canonical non-orbital unit classes and 22 authoritative equipment definitions. Portraits are used across Forces, deployment and tactical inspection; equipment images are used in requisition/loadout/inspection and ship modules; replay and tactical maps use compact semantic glyphs with labels/fallbacks. `src/assets/gameplay-visuals.manifest.json` pins paths and hashes. Final public legal review and unrelated planet/ship/legacy asset coverage remain open. |
 
 ## Rule-to-runtime activation matrix
 
@@ -270,7 +270,7 @@ Twenty-one tables fall into groups with no direct non-test runtime reference or 
 
 At audit time, `image/` contained 347 files: 257 profile images, 72 unit assets, 13 planet images, one brand icon, one `.DS_Store`, and three untracked background GIFs. `app/static/img/` contained 352 files. `shipbuilder/` contained 32 files and `worldmap/` five. Across `image/` and `app/static/img/`, extensions included 654 PNG, 38 GIF, one JPG, two PDN and four `.DS_Store` files. Counts overlap duplicated legacy/current asset sets; no rights manifest or deduplication record exists.
 
-The audit intentionally does not assert ownership or licensing. CP-205/CP-804 require a per-file manifest with stable asset key, path, content hash, creator/source, licence/permission, derivative history, intended use, accessibility label/fallback, and optimisation status. Untracked `image/background/` remains user-owned and was not changed or staged.
+The audit intentionally does not assert ownership or licensing for the legacy library. CP-205 now supplies those fields for the generated unit/equipment gameplay pack through `src/assets/gameplay-visuals.manifest.json`; CP-107/CP-804 still require final public approval and equivalent evidence or quarantine for every remaining asset. Untracked `image/background/` remains user-owned and was not changed or staged.
 
 Retained V1 reference findings:
 

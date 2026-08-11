@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { AxialCoord, CampaignEvent } from "../../packages/domain/src";
 import { buildCampaignReplayFrames, type CampaignReplayStartingState } from "../campaign/replay";
 import { describeCampaignReportEvent } from "../campaign/reports";
+import { resolveUnitVisual, TACTICAL_UNIT_GLYPH_PATHS } from "../unit-visuals";
+import { TacticalUnitGlyph } from "./UnitVisual";
 
 interface CampaignReplayProps {
   startingState: CampaignReplayStartingState;
@@ -110,12 +112,22 @@ export function CampaignReplay({ startingState, events, names }: CampaignReplayP
                 const center = point(unit.position);
                 const highlighted = unit.id === frame.actorId || unit.id === frame.targetId;
                 const ratio = Math.max(0, unit.currentHealth / unit.stats.maxHealth);
+                const visual = resolveUnitVisual({
+                  definitionId: unit.definitionId,
+                  side: unit.side,
+                  tags: [
+                    ...unit.weapons.flatMap((weapon) => weapon.tags),
+                    ...(unit.abilities ?? []).map((ability) => ability.abilityId),
+                    ...(unit.movementProfile ? [unit.movementProfile.mode] : []),
+                  ],
+                });
                 return (
                   <g className={`replay-unit ${unit.status === "DESTROYED" ? "destroyed" : ""} ${highlighted ? "highlighted" : ""}`} key={unit.id} transform={`translate(${center.x} ${center.y})`}>
                     <rect x="-17" y="-13" width="34" height="26" rx="3" fill="#071517" stroke={deploymentColor(unit.side)} />
-                    <text y="-1" textAnchor="middle" fill={deploymentColor(unit.side)}>{unit.callsign.slice(0, 5)}</text>
+                    <path className="replay-unit-glyph" d={TACTICAL_UNIT_GLYPH_PATHS[visual.tacticalGlyph]} transform="translate(-9 -11) scale(.56)" stroke={deploymentColor(unit.side)} />
                     <rect className="replay-health-track" x="-13" y="7" width="26" height="3" />
                     <rect className="replay-health-value" x="-13" y="7" width={26 * ratio} height="3" />
+                    <text className="replay-unit-label" y="19" textAnchor="middle" fill={deploymentColor(unit.side)}>{unit.callsign.slice(0, 7)}</text>
                   </g>
                 );
               })}
@@ -129,7 +141,10 @@ export function CampaignReplay({ startingState, events, names }: CampaignReplayP
           <header>VISIBLE FORMATIONS</header>
           {frame.deployments.map((unit) => (
             <div className={unit.id === frame.actorId || unit.id === frame.targetId ? "active" : ""} key={unit.id}>
-              <i style={{ backgroundColor: deploymentColor(unit.side) }} />
+              <TacticalUnitGlyph
+                kind={resolveUnitVisual({ definitionId: unit.definitionId, side: unit.side }).tacticalGlyph}
+                className="replay-ledger-glyph"
+              />
               <span><strong>{unit.callsign}</strong><small>HEX {unit.position.q}.{unit.position.r} · {unit.status}</small></span>
               <b>{unit.currentHealth}/{unit.stats.maxHealth}</b>
             </div>

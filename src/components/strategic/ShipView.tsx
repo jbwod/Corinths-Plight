@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ModuleView, StrategicDataMode, StrategicSnapshot } from "../../strategic/model";
+import { EquipmentIcon } from "../EquipmentVisual";
 
 interface ShipViewProps {
   snapshot: StrategicSnapshot;
@@ -131,6 +132,7 @@ export function ShipView({ snapshot, mode, onNotice }: ShipViewProps) {
               <div className="ship-slot-row">
                 {externalSlots.map((module, index) => (
                   <article className={module ? "occupied" : "empty"} key={`external-${index}`}>
+                    {module && <EquipmentIcon definitionId={module.definitionId ?? module.id} label={module.name} className="ship-module-icon" />}
                     <small>EXTERNAL {String(index + 1).padStart(2, "0")}</small>
                     <strong>{module?.name ?? "EMPTY SLOT"}</strong>
                     <span>{module ? `${module.state} · ${module.implementationStatus.replaceAll("_", " ")}` : "No installed module"}</span>
@@ -145,6 +147,7 @@ export function ShipView({ snapshot, mode, onNotice }: ShipViewProps) {
                 <div className="ship-slot-row">
                   {dualSlots.map((module) => (
                     <article className="occupied" key={module.id}>
+                      <EquipmentIcon definitionId={module.definitionId ?? module.id} label={module.name} className="ship-module-icon" />
                       <small>DUAL SLOT {String(module.slotIndex + 1).padStart(2, "0")}</small>
                       <strong>{module.name}</strong>
                       <span>{module.state} · {module.implementationStatus.replaceAll("_", " ")}</span>
@@ -159,6 +162,7 @@ export function ShipView({ snapshot, mode, onNotice }: ShipViewProps) {
               <div className="ship-slot-row internal">
                 {internalSlots.map((module, index) => (
                   <article className={module ? "occupied" : "empty"} key={`internal-${index}`}>
+                    {module && <EquipmentIcon definitionId={module.definitionId ?? module.id} label={module.name} className="ship-module-icon" />}
                     <small>INTERNAL {String(index + 1).padStart(2, "0")}</small>
                     <strong>{module?.name ?? "EMPTY SLOT"}</strong>
                     <span>{module ? `${module.state} · ${module.implementationStatus.replaceAll("_", " ")}` : "No installed module"}</span>

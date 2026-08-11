@@ -20,6 +20,7 @@ export type ForceStatusFilter = "ALL" | "READY" | "DEPLOYED" | "DAMAGED" | "LOST
 
 export interface ForceEquipmentView {
   id: string;
+  definitionId?: string;
   name: string;
   slot: string;
   description: string;

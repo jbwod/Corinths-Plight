@@ -215,8 +215,10 @@ function normalizeModules(payload: JsonRecord): ModuleView[] {
     if (!record) return [];
     const definition = firstRecord(record, "definition", "moduleDefinition");
     const rawSlotType = normalizedStatus(record.slotType ?? definition.slotType, "INTERNAL");
+    const id = identifier(record, "id", "moduleId", "shipModuleId") || `ship-module-${index + 1}`;
     return [{
-      id: identifier(record, "id", "moduleId", "shipModuleId") || `ship-module-${index + 1}`,
+      id,
+      definitionId: identifier(record, "definitionId", "equipmentDefinitionId") || identifier(definition, "id", "definitionId") || id,
       name: asString(record.name, asString(definition.name, "Installed module")),
       slotType:
         rawSlotType === "EXTERNAL_INTERNAL"
