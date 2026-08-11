@@ -37,7 +37,7 @@ This is the live release checklist. A checked local build item is not permission
 | `npm run seed:check` | macOS local, Node project toolchain | PASS | 41 definitions; 36 active; 100 SQL definitions; 16 allied classes; 7 enemy roles; 4 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
 | `npm run typecheck` | local | PASS | TypeScript 6.0.3. |
 | `npm run lint` | local | PASS | ESLint 10.8.1. |
-| `npm test` | local | PASS | Vitest 4.1.10; 59 files / 453 tests. |
+| `npm test` | local | PASS | Vitest 4.1.10; 59 files / 454 tests. |
 | `npm run build` | local development config | PASS | Worker 1,254.61 kB; client JS 777.40 kB; CSS 136.50 kB; Wrangler emitted only its known sandboxed debug-log warning. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
 | Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0010 applied. |

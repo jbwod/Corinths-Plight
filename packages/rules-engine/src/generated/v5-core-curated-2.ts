@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "10985d65e84fb052986b14c3550968eba196796844e5392447263abc6c8492f1",
+  "contentHash": "64cd365531f3556ee05f8797362da47ad5564b8dde1507feae4a1d7364bda8a1",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1819,7 +1819,26 @@ const snapshot = {
               "weapon-light-mech-laser"
             ]
           },
-          "execution": null,
+          "execution": {
+            "allowedActions": [
+              "ATTACK"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "RUSH",
+              "EVASIVE"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "VEHICLE",
+              "ARMOURED",
+              "MECH",
+              "SUBSYSTEMS",
+              "EVASIVE"
+            ]
+          },
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -8800,18 +8819,39 @@ const snapshot = {
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "BALANCE_REQUIRED",
         "availabilityStatus": "DEV_ONLY",
-        "executable": false,
+        "executable": true,
         "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "MISSING_RESOLVER_HOOK",
+        "handlerId": "foundation-generated-unit-class",
+        "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "implementedSubset": [
+            "HITS",
+            "ARMOUR",
+            "ATTACK",
+            "MOVEMENT",
+            "HOSTILE_PASSAGE",
+            "SUBSYSTEMS",
+            "EVASIVE"
+          ],
           "minimumMechanics": [
             "MECH_MOVEMENT",
             "EVASIVE",
             "SUBSYSTEMS"
-          ]
+          ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "The V5 Light Mech chassis, Light Laser Cannon, hostile-ground passage, subsystem failures, and Evasive movement execute through the generated tactical handler.",
+            "seedOverlay": {
+              "availabilityStatus": "DEV_ONLY",
+              "executable": false,
+              "implementationStatus": "PARTIAL",
+              "purchasable": false,
+              "reasonCode": "MISSING_RESOLVER_HOOK",
+              "requisitionStatus": "BALANCE_REQUIRED"
+            }
+          }
         }
       },
       {
@@ -14316,5 +14356,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "10985d65e84fb052986b14c3550968eba196796844e5392447263abc6c8492f1" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "64cd365531f3556ee05f8797362da47ad5564b8dde1507feae4a1d7364bda8a1" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

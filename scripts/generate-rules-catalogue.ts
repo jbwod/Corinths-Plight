@@ -492,6 +492,12 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     allowedOrders: ["HOLD", "ADVANCE", "RUSH", "EVASIVE"],
     allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
   },
+  "unit-light-mech": {
+    capacity: 1,
+    tags: ["GROUND", "VEHICLE", "ARMOURED", "MECH", "SUBSYSTEMS", "EVASIVE"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH", "EVASIVE"],
+    allowedActions: ["ATTACK"],
+  },
   "unit-logi-truck": {
     capacity: 1,
     tags: ["GROUND", "VEHICLE", "LOGISTICS", "TRANSPORT"],
@@ -858,6 +864,15 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
       missing: [],
     },
     explanation: "Subsystem malfunctions and Evasive movement now resolve through the generated tactical handler.",
+  },
+  "UNIT:unit-light-mech": {
+    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: "MISSING_CANONICAL_PRICE",
+    parameters: {
+      implementedSubset: ["HITS", "ARMOUR", "ATTACK", "MOVEMENT", "HOSTILE_PASSAGE", "SUBSYSTEMS", "EVASIVE"],
+      missing: [],
+    },
+    explanation: "The V5 Light Mech chassis, Light Laser Cannon, hostile-ground passage, subsystem failures, and Evasive movement execute through the generated tactical handler.",
   },
   "UNIT:unit-main-battle-tank": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",

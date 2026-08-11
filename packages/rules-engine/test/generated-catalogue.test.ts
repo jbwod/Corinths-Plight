@@ -125,6 +125,12 @@ describe("rules catalogue bootstrap", () => {
       handlerId: "foundation-generated-unit-class",
       reasonCode: "MISSING_CANONICAL_PRICE",
     });
+    expect(overlays.get("UNIT:unit-light-mech")).toMatchObject({
+      implementationStatus: "PARTIAL",
+      executable: true,
+      handlerId: "foundation-generated-unit-class",
+      reasonCode: "MISSING_CANONICAL_PRICE",
+    });
     for (const equipmentId of ["equipment-drone-operator", "equipment-vehicle-optics"]) {
       expect(overlays.get(`EQUIPMENT:${equipmentId}`)).toMatchObject({
         implementationStatus: "PARTIAL",
@@ -164,6 +170,7 @@ describe("rules catalogue bootstrap", () => {
       "UNIT:unit-engineers",
       "UNIT:unit-infantry-fighting-vehicle",
       "UNIT:unit-infantry-squad",
+      "UNIT:unit-light-mech",
       "UNIT:unit-light-vehicle",
       "UNIT:unit-logi-truck",
       "UNIT:unit-main-battle-tank",

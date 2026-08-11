@@ -141,6 +141,20 @@ describe("server rules hydration", () => {
     });
   });
 
+  test("hydrates the executable Light Mech hostile-passage and Evasive subset", () => {
+    const result = resolveUnitRulesAuthority(unitInput("unit-light-mech"), "development");
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.message);
+    expect(result.legacyDefinition).toMatchObject({
+      id: "unit-light-mech",
+      stats: { healthModel: "HITS", maxHealth: 2, armor: 1, speed: 4 },
+      allowedOrders: ["HOLD", "ADVANCE", "RUSH", "EVASIVE"],
+      allowedActions: ["ATTACK"],
+      weapons: [expect.objectContaining({ id: "weapon-light-mech-laser", range: 1 })],
+    });
+    expect(result.authority.links.allowedOrderTypes).toEqual(["ADVANCE", "EVASIVE", "HOLD", "RUSH"]);
+  });
+
   test("preserves Light Vehicle alternative cargo modes and exposes governed cargo actions", () => {
     const result = resolveUnitRulesAuthority(unitInput("unit-light-vehicle"), "development");
     expect(result.ok).toBe(true);

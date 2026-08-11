@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { resolveSimultaneousMovement } from "../src/movement";
+import { getTacticalUnitClass } from "../src/tactical-unit-catalogue";
 import { makeDeployment, makeHex, makeOrder } from "./fixtures";
 
 describe("distance-increment simultaneous movement", () => {
@@ -65,7 +66,13 @@ describe("distance-increment simultaneous movement", () => {
   });
 
   it("lets a Mech pass through an occupied hostile formation", () => {
-    const mech = makeDeployment("mech", { q: -1, r: 0 }, "ALLIED", { tags: ["GROUND", "MECH"] });
+    const lightMech = getTacticalUnitClass("unit-light-mech");
+    const mech = makeDeployment("mech", { q: -1, r: 0 }, "ALLIED", {
+      definitionId: lightMech.id,
+      tags: lightMech.tags,
+      stats: lightMech.stats,
+      weapons: lightMech.weapons,
+    });
     const hostile = makeDeployment("hostile", { q: 0, r: 0 }, "ENEMY");
     const order = makeOrder(mech, {
       route: [mech.position, hostile.position, { q: 1, r: 0 }],

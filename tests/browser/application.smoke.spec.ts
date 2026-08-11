@@ -433,21 +433,75 @@ test("strategic UI submits and resolves a Battlegroup disembark order", async ({
   }).toBe(true);
 });
 
-test("tactical API rejects client-authored action economy", async ({ page }) => {
-  await page.goto("/?view=campaigns");
-  await ensurePlayableK17(page);
-  await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
+test("tactical API exposes the Light Mech vertical and rejects client-authored action economy", async ({ page }) => {
+  await page.goto("/");
 
   const foundation = await page.request.get("/api/campaigns/outpost-k17/state", {
     headers: { "x-demo-user": "demo-user" },
   });
   expect(foundation.status()).toBe(200);
-  await expect(foundation.json()).resolves.toMatchObject({
+  const foundationState = await foundation.json() as CampaignView;
+  expect(foundationState).toMatchObject({
     deployments: expect.arrayContaining([
       expect.objectContaining({
         definitionId: "unit-infantry-fighting-vehicle",
         callsign: "CARR-6",
         allowedActions: expect.arrayContaining(["ATTACK", "LOAD", "UNLOAD"]),
+      }),
+      expect.objectContaining({
+        definitionId: "unit-light-mech",
+        callsign: "STRIDER",
+        allowedOrders: expect.arrayContaining(["EVASIVE"]),
+        allowedActions: expect.arrayContaining(["ATTACK"]),
+      }),
+    ]),
+  });
+
+  const strider = foundationState.deployments.find((deployment) => deployment.callsign === "STRIDER")!;
+  const striderOrder = await page.evaluate(async (command) => {
+    const response = await fetch("/api/campaigns/outpost-k17/orders", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-demo-user": "demo-user" },
+      body: JSON.stringify(command),
+    });
+    return { status: response.status, body: await response.text() };
+  }, {
+      commandId: `browser-strider-evasive-${foundationState.round}`,
+      expectedCampaignVersion: foundationState.version,
+      expectedOrderRevision: 0,
+      unitId: strider.id,
+      round: foundationState.round,
+      orderType: "EVASIVE",
+      lifecycle: "SUBMITTED",
+      route: [strider.position, { q: 1, r: -2 }, { q: 1, r: -1 }, { q: 2, r: -1 }],
+      facing: 2,
+      actions: [],
+      incidentalActions: [],
+  });
+  expect(striderOrder, striderOrder.body).toMatchObject({ status: 201 });
+
+  const resolved = await page.evaluate(async (round) => {
+    const response = await fetch("/api/campaigns/outpost-k17/resolve", {
+      method: "POST",
+      headers: { "x-demo-user": "demo-user", "x-expected-round": String(round) },
+    });
+    return { status: response.status, body: await response.text() };
+  }, foundationState.round);
+  expect(resolved, resolved.body).toMatchObject({ status: 200 });
+
+  const afterMechRound = await page.request.get("/api/campaigns/outpost-k17/state", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(afterMechRound.status()).toBe(200);
+  await expect(afterMechRound.json()).resolves.toMatchObject({
+    deployments: expect.arrayContaining([
+      expect.objectContaining({ id: strider.id, position: { q: 2, r: -1 } }),
+    ]),
+    events: expect.arrayContaining([
+      expect.objectContaining({
+        type: "EVASIVE_MANEUVER",
+        actor: strider.id,
+        payload: expect.objectContaining({ active: true, actualDisplacement: 3 }),
       }),
     ]),
   });

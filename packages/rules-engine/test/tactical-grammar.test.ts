@@ -78,6 +78,14 @@ describe("generated tactical grammar", () => {
       allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
       weapons: [expect.objectContaining({ id: "weapon-ifv-snub-autocannon", range: 1, armorPiercing: 1 })],
     });
+    expect(getTacticalUnitClass("unit-light-mech")).toMatchObject({
+      category: "MECH",
+      tags: expect.arrayContaining(["MECH", "SUBSYSTEMS", "EVASIVE"]),
+      stats: { healthModel: "HITS", maxHealth: 2, armor: 1, speed: 4, capacity: 1 },
+      allowedOrders: ["HOLD", "ADVANCE", "RUSH", "EVASIVE"],
+      allowedActions: ["ATTACK"],
+      weapons: [expect.objectContaining({ id: "weapon-light-mech-laser", damage: { count: 1, sides: 4, modifier: 0 }, range: 1 })],
+    });
   });
 
   it("materializes the V5 subsystem malfunction profile from the governed durability record", () => {
