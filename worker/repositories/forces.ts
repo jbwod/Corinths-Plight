@@ -757,7 +757,7 @@ export async function getEligibleEquipment(
                     equipment.definition_status, equipment.source,
                     equipment.notes, equipment.definition_json,
                     overlay.implementation_status, overlay.requisition_status,
-                    overlay.availability_status, overlay.purchasable,
+                    overlay.availability_status, overlay.executable, overlay.purchasable,
                     overlay.reason_code, eligibility.maximum_equipped,
                     eligibility.rule_json AS eligibility_json
                FROM player_units AS pu

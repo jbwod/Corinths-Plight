@@ -265,18 +265,42 @@ type LoadoutPayload = {
   unitId: string;
   unitVersion: number;
   loadout: { id: string; revision: number; status: string; lockedAt: number | null; items: Array<{ inventoryId: string; definitionId: string; name: string; slotType: string; slotIndex: number }> };
+  effectiveUnit: LoadoutEffectiveUnit | null;
   slots: Record<string, number>;
-  validation: { valid: boolean; errors: Array<{ code: string; message: string }> };
-  ownedEquipment: Array<{ inventoryId: string; definitionId: string; name: string; assignedUnitId?: string; state: string; implementationStatus: string; executable: boolean; allowedSlots: string[] }>;
+  validation: LoadoutValidation;
+  ownedEquipment: Array<{ inventoryId: string; definitionId: string; name: string; assignedUnitId?: string; state: string; implementationStatus: string; availabilityStatus: string; availabilityReason?: string | null; executable: boolean; allowedSlots: string[] }>;
+};
+
+type LoadoutEffectiveUnit = {
+  stats: { maxHealth: number; armor: number; defense: number; speed: number; sensors: number; capacity: number };
+  weapons: Array<{ id: string; name: string; range: number; armorPiercing: number; ammoCapacity?: number }>;
+  allowedActions: string[];
+  abilities: Array<{ abilityId: string }>;
+  equipmentInstanceIds: string[];
+  sourceHash: string;
+};
+
+type LoadoutValidation = {
+  valid: boolean;
+  errors: Array<{ code: string; message: string }>;
+  warnings?: Array<{ code: string; message: string }>;
+};
+
+type LoadoutPreviewPayload = {
+  effectiveUnit: LoadoutEffectiveUnit | null;
+  validation: LoadoutValidation;
 };
 
 function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClose: () => void; onSaved: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [payload, setPayload] = useState<LoadoutPayload>();
   const [items, setItems] = useState<LoadoutPayload["loadout"]["items"]>([]);
-  const [eligible, setEligible] = useState<Array<{ id: string; name: string; requisition_cost: number | null; implementation_status: string; requisition_status: string; availability_status: string }>>([]);
+  const [preview, setPreview] = useState<LoadoutPreviewPayload>();
+  const [previewing, setPreviewing] = useState(false);
+  const [eligible, setEligible] = useState<Array<{ id: string; name: string; requisition_cost: number | null; implementation_status: string; requisition_status: string; availability_status: string; executable: boolean; purchasable: boolean; reason_code?: string | null }>>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const previewSequence = useRef(0);
   useEffect(() => {
     const dialog = ref.current;
     dialog?.showModal();
@@ -294,20 +318,56 @@ function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClos
         const eligiblePayload = eligibleResponse.ok ? await eligibleResponse.json() as { equipment?: typeof eligible } : {};
         return { next, nextEligible: eligiblePayload.equipment ?? [] };
       })
-      .then(({ next, nextEligible }) => { if (!cancelled) { setPayload(next); setItems(next.loadout.items); setEligible(nextEligible); } })
+      .then(({ next, nextEligible }) => { if (!cancelled) { setPayload(next); setItems(next.loadout.items); setPreview({ effectiveUnit: next.effectiveUnit, validation: next.validation }); setEligible(nextEligible); } })
       .catch((reason) => { if (!cancelled) setError(reason instanceof Error ? reason.message : "Loadout unavailable."); });
     return () => { cancelled = true; };
   }, [unit.unitId]);
   useEffect(() => refresh(), [refresh]);
+  async function previewItems(nextItems: LoadoutPayload["loadout"]["items"]) {
+    if (!payload) return;
+    const sequence = ++previewSequence.current;
+    setPreviewing(true);
+    setError(undefined);
+    try {
+      const response = await fetch(`/api/forces/${encodeURIComponent(unit.unitId)}/loadout-preview`, {
+        method: "POST",
+        headers: JSON_HEADERS,
+        body: JSON.stringify({
+          commandId: crypto.randomUUID(),
+          expectedVersion: payload.unitVersion,
+          expectedLoadoutRevision: payload.loadout.revision,
+          context: "PRE_CAMPAIGN_MUSTER",
+          items: nextItems.map(({ inventoryId, slotType, slotIndex }) => ({ inventoryId, slotType, slotIndex })),
+        }),
+      });
+      if (!response.ok) throw new Error(errorMessage(response.status));
+      const nextPreview = await response.json() as LoadoutPreviewPayload;
+      if (sequence === previewSequence.current) setPreview(nextPreview);
+    } catch (reason) {
+      if (sequence === previewSequence.current) {
+        setPreview(undefined);
+        setError(reason instanceof Error ? reason.message : "Loadout preview failed.");
+      }
+    } finally {
+      if (sequence === previewSequence.current) setPreviewing(false);
+    }
+  }
   function toggle(equipment: LoadoutPayload["ownedEquipment"][number]) {
     const existing = items.find((item) => item.inventoryId === equipment.inventoryId);
-    if (existing) { setItems((current) => current.filter((item) => item.inventoryId !== equipment.inventoryId)); return; }
+    if (existing) {
+      const nextItems = items.filter((item) => item.inventoryId !== equipment.inventoryId);
+      setItems(nextItems);
+      void previewItems(nextItems);
+      return;
+    }
     const allowed = equipment.allowedSlots.map((slot) => slot.toUpperCase());
     for (const slotType of allowed) {
       const capacity = payload?.slots[slotType] ?? 0;
       for (let slotIndex = 0; slotIndex < capacity; slotIndex += 1) {
         if (!items.some((item) => item.slotType === slotType && item.slotIndex === slotIndex)) {
-          setItems((current) => [...current, { inventoryId: equipment.inventoryId, definitionId: equipment.definitionId, name: equipment.name, slotType, slotIndex }]);
+          const nextItems = [...items, { inventoryId: equipment.inventoryId, definitionId: equipment.definitionId, name: equipment.name, slotType, slotIndex }];
+          setItems(nextItems);
+          void previewItems(nextItems);
           return;
         }
       }
@@ -324,7 +384,6 @@ function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClos
         body: JSON.stringify({
           commandId: crypto.randomUUID(), expectedVersion: payload.unitVersion,
           expectedLoadoutRevision: payload.loadout.revision, context: "PRE_CAMPAIGN_MUSTER",
-          campaignId: "operation-spearhead",
           items: items.map(({ inventoryId, slotType, slotIndex }) => ({ inventoryId, slotType, slotIndex })),
         }),
       });
@@ -348,11 +407,45 @@ function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClos
   return <dialog ref={ref} className="loadout-dialog" aria-labelledby="loadout-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
     <header><div><span className="eyebrow">AUTHORITATIVE QUARTERMASTER</span><h2 id="loadout-title">{unit.callsign} loadout</h2></div><button aria-label="Close loadout" onClick={onClose}>×</button></header>
     <div className="loadout-state"><span>UNIT VERSION <b>{payload?.unitVersion ?? "—"}</b></span><span>LOADOUT REVISION <b>{payload?.loadout.revision ?? "—"}</b></span><span>STATE <b>{payload?.loadout.lockedAt ? "LOCKED" : payload?.loadout.status ?? "LOADING"}</b></span></div>
-    <section><div className="slot-board">{Object.entries(payload?.slots ?? {}).map(([type, count]) => <article key={type}><strong>{type}</strong>{Array.from({ length: count }, (_, index) => { const item = items.find((candidate) => candidate.slotType === type && candidate.slotIndex === index); return <span className={item ? "occupied" : ""} key={index}><b>{index + 1}</b>{item?.name ?? "EMPTY"}</span>; })}</article>)}</div>
-      <div className="owned-equipment"><span className="eyebrow">OWNED EQUIPMENT</span>{payload?.ownedEquipment.map((equipment) => { const selected = items.some((item) => item.inventoryId === equipment.inventoryId); return <button key={equipment.inventoryId} className={selected ? "selected" : ""} disabled={!equipment.executable || (Boolean(equipment.assignedUnitId) && equipment.assignedUnitId !== unit.unitId)} onClick={() => toggle(equipment)}><i>{selected ? "✓" : "+"}</i><span><strong>{equipment.name}</strong><small>{equipment.allowedSlots.join(" / ")} · {equipment.implementationStatus.replaceAll("_", " ")}</small></span></button>; })}<span className="eyebrow requisition-heading">ELIGIBLE REQUISITION</span>{eligible.map((equipment) => <button key={equipment.id} disabled={busy || equipment.requisition_status !== "PUBLISHED" || equipment.requisition_cost === null} onClick={() => void requisition(equipment.id)}><i>RP</i><span><strong>{equipment.name}</strong><small>{equipment.implementation_status.replaceAll("_", " ")} · {equipment.requisition_cost === null ? "BALANCE REQUIRED" : `${equipment.requisition_cost} RP`}</small></span></button>)}</div>
+    <section><div className="slot-board">{Object.entries(payload?.slots ?? {}).map(([type, count]) => <article key={type}><strong>{type}</strong>{Array.from({ length: count }, (_, index) => { const item = items.find((candidate) => candidate.slotType === type && candidate.slotIndex === index); return <span className={item ? "occupied" : ""} key={index}><b>{index + 1}</b>{item?.name ?? "EMPTY"}</span>; })}</article>)}
+      <LoadoutCombatPreview current={payload?.effectiveUnit ?? null} preview={preview} busy={previewing} />
+    </div>
+      <div className="owned-equipment"><span className="eyebrow">OWNED EQUIPMENT</span>{payload?.ownedEquipment.map((equipment) => { const selected = items.some((item) => item.inventoryId === equipment.inventoryId); return <button key={equipment.inventoryId} className={selected ? "selected" : ""} title={equipment.availabilityReason?.replaceAll("_", " ")} disabled={!equipment.executable || (Boolean(equipment.assignedUnitId) && equipment.assignedUnitId !== unit.unitId)} onClick={() => toggle(equipment)}><i>{selected ? "✓" : equipment.executable ? "+" : "×"}</i><span><strong>{equipment.name}</strong><small>{equipment.allowedSlots.join(" / ")} · {equipment.implementationStatus.replaceAll("_", " ")} · {equipment.availabilityStatus.replaceAll("_", " ")}</small></span></button>; })}<span className="eyebrow requisition-heading">ELIGIBLE REQUISITION</span>{eligible.map((equipment) => <button key={equipment.id} title={equipment.reason_code?.replaceAll("_", " ")} disabled={busy || !equipment.executable || !equipment.purchasable || equipment.requisition_status !== "PUBLISHED" || equipment.requisition_cost === null} onClick={() => void requisition(equipment.id)}><i>{equipment.executable ? "RP" : "×"}</i><span><strong>{equipment.name}</strong><small>{equipment.implementation_status.replaceAll("_", " ")} · {equipment.availability_status.replaceAll("_", " ")} · {equipment.requisition_cost === null ? "BALANCE REQUIRED" : `${equipment.requisition_cost} RP`}</small></span></button>)}</div>
     </section>
-    <footer><div>{error && <p role="alert">{error}</p>}<small>Server rebuilds effective stats, weapons, ammo, actions and eligibility before committing.</small></div><button onClick={onClose}>CANCEL</button><button className="primary" disabled={!payload || busy || Boolean(payload.loadout.lockedAt)} onClick={() => void save()}>{busy ? "VALIDATING…" : "COMMIT LOADOUT"}</button></footer>
+    <footer><div>{error && <p role="alert">{error}</p>}<small>Server rebuilds effective stats, weapons, ammo, actions and eligibility before committing.</small></div><button onClick={onClose}>CANCEL</button><button className="primary" disabled={!payload || busy || previewing || !preview?.validation.valid || Boolean(payload.loadout.lockedAt)} onClick={() => void save()}>{busy ? "VALIDATING…" : previewing ? "PREVIEWING…" : "COMMIT LOADOUT"}</button></footer>
   </dialog>;
+}
+
+function LoadoutCombatPreview({
+  current,
+  preview,
+  busy,
+}: {
+  current: LoadoutEffectiveUnit | null;
+  preview?: LoadoutPreviewPayload;
+  busy: boolean;
+}) {
+  const effective = preview?.effectiveUnit;
+  const stats: Array<[string, keyof LoadoutEffectiveUnit["stats"]]> = [
+    ["HEALTH", "maxHealth"], ["ARMOR", "armor"], ["DEFENSE", "defense"],
+    ["SPEED", "speed"], ["SENSORS", "sensors"], ["CAPACITY", "capacity"],
+  ];
+  return <section className="loadout-combat-preview" aria-live="polite">
+    <header><span className="eyebrow">COMBAT EFFECT PREVIEW</span><b className={preview?.validation.valid ? "valid" : "invalid"}>{busy ? "CALCULATING" : preview?.validation.valid ? "VALID" : "BLOCKED"}</b></header>
+    {effective ? <>
+      <div className="loadout-stat-grid">{stats.map(([label, key]) => {
+        const value = effective.stats[key];
+        const before = current?.stats[key] ?? value;
+        const delta = value - before;
+        return <span key={key}><small>{label}</small><strong>{value}</strong>{delta !== 0 && <i className={delta > 0 ? "positive" : "negative"}>{delta > 0 ? `+${delta}` : delta}</i>}</span>;
+      })}</div>
+      <div className="loadout-preview-list"><small>WEAPONS</small>{effective.weapons.map((weapon) => <span key={weapon.id}><b>{weapon.name}</b><i>R{weapon.range} · AP {weapon.armorPiercing}{weapon.ammoCapacity === undefined ? "" : ` · ${weapon.ammoCapacity} AMMO`}</i></span>)}</div>
+      <div className="loadout-preview-list"><small>AVAILABLE ACTIONS</small><p>{effective.allowedActions.join(" · ") || "No actions"}</p></div>
+      {effective.abilities.length > 0 && <div className="loadout-preview-list"><small>ABILITIES</small><p>{effective.abilities.map((ability) => readableId(ability.abilityId)).join(" · ")}</p></div>}
+    </> : <p className="loadout-preview-empty">Select owned equipment to calculate the authoritative combat package.</p>}
+    {preview?.validation.errors.map((issue) => <p className="loadout-preview-issue" key={`${issue.code}:${issue.message}`}><b>{issue.code}</b>{issue.message}</p>)}
+    {preview?.validation.warnings?.map((issue) => <p className="loadout-preview-issue warning" key={`${issue.code}:${issue.message}`}><b>{issue.code}</b>{issue.message}</p>)}
+  </section>;
 }
 
 function BattlegroupDialog({
@@ -1007,7 +1100,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
                     </div>
                   </section>
                   <section className="inspection-section equipment-section">
-                    <header><div><span className="eyebrow">PERSISTENT OWNERSHIP</span><h3>Equipment</h3></div><span className="equipment-header-actions"><b>{selectedUnit.equipment.length}</b><button disabled={mode !== "LIVE" || selectedUnit.locationState !== "RESERVE"} onClick={() => setLoadoutOpen(true)}>MANAGE LOADOUT</button></span></header>
+                    <header><div><span className="eyebrow">PERSISTENT OWNERSHIP</span><h3>Equipment</h3></div><span className="equipment-header-actions"><b>{selectedUnit.equipment.length}</b><button disabled={mode !== "LIVE" || !["RESERVE", "ON_SHIP"].includes(selectedUnit.locationState)} onClick={() => setLoadoutOpen(true)}>MANAGE LOADOUT</button></span></header>
                     <div className="equipment-list">
                       {selectedUnit.equipment.map((equipment) => <article key={equipment.id}><span>{equipment.slot}</span><div><strong>{equipment.name}</strong><p>{equipment.description}</p></div></article>)}
                       {!selectedUnit.equipment.length && <p className="section-empty">No installed equipment returned by the registry.</p>}

@@ -2824,6 +2824,25 @@ summary:focus-visible {
 .slot-board article > span { min-height: 38px; display: grid; grid-template-columns: 28px 1fr; align-items: center; margin-bottom: 4px; border: 1px dashed var(--line-strong); color: var(--dim); font-size: 8px; }
 .slot-board article > span.occupied { border-style: solid; background: rgba(42, 111, 105, .14); color: #c3d2d0; }
 .slot-board article > span b { display: grid; height: 100%; place-items: center; border-right: 1px solid var(--line); color: var(--teal); font: 600 8px/1 var(--mono); }
+.loadout-combat-preview { margin-top: 18px; padding-top: 13px; border-top: 1px solid var(--line-strong); }
+.loadout-combat-preview > header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; }
+.loadout-combat-preview > header b { color: var(--danger); font: 600 7px/1 var(--mono); }
+.loadout-combat-preview > header b.valid { color: var(--teal-bright); }
+.loadout-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.loadout-stat-grid > span { position: relative; min-height: 45px; display: grid; align-content: center; padding: 6px 8px; border: 1px solid var(--line); background: rgba(5, 20, 22, .72); }
+.loadout-stat-grid small { color: var(--dim); font: 600 5px/1 var(--mono); }
+.loadout-stat-grid strong { margin-top: 4px; color: #d5e1df; font: 600 13px/1 var(--mono); }
+.loadout-stat-grid i { position: absolute; right: 7px; bottom: 8px; color: var(--danger); font: 600 7px/1 var(--mono); }
+.loadout-stat-grid i.positive { color: var(--teal-bright); }
+.loadout-preview-list { margin-top: 9px; }
+.loadout-preview-list > small { color: var(--gold); font: 600 6px/1 var(--mono); }
+.loadout-preview-list > span { min-height: 32px; display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 4px; padding: 6px 8px; border: 1px solid var(--line); }
+.loadout-preview-list b { color: #bfd0ce; font-size: 8px; }
+.loadout-preview-list i { color: var(--dim); font: 500 6px/1 var(--mono); }
+.loadout-preview-list p, .loadout-preview-empty { margin: 5px 0 0; color: var(--muted); font-size: 7px; line-height: 1.5; }
+.loadout-preview-issue { margin: 7px 0 0; padding: 7px; border-left: 2px solid var(--danger); background: rgba(125, 37, 45, .12); color: #d9a6aa; font-size: 7px; line-height: 1.45; }
+.loadout-preview-issue.warning { border-left-color: var(--gold); background: rgba(147, 112, 39, .1); color: #c9b478; }
+.loadout-preview-issue b { display: block; margin-bottom: 3px; font: 600 6px/1 var(--mono); }
 .owned-equipment { display: grid; align-content: start; gap: 5px; }
 .owned-equipment > button { min-height: 48px; display: grid; grid-template-columns: 28px 1fr; gap: 7px; align-items: center; text-align: left; padding: 7px; border: 1px solid var(--line); background: #081517; color: var(--muted); cursor: pointer; }
 .owned-equipment > button.selected { border-color: var(--teal); background: rgba(42, 111, 105, .2); }

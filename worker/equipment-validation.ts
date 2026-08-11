@@ -59,9 +59,6 @@ export function validateLoadoutChangeCommand(value: unknown): ValidationResult<L
   if (value.campaignId !== undefined && (typeof value.campaignId !== "string" || !idPattern.test(value.campaignId))) {
     return { valid: false, code: "CAMPAIGN_ID_INVALID", message: "campaignId is invalid." };
   }
-  if (value.context === "PRE_CAMPAIGN_MUSTER" && typeof value.campaignId !== "string") {
-    return { valid: false, code: "CAMPAIGN_ID_REQUIRED", message: "Pre-campaign muster requires campaignId." };
-  }
   if (!Array.isArray(value.items) || value.items.length > 24) {
     return { valid: false, code: "LOADOUT_ITEMS_INVALID", message: "items must contain at most 24 equipment selections." };
   }

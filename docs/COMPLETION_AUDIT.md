@@ -27,17 +27,17 @@ The audit began with only two unrelated untracked user paths, which were preserv
 
 | Check | Result | Evidence |
 |---|---|---|
-| Seed/content validator | Pass | `npm run seed:check`: 42 definitions, 37 active, 100 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 4 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
+| Seed/content validator | Pass | `npm run seed:check`: 46 definitions, 41 active, 100 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 4 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
 | TypeScript | Pass | `npm run typecheck`. |
 | ESLint | Pass | `npm run lint`. |
-| Unit/contract tests | Pass | `npm test`: 60 files, 479 tests, Vitest 4.1.10. |
+| Unit/contract tests | Pass | `npm test`: 60 files, 482 tests, Vitest 4.1.10. |
 | Worker/client build | Pass | `npm run build`; Worker 1,254.61 kB, client JS 777.40 kB, CSS 136.50 kB. Wrangler's sandboxed debug-log write warns but the build exits successfully. |
 | Production-mode build | Pass | `WRANGLER_WRITE_LOGS=false npm run build:production`. |
 | Empty D1 migration replay | Pass | All eight migrations applied in isolated Wrangler state. |
 | Repeat seed replay | Pass | All seven seeds applied twice. |
 | D1 integrity | Pass | SQLite `integrity_check=ok`; `foreign_key_check` empty; 10 migration records and 117 application tables. |
 | Application CI | Local baseline implemented; remote proof pending | The application workflow now runs locked install, advisory audit, seed validation, typecheck, lint, Vitest, empty-D1 replay, production build and Playwright, then retains bundle/browser evidence. It has not run on GitHub or been made a protected required check. See CP-001. |
-| Browser/a11y/performance tests | Browser baseline partial | `npm run test:browser`: 10/10 pass for the signed-out auth/enlist shell, authenticated live local strategic/tactical reads without showcase fallback, strategic Disembark, resolved Large-Supply logistics, strategic deployment authorization through tactical snapshot commit, forged tactical economy rejection, Heavy Air Transport composer, executable-action composer, four-round report playback, planning layers, and 390px document overflow. Full onboarding/game E2E, Axe/manual accessibility, performance and load remain CP-800/CP-702/CP-802. |
+| Browser/a11y/performance tests | Browser baseline partial | `npm run test:browser`: 11/11 pass for the signed-out auth/enlist shell, authenticated live local strategic/tactical reads without showcase fallback, an authoritative Reserve loadout preview/commit, strategic Disembark, resolved Large-Supply logistics, strategic deployment authorization through tactical snapshot commit, forged tactical economy rejection, Heavy Air Transport composer, executable-action composer, four-round report playback, planning layers, and 390px document overflow. Full onboarding/game E2E, Axe/manual accessibility, performance and load remain CP-800/CP-702/CP-802. |
 
 The passing unit suite proves the tested helpers and contracts only. It does not activate catalogue-only content, validate real D1/DO crash boundaries, or prove a production browser workflow.
 
@@ -47,7 +47,7 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 |---|---|---:|---|---|
 | Passwordless Resend registration, verification, login, logout | implemented foundation | High | `worker/routes/auth.ts:33-73`; `worker/services/auth.ts`; `src/components/AuthGateway.tsx` | Local terminal-record retention exists at migration `0008`; idle/absolute TTL, device/session management, recovery, profile/data rights, production migration and monitoring remain CP-102/CP-103/CP-107. |
 | Guided Battalion join/create/invite, starter unit and tour | implemented foundation | High | `worker/routes/onboarding.ts:60-90`; `src/components/GuidedOnboarding.tsx:192-243` | Local invitation limits/audit/outbox hardening exists; opt-out, production abuse evidence and the full organisation lifecycle remain CP-104/CP-206/CP-207. |
-| Force list/detail/history, unit/equipment purchase and loadout | partial | High | `worker/routes/forces.ts:114-177`; force/equipment services | D1/compiled split, no approved economy, UI false fronts/fallbacks and incomplete lifecycle: CP-200–CP-208. |
+| Force list/detail/history, unit/equipment purchase and loadout | partial | High | Force/equipment routes and services | Reserve/ship-facility loadouts now preview and persist an authoritative effective combat package with exact-once receipts; generated availability blocks known non-functional equipment. Economy, item breadth, refits/loss and local fallback removal remain CP-200–CP-208. |
 | Deployment planning and commit | partial | High | `worker/routes/deployment.ts:49-86`; `worker/services/deployment.ts:335-445` | Demo IDs, no general scenario bootstrap, incomplete lift: CP-208/CP-400/CP-601. |
 | Tactical map and executable composer | partial/playable | High | `src/App.tsx`; `src/components/HexMap.tsx`; generated tactical grammar; Campaign DO/resolver | Authenticated authored campaigns expose generated Hold/Advance/Rush and migrated support actions with server-derived costs/blockers. Routes resolve on quarter-distance simultaneous timing, persist legal prefixes, and report hostile/capacity stops. Attack declares one target and the server fires every eligible fitted weapon with per-weapon report evidence. Cooperative readiness names missing Allied orders; submitted audience-safe Allied intents render as distinct movement/facing/destination/action overlays while drafts stay private. Round-scoped, fog-safe Allied tactical markers persist and render with accessible removal controls. Broader combined-arms rules and accessible map alternative remain CP-500–CP-507/CP-701–CP-702. |
 | Deterministic enemy orders | partial/playable | High | `worker/enemy-ai.ts`; `packages/rules-engine/src/enemy-doctrine.ts` | Published @2 Drone/Warrior/Heavy doctrine now drives stable legal orders, target preference, AP vehicle priority, fire spreading and scenario-primary-objective movement, with projected intention events. Formation cohesion, retreat, supply awareness, difficulty profiles and the incomplete enemy roster remain CP-506. |
@@ -118,7 +118,8 @@ All routes are Worker same-origin routes. `Implemented` here means the route has
 | `GET /api/forces/:id` | Friendly inspection | implemented |
 | `GET /api/forces/:id/history` | History | implemented route; incomplete UI |
 | `GET /api/forces/:id/eligible-equipment` | Eligibility projection | partial |
-| `GET /api/forces/:id/loadout` | Loadout projection | implemented |
+| `GET /api/forces/:id/loadout` | Loadout, corrected owned-equipment availability and effective-unit projection | implemented subset |
+| `POST /api/forces/:id/loadout-preview` | Non-mutating authoritative proposed effective-unit validation | implemented subset |
 | `POST /api/forces/:id/rename` | Versioned rename | implemented route; missing UI |
 | `POST /api/forces/:id/loadout-changes` | Versioned exact-once loadout mutation | partial item breadth |
 | `GET /api/catalogue/units` | D1 unit catalogue | partial/split truth |
@@ -187,7 +188,7 @@ No public campaign directory/create/join/leave, profile/settings/session-managem
 | Tactical operator clock/pause/resume/resolve | misleading | Rendered to normal players; backend correctly requires admin. Hide/role-gate and add audited operator workflow. |
 | Tactical Reports | partial/playable | Reports navigation opens the durable round archive/detail view, grouped calculations, terminal result and strategic consequences. A projected locked snapshot now drives browser-proven ordered tactical playback and an accessible formation ledger. Per-event knowledge evolution, declassification and export keep CP-700 open. |
 | Tactical Settings | notice-only | Settings does not open an implemented workflow. |
-| Forces browse/inspect/readiness/purchase/loadout | partial | Useful server routes, but demo headers, fixed operation, fabricated/default fields and showcase-on-error remain. |
+| Forces browse/inspect/readiness/purchase/loadout | partial | Owner-scoped live routes now support Reserve/ship-facility refits without a fixed operation ID and show the server-derived combat delta before commit. Demo headers/showcase fallback, economy and broader item lifecycle remain. |
 | Forces initial-equipment checkboxes | false front | Selection is omitted from purchase command. |
 | Forces rename/history | missing UI | Backend routes exist. |
 | Forces abilities | catalogue-only | Explicitly labels resolver deferred. |

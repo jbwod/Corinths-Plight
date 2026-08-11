@@ -69,6 +69,15 @@ describe("Forces routes", () => {
     expect(await response?.json()).toMatchObject({ error: { code: "JSON_REQUIRED" } });
   });
 
+  it("requires JSON for authoritative loadout previews", async () => {
+    const response = await routeForcesRequest(
+      demoRequest("/api/forces/force-raven/loadout-preview", { method: "POST" }),
+      developmentEnv,
+    );
+    expect(response?.status).toBe(415);
+    expect(await response?.json()).toMatchObject({ error: { code: "JSON_REQUIRED" } });
+  });
+
   it("validates list filters", async () => {
     const response = await routeForcesRequest(
       demoRequest("/api/forces?status=god-mode"),

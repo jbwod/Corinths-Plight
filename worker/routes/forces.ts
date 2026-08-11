@@ -22,7 +22,7 @@ import {
   purchaseForce,
   renameForce,
 } from "../services/forces";
-import { changeUnitLoadout, getUnitLoadout, purchaseEquipment } from "../services/equipment";
+import { changeUnitLoadout, getUnitLoadout, previewUnitLoadout, purchaseEquipment } from "../services/equipment";
 
 const forceId = "([A-Za-z0-9][A-Za-z0-9._:-]{0,127})";
 const forceDetailPath = new RegExp(`^/api/forces/${forceId}$`);
@@ -30,6 +30,7 @@ const forceHistoryPath = new RegExp(`^/api/forces/${forceId}/history$`);
 const eligibleEquipmentPath = new RegExp(`^/api/forces/${forceId}/eligible-equipment$`);
 const forceRenamePath = new RegExp(`^/api/forces/${forceId}/rename$`);
 const forceLoadoutPath = new RegExp(`^/api/forces/${forceId}/loadout$`);
+const forceLoadoutPreviewPath = new RegExp(`^/api/forces/${forceId}/loadout-preview$`);
 const forceLoadoutChangesPath = new RegExp(`^/api/forces/${forceId}/loadout-changes$`);
 const unitStatuses = new Set(["ACTIVE", "DEPLOYED", "DAMAGED", "DESTROYED", "RETIRED"]);
 const locationStates = new Set([
@@ -163,6 +164,13 @@ export async function routeForcesRequest(request: Request, env: Env): Promise<Re
     if (loadoutMatch) {
       if (request.method !== "GET") return methodNotAllowed(["GET"]);
       return json(await getUnitLoadout(env, ownerId, loadoutMatch[1]));
+    }
+    const loadoutPreviewMatch = url.pathname.match(forceLoadoutPreviewPath);
+    if (loadoutPreviewMatch) {
+      if (request.method !== "POST") return methodNotAllowed(["POST"]);
+      const parsed = validateLoadoutChangeCommand(await body(request));
+      if (!parsed.valid) validationError(parsed);
+      return json(await previewUnitLoadout(env, ownerId, loadoutPreviewMatch[1], parsed.value));
     }
     const loadoutChangesMatch = url.pathname.match(forceLoadoutChangesPath);
     if (loadoutChangesMatch) {

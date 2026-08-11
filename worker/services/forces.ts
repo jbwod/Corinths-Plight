@@ -23,6 +23,7 @@ import type { AuthenticatedIdentity } from "../auth";
 import type { Env } from "../env";
 import type { PurchaseForceCommand, ReadinessCheckCommand, RenameForceCommand } from "../forces-validation";
 import { commandHash } from "../forces-validation";
+import { resolveEquipmentRulesAuthority, type D1EquipmentRulesInput } from "./rules-hydration";
 import {
   getEligibleEquipment,
   getAccessibleShipCapabilities,
@@ -1018,9 +1019,34 @@ export async function getUnitCatalogue(env: Env): Promise<{ units: Array<Record<
 export async function getForceEligibleEquipment(env: Env, ownerId: string, unitId: string): Promise<unknown> {
   const unit = await getForce(env.DB, ownerId, unitId);
   if (!unit) throw new ForceServiceError(404, "UNIT_NOT_FOUND", "Persistent unit was not found.");
+  const rows = await getEligibleEquipment(env.DB, ownerId, unitId, env.ENVIRONMENT === "development");
   return {
     unitId,
-    equipment: await getEligibleEquipment(env.DB, ownerId, unitId, env.ENVIRONMENT === "development"),
+    equipment: rows.map((row) => {
+      const input: D1EquipmentRulesInput = {
+        rulesetId: unit.ruleset_id,
+        definitionId: String(row.id),
+        definitionStatus: String(row.definition_status),
+        requisitionCost: typeof row.requisition_cost === "number" ? row.requisition_cost : null,
+        implementationStatus: typeof row.implementation_status === "string" ? row.implementation_status : null,
+        requisitionStatus: typeof row.requisition_status === "string" ? row.requisition_status : null,
+        availabilityStatus: typeof row.availability_status === "string" ? row.availability_status : null,
+        executable: row.executable === 1,
+        purchasable: row.purchasable === 1,
+        reasonCode: typeof row.reason_code === "string" ? row.reason_code : null,
+      };
+      const resolution = resolveEquipmentRulesAuthority(input, env.ENVIRONMENT);
+      const authority = resolution.authority;
+      return {
+        ...row,
+        implementation_status: authority?.status.implementationStatus ?? "CATALOGUE_ONLY",
+        requisition_status: authority?.status.requisitionStatus ?? "NOT_APPLICABLE",
+        availability_status: authority?.status.availabilityStatus ?? "BLOCKED",
+        executable: authority?.decision.executable === true,
+        purchasable: authority?.decision.available === true && authority.status.purchasable,
+        reason_code: authority?.status.reasonCode ?? "RULES_AUTHORITY_UNAVAILABLE",
+      };
+    }),
   };
 }
 

@@ -354,16 +354,53 @@ export async function getUnitLoadout(env: Env, ownerId: string, unitId: string):
     effectiveUnit: hydrated.result.unit ?? null,
     slots: hydrated.slots,
     validation: { valid: hydrated.result.valid, errors: hydrated.result.errors, warnings: hydrated.result.warnings },
-    ownedEquipment: [...new Map(hydrated.inventoryRows.map((row) => [row.inventory_id, row])).values()].map((row) => ({
-      inventoryId: row.inventory_id,
-      definitionId: row.equipment_definition_id,
-      name: row.name,
-      assignedUnitId: row.assigned_unit_id,
-      state: row.inventory_state,
-      implementationStatus: row.implementation_status,
-      executable: row.executable === 1,
-      allowedSlots: parseJson<string[]>(row.slot_types_json, [row.canonical_slot_type]),
-    })),
+    ownedEquipment: [...new Map(hydrated.inventoryRows.map((row) => [row.inventory_id, row])).values()].map((row) => {
+      const resolution = resolveEquipmentRulesAuthority(
+        equipmentRulesInput(row, hydrated.context.ruleset_id),
+        env.ENVIRONMENT,
+      );
+      return {
+        inventoryId: row.inventory_id,
+        definitionId: row.equipment_definition_id,
+        name: row.name,
+        assignedUnitId: row.assigned_unit_id,
+        state: row.inventory_state,
+        implementationStatus: resolution.authority?.status.implementationStatus ?? "CATALOGUE_ONLY",
+        availabilityStatus: resolution.authority?.status.availabilityStatus ?? "BLOCKED",
+        availabilityReason: resolution.authority?.status.reasonCode ?? "RULES_AUTHORITY_UNAVAILABLE",
+        executable: resolution.authority?.decision.executable === true,
+        allowedSlots: parseJson<string[]>(row.slot_types_json, [row.canonical_slot_type]),
+      };
+    }),
+  };
+}
+
+export async function previewUnitLoadout(
+  env: Env,
+  ownerId: string,
+  unitId: string,
+  command: LoadoutChangeCommand,
+): Promise<unknown> {
+  const hydrated = await buildStoredEffectiveUnit(env, ownerId, unitId, command.items);
+  const { context, result } = hydrated;
+  if (context.unit_version !== command.expectedVersion || context.loadout_revision !== command.expectedLoadoutRevision) {
+    throw new ForceServiceError(409, "LOADOUT_VERSION_CONFLICT", "Unit or loadout changed since it was opened.", {
+      currentUnitVersion: context.unit_version,
+      currentLoadoutRevision: context.loadout_revision,
+    });
+  }
+  if (context.locked_at !== null || context.loadout_kind === "CAMPAIGN" || context.unit_status === "DEPLOYED") {
+    throw new ForceServiceError(409, "LOADOUT_LOCKED", "Campaign loadouts cannot be changed outside an authorised re-equipment transition.");
+  }
+  if (!(await hasLoadoutFacility(env.DB, ownerId, context, command.campaignId))) {
+    throw new ForceServiceError(422, "REFIT_FACILITY_REQUIRED", "Unit is not at an eligible re-equipment facility or pre-campaign muster.");
+  }
+  return {
+    unitId,
+    unitVersion: context.unit_version,
+    loadoutRevision: context.loadout_revision,
+    effectiveUnit: result.unit ?? null,
+    validation: { valid: result.valid, errors: result.errors, warnings: result.warnings },
   };
 }
 

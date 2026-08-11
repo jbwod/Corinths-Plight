@@ -410,6 +410,39 @@ test("local demo navigation reaches live strategic and tactical services", async
   await expect(page.getByText(/Local tactical projection active/)).toHaveCount(0);
 });
 
+test("quartermaster previews and persists equipment into a Reserve unit", async ({ page }) => {
+  await page.goto("/?view=forces");
+  await expect(page.getByText("REGISTRY LIVE", { exact: true })).toBeVisible();
+  await page.locator(".grouped-roster").getByRole("button", { name: /POLAR-1/ }).click();
+  await page.getByRole("button", { name: "MANAGE LOADOUT" }).click();
+
+  const dialog = page.getByRole("dialog", { name: /POLAR-1 loadout/i });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("COMBAT EFFECT PREVIEW", { exact: true })).toBeVisible();
+  await dialog.getByText(/AVAILABLE ACTIONS/).scrollIntoViewIfNeeded();
+  await expect(dialog.getByText(/AVAILABLE ACTIONS/)).toBeVisible();
+  await expect(dialog.getByText(/ATTACK/)).toBeVisible();
+
+  await expect(dialog.locator(".loadout-stat-grid").getByText("0", { exact: true }).first()).toBeVisible();
+  await dialog.getByRole("button", { name: /^\+ Flak Vests/ }).nth(1).click();
+  await expect(dialog.locator(".loadout-stat-grid").getByText("+1", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("VALID", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "COMMIT LOADOUT" }).click();
+  await expect(page.getByText(/POLAR-1 effective loadout committed/i)).toBeVisible();
+
+  const response = await page.request.get("/api/forces/force-polar-1/loadout", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(response.status()).toBe(200);
+  await expect(response.json()).resolves.toMatchObject({
+    effectiveUnit: {
+      stats: { armor: 1 },
+      equipmentInstanceIds: expect.arrayContaining(["inventory:spearhead:flak-spare"]),
+    },
+    validation: { valid: true },
+  });
+});
+
 test("strategic UI submits and resolves a Battlegroup disembark order", async ({ page }) => {
   await page.goto("/?view=galactic");
   await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();

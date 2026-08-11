@@ -253,6 +253,9 @@ export async function hasLoadoutFacility(
   context: LoadoutContextRow,
   campaignId?: string,
 ): Promise<boolean> {
+  // Reserve is the normal pre-campaign refit context. Campaign authority is
+  // checked when the resulting immutable deployment snapshot is committed.
+  if (context.location_state === 'RESERVE' && !campaignId) return true;
   if (context.location_state === 'ON_SHIP' && context.location_id) {
     const capability = await db.prepare(`SELECT 1
       FROM ship_effective_capabilities AS capabilities
