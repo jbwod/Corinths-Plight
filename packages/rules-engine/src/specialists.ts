@@ -419,6 +419,29 @@ export interface BomberFlyOverResult {
   ammunitionAfter: number;
 }
 
+export interface BomberAttackValidation extends BomberFlyOverResult {
+  applies: boolean;
+}
+
+export function validateBomberAttack(
+  attackerTags: readonly string[],
+  weapon: WeaponProfile,
+  route: readonly AxialCoord[],
+  target: AxialCoord,
+  currentAmmo: number,
+): BomberAttackValidation {
+  const applies = attackerTags.includes("BOMBER") && weapon.tags.includes("FLY_OVER");
+  if (!applies) return { applies: false, legal: true, ammunitionAfter: currentAmmo };
+  const result = validateBomberFlyOver({
+    id: `bomber-attack:${weapon.id}`,
+    requiresTargetFlyOver: true,
+    ordnanceAmmoCapacity: weapon.ammoCapacity ?? 0,
+    rearmRequiresLanding: true,
+    rearmFacilityTags: [],
+  }, route, target, currentAmmo);
+  return { applies: true, ...result };
+}
+
 export function validateBomberFlyOver(
   profile: BomberProfile,
   route: readonly AxialCoord[],

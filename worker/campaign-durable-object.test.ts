@@ -296,6 +296,45 @@ describe("CampaignDurableObject campaign contracts", () => {
       .toEqual({ "weapon-fighter-snub-hmg": 1 });
   });
 
+  it("requires a Bomber attack target to lie on its submitted flight path", async () => {
+    const { campaign, storage } = campaignObject();
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    seeded.deployments.find((deployment) => deployment.id === "bug-drone-1")!.position = { q: 0, r: -3 };
+    storage.values.set("state/current", encodeCampaignStoredState(seeded));
+
+    const rejected = await campaign.fetch(request("/orders", {
+      method: "POST",
+      body: orderBody({
+        commandId: "command-bomber-missed-run",
+        unitId: "dep-havoc-2",
+        actions: [{ type: "ATTACK", targetDeploymentId: "bug-drone-1" }],
+      }),
+    }));
+    expect(rejected.status).toBe(422);
+    expect(await rejected.json()).toMatchObject({ error: { code: "BOMBER_ATTACK_ILLEGAL" } });
+
+    const accepted = await campaign.fetch(request("/orders", {
+      method: "POST",
+      body: orderBody({
+        commandId: "command-bomber-legal-run",
+        unitId: "dep-havoc-2",
+        orderType: "ADVANCE",
+        route: [{ q: -1, r: -3 }, { q: 0, r: -3 }, { q: 1, r: -3 }],
+        facing: 2,
+        actions: [{ type: "ATTACK", targetDeploymentId: "bug-drone-1" }],
+      }),
+    }));
+    expect(accepted.status).toBe(201);
+    expect(await accepted.json()).toMatchObject({
+      order: {
+        unitId: "dep-havoc-2",
+        route: [{ q: -1, r: -3 }, { q: 0, r: -3 }, { q: 1, r: -3 }],
+        actions: [{ type: "ATTACK", targetDeploymentId: "bug-drone-1", weaponIds: ["weapon-bomber-ordnance"] }],
+      },
+    });
+  });
+
   it("accepts governed Evasive orders only with the required displacement", async () => {
     const { campaign } = campaignObject();
     expect((await campaign.fetch(request("/state"))).status).toBe(200);

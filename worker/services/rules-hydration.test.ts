@@ -153,6 +153,20 @@ describe("server rules hydration", () => {
     });
   });
 
+  test("hydrates the executable Bomber sortie without advertising landing or rearm", () => {
+    const result = resolveUnitRulesAuthority(unitInput("unit-aerospace-bomber"), "development");
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.message);
+    expect(result.legacyDefinition).toMatchObject({
+      id: "unit-aerospace-bomber",
+      stats: { healthModel: "HITS", maxHealth: 2, armor: 0, speed: 6 },
+      allowedOrders: ["HOLD", "ADVANCE"],
+      allowedActions: ["ATTACK"],
+      tags: expect.arrayContaining(["AEROSPACE", "BOMBER", "FLY_OVER", "CANNOT_SPOT_GROUND"]),
+      weapons: [expect.objectContaining({ id: "weapon-bomber-ordnance", ammoCapacity: 1, range: 0 })],
+    });
+  });
+
   test("hydrates the executable IFV attack, subsystem, and infantry-cargo subset", () => {
     const result = resolveUnitRulesAuthority(unitInput("unit-infantry-fighting-vehicle"), "development");
     expect(result.ok).toBe(true);

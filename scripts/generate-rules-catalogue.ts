@@ -456,6 +456,12 @@ function supportingDefinition(
 }
 
 const foundationUnitExecution: Record<string, JsonObject> = {
+  "unit-aerospace-bomber": {
+    capacity: 1,
+    tags: ["AEROSPACE", "ATMO_FLIGHT", "VEHICLE", "BOMBER", "FLY_OVER", "CANNOT_SPOT_GROUND"],
+    allowedOrders: ["HOLD", "ADVANCE"],
+    allowedActions: ["ATTACK"],
+  },
   "unit-aerospace-fighter": {
     capacity: 1,
     tags: ["AEROSPACE", "ATMO_FLIGHT", "VEHICLE", "RAPID_FIRE", "EVASIVE", "LIMITED_FORWARD_ARC", "CANNOT_SPOT_GROUND"],
@@ -784,6 +790,7 @@ function buildConflicts(
 }
 
 const foundationUnitIds = [
+  "unit-aerospace-bomber",
   "unit-aerospace-fighter",
   "unit-artillery",
   "unit-combat-medic",
@@ -823,6 +830,15 @@ const foundationActionIds = [
 ] as const;
 
 const implementationCorrections: Record<string, Partial<RuleImplementationOverlayV1> & { explanation: string }> = {
+  "UNIT:unit-aerospace-bomber": {
+    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: "MISSING_CANONICAL_PRICE",
+    parameters: {
+      implementedSubset: ["HITS", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "FLY_OVER_TARGETING", "ORDNANCE_AMMO_ONE", "NO_GROUND_SPOTTING"],
+      missing: ["LAND_TAKEOFF_STATE", "REARM_FACILITY"],
+    },
+    explanation: "The V5 Bomber sortie executes its chassis, one-shot D6 ordnance, terrain-independent flight, route-bound fly-over attack and no-ground-spotting rule. Landing and rearm remain gated.",
+  },
   "UNIT:unit-aerospace-fighter": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",

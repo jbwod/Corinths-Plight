@@ -23,6 +23,7 @@ import {
   synchronizeSupplyCargo,
   resupplyLogiTarget,
   validateArtilleryFire,
+  validateBomberAttack,
   validateLimitedForwardArc,
   validateOrder,
 } from "../packages/rules-engine/src";
@@ -1294,17 +1295,37 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (!arc.legal) {
         return errorResponse(422, "TARGET_OUTSIDE_FIRING_ARC", arc.reason ?? "Target is outside the unit's firing arc.");
       }
+      const bombingFailure = deployment.weapons
+        .map((weapon) => validateBomberAttack(
+          execution.legacyDefinition.tags,
+          weapon,
+          route,
+          target.position,
+          deployment.ammunition[weapon.id] ?? 0,
+        ))
+        .find((validation) => validation.applies && !validation.legal);
+      if (bombingFailure) {
+        return errorResponse(422, "BOMBER_ATTACK_ILLEGAL", bombingFailure.reason ?? "The Bomber cannot attack along that route.");
+      }
       const checks = [...deployment.weapons]
         .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
         .map((weapon) => {
-          const targeting = canTarget(intendedAttacker, target, weapon, state.map, state.deployments);
+          const bombing = validateBomberAttack(
+            execution.legacyDefinition.tags,
+            weapon,
+            route,
+            target.position,
+            deployment.ammunition[weapon.id] ?? 0,
+          );
+          const attackOrigin = bombing.applies ? { ...intendedAttacker, position: { ...target.position } } : intendedAttacker;
+          const targeting = canTarget(attackOrigin, target, weapon, state.map, state.deployments);
           const ammoAvailable = weapon.ammoCapacity === undefined || (deployment.ammunition[weapon.id] ?? 0) > 0;
           // Resolution ticks existing cooldowns once before the attack phase.
           const cooldownReady = (deployment.cooldowns[weapon.id] ?? 0) <= 1;
           return {
             weapon,
-            legal: targeting.legal && ammoAvailable && cooldownReady,
-            reason: targeting.reason ?? (!ammoAvailable ? "Weapon has no ammunition." : !cooldownReady ? "Weapon is cooling down." : undefined),
+            legal: bombing.legal && targeting.legal && ammoAvailable && cooldownReady,
+            reason: bombing.reason ?? targeting.reason ?? (!ammoAvailable ? "Weapon has no ammunition." : !cooldownReady ? "Weapon is cooling down." : undefined),
           };
         });
       const participating = checks.filter((check) => check.legal).map((check) => check.weapon);

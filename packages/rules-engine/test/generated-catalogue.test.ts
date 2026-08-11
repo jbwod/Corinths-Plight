@@ -172,6 +172,7 @@ describe("rules catalogue bootstrap", () => {
       "STRUCTURE:structure-sandbag-line",
       "STRUCTURE:structure-tank-traps",
       "STRUCTURE:structure-trench",
+      "UNIT:unit-aerospace-bomber",
       "UNIT:unit-aerospace-fighter",
       "UNIT:unit-artillery",
       "UNIT:unit-combat-medic",

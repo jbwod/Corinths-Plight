@@ -433,7 +433,7 @@ test("strategic UI submits and resolves a Battlegroup disembark order", async ({
   }).toBe(true);
 });
 
-test("tactical API exposes Light Mech, VTOL, and Fighter verticals and rejects client-authored action economy", async ({ page }) => {
+test("tactical API exposes Light Mech, VTOL, Fighter, and Bomber verticals and rejects client-authored action economy", async ({ page }) => {
   await page.goto("/");
 
   const foundation = await page.request.get("/api/campaigns/outpost-k17/state", {
@@ -469,6 +469,14 @@ test("tactical API exposes Light Mech, VTOL, and Fighter verticals and rejects c
         allowedActions: ["ATTACK"],
         ammunition: { "weapon-fighter-snub-hmg": 1 },
         tags: expect.arrayContaining(["AEROSPACE", "LIMITED_FORWARD_ARC", "CANNOT_SPOT_GROUND"]),
+      }),
+      expect.objectContaining({
+        definitionId: "unit-aerospace-bomber",
+        callsign: "HAVOC-2",
+        allowedOrders: expect.arrayContaining(["HOLD", "ADVANCE"]),
+        allowedActions: ["ATTACK"],
+        ammunition: { "weapon-bomber-ordnance": 1 },
+        tags: expect.arrayContaining(["AEROSPACE", "BOMBER", "FLY_OVER", "CANNOT_SPOT_GROUND"]),
       }),
     ]),
   });

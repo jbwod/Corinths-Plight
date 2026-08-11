@@ -36,6 +36,7 @@ import {
   applyBombardmentSuppression,
   recoverBombardmentSuppression,
   validateArtilleryFire,
+  validateBomberAttack,
   validateLimitedForwardArc,
 } from "./specialists";
 import { createSeededRandom, hashSeed } from "./rng";
@@ -1210,11 +1211,47 @@ export function resolveRound(input: RoundInput): RoundOutput {
         });
         continue;
       }
+      const bombingFailure = attacker.weapons
+        .map((weapon) => validateBomberAttack(
+          deploymentTags(attacker),
+          weapon,
+          order.route,
+          target.position,
+          attacker.ammunition[weapon.id] ?? 0,
+        ))
+        .find((validation) => validation.applies && !validation.legal);
+      if (bombingFailure) {
+        event("ORDER_REJECTED", attacker.id, {
+          orderId: order.id,
+          actionId: action.id,
+          targetId: target.id,
+          reasons: [bombingFailure.reason],
+        });
+        continue;
+      }
       let weaponsFired = 0;
       for (const weapon of [...attacker.weapons].sort((left, right) =>
         left.id < right.id ? -1 : left.id > right.id ? 1 : 0
       )) {
-        const result = resolveAttackRoll(attacker, target, weapon, state.map, random, state.deployments, {
+        const bombing = validateBomberAttack(
+          deploymentTags(attacker),
+          weapon,
+          order.route,
+          target.position,
+          attacker.ammunition[weapon.id] ?? 0,
+        );
+        if (!bombing.legal) {
+          event("WEAPON_SKIPPED", attacker.id, {
+            orderId: order.id,
+            actionId: action.id,
+            weaponId: weapon.id,
+            targetId: target.id,
+            reason: bombing.reason ?? "Bomber flight path is not legal.",
+          });
+          continue;
+        }
+        const attackOrigin = bombing.applies ? { ...attacker, position: { ...target.position } } : attacker;
+        const result = resolveAttackRoll(attackOrigin, target, weapon, state.map, random, state.deployments, {
           attackerEvasive: evasiveUnits.has(attacker.id),
           targetEvasive: evasiveUnits.has(target.id),
           targetCrewRepairing: crewRepairingUnits.has(target.id),

@@ -90,6 +90,53 @@ describe("equipment and transport actions", () => {
       .toEqual({ "weapon-fighter-snub-hmg": 0 });
   });
 
+  it("requires the Bomber route to cross its target and consumes one ordnance on a legal run", () => {
+    const blockedState = createDemoCampaignState(1_000);
+    const blockedBomber = blockedState.deployments.find((deployment) => deployment.id === "dep-havoc-2")!;
+    const blockedTarget = blockedState.deployments.find((deployment) => deployment.id === "bug-drone-1")!;
+    blockedTarget.position = { q: 0, r: -3 };
+    const blockedOrder = order(blockedState, blockedBomber, [action("bomber-missed-run", "ATTACK", {
+      targetDeploymentId: blockedTarget.id,
+    })]);
+    blockedState.orders = [blockedOrder];
+
+    const blocked = resolveRound({ ...input([blockedOrder]), previousState: blockedState });
+    expect(blocked.events).toContainEqual(expect.objectContaining({
+      type: "ORDER_REJECTED",
+      actor: blockedBomber.id,
+      payload: expect.objectContaining({
+        targetId: blockedTarget.id,
+        reasons: [expect.stringMatching(/flight path/i)],
+      }),
+    }));
+    expect(blocked.state.deployments.find((deployment) => deployment.id === blockedBomber.id)?.ammunition)
+      .toEqual({ "weapon-bomber-ordnance": 1 });
+
+    const bombingState = createDemoCampaignState(1_000);
+    const bomber = bombingState.deployments.find((deployment) => deployment.id === "dep-havoc-2")!;
+    const target = bombingState.deployments.find((deployment) => deployment.id === "bug-drone-1")!;
+    target.position = { q: 0, r: -3 };
+    const bombingOrder = order(bombingState, bomber, [action("bomber-legal-run", "ATTACK", {
+      targetDeploymentId: target.id,
+    })]);
+    bombingOrder.orderType = "ADVANCE";
+    bombingOrder.route = [{ q: -1, r: -3 }, { q: 0, r: -3 }, { q: 1, r: -3 }];
+    bombingOrder.endHex = { q: 1, r: -3 };
+    bombingOrder.facing = 2;
+    bombingState.orders = [bombingOrder];
+
+    const bombed = resolveRound({ ...input([bombingOrder]), previousState: bombingState });
+    expect(bombed.events).toContainEqual(expect.objectContaining({
+      type: "DICE_ROLLED",
+      actor: bomber.id,
+      payload: expect.objectContaining({ weaponId: "weapon-bomber-ordnance", targetId: target.id }),
+    }));
+    expect(bombed.state.deployments.find((deployment) => deployment.id === bomber.id)?.position).toEqual({ q: 1, r: -3 });
+    expect(bombed.state.deployments.find((deployment) => deployment.id === bomber.id)?.ammunition)
+      .toEqual({ "weapon-bomber-ordnance": 0 });
+  });
+
+
   it("deploys and packs Artillery using the governed half-Speed Standard Action", () => {
     const deployState = createDemoCampaignState(1_000);
     const artillery = deployState.deployments.find((deployment) => deployment.definitionId === "unit-artillery")!;

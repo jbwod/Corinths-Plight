@@ -8,7 +8,7 @@ describe("Outpost K-17 fixture", () => {
 
     expect(state.deployments.every((deployment) => deployment.campaignId === state.campaignId)).toBe(true);
     expect(state.orders.every((order) => order.campaignId === state.campaignId)).toBe(true);
-    expect(state.deployments.filter(({ side }) => side === "ALLIED")).toHaveLength(10);
+    expect(state.deployments.filter(({ side }) => side === "ALLIED")).toHaveLength(11);
     expect(state.deployments.filter(({ side }) => side === "ALLIED").every(({ ownerId }) => ownerId === "demo-user")).toBe(true);
     expect(state.scenarioPolicy).toEqual({
       policyId: "HOLD_PRIMARY_OBJECTIVE",

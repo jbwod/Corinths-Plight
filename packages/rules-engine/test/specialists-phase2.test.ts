@@ -19,6 +19,7 @@ import {
   validateAirDrop,
   validateArtilleryFire,
   validateBomberFlyOver,
+  validateBomberAttack,
   validateFighterAttack,
   validateLimitedForwardArc,
 } from "../src";
@@ -237,6 +238,26 @@ describe("aerospace attack paths, ammunition, and drops", () => {
       ammunitionAfter: 0,
     });
     expect(validateBomberFlyOver(bomber, [{ q: 0, r: 0 }, { q: 1, r: 0 }], { q: 2, r: 0 }, 1)).toMatchObject({ legal: false });
+  });
+
+  it("activates route-bound targeting only for the governed Bomber ordnance", () => {
+    const weapon: WeaponProfile = {
+      id: "weapon-bomber-ordnance",
+      name: "Bomber Ordnance",
+      damage: { count: 1, sides: 6, modifier: 0 },
+      range: 0,
+      armorPiercing: 0,
+      indirect: false,
+      ammoCapacity: 1,
+      tags: ["AEROSPACE_WEAPON", "ORDNANCE", "FLY_OVER"],
+    };
+    const route = [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }];
+    expect(validateBomberAttack(["AEROSPACE", "BOMBER"], weapon, route, { q: 1, r: 0 }, 1))
+      .toEqual({ applies: true, legal: true, pathIndex: 1, ammunitionAfter: 0 });
+    expect(validateBomberAttack(["AEROSPACE", "BOMBER"], weapon, route, { q: 1, r: 1 }, 1))
+      .toMatchObject({ applies: true, legal: false, reason: expect.stringMatching(/flight path/i), ammunitionAfter: 1 });
+    expect(validateBomberAttack(["AEROSPACE"], weapon, route, { q: 1, r: 1 }, 1))
+      .toEqual({ applies: false, legal: true, ammunitionAfter: 1 });
   });
 
   it("accepts only eligible cargo on a straight HAT path into a clear destination", () => {

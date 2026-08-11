@@ -166,6 +166,7 @@ export function createDemoCampaignState(
     deployment("dep-strider", "unit-light-mech", "demo-user", "ALLIED", "STRIDER", { q: 0, r: -2 }, 2),
     deployment("dep-skyhook", "unit-vtol", "demo-user", "ALLIED", "SKYHOOK", { q: -3, r: -2 }, 2),
     deployment("dep-vulture-1", "unit-aerospace-fighter", "demo-user", "ALLIED", "VULT-1", { q: -2, r: -3 }, 2),
+    deployment("dep-havoc-2", "unit-aerospace-bomber", "demo-user", "ALLIED", "HAVOC-2", { q: -1, r: -3 }, 2),
     deployment("bug-drone-1", "enemy-bug-drone", "enemy-doctrine", "ENEMY", "SKITTER-9", { q: 1, r: -1 }, 5, false),
     deployment("bug-warrior-1", "enemy-bug-warrior", "enemy-doctrine", "ENEMY", "CHITIN-4", { q: 3, r: -1 }, 5, false),
     deployment("bug-heavy-1", "enemy-bug-heavy", "enemy-doctrine", "ENEMY", "BEHEMOTH", { q: 4, r: -2 }, 4, false),
