@@ -140,7 +140,11 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "UNIT_REPAIRED") return payload.repairMethod === "CREW"
     ? `${event.actor ?? "Vehicle"}'s crew repaired ${String(payload.subsystemId ?? "a subsystem")} while exposed.`
     : `${event.actor ?? "Engineer"} repaired ${String(payload.targetId ?? "an allied vehicle")}.`;
-  if (event.type === "SUPPLY_TRANSFERRED") return `${event.actor ?? "Logi"} transferred one Small Supply to ${String(payload.targetId ?? "an allied unit")}.`;
+  if (event.type === "SUPPLY_TRANSFERRED") {
+    const amount = String(payload.quantity ?? 1);
+    const resource = payload.resourceType === "MEDICAL_SUPPLY" ? "Medical Supply" : "Small Supply";
+    return `${event.actor ?? "Logi"} restored ${amount} ${resource} to ${String(payload.targetId ?? "an allied unit")}.`;
+  }
   if (event.type === "STRUCTURE_COMPLETED") return `${event.actor ?? "Engineer"} completed ${String(payload.structureName ?? "a fieldwork")} at ${String((payload.targetHex as AxialCoord | undefined)?.q ?? "?")}.${String((payload.targetHex as AxialCoord | undefined)?.r ?? "?")}.`;
   if (event.type === "STRUCTURE_UPGRADED") return `${event.actor ?? "Infantry"} upgraded a Sandbag Line into a Trench.`;
   if (event.type === "ARTILLERY_DEPLOYED") return `${event.actor ?? "Artillery"} deployed and is ready to fire.`;
@@ -478,8 +482,11 @@ function GameApp() {
     deployment.id !== selectedUnit.id &&
     deployment.side === selectedUnit.side &&
     deployment.status !== "DESTROYED" &&
-    deployment.tags?.includes("ARTILLERY") === true &&
-    (deployment.supplies?.SMALL_SUPPLY ?? 0) < 2 &&
+    (
+      (deployment.tags?.includes("ARTILLERY") === true && (deployment.supplies?.SMALL_SUPPLY ?? 0) < 2) ||
+      (deployment.tags?.includes("ENGINEER") === true && (deployment.supplies?.SMALL_SUPPLY ?? 0) < deployment.currentHealth) ||
+      (deployment.tags?.includes("MEDICAL") === true && (deployment.supplies?.MEDICAL_SUPPLY ?? 0) < deployment.currentHealth)
+    ) &&
     coordinatesEqual(deployment.position, draftedRoute.at(-1) ?? selectedUnit.position)
   ) : [];
   const supportTargets = actionMode === "LOAD"
@@ -1347,25 +1354,27 @@ function GameApp() {
                   </>
                 ) : actionMode === "RESUPPLY" ? (
                   <>
-                    <label className="field-label" htmlFor="resupply-target">ARTILLERY STOCKPILE</label>
+                    <label className="field-label" htmlFor="resupply-target">FIELD RESUPPLY TARGET</label>
                     <select
                       id="resupply-target"
-                      aria-label="ARTILLERY STOCKPILE"
+                      aria-label="FIELD RESUPPLY TARGET"
                       value={supportTarget?.id ?? ""}
                       onChange={(event) => setSupportTargetUnitId(event.target.value)}
                       disabled={resupplyTargets.length === 0}
                     >
                       {resupplyTargets.map((deployment) => (
                         <option value={deployment.id} key={deployment.id}>
-                          {deployment.callsign} · {deployment.supplies?.SMALL_SUPPLY ?? 0}/2 SMALL SUPPLY
+                          {deployment.callsign} · {deployment.tags?.includes("MEDICAL")
+                            ? `${deployment.supplies?.MEDICAL_SUPPLY ?? 0}/${deployment.currentHealth} MEDICAL SUPPLY`
+                            : `${deployment.supplies?.SMALL_SUPPLY ?? 0}/${deployment.tags?.includes("ARTILLERY") ? 2 : deployment.currentHealth} SMALL SUPPLY`}
                         </option>
                       ))}
                     </select>
                     <p className={`validation ${(selectedUnit.supplies?.SMALL_SUPPLY ?? 0) < 1 ? "danger" : ""}`}>
                       LOGI STOCK: {selectedUnit.supplies?.SMALL_SUPPLY ?? 0}/10 SMALL SUPPLY
                     </p>
-                    <p className="validation">STANDARD ACTION · 0.5 SPEED · transfer one crate to a co-located Artillery unit.</p>
-                    {resupplyTargets.length === 0 && <p className="validation danger">Move into the same hex as an Artillery unit with an open supply slot.</p>}
+                    <p className="validation">STANDARD ACTION · 0.5 SPEED · refill a co-located Medic, Engineer, or Artillery unit. The server chooses the resource and amount.</p>
+                    {resupplyTargets.length === 0 && <p className="validation danger">Move into the same hex as an eligible support unit below its current capacity.</p>}
                   </>
                 ) : actionMode === "HEAL" ? (
                   <>

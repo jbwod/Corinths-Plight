@@ -482,6 +482,75 @@ export function transferLogiArtillerySupply(
   });
 }
 
+export type FieldResupplyPurpose = "ARTILLERY_RELOAD" | "ENGINEER_STOCK" | "MEDICAL_RELOAD";
+
+export type FieldResupplyResult =
+  | {
+      legal: true;
+      source: SupplyInventory;
+      destination: SupplyInventory;
+      purpose: FieldResupplyPurpose;
+      resourceType: "SMALL_SUPPLY" | "MEDICAL_SUPPLY";
+      sourceSpent: 1;
+      quantityRestored: number;
+    }
+  | {
+      legal: false;
+      reason: string;
+      source: SupplyInventory;
+      destination: SupplyInventory;
+    };
+
+/**
+ * V5 Logi field resupply. The server derives the recipient resource and amount:
+ * Artillery/Engineers receive one Small Supply; a Medic converts one Small
+ * Supply into a full Medical Supply refill capped by its current FS.
+ */
+export function resupplyLogiTarget(input: {
+  source: SupplyInventory;
+  destination: SupplyInventory;
+  destinationTags: readonly string[];
+  destinationCurrentHealth: number;
+}): FieldResupplyResult {
+  const unchanged = (reason: string): FieldResupplyResult => ({
+    legal: false,
+    reason,
+    source: { ...input.source },
+    destination: { ...input.destination },
+  });
+  if ((input.source.SMALL_SUPPLY ?? 0) < 1) return unchanged("The Logi Truck has no Small Supply remaining.");
+  const tags = new Set(input.destinationTags);
+  if (tags.has("MEDICAL")) {
+    const capacity = Math.max(0, input.destinationCurrentHealth);
+    const before = input.destination.MEDICAL_SUPPLY ?? 0;
+    if (before >= capacity) return unchanged("The Medic's Medical Supply is already at current Force Strength.");
+    return {
+      legal: true,
+      source: { ...input.source, SMALL_SUPPLY: (input.source.SMALL_SUPPLY ?? 0) - 1 },
+      destination: { ...input.destination, MEDICAL_SUPPLY: capacity },
+      purpose: "MEDICAL_RELOAD",
+      resourceType: "MEDICAL_SUPPLY",
+      sourceSpent: 1,
+      quantityRestored: capacity - before,
+    };
+  }
+  const maximum = tags.has("ARTILLERY") ? ARTILLERY_SMALL_SUPPLY_CAPACITY
+    : tags.has("ENGINEER") ? Math.max(0, input.destinationCurrentHealth)
+      : undefined;
+  if (maximum === undefined) return unchanged("That unit has no supported field-resupply profile.");
+  const before = input.destination.SMALL_SUPPLY ?? 0;
+  if (before >= maximum) return unchanged("The target's Small Supply is already at capacity.");
+  return {
+    legal: true,
+    source: { ...input.source, SMALL_SUPPLY: (input.source.SMALL_SUPPLY ?? 0) - 1 },
+    destination: { ...input.destination, SMALL_SUPPLY: before + 1 },
+    purpose: tags.has("ARTILLERY") ? "ARTILLERY_RELOAD" : "ENGINEER_STOCK",
+    resourceType: "SMALL_SUPPLY",
+    sourceSpent: 1,
+    quantityRestored: 1,
+  };
+}
+
 export interface ReloadInput {
   profile: ReloadProfile;
   weapon: WeaponProfile;

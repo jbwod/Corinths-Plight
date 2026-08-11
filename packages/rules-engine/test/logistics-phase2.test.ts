@@ -7,11 +7,56 @@ import {
   embarkCargo,
   getTacticalCargoProfile,
   reloadAmmunition,
+  resupplyLogiTarget,
   synchronizeSupplyCargo,
   transferProfiledSupply,
   validateCargoManifest,
   validateSupplyInventory,
 } from "../src";
+
+describe("Logi field resupply", () => {
+  it("derives Engineer and Medic resources without client-authored quantities", () => {
+    expect(resupplyLogiTarget({
+      source: { SMALL_SUPPLY: 3 },
+      destination: { SMALL_SUPPLY: 1 },
+      destinationTags: ["ENGINEER"],
+      destinationCurrentHealth: 3,
+    })).toMatchObject({
+      legal: true,
+      source: { SMALL_SUPPLY: 2 },
+      destination: { SMALL_SUPPLY: 2 },
+      purpose: "ENGINEER_STOCK",
+      quantityRestored: 1,
+    });
+    expect(resupplyLogiTarget({
+      source: { SMALL_SUPPLY: 3 },
+      destination: { MEDICAL_SUPPLY: 1 },
+      destinationTags: ["MEDICAL"],
+      destinationCurrentHealth: 3,
+    })).toMatchObject({
+      legal: true,
+      source: { SMALL_SUPPLY: 2 },
+      destination: { MEDICAL_SUPPLY: 3 },
+      purpose: "MEDICAL_RELOAD",
+      quantityRestored: 2,
+    });
+  });
+
+  it("fails closed for full or unsupported recipients", () => {
+    expect(resupplyLogiTarget({
+      source: { SMALL_SUPPLY: 1 },
+      destination: { SMALL_SUPPLY: 3 },
+      destinationTags: ["ENGINEER"],
+      destinationCurrentHealth: 3,
+    })).toMatchObject({ legal: false, reason: expect.stringContaining("capacity") });
+    expect(resupplyLogiTarget({
+      source: { SMALL_SUPPLY: 1 },
+      destination: {},
+      destinationTags: ["INFANTRY"],
+      destinationCurrentHealth: 3,
+    })).toMatchObject({ legal: false, reason: expect.stringContaining("no supported") });
+  });
+});
 
 const transport: CargoProfile = {
   id: "hat-cargo",

@@ -30,7 +30,7 @@ The audit began with only two unrelated untracked user paths, which were preserv
 | Seed/content validator | Pass | `npm run seed:check`: 42 definitions, 37 active, 100 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 4 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
 | TypeScript | Pass | `npm run typecheck`. |
 | ESLint | Pass | `npm run lint`. |
-| Unit/contract tests | Pass | `npm test`: 59 files, 458 tests, Vitest 4.1.10. |
+| Unit/contract tests | Pass | `npm test`: 59 files, 460 tests, Vitest 4.1.10. |
 | Worker/client build | Pass | `npm run build`; Worker 1,254.61 kB, client JS 777.40 kB, CSS 136.50 kB. Wrangler's sandboxed debug-log write warns but the build exits successfully. |
 | Production-mode build | Pass | `WRANGLER_WRITE_LOGS=false npm run build:production`. |
 | Empty D1 migration replay | Pass | All eight migrations applied in isolated Wrangler state. |
@@ -208,7 +208,7 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 | Class | D1 | Generated tactical class | End-to-end status | Principal gap |
 |---|---:|---:|---:|---|
 | Infantry | yes | yes | partial/playable | Attack, movement, facing, persistent Dig In, and generated/scenario-marked Cover Armor are connected through resolver, reports and UI. Directional cover, melee/stealth and price remain open. |
-| Medic | yes | yes | partial/playable | First Aid, field resupply and self Dig In are connected through generated catalogue, order contract, resolver, report events and tactical UI. Field resupply spends one Small Supply and restores Medical Supply to current Medic FS; MASH remains deferred. |
+| Medic | yes | yes | partial/playable | First Aid, self Dig In and both self/Logi field resupply are connected through generated catalogue, order contract, resolver, report events and tactical UI. A Logi spends one Small Supply to restore Medical Supply to current Medic FS without consuming the Medic's action; MASH remains deferred. |
 | Engineer | yes | yes | partial/playable | Vehicle Repair and self Dig In are connected through generated catalogue, strict order contract, resolver, reports and tactical UI. Repair restores one Hit or one selected subsystem for one Small Supply in base contact. Construct remains deferred. |
 | Artillery | yes | yes | partial/playable | Deploy/Pack Up and Bombardment are connected through generated grammar, strict orders, resolver, reports and tactical UI. Bombardment requires deployment, spotting, range and Small Supply, applies capped/recovering Defense stacks, and changes combat calculations. Funnel and anti-orbital paths remain deferred; direct damage remains experimental. |
 | Logi Truck | yes, legacy seed marks executable | yes, partial | partial/playable | Ground passenger/Supply cargo, packed-Artillery towing and the narrow Artillery Small Supply transfer are connected; wider Resupply and coordinated airdrop remain deferred. |

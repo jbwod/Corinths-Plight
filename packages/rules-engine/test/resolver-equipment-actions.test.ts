@@ -176,7 +176,7 @@ describe("equipment and transport actions", () => {
     expect(rejected.events).toContainEqual(expect.objectContaining({
       type: "ORDER_REJECTED",
       actor: fullLogi.id,
-      payload: expect.objectContaining({ reasons: ["SMALL_SUPPLY supply capacity exceeded."] }),
+      payload: expect.objectContaining({ reasons: ["The target's Small Supply is already at capacity."] }),
     }));
   });
 

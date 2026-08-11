@@ -671,7 +671,7 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(composer.getByText(/CARGO 1\/2 SLOTS · 5 SMALL SUPPLY/)).toBeVisible();
   await expect(composer.getByRole("button", { name: "RESUPPLY", exact: true })).toBeVisible();
   await composer.getByRole("button", { name: "RESUPPLY", exact: true }).click();
-  await expect(composer.getByLabel("ARTILLERY STOCKPILE")).toContainText("LONGBOW");
+  await expect(composer.getByLabel("FIELD RESUPPLY TARGET")).toContainText("LONGBOW");
   await expect(composer.getByText(/LOGI STOCK: 5\/10 SMALL SUPPLY/)).toBeVisible();
   await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
   await expect(page.getByText(/MULE-3 order submitted to campaign command/)).toBeVisible();

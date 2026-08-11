@@ -21,7 +21,7 @@ import {
   projectCampaignState,
   resolveRound,
   synchronizeSupplyCargo,
-  transferLogiArtillerySupply,
+  resupplyLogiTarget,
   validateArtilleryFire,
   validateOrder,
 } from "../packages/rules-engine/src";
@@ -1080,15 +1080,20 @@ export class CampaignDurableObject extends DurableObject<Env> {
         return errorResponse(422, "RESUPPLY_INELIGIBLE", "Transfer Supply requires a Logi Truck.");
       }
       if (
-        !target || target.side !== deployment.side || target.status === "DESTROYED" ||
-        !targetRules?.ok || !targetRules.legacyDefinition.tags.includes("ARTILLERY")
+        !target || target.side !== deployment.side || target.status === "DESTROYED" || !targetRules?.ok ||
+        !targetRules.legacyDefinition.tags.some((tag) => tag === "ARTILLERY" || tag === "ENGINEER" || tag === "MEDICAL")
       ) {
-        return errorResponse(422, "RESUPPLY_TARGET_INVALID", "Transfer Supply requires a friendly operational Artillery unit.");
+        return errorResponse(422, "RESUPPLY_TARGET_INVALID", "Field resupply requires a friendly operational Medic, Engineer, or Artillery unit.");
       }
       if (hexDistance(route.at(-1)!, target.position) !== 0) {
         return errorResponse(422, "RESUPPLY_RANGE_INVALID", "The Logi Truck and Artillery unit must finish in the same hex.");
       }
-      const transfer = transferLogiArtillerySupply(deployment.supplies ?? {}, target.supplies ?? {});
+      const transfer = resupplyLogiTarget({
+        source: deployment.supplies ?? {},
+        destination: target.supplies ?? {},
+        destinationTags: targetRules.legacyDefinition.tags,
+        destinationCurrentHealth: target.currentHealth,
+      });
       if (!transfer.legal) {
         return errorResponse(422, "RESUPPLY_UNAVAILABLE", transfer.reason ?? "Small Supply cannot be transferred.");
       }

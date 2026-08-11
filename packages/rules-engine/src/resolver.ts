@@ -26,7 +26,7 @@ import {
   embarkCargo,
   reloadAmmunition,
   synchronizeSupplyCargo,
-  transferLogiArtillerySupply,
+  resupplyLogiTarget,
 } from "./logistics";
 import { hasDisabledSubsystem, resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
 import { resolveSimultaneousMovement } from "./movement";
@@ -1088,12 +1088,18 @@ export function resolveRound(input: RoundInput): RoundOutput {
       if (action.type === "RESUPPLY") {
         const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
         const actorIsLogistics = deploymentTags(actor).includes("LOGISTICS");
-        const targetIsArtillery = target ? deploymentTags(target).includes("ARTILLERY") : false;
-        const transfer = target && actorIsLogistics && targetIsArtillery && target.side === actor.side &&
+        const targetTags = target ? deploymentTags(target) : [];
+        const targetIsSupported = targetTags.some((tag) => tag === "ARTILLERY" || tag === "ENGINEER" || tag === "MEDICAL");
+        const transfer = target && actorIsLogistics && targetIsSupported && target.side === actor.side &&
           target.status !== "DESTROYED" && sameCoord(actor.position, target.position)
-          ? transferLogiArtillerySupply(actor.supplies ?? {}, target.supplies ?? {})
+          ? resupplyLogiTarget({
+              source: actor.supplies ?? {},
+              destination: target.supplies ?? {},
+              destinationTags: targetTags,
+              destinationCurrentHealth: target.currentHealth,
+            })
           : undefined;
-        if (!target || !actorIsLogistics || !targetIsArtillery || target.side !== actor.side ||
+        if (!target || !actorIsLogistics || !targetIsSupported || target.side !== actor.side ||
             target.status === "DESTROYED" || !sameCoord(actor.position, target.position) || !transfer?.legal) {
           event("ORDER_REJECTED", actor.id, {
             orderId: order.id,
@@ -1101,11 +1107,11 @@ export function resolveRound(input: RoundInput): RoundOutput {
             reasons: [
               !actorIsLogistics
                 ? "Transfer Supply requires a Logi Truck."
-                : !target || !targetIsArtillery || target.side !== actor.side || target.status === "DESTROYED"
-                  ? "Transfer Supply requires a friendly operational Artillery unit."
+                : !target || !targetIsSupported || target.side !== actor.side || target.status === "DESTROYED"
+                  ? "Field resupply requires a friendly operational Medic, Engineer, or Artillery unit."
                   : !sameCoord(actor.position, target.position)
-                    ? "The Logi Truck and Artillery unit must finish in the same hex."
-                    : transfer?.reason ?? "Small Supply transfer is illegal.",
+                    ? "The Logi Truck and target unit must finish in the same hex."
+                    : transfer && "reason" in transfer ? transfer.reason : "Small Supply transfer is illegal.",
             ],
           }, actorVisibility);
           continue;
@@ -1115,12 +1121,13 @@ export function resolveRound(input: RoundInput): RoundOutput {
         event("SUPPLY_TRANSFERRED", actor.id, {
           actionId: action.id,
           targetId: target.id,
-          resourceType: "SMALL_SUPPLY",
-          quantity: 1,
+          resourceType: transfer.resourceType,
+          sourceResourceType: "SMALL_SUPPLY",
+          quantity: transfer.quantityRestored,
           sourceRemaining: transfer.source.SMALL_SUPPLY ?? 0,
-          targetAfter: transfer.destination.SMALL_SUPPLY ?? 0,
-          purpose: "ARTILLERY_RELOAD",
-          conflictId: "RC-SUP-001",
+          targetAfter: transfer.destination[transfer.resourceType] ?? 0,
+          purpose: transfer.purpose,
+          conflictId: transfer.purpose === "ARTILLERY_RELOAD" ? "RC-SUP-001" : undefined,
         }, actorVisibility);
       }
       if (action.type === "SCAN" || action.type === "DEPLOY_DRONE") {
