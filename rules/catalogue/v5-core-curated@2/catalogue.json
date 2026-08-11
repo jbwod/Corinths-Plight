@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "d445ebe5be88b769b3f8130b82efe0a894f29841408db3aa89a157184d9c991a",
+  "contentHash": "5c3fdd282fe20348e7f5ee91195e5bb05b3befa225547567914c72ad7d7ec90e",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1239,6 +1239,7 @@
               "RAPID_FIRE",
               "EVASIVE",
               "LIMITED_FORWARD_ARC",
+              "AEROSPACE_INTERCEPTOR",
               "CANNOT_SPOT_GROUND"
             ]
           },
@@ -8771,6 +8772,7 @@
             "MAIN_AMMO_ONE",
             "LAND_TAKEOFF_STATE",
             "REARM_FACILITY",
+            "INTERCEPTOR",
             "NO_GROUND_SPOTTING"
           ],
           "minimumMechanics": [
@@ -8779,11 +8781,9 @@
             "AMMUNITION",
             "LAND_REARM"
           ],
-          "missing": [
-            "INTERCEPTOR"
-          ],
+          "missing": [],
           "publicationCorrection": {
-            "reason": "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc, friendly-airfield landing/takeoff, Primary rearm, and no-ground-spotting rule. Interceptor remains gated.",
+            "reason": "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc, friendly-airfield landing/takeoff, Primary rearm, Aerospace Interceptor target restriction, and no-ground-spotting rule.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": false,

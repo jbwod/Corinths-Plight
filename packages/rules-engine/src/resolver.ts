@@ -29,7 +29,7 @@ import {
   synchronizeSupplyCargo,
   resupplyLogiTarget,
 } from "./logistics";
-import { hasDisabledSubsystem, resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
+import { canTarget, hasDisabledSubsystem, resolveAttackRoll, tickCooldowns, validateSpeedBudget } from "./mechanics";
 import { resolveSimultaneousMovement } from "./movement";
 import { resolveEngineerRepair, resolveHealing, resolveSubsystemDamage } from "./forces";
 import { getFieldworkDefinition, isConstructibleFieldworkId, structureInstanceMatches } from "./fieldworks";
@@ -108,6 +108,28 @@ function facilitySupports(
   return deploymentTags(deployment).includes("VTOL")
     ? hex.environment.includes("LAND_VTOL")
     : hex.environment.includes("LAND_AEROSPACE");
+}
+
+function canAttackInterceptor(
+  attacker: CampaignDeployment,
+  order: UnitOrder,
+  interceptor: CampaignDeployment,
+  state: RoundOutput["state"],
+): boolean {
+  const arc = validateLimitedForwardArc(deploymentTags(attacker), order.route, attacker.facing, interceptor.position);
+  if (!arc.legal) return false;
+  return attacker.weapons.some((weapon) => {
+    const bombing = validateBomberAttack(
+      deploymentTags(attacker),
+      weapon,
+      order.route,
+      interceptor.position,
+      attacker.ammunition[weapon.id] ?? 0,
+    );
+    if (!bombing.legal) return false;
+    const origin = bombing.applies ? { ...attacker, position: { ...interceptor.position } } : attacker;
+    return canTarget(origin, interceptor, weapon, state.map, state.deployments).legal;
+  });
 }
 
 function synchronizeEmbarkedCargo(deployments: CampaignDeployment[]): void {
@@ -1347,6 +1369,28 @@ export function resolveRound(input: RoundInput): RoundOutput {
       .filter(([, order]) => order.orderType === "RUSH")
       .map(([unitId]) => unitId),
   );
+  const interceptorsByTarget = new Map<string, CampaignDeployment[]>();
+  for (const interceptorOrder of validOrders.values()) {
+    const interceptor = state.deployments.find((candidate) => candidate.id === interceptorOrder.unitId)!;
+    if (!deploymentTags(interceptor).includes("AEROSPACE_INTERCEPTOR")) continue;
+    for (const action of interceptorOrder.actions.filter((candidate) => candidate.type === "ATTACK")) {
+      const intercepted = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+      if (
+        !intercepted ||
+        !deploymentTags(intercepted).includes("AEROSPACE") ||
+        !canAttackInterceptor(interceptor, interceptorOrder, intercepted, state)
+      ) continue;
+      const existing = interceptorsByTarget.get(intercepted.id) ?? [];
+      if (!existing.some((candidate) => candidate.id === interceptor.id)) existing.push(interceptor);
+      existing.sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+      interceptorsByTarget.set(intercepted.id, existing);
+      event("AEROSPACE_INTERCEPTED", intercepted.id, {
+        interceptorId: interceptor.id,
+        interceptorOrderId: interceptorOrder.id,
+        rulesDecisionId: "RC-V5-028",
+      });
+    }
+  }
   for (const order of validOrders.values()) {
     const attacker = state.deployments.find((candidate) => candidate.id === order.unitId)!;
     for (const action of order.actions.filter((candidate) => candidate.type === "ATTACK")) {
@@ -1358,7 +1402,37 @@ export function resolveRound(input: RoundInput): RoundOutput {
         });
         continue;
       }
-      const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+      let target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+      const declaredInterceptors = interceptorsByTarget.get(attacker.id) ?? [];
+      if (declaredInterceptors.length > 0) {
+        const legalInterceptors = declaredInterceptors.filter((candidate) =>
+          canAttackInterceptor(attacker, order, candidate, state)
+        );
+        if (legalInterceptors.length === 0) {
+          event("ORDER_REJECTED", attacker.id, {
+            orderId: order.id,
+            actionId: action.id,
+            targetId: target?.id,
+            reasons: ["The intercepted aerospace unit has no legal Interceptor target and loses its attack activation."],
+            rulesDecisionId: "RC-V5-028",
+          });
+          continue;
+        }
+        if (!target || !legalInterceptors.some((candidate) => candidate.id === target!.id)) {
+          if (attacker.side !== "ENEMY") {
+            event("ORDER_REJECTED", attacker.id, {
+              orderId: order.id,
+              actionId: action.id,
+              targetId: target?.id,
+              legalInterceptorIds: legalInterceptors.map((candidate) => candidate.id),
+              reasons: ["An intercepted aerospace unit may attack only a legal Interceptor that attacked it."],
+              rulesDecisionId: "RC-V5-028",
+            });
+            continue;
+          }
+          target = legalInterceptors[0];
+        }
+      }
       if (!target) {
         event("ORDER_REJECTED", attacker.id, {
           orderId: order.id,

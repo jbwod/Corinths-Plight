@@ -133,6 +133,56 @@ describe("equipment and transport actions", () => {
     }));
   });
 
+  it("forces an intercepted NPC aerospace attack onto the legal Fighter", () => {
+    const state = createDemoCampaignState(1_000);
+    const fighter = state.deployments.find((deployment) => deployment.id === "dep-vulture-1")!;
+    const bomber = state.deployments.find((deployment) => deployment.id === "dep-havoc-2")!;
+    const infantry = state.deployments.find((deployment) => deployment.id === "dep-rook-7")!;
+    state.deployments = [fighter, bomber, infantry];
+    fighter.position = { q: 0, r: 0 };
+    fighter.facing = 2;
+    bomber.side = "ENEMY";
+    bomber.ownerId = "enemy-doctrine";
+    bomber.position = { q: -1, r: 0 };
+    infantry.position = { q: 0, r: 0 };
+
+    const intercept = order(state, fighter, [action("fighter-intercept", "ATTACK", {
+      targetDeploymentId: bomber.id,
+    })]);
+    const bombingRun = order(state, bomber, [action("bomber-ground-run", "ATTACK", {
+      targetDeploymentId: infantry.id,
+    })]);
+    bombingRun.orderType = "ADVANCE";
+    bombingRun.route = [{ q: -1, r: 0 }, { q: 0, r: 0 }, { q: 1, r: 0 }];
+    bombingRun.endHex = { q: 1, r: 0 };
+    bombingRun.facing = 2;
+    state.orders = [intercept, bombingRun];
+
+    const output = resolveRound({
+      previousState: state,
+      rulesetVersion: state.rulesetVersion,
+      playerOrders: [intercept],
+      enemyOrders: [bombingRun],
+      seed: "interceptor",
+      resolutionTime: 2_000,
+    });
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "AEROSPACE_INTERCEPTED",
+      actor: bomber.id,
+      payload: expect.objectContaining({ interceptorId: fighter.id, rulesDecisionId: "RC-V5-028" }),
+    }));
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "DICE_ROLLED",
+      actor: bomber.id,
+      payload: expect.objectContaining({ targetId: fighter.id }),
+    }));
+    expect(output.events).not.toContainEqual(expect.objectContaining({
+      type: "DICE_ROLLED",
+      actor: bomber.id,
+      payload: expect.objectContaining({ targetId: infantry.id }),
+    }));
+  });
+
   it("air drops manifested Infantry from a Heavy Air Transport on a clear straight flight path", () => {
     const state = createDemoCampaignState(1_000);
     const hat = state.deployments.find((deployment) => deployment.id === "dep-atlas-1")!;

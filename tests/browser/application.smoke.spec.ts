@@ -468,7 +468,7 @@ test("tactical API exposes Light Mech, VTOL, Fighter, Bomber, and HAT verticals 
         allowedOrders: expect.arrayContaining(["HOLD", "ADVANCE", "EVASIVE"]),
         allowedActions: expect.arrayContaining(["ATTACK", "LAND", "TAKE_OFF", "REARM_AEROSPACE"]),
         ammunition: { "weapon-fighter-snub-hmg": 1 },
-        tags: expect.arrayContaining(["AEROSPACE", "LIMITED_FORWARD_ARC", "CANNOT_SPOT_GROUND"]),
+        tags: expect.arrayContaining(["AEROSPACE", "LIMITED_FORWARD_ARC", "AEROSPACE_INTERCEPTOR", "CANNOT_SPOT_GROUND"]),
       }),
       expect.objectContaining({
         definitionId: "unit-aerospace-bomber",

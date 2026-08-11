@@ -144,7 +144,7 @@ describe("server rules hydration", () => {
     expect(result.authority.profiles.cargoProfile).toMatchObject({ id: "cargo-vtol-alternative" });
   });
 
-  test("hydrates the executable Fighter sortie with airfield operations but without Interceptor", () => {
+  test("hydrates the executable Fighter sortie with airfield operations and Interceptor", () => {
     const result = resolveUnitRulesAuthority(unitInput("unit-aerospace-fighter"), "development");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.message);
@@ -153,7 +153,7 @@ describe("server rules hydration", () => {
       stats: { healthModel: "HITS", maxHealth: 2, armor: 0, speed: 7 },
       allowedOrders: ["HOLD", "ADVANCE", "EVASIVE"],
       allowedActions: ["ATTACK", "LAND", "TAKE_OFF", "REARM_AEROSPACE"],
-      tags: expect.arrayContaining(["AEROSPACE", "RAPID_FIRE", "EVASIVE", "LIMITED_FORWARD_ARC", "CANNOT_SPOT_GROUND"]),
+      tags: expect.arrayContaining(["AEROSPACE", "RAPID_FIRE", "EVASIVE", "LIMITED_FORWARD_ARC", "AEROSPACE_INTERCEPTOR", "CANNOT_SPOT_GROUND"]),
       weapons: [expect.objectContaining({ id: "weapon-fighter-snub-hmg", ammoCapacity: 1, range: 1 })],
     });
   });

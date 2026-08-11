@@ -159,6 +159,7 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "AEROSPACE_LANDED") return `${event.actor ?? "Aerospace unit"} landed at a friendly airfield.`;
   if (event.type === "AEROSPACE_TOOK_OFF") return `${event.actor ?? "Aerospace unit"} took off and rejoined the battle.`;
   if (event.type === "AEROSPACE_REARMED") return `${event.actor ?? "Aerospace unit"} rearmed at the airfield.`;
+  if (event.type === "AEROSPACE_INTERCEPTED") return `${event.actor ?? "Aerospace unit"} was intercepted by ${String(payload.interceptorId ?? "a Fighter")}.`;
   if (event.type === "MEDICAL_SUPPLY_RELOADED") return `${event.actor ?? "Medic"} restored Medical Supply to ${String(payload.medicalSupplyAfter ?? "?")}.`;
   if (event.type === "UNIT_DESTROYED") return `${event.actor ?? "Unit"} was destroyed.`;
   if (event.type === "ROUND_FINISHED") return `Round ${event.round} resolved and archived.`;
@@ -1380,6 +1381,9 @@ function GameApp() {
                       {targetUnit ? <div><strong>{targetUnit.callsign}</strong><small>{definitionLabel(targetUnit)} · RANGE {targetRange}</small></div> : <div><strong>NO TARGET</strong><small>Click a visible hostile on the map</small></div>}
                       {targetUnit && <button onClick={() => setTargetUnitId(undefined)}>CLEAR</button>}
                     </div>
+                    {selectedUnit.tags?.includes("AEROSPACE_INTERCEPTOR") && targetUnit?.tags?.includes("AEROSPACE") && (
+                      <p className="validation">INTERCEPTOR · this declaration forces the targeted aerospace unit to attack a legal intercepting Fighter or lose its attack.</p>
+                    )}
                     {noEligibleAttackWeapon && <p className="validation danger">No fitted weapon can engage this target from the planned position.</p>}
                     {highGroundAdvantage && <p className="validation">HIGH GROUND: this attack gains +1 to its damage result before mitigation.</p>}
                     {targetCover.armor === 1 && <p className="validation">TARGET IN COVER: +1 Armor applies from {targetCover.sources.map((source) => source.replaceAll("-", " ")).join(" + ")}.</p>}

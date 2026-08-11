@@ -464,7 +464,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
   },
   "unit-aerospace-fighter": {
     capacity: 1,
-    tags: ["AEROSPACE", "ATMO_FLIGHT", "VEHICLE", "RAPID_FIRE", "EVASIVE", "LIMITED_FORWARD_ARC", "CANNOT_SPOT_GROUND"],
+    tags: ["AEROSPACE", "ATMO_FLIGHT", "VEHICLE", "RAPID_FIRE", "EVASIVE", "LIMITED_FORWARD_ARC", "AEROSPACE_INTERCEPTOR", "CANNOT_SPOT_GROUND"],
     allowedOrders: ["HOLD", "ADVANCE", "EVASIVE"],
     allowedActions: ["ATTACK", "LAND", "TAKE_OFF", "REARM_AEROSPACE"],
   },
@@ -871,10 +871,10 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["HITS", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "RAPID_FIRE", "EVASIVE", "FORWARD_180_ARC", "MAIN_AMMO_ONE", "LAND_TAKEOFF_STATE", "REARM_FACILITY", "NO_GROUND_SPOTTING"],
-      missing: ["INTERCEPTOR"],
+      implementedSubset: ["HITS", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "RAPID_FIRE", "EVASIVE", "FORWARD_180_ARC", "MAIN_AMMO_ONE", "LAND_TAKEOFF_STATE", "REARM_FACILITY", "INTERCEPTOR", "NO_GROUND_SPOTTING"],
+      missing: [],
     },
-    explanation: "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc, friendly-airfield landing/takeoff, Primary rearm, and no-ground-spotting rule. Interceptor remains gated.",
+    explanation: "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc, friendly-airfield landing/takeoff, Primary rearm, Aerospace Interceptor target restriction, and no-ground-spotting rule.",
   },
   "UNIT:unit-artillery": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",

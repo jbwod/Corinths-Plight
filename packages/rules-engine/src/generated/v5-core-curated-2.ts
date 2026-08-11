@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "d445ebe5be88b769b3f8130b82efe0a894f29841408db3aa89a157184d9c991a",
+  "contentHash": "5c3fdd282fe20348e7f5ee91195e5bb05b3befa225547567914c72ad7d7ec90e",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1256,6 +1256,7 @@ const snapshot = {
               "RAPID_FIRE",
               "EVASIVE",
               "LIMITED_FORWARD_ARC",
+              "AEROSPACE_INTERCEPTOR",
               "CANNOT_SPOT_GROUND"
             ]
           },
@@ -8788,6 +8789,7 @@ const snapshot = {
             "MAIN_AMMO_ONE",
             "LAND_TAKEOFF_STATE",
             "REARM_FACILITY",
+            "INTERCEPTOR",
             "NO_GROUND_SPOTTING"
           ],
           "minimumMechanics": [
@@ -8796,11 +8798,9 @@ const snapshot = {
             "AMMUNITION",
             "LAND_REARM"
           ],
-          "missing": [
-            "INTERCEPTOR"
-          ],
+          "missing": [],
           "publicationCorrection": {
-            "reason": "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc, friendly-airfield landing/takeoff, Primary rearm, and no-ground-spotting rule. Interceptor remains gated.",
+            "reason": "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc, friendly-airfield landing/takeoff, Primary rearm, Aerospace Interceptor target restriction, and no-ground-spotting rule.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": false,
@@ -14609,5 +14609,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "d445ebe5be88b769b3f8130b82efe0a894f29841408db3aa89a157184d9c991a" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "5c3fdd282fe20348e7f5ee91195e5bb05b3befa225547567914c72ad7d7ec90e" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;
