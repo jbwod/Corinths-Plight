@@ -109,6 +109,31 @@ describe("routes, terrain, and pathing", () => {
     ).toBe(0.75);
   });
 
+  it("moves VTOL flight one unit per hex without ground terrain, river, road, or fieldwork costs", () => {
+    const start = makeHex(0, 0, { elevation: 0, edges: { roads: [2], rivers: [2] } });
+    const destination = makeHex(1, 0, {
+      elevation: 3,
+      movementCost: 2,
+      structureIds: ["structure-tank-traps:fixture"],
+    });
+    expect(calculateRouteCost([start.coord, destination.coord], [start, destination], {
+      unitTags: ["AEROSPACE", "VTOL", "VEHICLE"],
+    })).toEqual({
+      total: 1,
+      legal: true,
+      steps: [{
+        from: start.coord,
+        to: destination.coord,
+        base: 1,
+        elevation: 0,
+        river: 0,
+        road: false,
+        fieldwork: 0,
+        total: 1,
+      }],
+    });
+  });
+
   it("recognizes a road or river edge recorded from either endpoint", () => {
     const west = makeHex(0, 0, { edges: { roads: [2], rivers: [2] } });
     const east = makeHex(1, 0);

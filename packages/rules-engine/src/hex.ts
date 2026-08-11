@@ -122,6 +122,8 @@ export function calculateRouteCost(
   const index = createHexIndex(hexes);
   const steps: RouteCostResult["steps"] = [];
   let total = 0;
+  const unitTags = new Set(options.unitTags ?? []);
+  const airborne = unitTags.has("AEROSPACE") || unitTags.has("VTOL");
 
   for (let position = 1; position < route.length; position += 1) {
     const fromCoord = route[position - 1];
@@ -135,13 +137,13 @@ export function calculateRouteCost(
     const direction = edgeDirection(fromCoord, toCoord);
     if (direction === null) return { total, steps, legal: false, reason: `Route direction is invalid at step ${position}.` };
 
-    const road = from.edges.roads.includes(direction) || to.edges.roads.includes(rearFacing(direction));
-    const base = road ? to.movementCost * (options.roadMultiplier ?? 0.5) : to.movementCost;
-    const elevation = options.ignoresElevation ? 0 : Math.max(0, to.elevation - from.elevation);
+    const road = !airborne && (from.edges.roads.includes(direction) || to.edges.roads.includes(rearFacing(direction)));
+    const base = airborne ? 1 : road ? to.movementCost * (options.roadMultiplier ?? 0.5) : to.movementCost;
+    const elevation = airborne || options.ignoresElevation ? 0 : Math.max(0, to.elevation - from.elevation);
     const riverCrossing =
       from.edges.rivers.includes(direction) || to.edges.rivers.includes(rearFacing(direction));
-    const river = options.ignoresRivers || !riverCrossing ? 0 : 1;
-    const fieldwork = fieldworkMovementPenalty(to, options.unitTags).total;
+    const river = airborne || options.ignoresRivers || !riverCrossing ? 0 : 1;
+    const fieldwork = airborne ? 0 : fieldworkMovementPenalty(to, options.unitTags).total;
     const stepTotal = Math.max(0.25, base + elevation + river) * (options.rush ? 0.5 : 1) + fieldwork;
     steps.push({ from: fromCoord, to: toCoord, base, elevation, river, road, fieldwork, total: stepTotal });
     total += stepTotal;

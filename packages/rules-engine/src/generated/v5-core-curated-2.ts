@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "d9c21c634518c181c2219ea4ca60bbac5360e81d2843142aa3110bb48c6919c7",
+  "contentHash": "2855be7c380e212dc3abfaea945d7b5d470742e04a5cbcc90cd2de1e214701b1",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -2263,7 +2263,26 @@ const snapshot = {
               "weapon-vtol-nose-gun"
             ]
           },
-          "execution": null,
+          "execution": {
+            "allowedActions": [
+              "ATTACK",
+              "LOAD",
+              "UNLOAD"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE"
+            ],
+            "capacity": 1,
+            "tags": [
+              "AEROSPACE",
+              "VTOL",
+              "VEHICLE",
+              "ARMOURED",
+              "TRANSPORT",
+              "CANNOT_SPOT_GROUND"
+            ]
+          },
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -7705,9 +7724,12 @@ const snapshot = {
             "unit-combat-medic",
             "unit-engineers",
             "unit-infantry-squad",
+            "unit-infantry-fighting-vehicle",
             "unit-light-vehicle",
+            "unit-light-mech",
             "unit-logi-truck",
-            "unit-main-battle-tank"
+            "unit-main-battle-tank",
+            "unit-vtol"
           ],
           "resolverPath": "packages/rules-engine/src/resolver.ts",
           "sourcePath": "packages/rules-engine/src/tactical-unit-catalogue.ts"
@@ -9030,10 +9052,10 @@ const snapshot = {
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "BALANCE_REQUIRED",
         "availabilityStatus": "DEV_ONLY",
-        "executable": false,
+        "executable": true,
         "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "CP_201_CATALOGUE_HANDLER_CUTOVER_PENDING",
+        "handlerId": "foundation-generated-unit-class",
+        "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
@@ -9042,8 +9064,21 @@ const snapshot = {
             "UNLOAD",
             "AIRDROP"
           ],
+          "implementedSubset": [
+            "HITS",
+            "ARMOUR",
+            "ATTACK",
+            "AEROSPACE_MOVEMENT",
+            "HOSTILE_PASSAGE",
+            "NO_GROUND_SPOTTING",
+            "ALTERNATIVE_CARGO"
+          ],
+          "missing": [
+            "LAND_TAKEOFF_STATE",
+            "HAT_AIRDROP"
+          ],
           "publicationCorrection": {
-            "reason": "The final seed claimed transport execution before a generated-catalogue campaign handler existed.",
+            "reason": "The generic V5 VTOL executes its chassis, nose gun, terrain-independent flight, hostile-ground passage, no-ground-spotting rule, and mutually exclusive infantry/Supply cargo; HAT and fixed-wing mechanics remain separate.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": true,
@@ -14373,5 +14408,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "d9c21c634518c181c2219ea4ca60bbac5360e81d2843142aa3110bb48c6919c7" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "2855be7c380e212dc3abfaea945d7b5d470742e04a5cbcc90cd2de1e214701b1" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

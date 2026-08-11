@@ -510,6 +510,12 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
     allowedActions: ["ATTACK", "CREW_REPAIR"],
   },
+  "unit-vtol": {
+    capacity: 1,
+    tags: ["AEROSPACE", "VTOL", "VEHICLE", "ARMOURED", "TRANSPORT", "CANNOT_SPOT_GROUND"],
+    allowedOrders: ["HOLD", "ADVANCE"],
+    allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+  },
 };
 
 function buildDefinitionGroups(snapshot: LegacyCatalogueSnapshot): Record<string, RuleDefinitionRecordV1[]> {
@@ -776,9 +782,12 @@ const foundationUnitIds = [
   "unit-combat-medic",
   "unit-engineers",
   "unit-infantry-squad",
+  "unit-infantry-fighting-vehicle",
   "unit-light-vehicle",
+  "unit-light-mech",
   "unit-logi-truck",
   "unit-main-battle-tank",
+  "unit-vtol",
 ] as const;
 
 const foundationOrderIds = [
@@ -885,9 +894,13 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     explanation: "The V5 natural-5/6 subsystem malfunction rule persists and gates later use; stationary crews can repair one subsystem while forfeiting Armor for the round.",
   },
   "UNIT:unit-vtol": {
-    implementationStatus: "PARTIAL", executable: false, handlerId: null,
-    reasonCode: "CP_201_CATALOGUE_HANDLER_CUTOVER_PENDING",
-    explanation: "The final seed claimed transport execution before a generated-catalogue campaign handler existed.",
+    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: "MISSING_CANONICAL_PRICE",
+    parameters: {
+      implementedSubset: ["HITS", "ARMOUR", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "NO_GROUND_SPOTTING", "ALTERNATIVE_CARGO"],
+      missing: ["LAND_TAKEOFF_STATE", "HAT_AIRDROP"],
+    },
+    explanation: "The generic V5 VTOL executes its chassis, nose gun, terrain-independent flight, hostile-ground passage, no-ground-spotting rule, and mutually exclusive infantry/Supply cargo; HAT and fixed-wing mechanics remain separate.",
   },
   "EQUIPMENT:equipment-drone-operator": {
     implementationStatus: "PARTIAL", availabilityStatus: "BLOCKED", executable: false, purchasable: false, handlerId: null,

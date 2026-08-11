@@ -403,7 +403,7 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect((await campaign.fetch(request("/state"))).status).toBe(200);
     const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
     const originalOrderCount = seeded.orders.length;
-    seeded.deployments.find((deployment) => deployment.id === UNIT_ID)!.definitionId = "unit-vtol";
+    seeded.deployments.find((deployment) => deployment.id === UNIT_ID)!.definitionId = "unit-heavy-air-transport";
     storage.values.set("state/current", encodeCampaignStoredState(seeded));
 
     const before = storage.values.get("state/current");
@@ -412,7 +412,7 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(await stateResponse.json()).toMatchObject({
       error: {
         code: "CAMPAIGN_ERROR",
-        details: { message: "CAMPAIGN_UNIT_DEFINITION_NOT_EXECUTABLE:unit-vtol:NOT_EXECUTABLE" },
+        details: { message: "CAMPAIGN_UNIT_DEFINITION_NOT_EXECUTABLE:unit-heavy-air-transport:NOT_EXECUTABLE" },
       },
     });
     expect(storage.values.get("state/current")).toBe(before);

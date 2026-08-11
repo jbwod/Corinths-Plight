@@ -65,23 +65,26 @@ describe("distance-increment simultaneous movement", () => {
     });
   });
 
-  it("lets a Mech pass through an occupied hostile formation", () => {
-    const lightMech = getTacticalUnitClass("unit-light-mech");
-    const mech = makeDeployment("mech", { q: -1, r: 0 }, "ALLIED", {
-      definitionId: lightMech.id,
-      tags: lightMech.tags,
-      stats: lightMech.stats,
-      weapons: lightMech.weapons,
+  it.each([
+    ["unit-light-mech", "mech"],
+    ["unit-vtol", "vtol"],
+  ])("lets %s pass through an occupied hostile ground formation", (definitionId, deploymentId) => {
+    const definition = getTacticalUnitClass(definitionId);
+    const mover = makeDeployment(deploymentId, { q: -1, r: 0 }, "ALLIED", {
+      definitionId: definition.id,
+      tags: definition.tags,
+      stats: definition.stats,
+      weapons: definition.weapons,
     });
     const hostile = makeDeployment("hostile", { q: 0, r: 0 }, "ENEMY");
-    const order = makeOrder(mech, {
-      route: [mech.position, hostile.position, { q: 1, r: 0 }],
+    const order = makeOrder(mover, {
+      route: [mover.position, hostile.position, { q: 1, r: 0 }],
       endHex: { q: 1, r: 0 },
     });
 
     expect(resolveSimultaneousMovement(
       [order],
-      [mech, hostile],
+      [mover, hostile],
       [makeHex(-1, 0), makeHex(0, 0, { capacity: 1 }), makeHex(1, 0)],
     )[0]).toMatchObject({
       to: { q: 1, r: 0 },

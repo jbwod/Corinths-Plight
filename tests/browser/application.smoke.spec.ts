@@ -433,7 +433,7 @@ test("strategic UI submits and resolves a Battlegroup disembark order", async ({
   }).toBe(true);
 });
 
-test("tactical API exposes the Light Mech vertical and rejects client-authored action economy", async ({ page }) => {
+test("tactical API exposes Light Mech and VTOL verticals and rejects client-authored action economy", async ({ page }) => {
   await page.goto("/");
 
   const foundation = await page.request.get("/api/campaigns/outpost-k17/state", {
@@ -453,6 +453,14 @@ test("tactical API exposes the Light Mech vertical and rejects client-authored a
         callsign: "STRIDER",
         allowedOrders: expect.arrayContaining(["EVASIVE"]),
         allowedActions: expect.arrayContaining(["ATTACK"]),
+      }),
+      expect.objectContaining({
+        definitionId: "unit-vtol",
+        callsign: "SKYHOOK",
+        allowedOrders: expect.arrayContaining(["HOLD", "ADVANCE"]),
+        allowedActions: expect.arrayContaining(["ATTACK", "LOAD", "UNLOAD"]),
+        tags: expect.arrayContaining(["AEROSPACE", "VTOL", "CANNOT_SPOT_GROUND"]),
+        cargoProfile: expect.objectContaining({ id: "cargo-vtol-alternative" }),
       }),
     ]),
   });

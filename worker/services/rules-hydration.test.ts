@@ -113,7 +113,6 @@ describe("server rules hydration", () => {
   });
 
   test.each([
-    "unit-vtol",
     "unit-heavy-air-transport",
   ])("fails closed before non-handler transport %s can reach the replay catalogue", (definitionId) => {
     const result = resolveUnitRulesAuthority(unitInput(definitionId), "development");
@@ -124,6 +123,20 @@ describe("server rules hydration", () => {
       definitionId,
       decision: { executable: false },
     });
+  });
+
+  test("hydrates the executable generic VTOL flight, nose-gun, and alternative-cargo subset", () => {
+    const result = resolveUnitRulesAuthority(unitInput("unit-vtol"), "development");
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.message);
+    expect(result.legacyDefinition).toMatchObject({
+      id: "unit-vtol",
+      stats: { healthModel: "HITS", maxHealth: 2, armor: 1, speed: 5 },
+      allowedOrders: ["HOLD", "ADVANCE"],
+      allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+      tags: expect.arrayContaining(["AEROSPACE", "VTOL", "CANNOT_SPOT_GROUND"]),
+    });
+    expect(result.authority.profiles.cargoProfile).toMatchObject({ id: "cargo-vtol-alternative" });
   });
 
   test("hydrates the executable IFV attack, subsystem, and infantry-cargo subset", () => {
