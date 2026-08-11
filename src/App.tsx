@@ -24,6 +24,7 @@ import {
   shortestPath,
   structureInstanceMatches,
   validateCargoManifest,
+  validateLimitedForwardArc,
   type ConstructibleFieldworkId,
 } from "../packages/rules-engine/src";
 import brandMark from "../app/static/img/brand-icon.gif";
@@ -394,13 +395,14 @@ function GameApp() {
   const attackWeaponChecks = selectedUnit?.weapons.map((weapon) => {
     if (!intendedAttacker || !targetUnit) return { weapon, legal: false, reason: "Choose a target." };
     const targeting = canTarget(intendedAttacker, targetUnit, weapon, campaign.map, campaign.deployments);
+    const arc = validateLimitedForwardArc(selectedUnit.tags ?? [], draftedRoute, selectedUnit.facing, targetUnit.position);
     const ammoAvailable = weapon.ammoCapacity === undefined || (selectedUnit.ammunition[weapon.id] ?? 0) > 0;
     // The resolver ticks an existing cooldown once before this attack phase.
     const cooldownReady = (selectedUnit.cooldowns[weapon.id] ?? 0) <= 1;
     return {
       weapon,
-      legal: targeting.legal && ammoAvailable && cooldownReady,
-      reason: targeting.reason ?? (!ammoAvailable ? "No ammunition." : !cooldownReady ? "Cooling down." : undefined),
+      legal: targeting.legal && arc.legal && ammoAvailable && cooldownReady,
+      reason: targeting.reason ?? arc.reason ?? (!ammoAvailable ? "No ammunition." : !cooldownReady ? "Cooling down." : undefined),
     };
   }) ?? [];
   const participatingWeapons = attackWeaponChecks.filter((check) => check.legal).map((check) => check.weapon);

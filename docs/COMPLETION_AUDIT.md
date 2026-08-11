@@ -30,7 +30,7 @@ The audit began with only two unrelated untracked user paths, which were preserv
 | Seed/content validator | Pass | `npm run seed:check`: 42 definitions, 37 active, 100 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 4 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
 | TypeScript | Pass | `npm run typecheck`. |
 | ESLint | Pass | `npm run lint`. |
-| Unit/contract tests | Pass | `npm test`: 59 files, 462 tests, Vitest 4.1.10. |
+| Unit/contract tests | Pass | `npm test`: 59 files, 466 tests, Vitest 4.1.10. |
 | Worker/client build | Pass | `npm run build`; Worker 1,254.61 kB, client JS 777.40 kB, CSS 136.50 kB. Wrangler's sandboxed debug-log write warns but the build exits successfully. |
 | Production-mode build | Pass | `WRANGLER_WRITE_LOGS=false npm run build:production`. |
 | Empty D1 migration replay | Pass | All eight migrations applied in isolated Wrangler state. |
@@ -66,7 +66,7 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 
 | Finding | Priority | Status | Confidence | Evidence and acceptance boundary | Roadmap |
 |---|---|---:|---:|---|---|
-| AUD-CAT-001 — split gameplay truth | P0 | partial | High | A generated, hash-verified `v5-core-curated@2` catalogue now materializes ten playable allied unit/weapon definitions and executable action/order grammar for onboarding, Force catalogue projection, deployment hydration, tactical UI lookup, submission and resolution. Unhandled D1-only classes still fail before execution. D1 stores the legacy `@1` relational identity for instance FKs and validation, and immutable `@2` D1 publication remains open. | CP-200/CP-201 |
+| AUD-CAT-001 — split gameplay truth | P0 | partial | High | A generated, hash-verified `v5-core-curated@2` catalogue now materializes eleven playable allied unit/weapon definitions and executable action/order grammar for onboarding, Force catalogue projection, deployment hydration, tactical UI lookup, submission and resolution. Unhandled D1-only classes still fail before execution. D1 stores the legacy `@1` relational identity for instance FKs and validation, and immutable `@2` D1 publication remains open. | CP-200/CP-201 |
 | AUD-RULE-002 — conflict provenance is internally broken | P0 | open | High | Fresh D1 contains only 12 obsolete short `rule_conflicts` IDs from `seeds/v5-core-curated.sql:28-40`, while the canonical doc has 72 namespaced IDs. Phase-2 definitions reference namespaced IDs with no D1 row; compiled definitions reference old IDs. Published definitions/events cannot form a referential conflict audit. | CP-200 |
 | AUD-CAT-003 — adapter invents/loses authority | P0 | resolved | High | CP-201 preserves generated availability/requisition/execution status, action links, profile bindings and nullable sourced values in a separately hashed rules-authority snapshot. Strict governed cargo hydration retains slot conversions, maximum FS, mutually exclusive modes, towing and source action semantics without guessed slots/costs; unsupported legacy cargo execution is withheld. Tactical supplies now use exact `SMALL_SUPPLY`, `MEDIUM_SUPPLY`, `LARGE_SUPPLY`, `MEDICAL_SUPPLY` and `MAIN_AMMUNITION` IDs, including resolver reload and request-boundary rejection of ambiguous strategic sizes. | CP-201 |
 | AUD-CAT-004 — blocked companion slots execute | P0 | open | High | RC-EQP-001 marks optional slot budgets blocked, and Phase-2 metadata says companion-only/catalogued; `listUnitSlots` ignores that metadata and the loadout engine enforces every row. Existing purchasable equipment therefore relies on an unapproved slot policy. | DEC-017/CP-200/CP-204 |
@@ -216,7 +216,7 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 | IFV | yes | yes, partial | playable | Generated attack, AP/Armor, subsystem, six-FS infantry-cargo and stationary Armor-exposed Crew Repair are connected; Req remains unresolved. |
 | Main Battle Tank | yes | yes | partial/playable | Armor/AP/facing, ground-only rear Armor bypass, persistent subsystem malfunctions, Engineer repair and stationary Armor-exposed Crew Repair are active. |
 | Light Mech | yes | yes, partial | partial/playable | Exact V5 chassis and Light Laser, hostile-ground passage, Evasive, persistent subsystem failures, live Campaign DO hydration, UI order guidance and report evidence are connected; Req remains unresolved. |
-| Fighter | yes | no | catalogue-only | Aerospace resolver absent |
+| Fighter | yes | yes, partial | partial/playable | Speed-7 Atmo Flight, Evasive hostile-ground passage, D4 Range-1 Rapid Fire attack, one-shot ammunition, no-ground-spotting and the forward travel-path arc execute through generated authority. Landing/rearm and Interceptor remain deferred. |
 | Bomber | yes | no | catalogue-only | Aerospace resolver absent |
 | VTOL | yes | yes, partial | partial/playable | Exact V5 chassis and D2 nose gun, terrain-independent flight, hostile-ground passage, no-ground-spotting tag, and mutually-exclusive infantry/Supply cargo execute through generated authority; landing/takeoff state and HAT/aerospace extensions remain open. |
 | HAT | yes, legacy seed marks executable | no | safely blocked | Generated authority rejects the unsupported handler; incomplete airlift/airdrop |

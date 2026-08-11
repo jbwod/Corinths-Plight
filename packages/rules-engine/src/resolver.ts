@@ -36,6 +36,7 @@ import {
   applyBombardmentSuppression,
   recoverBombardmentSuppression,
   validateArtilleryFire,
+  validateLimitedForwardArc,
 } from "./specialists";
 import { createSeededRandom, hashSeed } from "./rng";
 import { getTacticalActionRule, getTacticalOrderRule } from "./tactical-grammar";
@@ -1195,6 +1196,17 @@ export function resolveRound(input: RoundInput): RoundOutput {
           orderId: order.id,
           actionId: action.id,
           reasons: ["Target does not exist."],
+        });
+        continue;
+      }
+      const arc = validateLimitedForwardArc(deploymentTags(attacker), order.route, attacker.facing, target.position);
+      if (!arc.legal) {
+        event("ORDER_REJECTED", attacker.id, {
+          orderId: order.id,
+          actionId: action.id,
+          targetId: target.id,
+          reasons: [arc.reason],
+          firingFacing: arc.firingFacing,
         });
         continue;
       }

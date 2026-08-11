@@ -139,6 +139,20 @@ describe("server rules hydration", () => {
     expect(result.authority.profiles.cargoProfile).toMatchObject({ id: "cargo-vtol-alternative" });
   });
 
+  test("hydrates the executable Fighter sortie without advertising rearm or Interceptor", () => {
+    const result = resolveUnitRulesAuthority(unitInput("unit-aerospace-fighter"), "development");
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.message);
+    expect(result.legacyDefinition).toMatchObject({
+      id: "unit-aerospace-fighter",
+      stats: { healthModel: "HITS", maxHealth: 2, armor: 0, speed: 7 },
+      allowedOrders: ["HOLD", "ADVANCE", "EVASIVE"],
+      allowedActions: ["ATTACK"],
+      tags: expect.arrayContaining(["AEROSPACE", "RAPID_FIRE", "EVASIVE", "LIMITED_FORWARD_ARC", "CANNOT_SPOT_GROUND"]),
+      weapons: [expect.objectContaining({ id: "weapon-fighter-snub-hmg", ammoCapacity: 1, range: 1 })],
+    });
+  });
+
   test("hydrates the executable IFV attack, subsystem, and infantry-cargo subset", () => {
     const result = resolveUnitRulesAuthority(unitInput("unit-infantry-fighting-vehicle"), "development");
     expect(result.ok).toBe(true);

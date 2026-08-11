@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "2855be7c380e212dc3abfaea945d7b5d470742e04a5cbcc90cd2de1e214701b1",
+  "contentHash": "0692f4e099a8d926b250eb7877799489d09592521d62f84e52cc7798ec4dcf05",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1216,7 +1216,26 @@ const snapshot = {
               "weapon-fighter-snub-hmg"
             ]
           },
-          "execution": null,
+          "execution": {
+            "allowedActions": [
+              "ATTACK"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "EVASIVE"
+            ],
+            "capacity": 1,
+            "tags": [
+              "AEROSPACE",
+              "ATMO_FLIGHT",
+              "VEHICLE",
+              "RAPID_FIRE",
+              "EVASIVE",
+              "LIMITED_FORWARD_ARC",
+              "CANNOT_SPOT_GROUND"
+            ]
+          },
           "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
@@ -7720,6 +7739,7 @@ const snapshot = {
         "kind": "UNIT",
         "evidence": {
           "definitionIds": [
+            "unit-aerospace-fighter",
             "unit-artillery",
             "unit-combat-medic",
             "unit-engineers",
@@ -8609,19 +8629,46 @@ const snapshot = {
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "BALANCE_REQUIRED",
         "availabilityStatus": "DEV_ONLY",
-        "executable": false,
+        "executable": true,
         "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "MISSING_RESOLVER_HOOK",
+        "handlerId": "foundation-generated-unit-class",
+        "reasonCode": "MISSING_CANONICAL_PRICE",
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "implementedSubset": [
+            "HITS",
+            "ATTACK",
+            "AEROSPACE_MOVEMENT",
+            "HOSTILE_PASSAGE",
+            "RAPID_FIRE",
+            "EVASIVE",
+            "FORWARD_180_ARC",
+            "MAIN_AMMO_ONE",
+            "NO_GROUND_SPOTTING"
+          ],
           "minimumMechanics": [
             "FLIGHT_PATH",
             "FORWARD_ARC",
             "AMMUNITION",
             "LAND_REARM"
-          ]
+          ],
+          "missing": [
+            "LAND_TAKEOFF_STATE",
+            "REARM_FACILITY",
+            "INTERCEPTOR"
+          ],
+          "publicationCorrection": {
+            "reason": "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc and no-ground-spotting rule. Landing/rearm and Interceptor remain gated.",
+            "seedOverlay": {
+              "availabilityStatus": "DEV_ONLY",
+              "executable": false,
+              "implementationStatus": "PARTIAL",
+              "purchasable": false,
+              "reasonCode": "MISSING_RESOLVER_HOOK",
+              "requisitionStatus": "BALANCE_REQUIRED"
+            }
+          }
         }
       },
       {
@@ -14408,5 +14455,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "2855be7c380e212dc3abfaea945d7b5d470742e04a5cbcc90cd2de1e214701b1" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "0692f4e099a8d926b250eb7877799489d09592521d62f84e52cc7798ec4dcf05" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

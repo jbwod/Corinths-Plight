@@ -23,6 +23,7 @@ import {
   synchronizeSupplyCargo,
   resupplyLogiTarget,
   validateArtilleryFire,
+  validateLimitedForwardArc,
   validateOrder,
 } from "../packages/rules-engine/src";
 import {
@@ -1289,6 +1290,10 @@ export class CampaignDurableObject extends DurableObject<Env> {
       const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
       if (!target) continue;
       const intendedAttacker = { ...deployment, position: { ...route.at(-1)! } };
+      const arc = validateLimitedForwardArc(execution.legacyDefinition.tags, route, deployment.facing, target.position);
+      if (!arc.legal) {
+        return errorResponse(422, "TARGET_OUTSIDE_FIRING_ARC", arc.reason ?? "Target is outside the unit's firing arc.");
+      }
       const checks = [...deployment.weapons]
         .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
         .map((weapon) => {

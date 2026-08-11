@@ -330,6 +330,19 @@ export function isTargetInFiringArc(
   return sectorDifference * 60 <= arcDegrees / 2;
 }
 
+export function validateLimitedForwardArc(
+  attackerTags: readonly string[],
+  route: readonly AxialCoord[],
+  fallbackFacing: Facing,
+  target: AxialCoord,
+): { legal: boolean; reason?: string; firingFacing: Facing } {
+  const firingFacing = travelFacing(route, fallbackFacing);
+  if (!attackerTags.includes("LIMITED_FORWARD_ARC")) return { legal: true, firingFacing };
+  return isTargetInFiringArc(route.at(-1) ?? target, target, firingFacing, 180)
+    ? { legal: true, firingFacing }
+    : { legal: false, reason: "Target is outside the fighter's forward 180-degree travel-path arc.", firingFacing };
+}
+
 export interface FighterAttackResult {
   legal: boolean;
   reason?: string;

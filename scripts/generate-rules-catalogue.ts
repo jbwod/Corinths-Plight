@@ -456,6 +456,12 @@ function supportingDefinition(
 }
 
 const foundationUnitExecution: Record<string, JsonObject> = {
+  "unit-aerospace-fighter": {
+    capacity: 1,
+    tags: ["AEROSPACE", "ATMO_FLIGHT", "VEHICLE", "RAPID_FIRE", "EVASIVE", "LIMITED_FORWARD_ARC", "CANNOT_SPOT_GROUND"],
+    allowedOrders: ["HOLD", "ADVANCE", "EVASIVE"],
+    allowedActions: ["ATTACK"],
+  },
   "unit-artillery": {
     capacity: 1,
     tags: ["GROUND", "PERSONNEL", "ARTILLERY", "INDIRECT", "DEPLOYABLE"],
@@ -778,6 +784,7 @@ function buildConflicts(
 }
 
 const foundationUnitIds = [
+  "unit-aerospace-fighter",
   "unit-artillery",
   "unit-combat-medic",
   "unit-engineers",
@@ -816,6 +823,15 @@ const foundationActionIds = [
 ] as const;
 
 const implementationCorrections: Record<string, Partial<RuleImplementationOverlayV1> & { explanation: string }> = {
+  "UNIT:unit-aerospace-fighter": {
+    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: "MISSING_CANONICAL_PRICE",
+    parameters: {
+      implementedSubset: ["HITS", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "RAPID_FIRE", "EVASIVE", "FORWARD_180_ARC", "MAIN_AMMO_ONE", "NO_GROUND_SPOTTING"],
+      missing: ["LAND_TAKEOFF_STATE", "REARM_FACILITY", "INTERCEPTOR"],
+    },
+    explanation: "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc and no-ground-spotting rule. Landing/rearm and Interceptor remain gated.",
+  },
   "UNIT:unit-artillery": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "EXPERIMENTAL_DAMAGE_PROFILE",

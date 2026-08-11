@@ -272,6 +272,30 @@ describe("CampaignDurableObject campaign contracts", () => {
     });
   });
 
+  it("rejects a Fighter target outside its travel-path firing arc before storing the order", async () => {
+    const { campaign, storage } = campaignObject();
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    seeded.deployments.find((deployment) => deployment.id === "bug-drone-1")!.position = { q: -3, r: -2 };
+    storage.values.set("state/current", encodeCampaignStoredState(seeded));
+
+    const response = await campaign.fetch(request("/orders", {
+      method: "POST",
+      body: orderBody({
+        commandId: "command-fighter-rear-arc",
+        unitId: "dep-vulture-1",
+        actions: [{ type: "ATTACK", targetDeploymentId: "bug-drone-1" }],
+      }),
+    }));
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ error: { code: "TARGET_OUTSIDE_FIRING_ARC" } });
+    const unchanged = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    expect(unchanged.orders.some((candidate) => candidate.unitId === "dep-vulture-1")).toBe(false);
+    expect(unchanged.deployments.find((deployment) => deployment.id === "dep-vulture-1")?.ammunition)
+      .toEqual({ "weapon-fighter-snub-hmg": 1 });
+  });
+
   it("accepts governed Evasive orders only with the required displacement", async () => {
     const { campaign } = campaignObject();
     expect((await campaign.fetch(request("/state"))).status).toBe(200);

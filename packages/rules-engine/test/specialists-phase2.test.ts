@@ -20,6 +20,7 @@ import {
   validateArtilleryFire,
   validateBomberFlyOver,
   validateFighterAttack,
+  validateLimitedForwardArc,
 } from "../src";
 import { makeHex } from "./fixtures";
 
@@ -217,6 +218,16 @@ describe("aerospace attack paths, ammunition, and drops", () => {
       ammunitionAfter: 1,
       actionEconomy: "PRIMARY",
     });
+  });
+
+  it("derives the active fighter firing arc from its final travel step", () => {
+    const route = [{ q: 0, r: 0 }, { q: 1, r: 0 }];
+    expect(validateLimitedForwardArc(["AEROSPACE", "LIMITED_FORWARD_ARC"], route, 0, { q: 2, r: 0 }))
+      .toEqual({ legal: true, firingFacing: 2 });
+    expect(validateLimitedForwardArc(["AEROSPACE", "LIMITED_FORWARD_ARC"], route, 0, { q: 0, r: 0 }))
+      .toMatchObject({ legal: false, firingFacing: 2, reason: expect.stringMatching(/forward 180-degree/i) });
+    expect(validateLimitedForwardArc(["AEROSPACE"], route, 0, { q: 0, r: 0 }))
+      .toEqual({ legal: true, firingFacing: 2 });
   });
 
   it("requires a bomber fly-over and consumes one ordnance", () => {

@@ -49,6 +49,47 @@ function input(orders: UnitOrder[]): RoundInput {
 }
 
 describe("equipment and transport actions", () => {
+  it("enforces the Fighter travel-path arc and consumes its one-shot ammunition only when firing", () => {
+    const blockedState = createDemoCampaignState(1_000);
+    const blockedFighter = blockedState.deployments.find((deployment) => deployment.id === "dep-vulture-1")!;
+    const blockedTarget = blockedState.deployments.find((deployment) => deployment.id === "bug-drone-1")!;
+    blockedTarget.position = { q: -3, r: -2 };
+    const blockedOrder = order(blockedState, blockedFighter, [action("fighter-rear-shot", "ATTACK", {
+      targetDeploymentId: blockedTarget.id,
+    })]);
+    blockedState.orders = [blockedOrder];
+
+    const blocked = resolveRound({ ...input([blockedOrder]), previousState: blockedState });
+    expect(blocked.events).toContainEqual(expect.objectContaining({
+      type: "ORDER_REJECTED",
+      actor: blockedFighter.id,
+      payload: expect.objectContaining({
+        targetId: blockedTarget.id,
+        reasons: [expect.stringMatching(/forward 180-degree/i)],
+      }),
+    }));
+    expect(blocked.state.deployments.find((deployment) => deployment.id === blockedFighter.id)?.ammunition)
+      .toEqual({ "weapon-fighter-snub-hmg": 1 });
+
+    const firingState = createDemoCampaignState(1_000);
+    const firingFighter = firingState.deployments.find((deployment) => deployment.id === "dep-vulture-1")!;
+    const firingTarget = firingState.deployments.find((deployment) => deployment.id === "bug-drone-1")!;
+    firingTarget.position = { q: -1, r: -3 };
+    const firingOrder = order(firingState, firingFighter, [action("fighter-forward-shot", "ATTACK", {
+      targetDeploymentId: firingTarget.id,
+    })]);
+    firingState.orders = [firingOrder];
+
+    const fired = resolveRound({ ...input([firingOrder]), previousState: firingState });
+    expect(fired.events).toContainEqual(expect.objectContaining({
+      type: "DICE_ROLLED",
+      actor: firingFighter.id,
+      payload: expect.objectContaining({ weaponId: "weapon-fighter-snub-hmg", targetId: firingTarget.id }),
+    }));
+    expect(fired.state.deployments.find((deployment) => deployment.id === firingFighter.id)?.ammunition)
+      .toEqual({ "weapon-fighter-snub-hmg": 0 });
+  });
+
   it("deploys and packs Artillery using the governed half-Speed Standard Action", () => {
     const deployState = createDemoCampaignState(1_000);
     const artillery = deployState.deployments.find((deployment) => deployment.definitionId === "unit-artillery")!;
