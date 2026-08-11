@@ -37,14 +37,14 @@ This is the live release checklist. A checked local build item is not permission
 | `npm run seed:check` | macOS local, Node project toolchain | PASS | 42 definitions; 37 active; 100 SQL definitions; 16 allied classes; 7 enemy roles; 4 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
 | `npm run typecheck` | local | PASS | TypeScript 6.0.3. |
 | `npm run lint` | local | PASS | ESLint 10.8.1. |
-| `npm test` | local | PASS | Vitest 4.1.10; 59 files / 474 tests. |
+| `npm test` | local | PASS | Vitest 4.1.10; 59 files / 477 tests. |
 | `npm run build` | local development config | PASS | Worker 1,254.61 kB; client JS 777.40 kB; CSS 136.50 kB; Wrangler emitted only its known sandboxed debug-log warning. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
 | Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0010 applied. |
 | Seven seeds, twice | same isolated D1 | PASS | Core, Phase 2, equipment, onboarding and three development fixtures replayed twice. |
 | SQLite integrity | isolated D1 database | PASS | `integrity_check=ok`; `foreign_key_check` empty. |
 | `npm run ci:verify:d1` | isolated local D1 | PASS | Ten migrations; seven seeds twice; stable table fingerprints/counts; 117 checked application tables. |
-| `CI=1 npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 8/8 canaries pass, including live four-round K-17 support/combat/victory resolution, the Heavy Air Transport manifested-drop composer, generated Logi/Artillery cargo controls, the Logi's live `5 Small Supply = 1/2 cargo slots` readout, and 390px overflow coverage. |
+| `CI=1 npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 9/9 canaries pass, including strategic Disembark, resolved operation deployment into a committed tactical campaign, live K-17 support/combat/victory resolution, the Heavy Air Transport manifested-drop composer, generated Logi/Artillery cargo controls, and 390px overflow coverage. |
 | `git diff --check` | local Phase-1 tree | PASS | No whitespace errors at final gate. |
 | `npm audit --audit-level=high` | npm advisory service | PASS | Zero known vulnerabilities at assessment time; the result is time-sensitive. |
 
@@ -157,7 +157,7 @@ No external state was changed during this Phase-0 assessment.
 | Equip/refit/readiness/history/icons | partial | CP-204/CP-205/DEC-017/DEC-018 |
 | Battalion/Battlegroup organise/delegate | partial/read-only | CP-206/CP-207 |
 | Own/configure/embark ship | read-only/blocked | CP-300/CP-301/DEC-010 |
-| Submit/resolve strategic travel to another planet | blocked/501 | CP-302–CP-304/DEC-005 |
+| Submit/resolve strategic travel and operation deployment | local partial | Movement, Embark/Disembark, support and `DEPLOY_TO_CAMPAIGN` resolve through the map coordinator; production world publication and full crash-safe journal remain CP-302–CP-304/DEC-005. |
 | Choose operation and create scenario campaign | partial | K-17 and local Iron Rain are authored and deployable through the live campaign/planner surfaces; strategic order-to-deployment automation and a production content pack remain CP-601/DEC-020. |
 | Submit/edit/cancel/schedule tactical orders | partial | Current-round generated order/action composer and cancel path exist; future scheduling remains intentionally unavailable pending its reliable semantics. |
 | Resolve deterministic PvE combined arms | narrow partial | CP-500–CP-507 |

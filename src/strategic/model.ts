@@ -175,6 +175,7 @@ export interface StrategicNodeView {
   name: string;
   type: string;
   locationId: string;
+  planetLocationId?: string;
   parentName?: string;
   control: StrategicNodeControl;
   x: number;

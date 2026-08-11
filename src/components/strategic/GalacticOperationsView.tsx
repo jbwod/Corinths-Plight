@@ -58,8 +58,13 @@ export function GalacticOperationsView({
   const formationsAtSelectedNode = selectedNode
     ? snapshot.map.formations.filter((formation) => formation.nodeId === selectedNode.id)
     : [];
-  const selectedFormation = formationsAtSelectedNode.find((formation) => formation.id === selectedFormationId)
+  const selectedFormation = snapshot.map.formations.find((formation) => formation.id === selectedFormationId)
     ?? formationsAtSelectedNode[0];
+  const deploymentCandidates = snapshot.map.formations.filter((formation) =>
+    formation.kind === "BATTLEGROUP" &&
+    ["READY", "EMBARKED", "RECOVERING"].includes(formation.status) &&
+    formation.routeNodeIds.length === 0,
+  );
   const embarkCarrier = selectedFormation?.kind === "BATTLEGROUP" && !selectedFormation.carrierTaskForceId
     ? formationsAtSelectedNode.find((formation) =>
         formation.kind === "TASK_FORCE" &&
@@ -72,6 +77,22 @@ export function GalacticOperationsView({
   );
   const canCreateOrders = mode === "LIVE" && snapshot.map.viewerPermissions.includes("STRATEGIC_ORDER_CREATE");
   const canApproveOrders = mode === "LIVE" && snapshot.map.viewerPermissions.includes("STRATEGIC_ORDER_APPROVE");
+  const formationNode = selectedFormation ? nodeById.get(selectedFormation.nodeId) : undefined;
+  const operationNode = selectedOperation ? nodeById.get(selectedOperation.nodeId) : undefined;
+  const carrierAtOperationPlanet = Boolean(
+    selectedFormation?.carrierTaskForceId &&
+    formationNode?.planetLocationId &&
+    operationNode?.planetLocationId &&
+    formationNode.planetLocationId === operationNode.planetLocationId,
+  );
+  const canAuthoriseDeployment = Boolean(
+    selectedFormation?.kind === "BATTLEGROUP" &&
+    selectedOperation &&
+    selectedOperation.status === "MUSTERING" &&
+    ["READY", "EMBARKED", "RECOVERING"].includes(selectedFormation.status) &&
+    !selectedFormation.routeNodeIds.length &&
+    (selectedFormation.nodeId === selectedOperation.nodeId || carrierAtOperationPlanet),
+  );
 
   useEffect(() => {
     if (selectedOperationId) void onRequestOperationDetail(selectedOperationId);
@@ -290,7 +311,7 @@ export function GalacticOperationsView({
                     {routesAtSelectedNode.map((route) => {
                       const otherId = route.fromNodeId === selectedNode.id ? route.toNodeId : route.fromNodeId;
                       const requiredProfile = selectedFormation?.kind === "TASK_FORCE" ? "TASK_FORCE" : "GROUND_BATTLEGROUP";
-                      const canMove = Boolean(selectedFormation && ["READY", "RECOVERING"].includes(selectedFormation.status) && selectedFormation.routeNodeIds.length === 0 && route.status === "OPEN" && route.travelRounds !== null && route.movementProfiles.includes(requiredProfile) && !selectedFormation.carrierTaskForceId);
+                      const canMove = Boolean(selectedFormation && selectedFormation.nodeId === selectedNode.id && ["READY", "RECOVERING"].includes(selectedFormation.status) && selectedFormation.routeNodeIds.length === 0 && route.status === "OPEN" && route.travelRounds !== null && route.movementProfiles.includes(requiredProfile) && !selectedFormation.carrierTaskForceId);
                       return <div key={route.id}><i className={route.status.toLowerCase()} /><span><b>{nodeById.get(otherId)?.name ?? otherId}</b><small>{route.movementProfiles.join(" · ") || "PROFILE NOT REPORTED"}</small></span><strong>{routeLabel(route.travelRounds)}</strong>{canMove && <button type="button" disabled={!canCreateOrders || submitting} onClick={() => void submitOrder({ type: selectedFormation!.kind === "TASK_FORCE" ? "MOVE_TASK_FORCE" : "MOVE_BATTLEGROUP" }, otherId)}>MOVE</button>}</div>;
                     })}
                   </div>
@@ -335,6 +356,14 @@ export function GalacticOperationsView({
                         operationId: selectedOperation.id,
                         capability: supportCapability,
                       })}>SUPPORT {selectedOperation.name.toUpperCase()}</button>
+                    )}
+                    {canAuthoriseDeployment && (
+                      <button type="button" disabled={!canCreateOrders || submitting} onClick={() => void submitOrder({
+                        type: "DEPLOY_TO_CAMPAIGN",
+                        battlegroupId: selectedFormation!.id,
+                        operationId: selectedOperation!.id,
+                        deploymentMethod: "STANDARD_LANDING",
+                      })}>AUTHORISE {selectedFormation!.name.toUpperCase()} DEPLOYMENT</button>
                     )}
                     <button type="button" disabled={!canApproveOrders || submitting} onClick={() => void resolveRound()}>
                       RESOLVE ROUND {snapshot.clock.round}
@@ -392,8 +421,31 @@ export function GalacticOperationsView({
                 </section>
                 <div className="deployment-boundary">
                   <strong>STRATEGIC → TACTICAL DEPLOYMENT LIVE</strong>
-                  <p>The deployment planner validates one Battlegroup package, locks exact persistent loadouts, creates the tactical presence, closes its carrier assignment, and marks this operation active in one commit.</p>
-                  <button type="button" disabled={!selectedOperation.campaignId || !["MUSTERING", "ACTIVE"].includes(selectedOperation.status)} onClick={() => {
+                  <p>First authorise a co-located Battlegroup and resolve the strategic round. The deployment planner then locks its exact persistent loadouts and creates the tactical presence.</p>
+                  {selectedOperation.status === "MUSTERING" && (
+                    <label>
+                      <span>DEPLOYMENT FORMATION</span>
+                      <select
+                        value={deploymentCandidates.some((formation) => formation.id === selectedFormation?.id) ? selectedFormation!.id : ""}
+                        onChange={(event) => setSelectedFormationId(event.target.value)}
+                        disabled={!canCreateOrders || submitting || deploymentCandidates.length === 0}
+                      >
+                        <option value="">SELECT BATTLEGROUP</option>
+                        {deploymentCandidates.map((formation) => (
+                          <option key={formation.id} value={formation.id}>{formation.name} · {formation.status}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {canAuthoriseDeployment && (
+                    <button type="button" disabled={!canCreateOrders || submitting} onClick={() => void submitOrder({
+                      type: "DEPLOY_TO_CAMPAIGN",
+                      battlegroupId: selectedFormation!.id,
+                      operationId: selectedOperation.id,
+                      deploymentMethod: "STANDARD_LANDING",
+                    })}>AUTHORISE STANDARD LANDING</button>
+                  )}
+                  <button type="button" disabled={!selectedOperation.campaignId || selectedOperation.status !== "ACTIVE" || selectedOperation.assignedBattlegroups.length === 0} onClick={() => {
                     const url = new URL(window.location.href);
                     url.searchParams.set("campaign", selectedOperation.campaignId!);
                     window.history.replaceState({}, "", url);

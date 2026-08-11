@@ -37,11 +37,16 @@ function permutations<T>(items: readonly T[]): T[][] {
   );
 }
 
-function node(id: string, status: StrategicNodeDto["status"] = "OPEN"): StrategicNodeDto {
+function node(
+  id: string,
+  status: StrategicNodeDto["status"] = "OPEN",
+  planetLocationId?: string,
+): StrategicNodeDto {
   return {
     id,
     mapId,
     locationId: `location-${id}`,
+    planetLocationId,
     type: id === "orbit" ? "ORBIT" : "BASE",
     name: id,
     control: "FRIENDLY",
@@ -784,6 +789,49 @@ describe("deterministic strategic resolver", () => {
       status: "ACTIVE",
       deployedBattlegroupIds: ["bg-hammer"],
     });
+  });
+
+  it("lands an embarked Battlegroup from a carrier at the operation planet", () => {
+    const state = runtimeState({
+      nodes: [
+        node("orbit", "OPEN", "planet-corinth"),
+        node("base-b", "OPEN", "planet-corinth"),
+      ],
+      battlegroups: [battlegroup({
+        currentNodeId: null,
+        currentCarrierTaskForceId: "tf-resolute",
+        status: "EMBARKED",
+      })],
+      taskForces: [taskForce({
+        currentNodeId: "orbit",
+        embarkedBattlegroupIds: ["bg-hammer"],
+      })],
+    });
+    const deploy = lockedOrder({
+      formation: { kind: "BATTLEGROUP", id: "bg-hammer" },
+      intent: {
+        type: "DEPLOY_TO_CAMPAIGN",
+        battlegroupId: "bg-hammer",
+        operationId: "operation-iron-rain",
+        deploymentMethod: "STANDARD_LANDING",
+      },
+    });
+
+    const output = resolveStrategicRound({
+      previousState: state,
+      rulesetVersion: state.rulesetVersion,
+      lockedOrders: [deploy],
+      campaignResults: [],
+      resolutionTime: 9_000,
+    });
+
+    expect(output.state.battlegroups[0]).toMatchObject({
+      currentNodeId: "base-b",
+      currentCarrierTaskForceId: null,
+      currentOperationId: "operation-iron-rain",
+      status: "DEPLOYING",
+    });
+    expect(output.state.taskForces[0]?.embarkedBattlegroupIds).toEqual([]);
   });
 
   it("rejects stale commands and balance-required routes without mutating formation location", () => {

@@ -17,6 +17,17 @@ async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<
   const map = page.getByRole("region", { name: "Tactical operations map" });
   const noPlayableCampaign = page.getByRole("heading", { name: "No playable campaign assigned" });
   await expect(map.or(noPlayableCampaign)).toBeVisible();
+  const campaignSelector = page.getByLabel("Active campaign");
+  if (await campaignSelector.count() && await campaignSelector.locator('option[value="campaign-k17-relay"]').count()) {
+    if (await campaignSelector.isVisible()) {
+      await campaignSelector.selectOption("campaign-k17-relay");
+    } else {
+      const url = new URL(page.url());
+      url.searchParams.set("campaign", "campaign-k17-relay");
+      await page.goto(url.toString());
+    }
+    await expect(page.getByRole("heading", { name: "K-17: Hold the Relay" })).toBeVisible();
+  }
   if (await map.isVisible() && !deployFoundation) return;
   if (await join.isVisible()) {
     await join.click();
@@ -431,6 +442,60 @@ test("strategic UI submits and resolves a Battlegroup disembark order", async ({
       && hammer?.status === "READY"
       && hammer.currentNodeId === "node-corinth-high-orbit";
   }).toBe(true);
+});
+
+test("strategic deployment authorization boots a persistent tactical operation", async ({ page }) => {
+  await page.goto("/?view=galactic");
+  await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();
+  await page.getByRole("tab", { name: "OPERATIONS BOARD" }).click();
+  await page.getByRole("button", { name: /Operation Iron Rain/ }).click();
+  await page.getByLabel("DEPLOYMENT FORMATION").selectOption("battlegroup-raven");
+  await page.getByRole("button", { name: "AUTHORISE STANDARD LANDING" }).click();
+  await expect(page.getByText(/Raven: order submitted for strategic round/i)).toBeVisible();
+
+  const before = await page.request.get("/api/strategic/maps/strategic-map-corinth", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(before.status()).toBe(200);
+  const current = await before.json() as { map: { version: number }; round: { round: number } };
+  await page.getByRole("tab", { name: "COMMAND MAP" }).click();
+  await page.getByRole("button", { name: `RESOLVE ROUND ${current.round.round}` }).click();
+  await expect(page.getByText(new RegExp(`Strategic round ${current.round.round} resolved`))).toBeVisible();
+
+  await expect.poll(async () => {
+    const response = await page.request.get("/api/strategic/maps/strategic-map-corinth", {
+      headers: { "x-demo-user": "demo-user" },
+    });
+    const projection = await response.json() as {
+      operations: Array<{ id: string; status: string; deployedBattlegroupIds: string[] }>;
+      battlegroups: Array<{ id: string; status: string; currentOperationId: string | null }>;
+    };
+    const operation = projection.operations.find((item) => item.id === "strategic-operation-iron-rain");
+    const raven = projection.battlegroups.find((group) => group.id === "battlegroup-raven");
+    return operation?.status === "ACTIVE"
+      && operation.deployedBattlegroupIds.includes("battlegroup-raven")
+      && raven?.status === "DEPLOYING"
+      && raven.currentOperationId === "strategic-operation-iron-rain";
+  }).toBe(true);
+
+  await page.getByRole("tab", { name: "OPERATIONS BOARD" }).click();
+  await page.getByRole("button", { name: /Operation Iron Rain/ }).click();
+  await page.getByRole("button", { name: "PLAN TACTICAL DEPLOYMENT" }).click();
+  await expect(page.getByRole("heading", { name: "Deployment planner", exact: true })).toBeVisible();
+  await expect(page.getByText("PLANNER LIVE", { exact: true })).toBeVisible();
+  await page.locator("label").filter({ hasText: "POLAR-1" }).getByRole("checkbox").check();
+  await page.locator("label").filter({ hasText: "AURORA-4" }).getByRole("checkbox").check();
+  await page.getByRole("button", { name: "VALIDATE PLAN" }).click();
+  await expect(page.getByRole("heading", { name: "Ready for command" })).toBeVisible();
+  await page.getByRole("button", { name: "COMMIT DEPLOYMENT" }).click();
+  await expect(page.getByText(/campaign snapshots committed/i)).toBeVisible();
+
+  const campaign = await page.request.get("/api/campaigns/operation-iron-rain/state", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(campaign.status()).toBe(200);
+  const tactical = await campaign.json() as { deployments: Array<{ ownerId: string }> };
+  expect(tactical.deployments.filter((unit) => unit.ownerId === "demo-user")).toHaveLength(2);
 });
 
 test("tactical API exposes Light Mech, VTOL, Fighter, Bomber, and HAT verticals and rejects client-authored action economy", async ({ page }) => {

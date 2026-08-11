@@ -79,13 +79,6 @@ export function authorizeStrategicIntent(
       message: "Withdrawal requires the tactical extraction workflow, which is not yet executable.",
     };
   }
-  if (intent.type === "DEPLOY_TO_CAMPAIGN") {
-    return {
-      allowed: false,
-      code: "TACTICAL_DEPLOYMENT_DEFERRED",
-      message: "Strategic deployment requires the tactical campaign bootstrap workflow, which is not yet executable.",
-    };
-  }
 
   if (context.formation.kind === "BATTLEGROUP") {
     const hasFormationAuthority =

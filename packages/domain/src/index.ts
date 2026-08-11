@@ -1771,6 +1771,8 @@ export interface StrategicNodeDto {
   id: string;
   mapId: string;
   locationId: string;
+  /** Nearest owning Planet in the strategic location hierarchy. */
+  planetLocationId?: string | null;
   type: StrategicNodeType;
   name: string;
   control: StrategicNodeControl;

@@ -482,6 +482,7 @@ function projectNode(row: StrategicNodeRow): StrategicNodeDto {
     id: row.id,
     mapId: row.map_id,
     locationId: row.location_id,
+    planetLocationId: row.planet_location_id,
     type: row.node_type as StrategicNodeDto["type"],
     name: row.name,
     control: row.control_status as StrategicNodeDto["control"],

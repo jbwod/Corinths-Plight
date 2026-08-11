@@ -344,6 +344,7 @@ function normalizeNodes(payload: JsonRecord): StrategicNodeView[] {
       name: asString(record.name, asString(location.name, `Strategic node ${index + 1}`)),
       type: normalizedStatus(record.type ?? record.nodeType ?? location.type, "LOCATION"),
       locationId: identifier(record, "locationId") || identifier(location, "id"),
+      planetLocationId: identifier(record, "planetLocationId") || undefined,
       parentName: asString(record.parentName, asString(location.parentName)) || undefined,
       control: nodeControl(record.control ?? record.controlState),
       x: Math.min(94, Math.max(6, asNumber(record.x, asNumber(visual.x, fallbackPosition.x)))),

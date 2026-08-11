@@ -73,7 +73,7 @@ describe("strategic authority policy", () => {
     ).toMatchObject({ allowed: false, code: "BATTALION_PERMISSION_REQUIRED" });
   });
 
-  it("fails visibly for deferred orbital combat and tactical campaign transitions", () => {
+  it("activates tactical deployment while keeping orbital combat and withdrawal deferred", () => {
     expect(decision({ type: "ORBITAL_COMBAT", opposingFormationId: "hostile" })).toMatchObject({
       allowed: false,
       code: "ORBITAL_COMBAT_DEFERRED",
@@ -88,7 +88,7 @@ describe("strategic authority policy", () => {
         operationId: "iron-rain",
         deploymentMethod: "STANDARD_LANDING",
       }),
-    ).toMatchObject({ allowed: false, code: "TACTICAL_DEPLOYMENT_DEFERRED" });
+    ).toEqual({ allowed: true });
   });
 
   it("requires explicit approval to resolve in every environment", () => {

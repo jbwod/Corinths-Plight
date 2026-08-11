@@ -229,7 +229,8 @@ function GameApp() {
   const [mapLayer, setMapLayer] = useState<TacticalMapLayer>("SURFACE");
   const [activeNav, setActiveNav] = useState<ActiveNav>(initialNavigation);
   const [campaignId, setCampaignId] = useState<string | undefined>(
-    import.meta.env.DEV ? DEFAULT_DEVELOPMENT_CAMPAIGN_ID : undefined,
+    new URLSearchParams(window.location.search).get("campaign")
+      ?? (import.meta.env.DEV ? DEFAULT_DEVELOPMENT_CAMPAIGN_ID : undefined),
   );
   const [campaignDirectory, setCampaignDirectory] = useState<CampaignDirectoryEntry[]>([]);
   const realtimeCursor = useRef<{ round: number; sequence: number; version: number } | undefined>(undefined);
@@ -249,6 +250,10 @@ function GameApp() {
     const selected = entries.find((entry) => entry.campaignId === campaignId && campaignCanOpen(entry))
       ?? entries.find(campaignCanOpen);
     setCampaignId(selected?.campaignId);
+    const url = new URL(window.location.href);
+    if (selected) url.searchParams.set("campaign", selected.campaignId);
+    else url.searchParams.delete("campaign");
+    window.history.replaceState({}, "", url);
     return selected?.campaignId;
   }, [campaignId]);
 
@@ -960,6 +965,7 @@ function GameApp() {
       const url = new URL(window.location.href);
       url.searchParams.set("campaign", joinCampaignId);
       window.history.replaceState({}, "", url);
+      setCampaignId(joinCampaignId);
       navigate("Deployment");
       setNotice({ tone: "success", message: "Campaign joined. Deploy a force to open your tactical command channel." });
     } catch (error) {
@@ -1030,7 +1036,14 @@ function GameApp() {
             <select
               aria-label="Active campaign"
               value={campaignId ?? ""}
-              onChange={(event) => setCampaignId(event.target.value || undefined)}
+              onChange={(event) => {
+                const nextCampaignId = event.target.value || undefined;
+                const url = new URL(window.location.href);
+                if (nextCampaignId) url.searchParams.set("campaign", nextCampaignId);
+                else url.searchParams.delete("campaign");
+                window.history.replaceState({}, "", url);
+                setCampaignId(nextCampaignId);
+              }}
             >
               {campaignDirectory.filter(campaignCanOpen).map((entry) => (
                 <option key={entry.campaignId} value={entry.campaignId}>

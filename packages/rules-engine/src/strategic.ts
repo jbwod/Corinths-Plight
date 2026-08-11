@@ -1501,8 +1501,20 @@ export function resolveStrategicRound(input: StrategicResolutionInput): Strategi
       ? state.taskForces.find((candidate) => candidate.id === battlegroup.currentCarrierTaskForceId)
       : undefined;
     const sourceNodeId = carrier?.currentNodeId ?? battlegroup.currentNodeId;
-    if (sourceNodeId === null || sourceNodeId === undefined || sourceNodeId !== operation.strategicNodeId) {
-      reject(order, "NOT_COLOCATED", "Deployment cannot teleport; the Battlegroup or carrier must be at the operation node.");
+    const sourceNode = state.nodes.find((candidate) => candidate.id === sourceNodeId);
+    const operationNode = state.nodes.find((candidate) => candidate.id === operation.strategicNodeId);
+    const carrierInOperationPlanet = Boolean(
+      carrier &&
+      sourceNode?.planetLocationId &&
+      operationNode?.planetLocationId &&
+      sourceNode.planetLocationId === operationNode.planetLocationId,
+    );
+    if (
+      sourceNodeId === null ||
+      sourceNodeId === undefined ||
+      (sourceNodeId !== operation.strategicNodeId && !carrierInOperationPlanet)
+    ) {
+      reject(order, "NOT_COLOCATED", "Deployment cannot teleport; the Battlegroup must be at the operation node or aboard a carrier at that operation's planet.");
       continue;
     }
     const composition = validateBattlegroupComposition(battlegroup.units);

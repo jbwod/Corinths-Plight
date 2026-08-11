@@ -216,6 +216,7 @@ export interface StrategicNodeRow {
   id: string;
   map_id: string;
   location_id: string;
+  planet_location_id: string | null;
   node_type: string;
   name: string;
   control_status: string;
@@ -823,11 +824,25 @@ export async function getStrategicRound(
 
 export async function listStrategicNodes(db: Env["DB"], mapId: string): Promise<StrategicNodeRow[]> {
   const result = await db
-    .prepare(`SELECT id, map_id, location_id, node_type, name, control_status,
-                    status, position_json, visibility_json, revision
-               FROM strategic_nodes
-              WHERE map_id = ?1
-              ORDER BY name, id`)
+    .prepare(`WITH RECURSIVE location_ancestry(node_id,id,parent_location_id,location_type) AS (
+                SELECT nodes.id,locations.id,locations.parent_location_id,locations.location_type
+                  FROM strategic_nodes AS nodes
+                  JOIN strategic_locations AS locations ON locations.id=nodes.location_id
+                 WHERE nodes.map_id=?1
+                UNION ALL
+                SELECT ancestry.node_id,parent.id,parent.parent_location_id,parent.location_type
+                  FROM location_ancestry AS ancestry
+                  JOIN strategic_locations AS parent ON parent.id=ancestry.parent_location_id
+              )
+              SELECT nodes.id,nodes.map_id,nodes.location_id,
+                    (SELECT ancestry.id FROM location_ancestry AS ancestry
+                      WHERE ancestry.node_id=nodes.id AND ancestry.location_type='PLANET'
+                      LIMIT 1) AS planet_location_id,
+                    nodes.node_type,nodes.name,nodes.control_status,
+                    nodes.status,nodes.position_json,nodes.visibility_json,nodes.revision
+               FROM strategic_nodes AS nodes
+              WHERE nodes.map_id = ?1
+              ORDER BY nodes.name,nodes.id`)
     .bind(mapId)
     .all<StrategicNodeRow>();
   return result.results;

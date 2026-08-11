@@ -38,6 +38,46 @@ function canCommand(role: string, campaignRole: string): boolean {
     campaignRole === "GM" || campaignRole === "BATTALION_COMMAND" || campaignRole === "PLAYER";
 }
 
+async function requireStrategicDeploymentOrder(
+  db: D1Database,
+  operationId: string | null,
+  formation: NonNullable<Awaited<ReturnType<typeof getDeploymentFormation>>>,
+  deploymentMethod: string,
+): Promise<void> {
+  if (!operationId) return;
+  if (formation.status !== "DEPLOYING" || formation.current_operation_id !== operationId) {
+    throw new ForceServiceError(
+      409,
+      "STRATEGIC_DEPLOYMENT_ORDER_REQUIRED",
+      "Authorize this Battlegroup deployment from Galactic Operations and resolve the strategic round first.",
+    );
+  }
+  const authorization = await db.prepare(`SELECT intent_json FROM strategic_orders
+    WHERE battlegroup_id=?1 AND operation_id=?2 AND order_type='DEPLOY_TO_CAMPAIGN'
+      AND lifecycle='RESOLVED'
+    ORDER BY resolved_at DESC,id DESC LIMIT 1`)
+    .bind(formation.id, operationId).first<{ intent_json: string }>();
+  const intent = parseJson<{ type?: string; deploymentMethod?: string }>(authorization?.intent_json, {});
+  const tacticalMethodsByStrategicMethod: Record<string, readonly string[]> = {
+    STANDARD_LANDING: ["STANDARD_GROUND"],
+    VTOL_DEPLOYMENT: ["VTOL_INSERTION"],
+    AEROSPACE_TRANSPORT: ["HEAVY_AIR_TRANSPORT"],
+    ORBITAL_DROP: ["ORBITAL_DROP"],
+    SHIP_SURFACE_LANDING: ["STANDARD_GROUND"],
+  };
+  if (
+    intent.type !== "DEPLOY_TO_CAMPAIGN" ||
+    !intent.deploymentMethod ||
+    !tacticalMethodsByStrategicMethod[intent.deploymentMethod]?.includes(deploymentMethod)
+  ) {
+    throw new ForceServiceError(
+      409,
+      "STRATEGIC_DEPLOYMENT_METHOD_MISMATCH",
+      "The deployment plan must use the insertion method authorised by the resolved strategic order.",
+    );
+  }
+}
+
 async function requireFormationAtOperation(
   db: D1Database,
   formation: Awaited<ReturnType<typeof getDeploymentFormation>>,
@@ -191,9 +231,13 @@ async function materialize(
   if (command.battlegroupId) {
     const formation = await getDeploymentFormation(env.DB, authority.battalion_id, command.battlegroupId);
     if (!formation) throw new ForceServiceError(404, "BATTLEGROUP_NOT_FOUND", "The selected Battlegroup is outside this Battalion.");
-    if (!["READY", "EMBARKED", "RECOVERING"].includes(formation.status)) {
+    const allowedFormationStatuses = authority.operation_id
+      ? ["DEPLOYING"]
+      : ["READY", "EMBARKED", "RECOVERING"];
+    if (!allowedFormationStatuses.includes(formation.status)) {
       throw new ForceServiceError(409, "BATTLEGROUP_UNAVAILABLE", `Battlegroup ${command.battlegroupId} is ${formation.status.toLowerCase()} and cannot deploy.`);
     }
+    await requireStrategicDeploymentOrder(env.DB, authority.operation_id, formation, command.method);
     if (formation.current_operation_id && formation.current_operation_id !== authority.operation_id) {
       throw new ForceServiceError(409, "BATTLEGROUP_ALREADY_ASSIGNED", "The selected Battlegroup is assigned to another operation.");
     }
@@ -415,8 +459,14 @@ export async function commitPlan(
   if (authority.operation_id && (!formation || !row.battlegroup_id)) {
     throw new ForceServiceError(409, "BATTLEGROUP_REQUIRED", "The linked strategic operation requires a current Battlegroup reservation.");
   }
-  if (formation && !["READY", "EMBARKED", "RECOVERING"].includes(formation.status)) {
+  const allowedFormationStatuses = authority.operation_id
+    ? ["DEPLOYING"]
+    : ["READY", "EMBARKED", "RECOVERING"];
+  if (formation && !allowedFormationStatuses.includes(formation.status)) {
     throw new ForceServiceError(409, "BATTLEGROUP_UNAVAILABLE", `Battlegroup ${formation.id} is no longer available for deployment.`);
+  }
+  if (formation) {
+    await requireStrategicDeploymentOrder(env.DB, authority.operation_id, formation, row.deployment_method_id);
   }
   await requireFormationAtOperation(env.DB, formation, authority.operation_node_id);
   const units = await listDeploymentPlanUnits(env.DB, planId);
@@ -521,7 +571,7 @@ export async function commitPlan(
         .bind(formation.id),
       env.DB.prepare(`UPDATE battlegroups SET status='DEPLOYED',current_node_id=?1,
         current_operation_id=?2,current_carrier_task_force_id=NULL,revision=revision+1,updated_at=unixepoch()
-        WHERE id=?3 AND battalion_id=?4 AND revision=?5 AND status IN ('READY','EMBARKED','RECOVERING')`)
+        WHERE id=?3 AND battalion_id=?4 AND revision=?5 AND status='DEPLOYING'`)
         .bind(authority.operation_node_id, authority.operation_id, formation.id, row.battalion_id, formation.revision),
       env.DB.prepare(`UPDATE strategic_operations SET status='ACTIVE',starts_at=COALESCE(starts_at,unixepoch()),
         revision=revision+1,updated_at=unixepoch() WHERE id=?1 AND status='MUSTERING'`)
