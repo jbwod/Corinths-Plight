@@ -16,6 +16,8 @@ import type {
   GrantStarterUnitCommand,
   InviteBattalionMemberCommand,
   JoinBattalionCommand,
+  LeaveBattalionCommand,
+  RemoveBattalionMemberCommand,
   RespondBattalionInviteCommand,
   SwitchActiveBattalionCommand,
   UpdateBattalionRecruitmentCommand,
@@ -26,10 +28,12 @@ import {
   getActorBattalionAuthority,
   getCodeJoinAuthority,
   getInvitationJoinAuthority,
+  getBattalionMemberRemoval,
   getInviteTarget,
   getOnboardingPolicy,
   getOnboardingProgress,
   getOnboardingReceipt,
+  getOwnBattalionDeparture,
   getPublicJoinAuthority,
   getStarterDefinition,
   getStarterGrant,
@@ -42,6 +46,7 @@ import {
   type BattalionAssignmentRow,
   type InvitationRow,
   type JoinAuthorityRow,
+  type MembershipDepartureRow,
   type OnboardingReceiptRow,
   type StarterDefinitionRow,
 } from "../repositories/onboarding";
@@ -294,6 +299,165 @@ export async function switchActiveBattalion(
   return committed;
 }
 
+function assertDepartureSafety(row: MembershipDepartureRow, expectedMembershipRevision: number): void {
+  if (Number(row.target_revision) !== expectedMembershipRevision) {
+    throw new OnboardingServiceError(409, "MEMBERSHIP_REVISION_CONFLICT", "Battalion membership changed. Refresh and try again.");
+  }
+  if (row.battalion_created_by === row.target_user_id) {
+    throw new OnboardingServiceError(409, "BATTALION_TRANSFER_REQUIRED", "The Battalion creator must transfer or disband command before departing.");
+  }
+  if (Number(row.assigned_unit_count) > 0) {
+    throw new OnboardingServiceError(409, "MEMBER_UNITS_ASSIGNED", "Remove this commander's units from Battalion formations before departure.");
+  }
+  if (Number(row.led_formation_count) > 0) {
+    throw new OnboardingServiceError(409, "MEMBER_LEADS_FORMATION", "Assign another formation leader before departure.");
+  }
+  if (Number(row.active_campaign_count) > 0) {
+    throw new OnboardingServiceError(409, "MEMBER_CAMPAIGN_ACTIVE", "Withdraw or complete this commander's active Battalion campaigns before departure.");
+  }
+}
+
+function departureStatements(
+  env: Env,
+  actorUserId: string,
+  row: MembershipDepartureRow,
+  commandId: string,
+  operation: "LEAVE_BATTALION" | "REMOVE_BATTALION_MEMBER",
+  requestHash: string,
+  response: Record<string, unknown>,
+  fallback: BattalionAssignmentRow | undefined,
+  nextStatus: "LEFT" | "REMOVED",
+  now: number,
+  ownerNamespace: string,
+): D1PreparedStatement[] {
+  const statements: D1PreparedStatement[] = [];
+  const selectedTarget = row.selected_battalion_id === row.battalion_id;
+  if (selectedTarget && fallback && row.selection_revision !== null) {
+    statements.push(env.DB.prepare(`UPDATE user_active_battalions
+      SET battalion_id=?2,selected_at=?3,revision=revision+1
+      WHERE user_id=?1 AND battalion_id=?4 AND revision=?5
+        AND EXISTS (SELECT 1 FROM battalion_memberships
+          WHERE user_id=?1 AND battalion_id=?2 AND status='ACTIVE')
+        AND EXISTS (SELECT 1 FROM battalion_memberships
+          WHERE user_id=?1 AND battalion_id=?4 AND status='ACTIVE' AND revision=?6)`)
+      .bind(row.target_user_id, fallback.battalion_id, now, row.battalion_id, row.selection_revision, row.target_revision));
+  }
+  statements.push(env.DB.prepare(`UPDATE unit_order_delegations
+    SET revoked_at=?1,revision=revision+1,updated_at=?1
+    WHERE battalion_id=?2 AND revoked_at IS NULL
+      AND (owner_user_id=?3 OR delegate_user_id=?3)
+      AND EXISTS (SELECT 1 FROM battalion_memberships
+        WHERE battalion_id=?2 AND user_id=?3 AND status='ACTIVE' AND revision=?4)`)
+    .bind(now, row.battalion_id, row.target_user_id, row.target_revision));
+  statements.push(env.DB.prepare(`UPDATE battalion_memberships
+    SET status=?1,status_changed_at=?2,left_at=?2,revision=revision+1,updated_at=?2
+    WHERE battalion_id=?3 AND user_id=?4 AND status='ACTIVE' AND revision=?5`)
+    .bind(nextStatus, now, row.battalion_id, row.target_user_id, row.target_revision));
+  if (fallback) {
+    statements.push(env.DB.prepare(`INSERT INTO user_active_battalions (user_id,battalion_id,selected_at,revision)
+      SELECT ?1,?2,?3,1 WHERE NOT EXISTS (
+        SELECT 1 FROM user_active_battalions WHERE user_id=?1)
+        AND EXISTS (SELECT 1 FROM battalion_memberships
+          WHERE user_id=?1 AND battalion_id=?2 AND status='ACTIVE')
+        AND EXISTS (SELECT 1 FROM battalion_memberships
+          WHERE user_id=?1 AND battalion_id=?4 AND status=?5 AND revision=?6)`)
+      .bind(row.target_user_id, fallback.battalion_id, now, row.battalion_id, nextStatus, Number(row.target_revision) + 1));
+  }
+  statements.push(env.DB.prepare(`INSERT INTO strategic_events (
+      event_id,event_type,battalion_id,actor_user_id,audience,subject_type,subject_id,
+      summary,payload_json,event_hash,idempotency_key,occurred_at
+    ) SELECT ?1,?2,?3,?4,'BATTALION','USER',?5,?6,?7,?8,?9,?10
+      WHERE EXISTS (SELECT 1 FROM battalion_memberships
+        WHERE battalion_id=?3 AND user_id=?5 AND status=?11 AND revision=?12)`)
+    .bind(`event:onboarding:${ownerNamespace}:${commandId}`,
+      nextStatus === "LEFT" ? "BATTALION_MEMBER_LEFT" : "BATTALION_MEMBER_REMOVED",
+      row.battalion_id, actorUserId, row.target_user_id,
+      nextStatus === "LEFT" ? "A commander left the Battalion." : "A commander was removed from the Battalion.",
+      JSON.stringify({ nextStatus }), requestHash, `onboarding:event:${ownerNamespace}:${commandId}`, now,
+      nextStatus, Number(row.target_revision) + 1));
+  statements.push(env.DB.prepare(`INSERT INTO onboarding_command_receipts (
+      user_id,command_id,operation,request_hash,response_json
+    ) SELECT ?1,?2,?3,?4,?5 WHERE EXISTS (
+      SELECT 1 FROM battalion_memberships
+      WHERE battalion_id=?6 AND user_id=?7 AND status=?8 AND revision=?9)`)
+    .bind(actorUserId, commandId, operation, requestHash, JSON.stringify(response),
+      row.battalion_id, row.target_user_id, nextStatus, Number(row.target_revision) + 1));
+  return statements;
+}
+
+export async function leaveBattalion(env: Env, userId: string, command: LeaveBattalionCommand): Promise<unknown> {
+  const operation = "LEAVE_BATTALION";
+  const requestHash = await onboardingCommandHash({ userId, ...command, operation });
+  const replay = await committedReceipt(env, userId, command.commandId, operation, requestHash);
+  if (replay) return replay;
+  const row = await getOwnBattalionDeparture(env.DB, userId, command.battalionId);
+  if (!row) throw new OnboardingServiceError(404, "BATTALION_ASSIGNMENT_NOT_FOUND", "Active Battalion membership was not found.");
+  assertDepartureSafety(row, command.expectedMembershipRevision);
+  const actualSelectionRevision = row.selection_revision === null ? null : Number(row.selection_revision);
+  if (actualSelectionRevision !== command.expectedSelectionRevision) {
+    throw new OnboardingServiceError(409, "BATTALION_SELECTION_CONFLICT", "Battalion context changed. Refresh and try again.");
+  }
+  const assignments = await listBattalionAssignments(env.DB, userId);
+  const fallback = assignments.find((assignment) => assignment.battalion_id !== row.battalion_id);
+  const response = {
+    left: true,
+    battalionId: row.battalion_id,
+    activeBattalionId: row.selected_battalion_id === row.battalion_id ? fallback?.battalion_id ?? null : row.selected_battalion_id,
+  };
+  const ownerNamespace = (await onboardingCommandHash(userId)).slice(0, 16);
+  try {
+    await env.DB.batch(departureStatements(
+      env, userId, row, command.commandId, operation, requestHash, response, fallback, "LEFT",
+      Math.floor(Date.now() / 1000), ownerNamespace,
+    ));
+  } catch (error) {
+    const raced = await committedReceipt(env, userId, command.commandId, operation, requestHash);
+    if (raced) return raced;
+    throw error;
+  }
+  const committed = await committedReceipt(env, userId, command.commandId, operation, requestHash);
+  if (!committed) throw new OnboardingServiceError(409, "MEMBERSHIP_REVISION_CONFLICT", "Battalion membership changed. Refresh and try again.");
+  return committed;
+}
+
+export async function removeBattalionMember(
+  env: Env, actorUserId: string, command: RemoveBattalionMemberCommand,
+): Promise<unknown> {
+  const operation = "REMOVE_BATTALION_MEMBER";
+  const requestHash = await onboardingCommandHash({ actorUserId, ...command, operation });
+  const replay = await committedReceipt(env, actorUserId, command.commandId, operation, requestHash);
+  if (replay) return replay;
+  if (command.targetUserId === actorUserId) {
+    throw new OnboardingServiceError(409, "SELF_REMOVAL_INVALID", "Use the Leave Battalion action for your own membership.");
+  }
+  const row = await getBattalionMemberRemoval(env.DB, actorUserId, command.targetUserId);
+  if (!row) throw new OnboardingServiceError(404, "BATTALION_MEMBER_NOT_FOUND", "Active Battalion member was not found.");
+  if (!permissions(row.actor_permissions).includes("MEMBER_REMOVE")) {
+    throw new OnboardingServiceError(403, "BATTALION_PERMISSION_REQUIRED", "MEMBER_REMOVE permission is required.");
+  }
+  if (row.target_command_role !== "PLAYER") {
+    throw new OnboardingServiceError(409, "COMMAND_MEMBER_TRANSFER_REQUIRED", "Command authority must be transferred before this member can be removed.");
+  }
+  assertDepartureSafety(row, command.expectedMembershipRevision);
+  const targetAssignments = await listBattalionAssignments(env.DB, row.target_user_id);
+  const fallback = targetAssignments.find((assignment) => assignment.battalion_id !== row.battalion_id);
+  const response = { removed: true, battalionId: row.battalion_id, userId: row.target_user_id };
+  const ownerNamespace = (await onboardingCommandHash(actorUserId)).slice(0, 16);
+  try {
+    await env.DB.batch(departureStatements(
+      env, actorUserId, row, command.commandId, operation, requestHash, response, fallback, "REMOVED",
+      Math.floor(Date.now() / 1000), ownerNamespace,
+    ));
+  } catch (error) {
+    const raced = await committedReceipt(env, actorUserId, command.commandId, operation, requestHash);
+    if (raced) return raced;
+    throw error;
+  }
+  const committed = await committedReceipt(env, actorUserId, command.commandId, operation, requestHash);
+  if (!committed) throw new OnboardingServiceError(409, "MEMBERSHIP_REVISION_CONFLICT", "Battalion membership changed. Refresh and try again.");
+  return committed;
+}
+
 function joinResponse(authority: JoinAuthorityRow): Record<string, unknown> {
   return {
     joined: true,
@@ -445,7 +609,7 @@ export async function createBattalion(env: Env, userId: string, command: CreateB
     env.DB.prepare(`INSERT INTO rank_permissions (rank_id,permission)
       SELECT ?1,permission FROM battalion_permission_definitions
       WHERE permission IN (
-        'BATTALION_EDIT','MEMBER_INVITE',
+        'BATTALION_EDIT','MEMBER_INVITE','MEMBER_REMOVE',
         'BATTLEGROUP_CREATE','BATTLEGROUP_EDIT','BATTLEGROUP_ASSIGN'
       ) AND implementation_status='ACTIVE'`)
       .bind(commanderRankId),

@@ -162,7 +162,9 @@ function normalizeMembers(payload: JsonRecord): BattalionMemberView[] {
       displayName: asString(record.displayName, asString(profile.displayName, callsign)),
       rankId: identifier(record, "rankId", "rank_id") || identifier(rank, "id") || "rank-unknown",
       rankName: asString(record.rankName, asString(rank.name, "Unassigned")),
+      commandRole: normalizedStatus(record.commandRole ?? record.command_role, "PLAYER") as BattalionMemberView["commandRole"],
       status: normalizedStatus(record.status, "ACTIVE"),
+      membershipRevision: asNumber(record.membershipRevision ?? record.revision, 1),
       battlegroupIds: stringValues(record.battlegroupIds ?? record.battlegroups),
       lastActiveAt: asTimestamp(record.lastActiveAt ?? profile.lastActiveAt),
     }];

@@ -27,6 +27,7 @@ export function BattalionRecruitmentPanel() {
   const [target, setTarget] = useState("");
   const [message, setMessage] = useState("");
   const [assignmentCode, setAssignmentCode] = useState("");
+  const [confirmLeaveId, setConfirmLeaveId] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState<string>();
   const [notice, setNotice] = useState<{ tone: "success" | "danger"; message: string }>();
@@ -161,6 +162,22 @@ export function BattalionRecruitmentPanel() {
     );
   }
 
+  async function leaveAssignment(battalionId: string, membershipRevision: number) {
+    if (!status) return;
+    if (confirmLeaveId !== battalionId) {
+      setConfirmLeaveId(battalionId);
+      setNotice({ tone: "danger", message: "Confirm departure. Assigned units, active campaigns, and formation leadership must be cleared first." });
+      return;
+    }
+    await assignment(
+      `assignment-leave:${battalionId}`,
+      "/api/onboarding/battalions/leave",
+      { battalionId, expectedMembershipRevision: membershipRevision, expectedSelectionRevision: status.activeBattalionRevision },
+      "Battalion membership ended.",
+      true,
+    );
+  }
+
   if (!status) return <section className="recruitment-empty"><h2>{loadError ? "Assignments unavailable" : "Loading assignments"}</h2><p>{loadError ?? "Reading your persistent Battalion memberships."}</p></section>;
   const battalion = status.activeBattalion;
   const canEdit = battalion?.permissions.includes("BATTALION_EDIT") ?? false;
@@ -181,9 +198,14 @@ export function BattalionRecruitmentPanel() {
                   <strong>{item.name}</strong>
                   <p>{item.rankName} · membership revision {item.membershipRevision}</p>
                 </div>
-                {item.current
-                  ? <span className="recruitment-current-marker">CURRENT</span>
-                  : <button className="primary" disabled={busy} onClick={() => void switchAssignment(item.battalionId)}>SWITCH</button>}
+                <div className="recruitment-membership-actions">
+                  {item.current
+                    ? <span className="recruitment-current-marker">CURRENT</span>
+                    : <button className="primary" disabled={busy} onClick={() => void switchAssignment(item.battalionId)}>SWITCH</button>}
+                  <button className={confirmLeaveId === item.battalionId ? "danger" : ""} disabled={busy} onClick={() => void leaveAssignment(item.battalionId, item.membershipRevision)}>
+                    {confirmLeaveId === item.battalionId ? "CONFIRM LEAVE" : "LEAVE"}
+                  </button>
+                </div>
               </article>
             ))}
           </div>

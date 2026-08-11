@@ -11,6 +11,17 @@ export interface SwitchActiveBattalionCommand {
   battalionId: string;
   expectedSelectionRevision: number | null;
 }
+export interface LeaveBattalionCommand {
+  commandId: string;
+  battalionId: string;
+  expectedMembershipRevision: number;
+  expectedSelectionRevision: number | null;
+}
+export interface RemoveBattalionMemberCommand {
+  commandId: string;
+  targetUserId: string;
+  expectedMembershipRevision: number;
+}
 export interface CreateBattalionCommand {
   commandId: string;
   name: string;
@@ -133,6 +144,43 @@ export function validateSwitchActiveBattalionCommand(value: unknown): Validation
       expectedSelectionRevision: value.expectedSelectionRevision === null ? null : Number(value.expectedSelectionRevision),
     },
   };
+}
+
+export function validateLeaveBattalionCommand(value: unknown): ValidationResult<LeaveBattalionCommand> {
+  if (!record(value) || !only(value, ["commandId", "battalionId", "expectedMembershipRevision", "expectedSelectionRevision"])) {
+    return invalid("COMMAND_INVALID", "Battalion departure command contains unsupported fields.");
+  }
+  if (!commandId(value.commandId)) return invalid("COMMAND_ID_INVALID", "commandId must be 16–128 safe characters.");
+  if (typeof value.battalionId !== "string" || !idPattern.test(value.battalionId)) return invalid("BATTALION_ID_INVALID", "Battalion ID is invalid.");
+  if (!Number.isInteger(value.expectedMembershipRevision) || Number(value.expectedMembershipRevision) < 1) {
+    return invalid("REVISION_INVALID", "expectedMembershipRevision must be positive.");
+  }
+  if (value.expectedSelectionRevision !== null
+    && (!Number.isInteger(value.expectedSelectionRevision) || Number(value.expectedSelectionRevision) < 1)) {
+    return invalid("REVISION_INVALID", "expectedSelectionRevision must be a positive integer or null.");
+  }
+  return { valid: true, value: {
+    commandId: value.commandId,
+    battalionId: value.battalionId,
+    expectedMembershipRevision: Number(value.expectedMembershipRevision),
+    expectedSelectionRevision: value.expectedSelectionRevision === null ? null : Number(value.expectedSelectionRevision),
+  } };
+}
+
+export function validateRemoveBattalionMemberCommand(value: unknown): ValidationResult<RemoveBattalionMemberCommand> {
+  if (!record(value) || !only(value, ["commandId", "targetUserId", "expectedMembershipRevision"])) {
+    return invalid("COMMAND_INVALID", "Battalion member removal command contains unsupported fields.");
+  }
+  if (!commandId(value.commandId)) return invalid("COMMAND_ID_INVALID", "commandId must be 16–128 safe characters.");
+  if (typeof value.targetUserId !== "string" || !idPattern.test(value.targetUserId)) return invalid("TARGET_USER_INVALID", "Target user ID is invalid.");
+  if (!Number.isInteger(value.expectedMembershipRevision) || Number(value.expectedMembershipRevision) < 1) {
+    return invalid("REVISION_INVALID", "expectedMembershipRevision must be positive.");
+  }
+  return { valid: true, value: {
+    commandId: value.commandId,
+    targetUserId: value.targetUserId,
+    expectedMembershipRevision: Number(value.expectedMembershipRevision),
+  } };
 }
 
 export function validateCreateBattalionCommand(value: unknown): ValidationResult<CreateBattalionCommand> {

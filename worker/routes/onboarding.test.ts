@@ -58,5 +58,32 @@ describe("onboarding HTTP boundary", () => {
     }), environment());
     expect(switchWithoutRevision?.status).toBe(400);
     await expect(switchWithoutRevision?.json()).resolves.toMatchObject({ error: { code: "REVISION_INVALID" } });
+
+    const leaveWithForgedStatus = await routeOnboardingRequest(new Request("http://localhost/api/onboarding/battalions/leave", {
+      method: "POST",
+      headers: { "x-demo-user": "demo-user", "content-type": "application/json" },
+      body: JSON.stringify({
+        commandId: "leave-battalion-123456",
+        battalionId: "battalion-npc-nightwatch",
+        expectedMembershipRevision: 1,
+        expectedSelectionRevision: 2,
+        status: "LEFT",
+      }),
+    }), environment());
+    expect(leaveWithForgedStatus?.status).toBe(400);
+    await expect(leaveWithForgedStatus?.json()).resolves.toMatchObject({ error: { code: "COMMAND_INVALID" } });
+
+    const removeWithForgedBattalion = await routeOnboardingRequest(new Request("http://localhost/api/onboarding/battalions/members/remove", {
+      method: "POST",
+      headers: { "x-demo-user": "demo-user", "content-type": "application/json" },
+      body: JSON.stringify({
+        commandId: "remove-member-123456",
+        targetUserId: "demo-wing-user",
+        expectedMembershipRevision: 1,
+        battalionId: "battalion-client-selected",
+      }),
+    }), environment());
+    expect(removeWithForgedBattalion?.status).toBe(400);
+    await expect(removeWithForgedBattalion?.json()).resolves.toMatchObject({ error: { code: "COMMAND_INVALID" } });
   });
 });

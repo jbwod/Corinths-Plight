@@ -1464,7 +1464,9 @@ export interface BattalionMemberDto {
   displayName: string;
   callsign: string;
   rankId: string;
+  commandRole: "PLAYER" | "BATTALION_COMMAND" | "ADMIN";
   status: BattalionMembershipStatus;
+  membershipRevision: number;
   joinedAt?: number | null;
   leftAt?: number | null;
 }

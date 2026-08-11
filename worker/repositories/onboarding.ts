@@ -45,6 +45,21 @@ export interface BattalionAssignmentRow {
   is_current: number;
 }
 
+export interface MembershipDepartureRow {
+  battalion_id: string;
+  battalion_name: string;
+  battalion_created_by: string;
+  target_user_id: string;
+  target_revision: number;
+  target_command_role: "PLAYER" | "BATTALION_COMMAND" | "ADMIN";
+  selected_battalion_id: string | null;
+  selection_revision: number | null;
+  assigned_unit_count: number;
+  led_formation_count: number;
+  active_campaign_count: number;
+  actor_permissions: string | null;
+}
+
 export interface InvitationRow {
   invitation_id: string;
   battalion_id: string;
@@ -171,6 +186,53 @@ export async function listBattalionAssignments(db: D1Database, userId: string): 
     ORDER BY is_current DESC,battalions.name COLLATE NOCASE,battalions.id`)
     .bind(userId).all<BattalionAssignmentRow>();
   return result.results;
+}
+
+const departureProjection = `battalions.id AS battalion_id,battalions.name AS battalion_name,
+  battalions.created_by AS battalion_created_by,target.user_id AS target_user_id,
+  target.revision AS target_revision,target.command_role AS target_command_role,
+  target_active.battalion_id AS selected_battalion_id,target_active.revision AS selection_revision,
+  (SELECT COUNT(*) FROM battlegroup_units AS links
+    JOIN battlegroups AS groups ON groups.id=links.battlegroup_id
+    JOIN player_units AS units ON units.id=links.player_unit_id
+    WHERE groups.battalion_id=target.battalion_id AND units.owner_id=target.user_id) AS assigned_unit_count,
+  ((SELECT COUNT(*) FROM battlegroups AS groups
+      WHERE groups.battalion_id=target.battalion_id AND groups.leader_user_id=target.user_id)
+   + (SELECT COUNT(*) FROM task_forces AS forces
+      WHERE forces.battalion_id=target.battalion_id AND forces.commander_user_id=target.user_id)) AS led_formation_count,
+  (SELECT COUNT(*) FROM campaign_memberships AS memberships
+    JOIN campaigns ON campaigns.id=memberships.campaign_id
+    WHERE memberships.battalion_id=target.battalion_id AND memberships.user_id=target.user_id
+      AND campaigns.status NOT IN ('COMPLETE','FAILED')) AS active_campaign_count`;
+
+export async function getOwnBattalionDeparture(
+  db: D1Database, userId: string, battalionId: string,
+): Promise<MembershipDepartureRow | null> {
+  return db.prepare(`SELECT ${departureProjection},NULL AS actor_permissions
+    FROM battalion_memberships AS target
+    JOIN battalions ON battalions.id=target.battalion_id AND battalions.status='ACTIVE'
+    LEFT JOIN user_active_battalions AS target_active ON target_active.user_id=target.user_id
+    WHERE target.user_id=?1 AND target.battalion_id=?2 AND target.status='ACTIVE' LIMIT 1`)
+    .bind(userId, battalionId).first<MembershipDepartureRow>();
+}
+
+export async function getBattalionMemberRemoval(
+  db: D1Database, actorUserId: string, targetUserId: string,
+): Promise<MembershipDepartureRow | null> {
+  return db.prepare(`SELECT ${departureProjection},
+      GROUP_CONCAT(CASE WHEN definitions.implementation_status='ACTIVE' THEN permissions.permission END) AS actor_permissions
+    FROM user_active_battalions AS actor_active
+    JOIN battalion_memberships AS actor
+      ON actor.battalion_id=actor_active.battalion_id AND actor.user_id=actor_active.user_id AND actor.status='ACTIVE'
+    JOIN battalions ON battalions.id=actor.battalion_id AND battalions.status='ACTIVE'
+    JOIN battalion_memberships AS target
+      ON target.battalion_id=actor.battalion_id AND target.user_id=?2 AND target.status='ACTIVE'
+    LEFT JOIN user_active_battalions AS target_active ON target_active.user_id=target.user_id
+    LEFT JOIN rank_permissions AS permissions ON permissions.rank_id=actor.rank_id
+    LEFT JOIN battalion_permission_definitions AS definitions ON definitions.permission=permissions.permission
+    WHERE actor_active.user_id=?1
+    GROUP BY target.battalion_id,target.user_id LIMIT 1`)
+    .bind(actorUserId, targetUserId).first<MembershipDepartureRow>();
 }
 
 export async function listPendingInvitations(db: D1Database, userId: string): Promise<InvitationRow[]> {

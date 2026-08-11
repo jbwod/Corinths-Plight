@@ -50,6 +50,7 @@ export interface BattalionMemberRow {
   callsign: string | null;
   rank_id: string;
   rank_name: string;
+  command_role: "PLAYER" | "BATTALION_COMMAND" | "ADMIN";
   status: string;
   joined_at: number;
   left_at: number | null;
@@ -486,6 +487,7 @@ export async function listBattalionMembers(
     .prepare(`SELECT memberships.battalion_id, memberships.user_id,
                     COALESCE(profiles.display_name, users.username) AS display_name,
                     profiles.callsign, memberships.rank_id, ranks.name AS rank_name,
+                    memberships.command_role,
                     memberships.status, memberships.joined_at, memberships.left_at,
                     memberships.revision
                FROM battalion_memberships AS memberships

@@ -13,6 +13,7 @@ ON CONFLICT(id) DO UPDATE SET
 INSERT INTO battalion_permission_definitions (permission, description, implementation_status) VALUES
   ('BATTALION_EDIT', 'Edit Battalion public identity and recruitment configuration.', 'ACTIVE'),
   ('MEMBER_INVITE', 'Invite a player to the Battalion.', 'ACTIVE'),
+  ('MEMBER_REMOVE', 'Remove an eligible ordinary member from the Battalion.', 'ACTIVE'),
   ('BATTLEGROUP_CREATE', 'Create a persistent Battlegroup.', 'ACTIVE'),
   ('BATTLEGROUP_EDIT', 'Edit a Battlegroup identity, objective, and leader.', 'ACTIVE'),
   ('BATTLEGROUP_ASSIGN', 'Assign eligible persistent units to a Battlegroup.', 'ACTIVE'),
@@ -61,10 +62,13 @@ ON CONFLICT(id) DO UPDATE SET
 INSERT INTO rank_permissions (rank_id, permission) VALUES
   ('rank-npc-corinth-line-command', 'BATTALION_EDIT'),
   ('rank-npc-corinth-line-command', 'MEMBER_INVITE'),
+  ('rank-npc-corinth-line-command', 'MEMBER_REMOVE'),
   ('rank-npc-support-command', 'BATTALION_EDIT'),
   ('rank-npc-support-command', 'MEMBER_INVITE'),
+  ('rank-npc-support-command', 'MEMBER_REMOVE'),
   ('rank-npc-nightwatch-command', 'BATTALION_EDIT'),
-  ('rank-npc-nightwatch-command', 'MEMBER_INVITE')
+  ('rank-npc-nightwatch-command', 'MEMBER_INVITE'),
+  ('rank-npc-nightwatch-command', 'MEMBER_REMOVE')
 ON CONFLICT(rank_id, permission) DO NOTHING;
 
 INSERT INTO rank_permissions (rank_id, permission)

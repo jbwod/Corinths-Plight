@@ -52,7 +52,9 @@ export interface BattalionMemberView {
   displayName: string;
   rankId: string;
   rankName: string;
+  commandRole: "PLAYER" | "BATTALION_COMMAND" | "ADMIN";
   status: string;
+  membershipRevision: number;
   battlegroupIds: string[];
   lastActiveAt: number | null;
 }
@@ -273,11 +275,11 @@ export const SHOWCASE_STRATEGIC_SNAPSHOT: StrategicSnapshot = {
     { id: "rank-lieutenant", name: "Lieutenant", precedence: 40, memberCount: 2, permissions: ["SHIP_VIEW", "SUPPLY_VIEW", "UNIT_DEPLOY_SELF"] },
   ],
   members: [
-    { id: "member-mercer", userId: "user-mercer", callsign: "MERCER", displayName: "J. Mercer", rankId: "rank-colonel", rankName: "Colonel", status: "ACTIVE", battlegroupIds: [], lastActiveAt: showcaseTimestamp },
-    { id: "member-vega", userId: "user-vega", callsign: "VEGA", displayName: "M. Vega", rankId: "rank-major", rankName: "Major", status: "ACTIVE", battlegroupIds: [], lastActiveAt: showcaseTimestamp - 1_860_000 },
-    { id: "member-holt", userId: "user-holt", callsign: "HAVOC", displayName: "C. Holt", rankId: "rank-captain", rankName: "Captain", status: "ACTIVE", battlegroupIds: ["battlegroup-hammer"], lastActiveAt: showcaseTimestamp - 4_320_000 },
-    { id: "member-cross", userId: "user-cross", callsign: "CROSS", displayName: "L. Cross", rankId: "rank-lieutenant", rankName: "Lieutenant", status: "ACTIVE", battlegroupIds: ["battlegroup-raven"], lastActiveAt: showcaseTimestamp - 7_200_000 },
-    { id: "member-jbw", userId: "demo-user", callsign: "JBW", displayName: "J. Blackwood", rankId: "rank-lieutenant", rankName: "Lieutenant", status: "ACTIVE", battlegroupIds: ["battlegroup-hammer"], lastActiveAt: showcaseTimestamp },
+    { id: "member-mercer", userId: "user-mercer", callsign: "MERCER", displayName: "J. Mercer", rankId: "rank-colonel", rankName: "Colonel", commandRole: "BATTALION_COMMAND", membershipRevision: 1, status: "ACTIVE", battlegroupIds: [], lastActiveAt: showcaseTimestamp },
+    { id: "member-vega", userId: "user-vega", callsign: "VEGA", displayName: "M. Vega", rankId: "rank-major", rankName: "Major", commandRole: "PLAYER", membershipRevision: 1, status: "ACTIVE", battlegroupIds: [], lastActiveAt: showcaseTimestamp - 1_860_000 },
+    { id: "member-holt", userId: "user-holt", callsign: "HAVOC", displayName: "C. Holt", rankId: "rank-captain", rankName: "Captain", commandRole: "PLAYER", membershipRevision: 1, status: "ACTIVE", battlegroupIds: ["battlegroup-hammer"], lastActiveAt: showcaseTimestamp - 4_320_000 },
+    { id: "member-cross", userId: "user-cross", callsign: "CROSS", displayName: "L. Cross", rankId: "rank-lieutenant", rankName: "Lieutenant", commandRole: "PLAYER", membershipRevision: 1, status: "ACTIVE", battlegroupIds: ["battlegroup-raven"], lastActiveAt: showcaseTimestamp - 7_200_000 },
+    { id: "member-jbw", userId: "demo-user", callsign: "JBW", displayName: "J. Blackwood", rankId: "rank-lieutenant", rankName: "Lieutenant", commandRole: "PLAYER", membershipRevision: 1, status: "ACTIVE", battlegroupIds: ["battlegroup-hammer"], lastActiveAt: showcaseTimestamp },
   ],
   battlegroups: [
     {

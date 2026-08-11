@@ -500,6 +500,78 @@ test("commander switches persistent Battalion context without rejoining", async 
   const reused = await switchBattalion(target!.battalionId, status.activeBattalionRevision, restoreCommandId);
   expect(reused.response.status()).toBe(409);
   await expect.poll(async () => currentAssignment(await readStatus())?.battalionId).toBe(original!.battalionId);
+
+  await page.goto("/?view=battalion");
+  await page.getByRole("tab", { name: "RECRUITMENT" }).click();
+  const departingCard = page.locator(".recruitment-membership-list article").filter({ hasText: target!.name });
+  await departingCard.getByRole("button", { name: "LEAVE", exact: true }).click();
+  const departureRequest = page.waitForRequest((request) =>
+    request.url().endsWith("/api/onboarding/battalions/leave") && request.method() === "POST");
+  await departingCard.getByRole("button", { name: "CONFIRM LEAVE" }).click();
+  const committedDeparture = await departureRequest;
+  const departureCommand = committedDeparture.postDataJSON() as {
+    commandId: string;
+    battalionId: string;
+    expectedMembershipRevision: number;
+    expectedSelectionRevision: number | null;
+  };
+  await expect.poll(async () => (await readStatus()).battalionAssignments.some((assignment) => assignment.battalionId === target!.battalionId)).toBe(false);
+  const departureReplay = await page.request.post("/api/onboarding/battalions/leave", { headers, data: departureCommand });
+  expect(departureReplay.status()).toBe(200);
+  await expect(departureReplay.json()).resolves.toMatchObject({ left: true, battalionId: target!.battalionId, activeBattalionId: original!.battalionId });
+  const departureCollision = await page.request.post("/api/onboarding/battalions/leave", {
+    headers,
+    data: { ...departureCommand, expectedMembershipRevision: departureCommand.expectedMembershipRevision + 1 },
+  });
+  expect(departureCollision.status()).toBe(409);
+  await expect(departureCollision.json()).resolves.toMatchObject({ error: { code: "COMMAND_ID_REUSED" } });
+});
+
+test("Battalion command removes an eligible ordinary member and preserves history", async ({ page }) => {
+  const origin = "http://127.0.0.1:4173";
+  const denied = await page.request.post("/api/onboarding/battalions/members/remove", {
+    headers: { "x-demo-user": "demo-wing-user", origin },
+    data: {
+      commandId: `browser-remove-denied-${crypto.randomUUID()}`,
+      targetUserId: "demo-user",
+      expectedMembershipRevision: 1,
+    },
+  });
+  expect(denied.status()).toBe(403);
+  await expect(denied.json()).resolves.toMatchObject({ error: { code: "BATTALION_PERMISSION_REQUIRED" } });
+
+  await page.goto("/?view=battalion");
+  await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();
+  await page.getByRole("tab", { name: "MEMBERS" }).click();
+  const memberRow = page.getByRole("row").filter({ hasText: "WING-2" });
+  await expect(memberRow).toContainText("Trooper");
+  await memberRow.getByRole("button", { name: "REMOVE", exact: true }).click();
+  const removalRequest = page.waitForRequest((request) =>
+    request.url().endsWith("/api/onboarding/battalions/members/remove") && request.method() === "POST");
+  await memberRow.getByRole("button", { name: "CONFIRM REMOVE" }).click();
+  const committedRemoval = await removalRequest;
+  const removalCommand = committedRemoval.postDataJSON() as {
+    commandId: string;
+    targetUserId: string;
+    expectedMembershipRevision: number;
+  };
+
+  await expect.poll(async () => {
+    const response = await page.request.get("/api/battalions/current/members", { headers: { "x-demo-user": "demo-user" } });
+    const payload = await response.json() as { members: Array<{ userId: string; status: string; membershipRevision: number }> };
+    return payload.members.find((member) => member.userId === "demo-wing-user");
+  }).toMatchObject({ status: "REMOVED", membershipRevision: 2 });
+
+  const headers = { "x-demo-user": "demo-user", origin };
+  const replay = await page.request.post("/api/onboarding/battalions/members/remove", { headers, data: removalCommand });
+  expect(replay.status()).toBe(200);
+  await expect(replay.json()).resolves.toMatchObject({ removed: true, userId: "demo-wing-user" });
+  const collision = await page.request.post("/api/onboarding/battalions/members/remove", {
+    headers,
+    data: { ...removalCommand, expectedMembershipRevision: removalCommand.expectedMembershipRevision + 1 },
+  });
+  expect(collision.status()).toBe(409);
+  await expect(collision.json()).resolves.toMatchObject({ error: { code: "COMMAND_ID_REUSED" } });
 });
 
 test("campaign staging directory joins and safely leaves before deployment", async ({ page }) => {

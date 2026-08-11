@@ -6,6 +6,8 @@ import {
   validateGrantStarterUnitCommand,
   validateInviteBattalionMemberCommand,
   validateJoinBattalionCommand,
+  validateLeaveBattalionCommand,
+  validateRemoveBattalionMemberCommand,
   validateSwitchActiveBattalionCommand,
   validateUpdateBattalionRecruitmentCommand,
 } from "./onboarding-validation";
@@ -58,6 +60,29 @@ describe("guided onboarding command validation", () => {
       battalionId: "battalion-33rd-expeditionary",
       expectedSelectionRevision: 0,
     })).toMatchObject({ valid: false, code: "REVISION_INVALID" });
+    expect(validateLeaveBattalionCommand({
+      commandId,
+      battalionId: "battalion-npc-nightwatch",
+      expectedMembershipRevision: 2,
+      expectedSelectionRevision: 7,
+    })).toMatchObject({ valid: true });
+    expect(validateLeaveBattalionCommand({
+      commandId,
+      battalionId: "battalion-npc-nightwatch",
+      expectedMembershipRevision: 0,
+      expectedSelectionRevision: 7,
+    })).toMatchObject({ valid: false, code: "REVISION_INVALID" });
+    expect(validateRemoveBattalionMemberCommand({
+      commandId,
+      targetUserId: "demo-wing-user",
+      expectedMembershipRevision: 1,
+    })).toMatchObject({ valid: true });
+    expect(validateRemoveBattalionMemberCommand({
+      commandId,
+      targetUserId: "demo-wing-user",
+      expectedMembershipRevision: 1,
+      battalionId: "client-authored",
+    })).toMatchObject({ valid: false, code: "COMMAND_INVALID" });
   });
 
   it("hashes canonical request content with code-point key ordering", async () => {

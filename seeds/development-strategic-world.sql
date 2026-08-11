@@ -34,7 +34,7 @@ INSERT INTO battalion_permission_definitions (
 ) VALUES
   ('BATTALION_EDIT', 'Edit Battalion public identity and configuration.', 'SCHEMA_ONLY'),
   ('MEMBER_INVITE', 'Invite a player to the Battalion.', 'SCHEMA_ONLY'),
-  ('MEMBER_REMOVE', 'Remove or suspend a Battalion member.', 'SCHEMA_ONLY'),
+  ('MEMBER_REMOVE', 'Remove an eligible ordinary Battalion member.', 'ACTIVE'),
   ('RANK_MANAGE', 'Create ranks and assign rank permissions.', 'SCHEMA_ONLY'),
   ('BATTLEGROUP_CREATE', 'Create a persistent Battlegroup.', 'ACTIVE'),
   ('BATTLEGROUP_EDIT', 'Edit a Battlegroup identity, objective, and leader.', 'ACTIVE'),
@@ -77,6 +77,19 @@ ON CONFLICT(user_id) DO UPDATE SET
   callsign = excluded.callsign,
   biography = excluded.biography,
   timezone = excluded.timezone;
+
+INSERT INTO users (id, email, username, status, last_active_at)
+VALUES ('demo-wing-user', 'wing@local.corinth.invalid', 'demo-wing-user', 'ACTIVE', 1786270000)
+ON CONFLICT(id) DO UPDATE SET status='ACTIVE',last_active_at=excluded.last_active_at;
+
+INSERT INTO profiles (user_id, display_name, callsign, biography, timezone)
+VALUES (
+  'demo-wing-user','Expeditionary Wing Commander','WING-2',
+  'Development-only ordinary member for Battalion lifecycle workflows.','Australia/Sydney'
+)
+ON CONFLICT(user_id) DO UPDATE SET
+  display_name=excluded.display_name,callsign=excluded.callsign,
+  biography=excluded.biography,timezone=excluded.timezone;
 
 INSERT INTO battalions (
   id, name, short_name, description, motto, created_by, status, revision
@@ -135,6 +148,9 @@ INSERT INTO battalion_memberships (
 ) VALUES (
   'battalion-33rd-expeditionary', 'demo-user', 'rank-33rd-commander',
   'ACTIVE', 'BATTALION_COMMAND', 1778500000, 1778500000, 1, 1786270000
+),(
+  'battalion-33rd-expeditionary', 'demo-wing-user', 'rank-33rd-trooper',
+  'ACTIVE', 'PLAYER', 1786270000, 1786270000, 1, 1786270000
 )
 ON CONFLICT(battalion_id, user_id) DO UPDATE SET
   rank_id = excluded.rank_id,
@@ -145,7 +161,9 @@ ON CONFLICT(battalion_id, user_id) DO UPDATE SET
   updated_at = excluded.updated_at;
 
 INSERT INTO user_active_battalions (user_id, battalion_id, selected_at, revision)
-VALUES ('demo-user', 'battalion-33rd-expeditionary', 1786270000, 1)
+VALUES
+  ('demo-user', 'battalion-33rd-expeditionary', 1786270000, 1),
+  ('demo-wing-user', 'battalion-33rd-expeditionary', 1786270000, 1)
 ON CONFLICT(user_id) DO UPDATE SET
   battalion_id = excluded.battalion_id,
   selected_at = excluded.selected_at;

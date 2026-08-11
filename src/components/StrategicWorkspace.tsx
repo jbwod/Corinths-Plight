@@ -5,6 +5,7 @@ import { BattalionView } from "./strategic/BattalionView";
 import { CommandView } from "./strategic/CommandView";
 import { GalacticOperationsView } from "./strategic/GalacticOperationsView";
 import { ShipView } from "./strategic/ShipView";
+import { BattalionRecruitmentPanel } from "./BattalionRecruitmentPanel";
 
 export type StrategicView = "Command" | "Battalion" | "Ship" | "Galactic";
 
@@ -126,11 +127,11 @@ export function StrategicWorkspace({ view, onNavigate, onNotice }: StrategicWork
         <span className="eyebrow">FIRST STRATEGIC ASSIGNMENT</span>
         <h1>{snapshot.profile.callsign || "Player"}, you have no active Battalion</h1>
         <p>
-          Your persistent identity and personal forces are intact. Join or create a Battalion before shared ships,
-          Battlegroups, Task Forces, and strategic operations can be shown. Full invite and Battalion-creation flows
-          remain deferred in this checkpoint.
+          Your persistent identity and personal forces are intact. Select an existing membership, accept an invitation,
+          join an open Battalion, or use a private assignment code before shared ships and operations can be shown.
         </p>
         <button type="button" onClick={() => onNavigate("Forces")}>OPEN PERSONAL FORCES</button>
+        <BattalionRecruitmentPanel />
       </main>
     );
   }

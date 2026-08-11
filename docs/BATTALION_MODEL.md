@@ -53,7 +53,7 @@ Invite command idempotency is scoped to the authenticated inviter by `UNIQUE(inv
 
 Migration 0008 adds fixed-window invitation limits for actor, Battalion, HMAC-pseudonymized recipient, and HMAC-pseudonymized source IP, plus private invitation-security audit rows, a leased delivery outbox, and bounded invitation-expiry/PII maintenance. The invitation command returns a generic accepted response before Resend; `waitUntil` makes the first bounded attempt and the hourly job recovers/retries. Eligibility remains non-enumerating and blocked scopes share one generic response. This code is locally verified but not part of the recorded production `0007` deployment.
 
-Invite/send/accept/decline, public/code joins, active membership switching, and recruitment settings are implemented. Leave/remove, rank editing, ownership transfer, and invite revocation remain deferred.
+Invite/send/accept/decline, public/code joins, active membership switching, self-departure, authorized ordinary-member removal, and recruitment settings are implemented. Departures preserve the membership row as `LEFT` or `REMOVED`, revoke active order delegations, and fail closed while the member owns assigned formation units, leads a formation, or participates in a live Battalion campaign. The creator and command members require an explicit future transfer workflow. Rank editing, ownership transfer, and invite revocation remain deferred.
 
 ## 5. Configurable ranks and permissions
 
@@ -124,7 +124,7 @@ An unauthorised subject should resolve as not found where exposing existence wou
 
 ## 10. Concurrency and history
 
-The implemented onboarding/recruitment mutations use actor-scoped command receipts and canonical request hashes; revisioned aggregates use compare-and-set and committed organisation mutations emit a Battalion-audience `strategic_events` record. This is the required pattern for future organisation mutations, not evidence that leave/remove, rank editing, ownership transfer, invite revocation, ship movement, or public strategic orders exist. Membership is not deleted when a User leaves. Battalion history is assembled from audience-safe events rather than low-level table audit noise.
+The implemented onboarding/recruitment mutations use actor-scoped command receipts and canonical request hashes; revisioned aggregates use compare-and-set and committed organisation mutations emit a Battalion-audience `strategic_events` record. Leave/remove follow that pattern and never delete membership history. Rank editing, ownership transfer and invite revocation remain future organisation mutations. Battalion history is assembled from audience-safe events rather than low-level table audit noise.
 
 The schema prevents cross-Battalion ranks, current selection without active membership, cross-Battalion formation joins, duplicate pending invites, and duplicate actor command IDs. It does not by itself decide whether a given active permission is sufficient for a particular API route; that policy belongs in the Worker service and tests.
 

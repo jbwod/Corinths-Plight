@@ -7,6 +7,8 @@ import {
   validateGrantStarterUnitCommand,
   validateInviteBattalionMemberCommand,
   validateJoinBattalionCommand,
+  validateLeaveBattalionCommand,
+  validateRemoveBattalionMemberCommand,
   validateRespondBattalionInviteCommand,
   validateSwitchActiveBattalionCommand,
   validateUpdateBattalionRecruitmentCommand,
@@ -19,8 +21,10 @@ import {
   grantStarterUnit,
   inviteBattalionMember,
   joinBattalion,
+  leaveBattalion,
   OnboardingServiceError,
   respondBattalionInvite,
+  removeBattalionMember,
   switchActiveBattalion,
   updateBattalionRecruitment,
 } from "../services/onboarding";
@@ -75,6 +79,14 @@ export async function routeOnboardingRequest(
     if (url.pathname === "/api/onboarding/battalions/current") {
       if (request.method !== "POST") return methodNotAllowed("POST");
       return json(await switchActiveBattalion(env, userId, parsed(validateSwitchActiveBattalionCommand(await body(request)))));
+    }
+    if (url.pathname === "/api/onboarding/battalions/leave") {
+      if (request.method !== "POST") return methodNotAllowed("POST");
+      return json(await leaveBattalion(env, userId, parsed(validateLeaveBattalionCommand(await body(request)))));
+    }
+    if (url.pathname === "/api/onboarding/battalions/members/remove") {
+      if (request.method !== "POST") return methodNotAllowed("POST");
+      return json(await removeBattalionMember(env, userId, parsed(validateRemoveBattalionMemberCommand(await body(request)))));
     }
     if (url.pathname === "/api/onboarding/battalions") {
       if (request.method !== "POST") return methodNotAllowed("POST");

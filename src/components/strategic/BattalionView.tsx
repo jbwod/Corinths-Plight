@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
-import type { StrategicDataMode, StrategicSnapshot } from "../../strategic/model";
+import type { BattalionMemberView, StrategicDataMode, StrategicSnapshot } from "../../strategic/model";
 import { BattalionRecruitmentPanel } from "../BattalionRecruitmentPanel";
+
+const DEMO_HEADERS = import.meta.env.DEV ? { "x-demo-user": "demo-user" } : undefined;
+const JSON_HEADERS = { "content-type": "application/json", ...(DEMO_HEADERS ?? {}) };
 
 interface BattalionViewProps {
   snapshot: StrategicSnapshot;
@@ -27,6 +30,8 @@ function relativeActivity(value: number | null): string {
 export function BattalionView({ snapshot, mode, onNotice }: BattalionViewProps) {
   const [tab, setTab] = useState<BattalionTab>("ORGANISATION");
   const [memberFilter, setMemberFilter] = useState("");
+  const [confirmRemovalId, setConfirmRemovalId] = useState<string>();
+  const [memberMutationBusy, setMemberMutationBusy] = useState(false);
   const commandMembers = useMemo(
     () => snapshot.members.filter((member) => member.battlegroupIds.length === 0).slice(0, 3),
     [snapshot.members],
@@ -40,7 +45,38 @@ export function BattalionView({ snapshot, mode, onNotice }: BattalionViewProps) 
   }, [memberFilter, snapshot.members]);
 
   void mode;
-  void onNotice;
+  const canRemoveMembers = snapshot.battalion.permissions.includes("MEMBER_REMOVE");
+
+  async function removeMember(member: BattalionMemberView) {
+    if (confirmRemovalId !== member.userId) {
+      setConfirmRemovalId(member.userId);
+      onNotice({ tone: "info", message: `Confirm removal of ${member.callsign}. Operational assignments must be cleared first.` });
+      return;
+    }
+    setMemberMutationBusy(true);
+    try {
+      const response = await fetch("/api/onboarding/battalions/members/remove", {
+        method: "POST",
+        headers: JSON_HEADERS,
+        body: JSON.stringify({
+          commandId: `remove-member-${crypto.randomUUID()}`,
+          targetUserId: member.userId,
+          expectedMembershipRevision: member.membershipRevision,
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.json() as { error?: { message?: string } };
+        throw new Error(payload.error?.message ?? `Member removal failed (${response.status}).`);
+      }
+      onNotice({ tone: "success", message: `${member.callsign} was removed from the Battalion.` });
+      window.location.reload();
+    } catch (caught) {
+      onNotice({ tone: "danger", message: caught instanceof Error ? caught.message : "Member removal failed." });
+      setConfirmRemovalId(undefined);
+    } finally {
+      setMemberMutationBusy(false);
+    }
+  }
 
   return (
     <div className="battalion-workspace">
@@ -120,7 +156,7 @@ export function BattalionView({ snapshot, mode, onNotice }: BattalionViewProps) 
             <label>FILTER MEMBERS<input value={memberFilter} onChange={(event) => setMemberFilter(event.target.value)} placeholder="Callsign or rank" /></label>
           </header>
           <div className="member-table" role="table" aria-label="Battalion members">
-            <div role="row" className="member-table-head"><span role="columnheader">PLAYER</span><span role="columnheader">RANK</span><span role="columnheader">FORMATION</span><span role="columnheader">STATUS</span><span role="columnheader">LAST ACTIVE</span></div>
+            <div role="row" className="member-table-head"><span role="columnheader">PLAYER</span><span role="columnheader">RANK</span><span role="columnheader">FORMATION</span><span role="columnheader">STATUS</span><span role="columnheader">LAST ACTIVE</span>{canRemoveMembers && <span role="columnheader">MEMBERSHIP</span>}</div>
             {filteredMembers.map((member) => {
               const groups = snapshot.battlegroups.filter((group) => member.battlegroupIds.includes(group.id));
               return (
@@ -130,6 +166,11 @@ export function BattalionView({ snapshot, mode, onNotice }: BattalionViewProps) 
                   <span role="cell">{groups.map((group) => group.callsign).join(", ") || "COMMAND / UNASSIGNED"}</span>
                   <span role="cell"><b className={`status-chip state-${member.status.toLowerCase()}`}>{member.status}</b></span>
                   <span role="cell">{relativeActivity(member.lastActiveAt)}</span>
+                  {canRemoveMembers && <span role="cell" className="member-action-cell">
+                    {member.userId !== snapshot.profile.userId && member.commandRole === "PLAYER" && member.status === "ACTIVE"
+                      ? <button className={confirmRemovalId === member.userId ? "danger" : ""} disabled={memberMutationBusy} onClick={() => void removeMember(member)}>{confirmRemovalId === member.userId ? "CONFIRM REMOVE" : "REMOVE"}</button>
+                      : <small>PROTECTED</small>}
+                  </span>}
                 </div>
               );
             })}
