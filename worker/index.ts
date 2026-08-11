@@ -13,6 +13,7 @@ import type { Env } from "./env";
 import { errorResponse, json } from "./http";
 import { routeForcesRequest } from "./routes/forces";
 import { routeBattlegroupRequest } from "./routes/battlegroups";
+import { routeBattalionAdminRequest } from "./routes/battalion-admin";
 import { routeAuthRequest } from "./routes/auth";
 import { routeDeploymentRequest } from "./routes/deployment";
 import { routeCampaignDirectoryRequest } from "./routes/campaigns";
@@ -78,6 +79,9 @@ async function route(request: Request, env: Env, requestId: string, context: Exe
 
   const battlegroupResponse = await routeBattlegroupRequest(request, env);
   if (battlegroupResponse) return battlegroupResponse;
+
+  const battalionAdminResponse = await routeBattalionAdminRequest(request, env);
+  if (battalionAdminResponse) return battalionAdminResponse;
 
   const deploymentResponse = await routeDeploymentRequest(request, env);
   if (deploymentResponse) return deploymentResponse;

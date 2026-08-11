@@ -37,6 +37,7 @@ export interface RankRow {
   name: string;
   precedence: number;
   revision: number;
+  member_count: number;
 }
 
 export interface RankPermissionRow extends PermissionRow {
@@ -445,7 +446,9 @@ export async function listBattalionRanks(
 ): Promise<RankRow[]> {
   const result = await db
     .prepare(`SELECT ranks.id, ranks.battalion_id, ranks.name,
-                    ranks.precedence, ranks.revision
+                    ranks.precedence, ranks.revision,
+                    (SELECT COUNT(*) FROM battalion_memberships AS members
+                      WHERE members.rank_id=ranks.id AND members.status='ACTIVE') AS member_count
                FROM battalion_ranks AS ranks
               WHERE ranks.battalion_id = ?2
                 AND EXISTS (SELECT 1 FROM battalion_memberships AS viewer

@@ -43,6 +43,12 @@ export interface RankView {
   precedence: number;
   memberCount: number;
   permissions: string[];
+  version: number;
+}
+
+export interface BattalionPermissionDefinitionView {
+  permission: string;
+  description: string;
 }
 
 export interface BattalionMemberView {
@@ -232,6 +238,7 @@ export interface StrategicSnapshot {
   forces: ForceTotalsView;
   battalion: BattalionSummaryView;
   ranks: RankView[];
+  permissionDefinitions: BattalionPermissionDefinitionView[];
   members: BattalionMemberView[];
   battlegroups: BattlegroupView[];
   activity: ActivityView[];
@@ -269,10 +276,20 @@ export const SHOWCASE_STRATEGIC_SNAPSHOT: StrategicSnapshot = {
     permissions: ["SHIP_VIEW", "SUPPLY_VIEW", "UNIT_DEPLOY_SELF"],
   },
   ranks: [
-    { id: "rank-colonel", name: "Colonel", precedence: 10, memberCount: 1, permissions: ["BATTALION_EDIT", "MEMBER_INVITE", "RANK_MANAGE", "OPERATION_COMMAND", "SHIP_MOVE", "STRATEGIC_ORDER_APPROVE"] },
-    { id: "rank-major", name: "Major", precedence: 20, memberCount: 1, permissions: ["MEMBER_INVITE", "BATTLEGROUP_CREATE", "OPERATION_CREATE", "OPERATION_COMMAND", "STRATEGIC_ORDER_CREATE"] },
-    { id: "rank-captain", name: "Captain", precedence: 30, memberCount: 2, permissions: ["BATTLEGROUP_EDIT", "BATTLEGROUP_ASSIGN", "STRATEGIC_ORDER_CREATE"] },
-    { id: "rank-lieutenant", name: "Lieutenant", precedence: 40, memberCount: 2, permissions: ["SHIP_VIEW", "SUPPLY_VIEW", "UNIT_DEPLOY_SELF"] },
+    { id: "rank-colonel", name: "Colonel", precedence: 10, memberCount: 1, permissions: ["BATTALION_EDIT", "MEMBER_INVITE", "RANK_MANAGE", "OPERATION_COMMAND", "SHIP_MOVE", "STRATEGIC_ORDER_APPROVE"], version: 1 },
+    { id: "rank-major", name: "Major", precedence: 20, memberCount: 1, permissions: ["MEMBER_INVITE", "BATTLEGROUP_CREATE", "OPERATION_CREATE", "OPERATION_COMMAND", "STRATEGIC_ORDER_CREATE"], version: 1 },
+    { id: "rank-captain", name: "Captain", precedence: 30, memberCount: 2, permissions: ["BATTLEGROUP_EDIT", "BATTLEGROUP_ASSIGN", "STRATEGIC_ORDER_CREATE"], version: 1 },
+    { id: "rank-lieutenant", name: "Lieutenant", precedence: 40, memberCount: 2, permissions: ["SHIP_VIEW", "SUPPLY_VIEW", "UNIT_DEPLOY_SELF"], version: 1 },
+  ],
+  permissionDefinitions: [
+    { permission: "BATTALION_EDIT", description: "Edit Battalion identity and recruitment." },
+    { permission: "MEMBER_INVITE", description: "Invite new Battalion members." },
+    { permission: "MEMBER_REMOVE", description: "Remove eligible ordinary members." },
+    { permission: "RANK_MANAGE", description: "Manage ranks and member assignments." },
+    { permission: "BATTLEGROUP_CREATE", description: "Create persistent Battlegroups." },
+    { permission: "BATTLEGROUP_EDIT", description: "Edit persistent Battlegroups." },
+    { permission: "BATTLEGROUP_ASSIGN", description: "Assign eligible units to Battlegroups." },
+    { permission: "SHIP_VIEW", description: "View Battalion ship state." },
   ],
   members: [
     { id: "member-mercer", userId: "user-mercer", callsign: "MERCER", displayName: "J. Mercer", rankId: "rank-colonel", rankName: "Colonel", commandRole: "BATTALION_COMMAND", membershipRevision: 1, status: "ACTIVE", battlegroupIds: [], lastActiveAt: showcaseTimestamp },

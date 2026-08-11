@@ -53,7 +53,7 @@ Invite command idempotency is scoped to the authenticated inviter by `UNIQUE(inv
 
 Migration 0008 adds fixed-window invitation limits for actor, Battalion, HMAC-pseudonymized recipient, and HMAC-pseudonymized source IP, plus private invitation-security audit rows, a leased delivery outbox, and bounded invitation-expiry/PII maintenance. The invitation command returns a generic accepted response before Resend; `waitUntil` makes the first bounded attempt and the hourly job recovers/retries. Eligibility remains non-enumerating and blocked scopes share one generic response. This code is locally verified but not part of the recorded production `0007` deployment.
 
-Invite/send/accept/decline, public/code joins, active membership switching, self-departure, authorized ordinary-member removal, and recruitment settings are implemented. Departures preserve the membership row as `LEFT` or `REMOVED`, revoke active order delegations, and fail closed while the member owns assigned formation units, leads a formation, or participates in a live Battalion campaign. The creator and command members require an explicit future transfer workflow. Rank editing, ownership transfer, and invite revocation remain deferred.
+Invite/send/accept/decline, public/code joins, active membership switching, self-departure, authorized ordinary-member removal, recruitment settings, and rank administration are implemented. Departures preserve the membership row as `LEFT` or `REMOVED`, revoke active order delegations, and fail closed while the member owns assigned formation units, leads a formation, or participates in a live Battalion campaign. Rank mutations are actor-scoped, revisioned and exact-once; permissions must be active server definitions, command ranks retain `RANK_MANAGE`, and referenced ranks cannot be deleted. The creator and command members require an explicit future transfer workflow. Ownership transfer and invite revocation remain deferred.
 
 ## 5. Configurable ranks and permissions
 
@@ -67,7 +67,7 @@ battalion_ranks
 
 The Phase 3 permission vocabulary includes Battalion editing, membership, rank, Battlegroup, operation, ship, supply, deployment, and strategic-order permissions. `battalion_permission_definitions.implementation_status` distinguishes executable permissions from schema-only/deferred product surface.
 
-The development fixture marks several permission definitions (`SHIP_VIEW`, `SUPPLY_VIEW`, `SHIP_MOVE`, `STRATEGIC_ORDER_CREATE`, and environment-gated `STRATEGIC_ORDER_APPROVE`) active for policy/service exercises. An active permission definition does not make its product mutation executable: the public strategic-order route returns `501`, strategic resolution returns `501`, and no public ship-movement workflow exists. The production-safe onboarding seed activates `BATTALION_EDIT` and `MEMBER_INVITE`, which the deployed recruitment settings and invitation services consume. Other mutation permissions remain schema-only or deferred until their server workflows are verified.
+The permission vocabulary distinguishes active gameplay authority from schema-only or deferred product surface. The production-safe onboarding seed activates only permissions consumed by implemented workflows, including `BATTALION_EDIT`, `MEMBER_INVITE`, `MEMBER_REMOVE`, `RANK_MANAGE`, Battlegroup management and `SHIP_VIEW`. The public rank editor exposes only active definitions, so it cannot grant a deferred capability merely because the storage vocabulary contains it.
 
 The 33rd Expeditionary fixture has configurable Commander, Operations Officer, and Trooper ranks. The Commander receives the full defined vocabulary for permission-check exercises; that fixture does not bypass implementation-status or environment gates.
 
@@ -124,7 +124,7 @@ An unauthorised subject should resolve as not found where exposing existence wou
 
 ## 10. Concurrency and history
 
-The implemented onboarding/recruitment mutations use actor-scoped command receipts and canonical request hashes; revisioned aggregates use compare-and-set and committed organisation mutations emit a Battalion-audience `strategic_events` record. Leave/remove follow that pattern and never delete membership history. Rank editing, ownership transfer and invite revocation remain future organisation mutations. Battalion history is assembled from audience-safe events rather than low-level table audit noise.
+The implemented onboarding/recruitment mutations use actor-scoped command receipts and canonical request hashes; revisioned aggregates use compare-and-set and committed organisation mutations emit a Battalion-audience `strategic_events` record. Leave/remove never delete membership history. Migration `0014` gives rank and member-rank mutations their own actor-scoped receipts and aggregate mutation tokens. Ownership transfer and invite revocation remain future organisation mutations. Battalion history is assembled from audience-safe events rather than low-level table audit noise.
 
 The schema prevents cross-Battalion ranks, current selection without active membership, cross-Battalion formation joins, duplicate pending invites, and duplicate actor command IDs. It does not by itself decide whether a given active permission is sufficient for a particular API route; that policy belongs in the Worker service and tests.
 

@@ -96,6 +96,7 @@ import {
 } from "../repositories/strategic";
 import { authorizeStrategicIntent, mayResolveStrategicRound } from "../strategic-policy";
 import type { ResolveStrategicMapCommand, SubmitStrategicOrderCommand } from "../strategic-validation";
+import { listActiveBattalionPermissionDefinitions } from "../repositories/battalion-admin";
 
 export class StrategicServiceError extends Error {
   constructor(
@@ -624,9 +625,10 @@ export async function getCommandProjection(env: Env, userId: string): Promise<Co
 
 export async function getBattalionProjection(env: Env, userId: string): Promise<BattalionProjectionDto> {
   const context = await activeContext(env, userId);
-  const [ranks, permissions, groups, units] = await Promise.all([
+  const [ranks, permissions, permissionDefinitions, groups, units] = await Promise.all([
     listBattalionRanks(env.DB, userId, context.battalionId),
     listRankPermissions(env.DB, userId, context.battalionId),
+    listActiveBattalionPermissionDefinitions(env.DB),
     listBattlegroups(env.DB, userId, context.battalionId),
     listBattlegroupUnits(env.DB, userId, context.battalionId),
   ]);
@@ -639,12 +641,16 @@ export async function getBattalionProjection(env: Env, userId: string): Promise<
       .filter((item) => item.rank_id === rank.id)
       .map((item) => item.permission)
       .filter(permission),
+    memberCount: Number(rank.member_count),
     version: rank.revision,
   }));
   return {
     battalion: battalionDetail(context.row),
     ranks: rankDtos,
     permissions: [...context.permissions].sort(),
+    permissionDefinitions: permissionDefinitions
+      .filter((item): item is typeof item & { permission: BattalionPermission } => permission(item.permission))
+      .map((item) => ({ permission: item.permission, description: item.description })),
     battlegroups: battlegroupSummaries(groups, units),
   };
 }

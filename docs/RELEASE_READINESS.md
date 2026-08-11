@@ -37,14 +37,14 @@ This is the live release checklist. A checked local build item is not permission
 | `npm run seed:check` | macOS local, Node project toolchain | PASS | 46 definitions; 41 active; 100 SQL definitions; 16 allied classes; 7 enemy roles; 4 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
 | `npm run typecheck` | local | PASS | TypeScript 6.0.3. |
 | `npm run lint` | local | PASS | ESLint 10.8.1. |
-| `npm test` | local | PASS | Vitest 4.1.10; 60 files / 484 tests. |
+| `npm test` | local | PASS | Vitest 4.1.10; 64 files / 496 tests. |
 | `npm run build` | local development config | PASS | Worker 1,254.61 kB; client JS 777.40 kB; CSS 136.50 kB; Wrangler emitted only its known sandboxed debug-log warning. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
 | Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0010 applied. |
 | Seven seeds, twice | same isolated D1 | PASS | Core, Phase 2, equipment, onboarding and three development fixtures replayed twice. |
 | SQLite integrity | isolated D1 database | PASS | `integrity_check=ok`; `foreign_key_check` empty. |
 | `npm run ci:verify:d1` | isolated local D1 | PASS | Ten migrations; seven seeds twice; stable table fingerprints/counts; 117 checked application tables. |
-| `CI=1 npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 13/13 canaries pass, including campaign join/staging/withdrawal with exact replay protection, persisted unit identity/history editing, a server-previewed/persisted Reserve equipment loadout, strategic Disembark, authoritative Task Force Large-Supply consumption, resolved operation deployment into a committed tactical campaign, live K-17 support/combat/victory resolution and interactive report reconstruction, the Heavy Air Transport manifested-drop composer, generated Logi/Artillery cargo controls, and 390px overflow coverage. |
+| `npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 16/16 journeys pass, including Battalion join/switch/leave, rank create/update/permission assignment/member assignment/delete and authorized removal; campaign staging/withdrawal; unit identity and Reserve equipment mutation; strategic Disembark, resupply and operation deployment; executable tactical actions; HAT drop composition; live planning views; and 390px overflow coverage. |
 | `git diff --check` | local Phase-1 tree | PASS | No whitespace errors at final gate. |
 | `npm audit --audit-level=high` | npm advisory service | PASS | Zero known vulnerabilities at assessment time; the result is time-sensitive. |
 

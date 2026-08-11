@@ -527,6 +527,125 @@ test("commander switches persistent Battalion context without rejoining", async 
   await expect(departureCollision.json()).resolves.toMatchObject({ error: { code: "COMMAND_ID_REUSED" } });
 });
 
+test("Battalion command creates a permission rank and assigns it to a member", async ({ page }) => {
+  type BattalionProjection = {
+    ranks: Array<{ id: string; name: string; version: number; permissions: string[] }>;
+    permissions: string[];
+    permissionDefinitions: Array<{ permission: string }>;
+  };
+  type MemberProjection = { members: Array<{ userId: string; rankId: string; membershipRevision: number }> };
+  const headers = { "x-demo-user": "demo-user", origin: "http://127.0.0.1:4173" };
+  const battalion = async () => {
+    const response = await page.request.get("/api/battalions/current", { headers });
+    expect(response.status()).toBe(200);
+    return response.json() as Promise<BattalionProjection>;
+  };
+  const members = async () => {
+    const response = await page.request.get("/api/battalions/current/members", { headers });
+    expect(response.status()).toBe(200);
+    return response.json() as Promise<MemberProjection>;
+  };
+
+  const initial = await battalion();
+  expect(initial.permissions).toContain("RANK_MANAGE");
+  expect(initial.permissionDefinitions.map((item) => item.permission)).toContain("BATTLEGROUP_EDIT");
+  const denied = await page.request.post("/api/battalions/current/ranks", {
+    headers: { "x-demo-user": "demo-wing-user", origin: headers.origin },
+    data: { commandId: `browser-rank-denied-${crypto.randomUUID()}`, name: "Unauthorized", sortOrder: 88, permissions: [] },
+  });
+  expect(denied.status()).toBe(403);
+  await expect(denied.json()).resolves.toMatchObject({ error: { code: "BATTALION_PERMISSION_REQUIRED" } });
+
+  await page.goto("/?view=battalion");
+  await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();
+  await page.getByRole("tab", { name: "RANKS" }).click();
+  const rankEditor = page.getByRole("region", { name: "Rank editor" });
+  await rankEditor.getByLabel("RANK NAME").fill("Field Coordinator");
+  await rankEditor.getByRole("spinbutton", { name: "ORDER", exact: true }).fill("55");
+  await rankEditor.getByText("BATTLEGROUP EDIT", { exact: true }).click();
+  await rankEditor.getByText("SHIP VIEW", { exact: true }).click();
+  const createRequest = page.waitForRequest((request) =>
+    request.url().endsWith("/api/battalions/current/ranks") && request.method() === "POST");
+  await rankEditor.getByRole("button", { name: "CREATE RANK", exact: true }).click();
+  const committedCreate = await createRequest;
+  const createCommand = committedCreate.postDataJSON() as {
+    commandId: string;
+    name: string;
+    sortOrder: number;
+    permissions: string[];
+  };
+  await expect.poll(async () => (await battalion()).ranks.some((rank) => rank.name === "Field Coordinator")).toBe(true);
+  const createReplay = await page.request.post("/api/battalions/current/ranks", { headers, data: createCommand });
+  expect(createReplay.status()).toBe(201);
+  const createCollision = await page.request.post("/api/battalions/current/ranks", {
+    headers,
+    data: { ...createCommand, name: "Changed Coordinator" },
+  });
+  expect(createCollision.status()).toBe(409);
+  await expect(createCollision.json()).resolves.toMatchObject({ error: { code: "IDEMPOTENCY_KEY_REUSED" } });
+
+  await page.goto("/?view=battalion");
+  await page.getByRole("tab", { name: "MEMBERS" }).click();
+  const wingRow = page.getByRole("row").filter({ hasText: "WING-2" });
+  await wingRow.getByLabel("Rank for WING-2").selectOption({ label: "Field Coordinator" });
+  const assignRequest = page.waitForRequest((request) =>
+    request.url().endsWith("/api/battalions/current/members/rank") && request.method() === "POST");
+  await wingRow.getByRole("button", { name: "ASSIGN RANK" }).click();
+  const committedAssignment = await assignRequest;
+  const assignmentCommand = committedAssignment.postDataJSON() as {
+    commandId: string;
+    targetUserId: string;
+    rankId: string;
+    expectedMembershipRevision: number;
+    expectedRankVersion: number;
+  };
+  await expect.poll(async () => (await members()).members.find((member) => member.userId === "demo-wing-user"))
+    .toMatchObject({ rankId: assignmentCommand.rankId, membershipRevision: 2 });
+  const assignmentReplay = await page.request.post("/api/battalions/current/members/rank", { headers, data: assignmentCommand });
+  expect(assignmentReplay.status()).toBe(200);
+
+  const created = (await battalion()).ranks.find((rank) => rank.id === assignmentCommand.rankId)!;
+  const inUseDelete = await page.request.post(`/api/battalions/current/ranks/${created.id}/delete`, {
+    headers,
+    data: { commandId: `browser-rank-in-use-${crypto.randomUUID()}`, expectedVersion: created.version },
+  });
+  expect(inUseDelete.status()).toBe(409);
+  await expect(inUseDelete.json()).resolves.toMatchObject({ error: { code: "RANK_IN_USE" } });
+  const updateCommand = {
+    commandId: `browser-rank-update-${crypto.randomUUID()}`,
+    expectedVersion: created.version,
+    name: "Field Liaison",
+    sortOrder: 55,
+    permissions: ["BATTLEGROUP_EDIT", "BATTLEGROUP_ASSIGN", "SHIP_VIEW"],
+  };
+  const updated = await page.request.post(`/api/battalions/current/ranks/${created.id}/update`, { headers, data: updateCommand });
+  expect(updated.status()).toBe(200);
+  await expect(updated.json()).resolves.toMatchObject({ operation: "UPDATE_BATTALION_RANK", rankVersion: 2 });
+  const updateReplay = await page.request.post(`/api/battalions/current/ranks/${created.id}/update`, { headers, data: updateCommand });
+  expect(updateReplay.status()).toBe(200);
+
+  const trooper = (await battalion()).ranks.find((rank) => rank.name === "Trooper")!;
+  const assignedMember = (await members()).members.find((member) => member.userId === "demo-wing-user")!;
+  const reassigned = await page.request.post("/api/battalions/current/members/rank", {
+    headers,
+    data: {
+      commandId: `browser-rank-restore-${crypto.randomUUID()}`,
+      targetUserId: assignedMember.userId,
+      rankId: trooper.id,
+      expectedMembershipRevision: assignedMember.membershipRevision,
+      expectedRankVersion: trooper.version,
+    },
+  });
+  expect(reassigned.status()).toBe(200);
+
+  const deleted = await page.request.post(`/api/battalions/current/ranks/${created.id}/delete`, {
+    headers,
+    data: { commandId: `browser-rank-delete-${crypto.randomUUID()}`, expectedVersion: 2 },
+  });
+  expect(deleted.status()).toBe(200);
+  await expect.poll(async () => (await battalion()).ranks.some((rank) => rank.id === created.id)).toBe(false);
+});
+
 test("Battalion command removes an eligible ordinary member and preserves history", async ({ page }) => {
   const origin = "http://127.0.0.1:4173";
   const denied = await page.request.post("/api/onboarding/battalions/members/remove", {
@@ -560,7 +679,7 @@ test("Battalion command removes an eligible ordinary member and preserves histor
     const response = await page.request.get("/api/battalions/current/members", { headers: { "x-demo-user": "demo-user" } });
     const payload = await response.json() as { members: Array<{ userId: string; status: string; membershipRevision: number }> };
     return payload.members.find((member) => member.userId === "demo-wing-user");
-  }).toMatchObject({ status: "REMOVED", membershipRevision: 2 });
+  }).toMatchObject({ status: "REMOVED", membershipRevision: removalCommand.expectedMembershipRevision + 1 });
 
   const headers = { "x-demo-user": "demo-user", origin };
   const replay = await page.request.post("/api/onboarding/battalions/members/remove", { headers, data: removalCommand });

@@ -1454,7 +1454,52 @@ export interface BattalionRankDto {
   name: string;
   sortOrder: number;
   permissions: BattalionPermission[];
+  memberCount: number;
   version: number;
+}
+
+export interface BattalionPermissionDefinitionDto {
+  permission: BattalionPermission;
+  description: string;
+}
+
+export interface CreateBattalionRankCommand {
+  commandId: string;
+  name: string;
+  sortOrder: number;
+  permissions: BattalionPermission[];
+}
+
+export interface UpdateBattalionRankCommand extends CreateBattalionRankCommand {
+  expectedVersion: number;
+}
+
+export interface DeleteBattalionRankCommand {
+  commandId: string;
+  expectedVersion: number;
+}
+
+export interface AssignBattalionMemberRankCommand {
+  commandId: string;
+  targetUserId: string;
+  rankId: string;
+  expectedMembershipRevision: number;
+  expectedRankVersion: number;
+}
+
+export type BattalionAdministrationOperation =
+  | "CREATE_BATTALION_RANK"
+  | "UPDATE_BATTALION_RANK"
+  | "DELETE_BATTALION_RANK"
+  | "ASSIGN_BATTALION_MEMBER_RANK";
+
+export interface BattalionAdministrationMutationDto {
+  operation: BattalionAdministrationOperation;
+  battalionId: string;
+  rankId: string;
+  rankVersion?: number;
+  targetUserId?: string;
+  membershipRevision?: number;
 }
 
 export interface BattalionMemberDto {
@@ -1882,6 +1927,7 @@ export interface BattalionProjectionDto {
   battalion: BattalionDto;
   ranks: BattalionRankDto[];
   permissions: BattalionPermission[];
+  permissionDefinitions: BattalionPermissionDefinitionDto[];
   battlegroups: BattlegroupSummaryDto[];
 }
 

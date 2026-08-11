@@ -143,6 +143,7 @@ function normalizeRanks(payload: JsonRecord): RankView[] {
       precedence: asNumber(record.precedence, asNumber(record.sortOrder, index + 1)),
       memberCount: asNumber(record.memberCount),
       permissions: stringValues(record.permissions),
+      version: asNumber(record.version ?? record.revision, 1),
     }];
   }).sort((left, right) => left.precedence - right.precedence);
 }
@@ -461,6 +462,12 @@ export function normalizeStrategicPayloads(payloads: StrategicApiPayloads): Stra
   const round = firstRecord(mapPayload, "round");
   const clock = firstRecord(mapPayload, "clock");
   const ranks = normalizeRanks(battalionPayload);
+  const permissionDefinitions = firstArray(battalionPayload, "permissionDefinitions").flatMap((value) => {
+    const record = asRecord(value);
+    if (!record) return [];
+    const permission = asString(record.permission);
+    return permission ? [{ permission, description: asString(record.description, permission.replaceAll("_", " ")) }] : [];
+  });
   const rankById = new Map(ranks.map((rank) => [rank.id, rank]));
   const rawMembers = normalizeMembers(membersPayload);
   const profileUserId = identifier(profile, "userId", "id") || "current-user";
@@ -589,6 +596,7 @@ export function normalizeStrategicPayloads(payloads: StrategicApiPayloads): Stra
       permissions,
     },
     ranks: enrichedRanks,
+    permissionDefinitions,
     members,
     battlegroups,
     activity: normalizeActivity(activityPayload),

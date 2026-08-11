@@ -32,10 +32,10 @@ ON CONFLICT(id) DO UPDATE SET
 INSERT INTO battalion_permission_definitions (
   permission, description, implementation_status
 ) VALUES
-  ('BATTALION_EDIT', 'Edit Battalion public identity and configuration.', 'SCHEMA_ONLY'),
-  ('MEMBER_INVITE', 'Invite a player to the Battalion.', 'SCHEMA_ONLY'),
+  ('BATTALION_EDIT', 'Edit Battalion public identity and configuration.', 'ACTIVE'),
+  ('MEMBER_INVITE', 'Invite a player to the Battalion.', 'ACTIVE'),
   ('MEMBER_REMOVE', 'Remove an eligible ordinary Battalion member.', 'ACTIVE'),
-  ('RANK_MANAGE', 'Create ranks and assign rank permissions.', 'SCHEMA_ONLY'),
+  ('RANK_MANAGE', 'Create, edit, delete and assign Battalion ranks.', 'ACTIVE'),
   ('BATTLEGROUP_CREATE', 'Create a persistent Battlegroup.', 'ACTIVE'),
   ('BATTLEGROUP_EDIT', 'Edit a Battlegroup identity, objective, and leader.', 'ACTIVE'),
   ('BATTLEGROUP_ASSIGN', 'Assign eligible units to a Battlegroup.', 'ACTIVE'),
