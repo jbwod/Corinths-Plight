@@ -804,7 +804,13 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(orderReadiness).toContainText("MISSING");
   const mapIntentions = page.getByRole("region", { name: "Submitted Allied map intentions" });
   await expect(mapIntentions).toContainText("LONGBOW");
+  await expect(mapIntentions).toContainText("FORTIFY");
   await expect(mapIntentions).toContainText("DEPLOY");
+  const longbowIntent = mapIntentions.getByRole("button", { name: /LONGBOW fortify intent/i });
+  await longbowIntent.click();
+  await expect(longbowIntent).toHaveAttribute("aria-pressed", "true");
+  await longbowIntent.click();
+  await expect(longbowIntent).toHaveAttribute("aria-pressed", "false");
 
   const tacticalState = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
     headers: { "x-demo-user": "demo-user" },
@@ -840,6 +846,7 @@ test("tactical composer exposes every currently executable action and no catalog
   await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
   await expect(page.getByText(/DOC-7 order submitted to campaign command/)).toBeVisible();
   await expect(mapIntentions).toContainText("DOC-7");
+  await expect(mapIntentions).toContainText("SUPPORT");
   await expect(mapIntentions).toContainText("HEAL");
   await mapIntentions.getByRole("button", { name: "HIDE" }).click();
   await expect(mapIntentions.getByText("LONGBOW", { exact: true })).toHaveCount(0);

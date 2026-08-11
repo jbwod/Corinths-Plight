@@ -26,8 +26,37 @@ interface Viewport {
 
 const HEX_SIZE = 39;
 const SQRT_THREE = Math.sqrt(3);
-const ALLIED_INTENT_COLORS = ["#e6bd68", "#bb8cff", "#6fc8ff", "#ff9271", "#8edb8a", "#e982c8"] as const;
 const MARKER_COLORS = { PING: "#f1c96b", MOVE: "#65d6e8", ATTACK: "#ff765d", DEFEND: "#7e9ff2", SUPPORT: "#75d89b" } as const;
+
+type IntentVisualKind = "MANEUVER" | "ASSAULT" | "SUPPORT" | "FORTIFY" | "HOLD";
+
+interface IntentVisual {
+  kind: IntentVisualKind;
+  color: string;
+  glyph: string;
+  dash: number[];
+}
+
+const INTENT_VISUALS: Record<IntentVisualKind, IntentVisual> = {
+  MANEUVER: { kind: "MANEUVER", color: "#69d9e8", glyph: "→", dash: [8, 5] },
+  ASSAULT: { kind: "ASSAULT", color: "#ff8067", glyph: "×", dash: [12, 4] },
+  SUPPORT: { kind: "SUPPORT", color: "#83dfa8", glyph: "+", dash: [3, 4] },
+  FORTIFY: { kind: "FORTIFY", color: "#82aaff", glyph: "◇", dash: [2, 3] },
+  HOLD: { kind: "HOLD", color: "#e6bd68", glyph: "H", dash: [] },
+};
+
+const ASSAULT_ACTIONS = new Set(["ATTACK", "ASSAULT", "BOMBARDMENT", "AIR_SUPPORT"]);
+const SUPPORT_ACTIONS = new Set(["HEAL", "REPAIR", "CREW_REPAIR", "RESUPPLY", "RELOAD", "LOAD", "UNLOAD", "AIRDROP", "LAND", "TAKE_OFF", "REARM_AEROSPACE"]);
+const FORTIFY_ACTIONS = new Set(["DIG_IN", "ARTILLERY_DIG_IN", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "GARRISON", "SCAN", "DEPLOY_DRONE"]);
+
+function intentVisual(order: UnitOrder): IntentVisual {
+  const actionTypes = [...order.actions, ...order.incidentalActions].map((action) => action.type);
+  if (actionTypes.some((type) => ASSAULT_ACTIONS.has(type)) || order.orderType === "MELEE_CHARGE") return INTENT_VISUALS.ASSAULT;
+  if (actionTypes.some((type) => SUPPORT_ACTIONS.has(type))) return INTENT_VISUALS.SUPPORT;
+  if (actionTypes.some((type) => FORTIFY_ACTIONS.has(type))) return INTENT_VISUALS.FORTIFY;
+  if (order.orderType === "HOLD" || order.route.length <= 1) return INTENT_VISUALS.HOLD;
+  return INTENT_VISUALS.MANEUVER;
+}
 
 function intentActionLabel(order: UnitOrder): string | undefined {
   const action = order.actions[0] ?? order.incidentalActions[0];
@@ -130,6 +159,28 @@ function drawArrow(
   ctx.fill();
 }
 
+function drawIntentGlyph(
+  ctx: CanvasRenderingContext2D,
+  point: { x: number; y: number },
+  visual: IntentVisual,
+  radius = 8,
+) {
+  ctx.save();
+  ctx.strokeStyle = visual.color;
+  ctx.fillStyle = "rgba(5,14,16,.92)";
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = visual.color;
+  ctx.font = `bold ${Math.max(7, radius)}px ui-monospace, SFMono-Regular, monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(visual.glyph, point.x, point.y + .5);
+  ctx.restore();
+}
+
 export function HexMap({
   campaign,
   markers,
@@ -150,6 +201,7 @@ export function HexMap({
   const [viewport, setViewport] = useState<Viewport>({ x: 450, y: 330, zoom: 1 });
   const [hovered, setHovered] = useState<AxialCoord>();
   const [showAlliedIntents, setShowAlliedIntents] = useState(true);
+  const [focusedIntentId, setFocusedIntentId] = useState<string>();
 
   const mapIndex = useMemo(() => new Map(campaign.map.map((hex) => [coordKey(hex.coord), hex])), [campaign.map]);
   const unitIndex = useMemo(() => {
@@ -167,16 +219,9 @@ export function HexMap({
       return deployment?.side === campaign.viewer.side;
     })
     .sort((left, right) => left.unitId < right.unitId ? -1 : left.unitId > right.unitId ? 1 : 0), [campaign.deployments, campaign.orders, campaign.round, campaign.viewer.side]);
-  const intentColors = useMemo(() => {
-    const colors = new Map<string, string>();
-    let alliedIndex = 0;
-    for (const order of submittedAlliedIntents) {
-      colors.set(order.id, order.submittedBy === campaign.viewer.userId
-        ? "#79ebdd"
-        : ALLIED_INTENT_COLORS[alliedIndex++ % ALLIED_INTENT_COLORS.length]);
-    }
-    return colors;
-  }, [campaign.viewer.userId, submittedAlliedIntents]);
+  const activeFocusedIntentId = focusedIntentId && submittedAlliedIntents.some((order) => order.id === focusedIntentId)
+    ? focusedIntentId
+    : undefined;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -412,26 +457,33 @@ export function HexMap({
       const deployment = campaign.deployments.find((candidate) => candidate.id === order.unitId);
       if (!deployment) continue;
       const points = order.route.map(axialToWorld);
-      const color = intentColors.get(order.id) ?? "#e6bd68";
+      const visual = intentVisual(order);
+      const color = visual.color;
+      const ownIntent = order.submittedBy === campaign.viewer.userId;
+      const dimmed = activeFocusedIntentId !== undefined && activeFocusedIntentId !== order.id;
       if (points.length > 1) {
         ctx.save();
         ctx.shadowColor = color;
-        ctx.shadowBlur = order.submittedBy === campaign.viewer.userId ? 7 : 3;
-        ctx.setLineDash(order.orderType === "RUSH" ? [11, 5] : order.orderType === "EVASIVE" ? [3, 5] : [7, 7]);
+        ctx.shadowBlur = ownIntent ? 7 : 3;
+        ctx.setLineDash(order.orderType === "RUSH" ? [14, 4] : order.orderType === "EVASIVE" ? [3, 5] : visual.dash);
         ctx.strokeStyle = color;
-        ctx.globalAlpha = 0.86;
-        ctx.lineWidth = order.submittedBy === campaign.viewer.userId ? 2.5 : 2;
+        ctx.globalAlpha = dimmed ? 0.16 : 0.9;
+        ctx.lineWidth = ownIntent || activeFocusedIntentId === order.id ? 3 : 2;
         ctx.beginPath();
         points.forEach((point, index) => (index === 0 ? ctx.moveTo(point.x, point.y) : ctx.lineTo(point.x, point.y)));
         ctx.stroke();
         ctx.restore();
-        drawArrow(ctx, points.at(-2)!, points.at(-1)!, color, order.submittedBy === campaign.viewer.userId ? 2.5 : 2);
+        ctx.save();
+        ctx.globalAlpha = dimmed ? 0.16 : 1;
+        drawArrow(ctx, points.at(-2)!, points.at(-1)!, color, ownIntent || activeFocusedIntentId === order.id ? 3 : 2);
+        ctx.restore();
       }
       const destination = points.at(-1) ?? axialToWorld(order.endHex);
       ctx.save();
+      ctx.globalAlpha = dimmed ? 0.2 : 1;
       ctx.strokeStyle = color;
       ctx.fillStyle = "rgba(5,14,16,.84)";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = ownIntent || activeFocusedIntentId === order.id ? 3 : 2;
       ctx.beginPath();
       ctx.arc(destination.x, destination.y, 21, 0, Math.PI * 2);
       ctx.fill();
@@ -449,6 +501,10 @@ export function HexMap({
       ctx.font = "bold 5px ui-monospace, SFMono-Regular, monospace";
       ctx.fillText(order.orderType, destination.x, destination.y + 7);
       ctx.restore();
+      ctx.save();
+      ctx.globalAlpha = dimmed ? 0.2 : 1;
+      drawIntentGlyph(ctx, { x: destination.x - 19, y: destination.y - 18 }, visual, 7);
+      ctx.restore();
 
       for (const action of [...order.actions, ...order.incidentalActions]) {
         const targetDeployment = action.targetDeploymentId
@@ -457,25 +513,29 @@ export function HexMap({
         const actionTarget = targetDeployment?.position ?? action.targetHex;
         if (!actionTarget) continue;
         const target = axialToWorld(actionTarget);
-        const interactionColor = action.type === "ATTACK" || action.type === "BOMBARDMENT"
-          ? "#ff8067"
-          : ["HEAL", "REPAIR", "RESUPPLY", "LOAD", "UNLOAD"].includes(action.type)
-            ? "#83dfa8"
-            : color;
+        const actionVisual = ASSAULT_ACTIONS.has(action.type)
+          ? INTENT_VISUALS.ASSAULT
+          : SUPPORT_ACTIONS.has(action.type)
+            ? INTENT_VISUALS.SUPPORT
+            : FORTIFY_ACTIONS.has(action.type)
+              ? INTENT_VISUALS.FORTIFY
+              : visual;
+        const interactionColor = actionVisual.color;
         ctx.save();
         ctx.strokeStyle = interactionColor;
         ctx.fillStyle = interactionColor;
-        ctx.globalAlpha = 0.9;
+        ctx.globalAlpha = dimmed ? 0.16 : 0.92;
         ctx.lineWidth = 1.5;
-        ctx.setLineDash(action.type === "ATTACK" || action.type === "BOMBARDMENT" ? [4, 4] : [2, 4]);
+        ctx.setLineDash(actionVisual.dash);
         ctx.beginPath();
         ctx.moveTo(destination.x, destination.y);
         ctx.lineTo(target.x, target.y);
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.arc(target.x, target.y, 7, 0, Math.PI * 2);
-        ctx.stroke();
+        if (destination.x !== target.x || destination.y !== target.y) {
+          drawArrow(ctx, destination, target, interactionColor, 1.5);
+        }
+        drawIntentGlyph(ctx, target, actionVisual, 8);
         ctx.restore();
       }
     }
@@ -582,7 +642,7 @@ export function HexMap({
     vignette.addColorStop(1, "rgba(0,0,0,.48)");
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, size.width, size.height);
-  }, [campaign, draftedFacing, draftedRoute, hovered, intentColors, layer, mapIndex, markers, selectedUnitId, showAlliedIntents, size, submittedAlliedIntents, targetHex, targetUnitId, unitIndex, viewport]);
+  }, [activeFocusedIntentId, campaign, draftedFacing, draftedRoute, hovered, layer, mapIndex, markers, selectedUnitId, showAlliedIntents, size, submittedAlliedIntents, targetHex, targetUnitId, unitIndex, viewport]);
 
   const screenToCoord = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -673,12 +733,19 @@ export function HexMap({
           <header><span>ALLIED INTENT</span><b>{submittedAlliedIntents.length}</b><button type="button" aria-pressed={showAlliedIntents} onClick={() => setShowAlliedIntents((visible) => !visible)}>{showAlliedIntents ? "HIDE" : "SHOW"}</button></header>
           {showAlliedIntents && submittedAlliedIntents.slice(0, 6).map((order) => {
             const deployment = campaign.deployments.find((candidate) => candidate.id === order.unitId);
-            const color = intentColors.get(order.id) ?? "#e6bd68";
+            const visual = intentVisual(order);
             return (
-              <div key={order.id}>
-                <i style={{ backgroundColor: color }} />
-                <span><strong>{deployment?.callsign ?? order.unitId}</strong><small>{order.orderType} → {order.endHex.q}.{order.endHex.r}{intentActionLabel(order) ? ` · ${intentActionLabel(order)}` : ""}</small></span>
-              </div>
+              <button
+                type="button"
+                className={activeFocusedIntentId === order.id ? "active" : ""}
+                key={order.id}
+                aria-pressed={activeFocusedIntentId === order.id}
+                aria-label={`${deployment?.callsign ?? order.unitId} ${visual.kind.toLowerCase()} intent`}
+                onClick={() => setFocusedIntentId((current) => current === order.id ? undefined : order.id)}
+              >
+                <i style={{ color: visual.color, borderColor: visual.color }}>{visual.glyph}</i>
+                <span><strong><span>{deployment?.callsign ?? order.unitId}</span><em>{order.submittedBy === campaign.viewer.userId ? "YOU" : "ALLY"}</em></strong><small>{visual.kind} · {order.orderType} → {order.endHex.q}.{order.endHex.r}{intentActionLabel(order) ? ` · ${intentActionLabel(order)}` : ""}</small></span>
+              </button>
             );
           })}
           {showAlliedIntents && submittedAlliedIntents.length > 6 && <p>+{submittedAlliedIntents.length - 6} MORE SUBMITTED INTENTS</p>}
@@ -702,7 +769,7 @@ export function HexMap({
         ) : layer === "SUPPLY" ? (
           <><span><i className="legend-chip intent" /> SUPPLY ROUTE</span><span>S# SMALL</span><span>M# MEDICAL</span></>
         ) : (
-          <><span><i className="legend-chip allied" /> ALLIED</span><span><i className="legend-chip enemy" /> HOSTILE</span><span><i className="legend-chip intent" /> INTENT</span></>
+          <><span><i className="legend-chip maneuver" /> MOVE</span><span><i className="legend-chip assault" /> ATTACK</span><span><i className="legend-chip support" /> SUPPORT</span><span><i className="legend-chip fortify" /> FORTIFY</span></>
         )}
       </div>
     </div>

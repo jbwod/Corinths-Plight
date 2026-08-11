@@ -1396,11 +1396,15 @@ summary:focus-visible {
 .map-intent-roster > header { min-height: 27px; display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; padding: 0 6px 0 9px; border-bottom: 1px solid var(--line); color: var(--teal); font-size: 6px; letter-spacing: .12em; }
 .map-intent-roster > header b { min-width: 20px; padding: 3px; border: 1px solid rgba(112, 217, 207, .3); text-align: center; }
 .map-intent-roster > header button { min-height: 20px; padding: 0 6px; border: 1px solid rgba(112, 217, 207, .24); background: transparent; color: var(--dim); font: 600 5px/1 var(--mono); cursor: pointer; }
-.map-intent-roster > div { min-height: 34px; display: grid; grid-template-columns: 7px minmax(0, 1fr); gap: 8px; align-items: center; padding: 5px 9px; border-bottom: 1px solid rgba(99, 134, 135, .13); }
-.map-intent-roster > div i { width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
-.map-intent-roster > div span { min-width: 0; display: grid; gap: 3px; }
-.map-intent-roster > div strong { overflow: hidden; color: #c6d8d5; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
-.map-intent-roster > div small { overflow: hidden; color: var(--dim); font-size: 5px; text-overflow: ellipsis; white-space: nowrap; }
+.map-intent-roster > button:not(:first-child) { width: 100%; min-height: 38px; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; align-items: center; padding: 5px 9px; border: 0; border-bottom: 1px solid rgba(99, 134, 135, .13); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background 140ms ease, box-shadow 140ms ease; }
+.map-intent-roster > button:not(:first-child):hover { background: rgba(109, 190, 188, .08); }
+.map-intent-roster > button:not(:first-child).active { background: rgba(109, 190, 188, .13); box-shadow: inset 2px 0 0 currentColor; }
+.map-intent-roster > button:not(:first-child) > i { width: 20px; height: 20px; display: grid; place-items: center; border: 1px solid; border-radius: 50%; background: rgba(5, 14, 16, .88); box-shadow: 0 0 8px currentColor; font-style: normal; font-size: 9px; }
+.map-intent-roster > button:not(:first-child) > span { min-width: 0; display: grid; gap: 3px; }
+.map-intent-roster > button:not(:first-child) strong { display: flex; gap: 6px; align-items: center; overflow: hidden; color: #c6d8d5; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.map-intent-roster > button:not(:first-child) strong > span { overflow: hidden; text-overflow: ellipsis; }
+.map-intent-roster > button:not(:first-child) strong em { margin-left: auto; color: var(--dim); font-size: 5px; font-style: normal; letter-spacing: .08em; }
+.map-intent-roster > button:not(:first-child) small { overflow: hidden; color: var(--dim); font-size: 5px; text-overflow: ellipsis; white-space: nowrap; }
 .map-intent-roster > p { margin: 0; padding: 7px 9px; color: var(--gold); font-size: 5px; }
 
 .map-marker-roster {
@@ -1470,6 +1474,10 @@ summary:focus-visible {
 
 .legend-chip.enemy { background: var(--danger); }
 .legend-chip.intent { background: var(--gold); }
+.legend-chip.maneuver { background: #69d9e8; }
+.legend-chip.assault { background: #ff8067; }
+.legend-chip.support { background: #83dfa8; }
+.legend-chip.fortify { background: #82aaff; }
 
 .hover-inspector {
   bottom: 13px;
