@@ -3,6 +3,7 @@ import type {
   BattalionPermission,
   CreateBattalionRankCommand,
   DeleteBattalionRankCommand,
+  TransferBattalionCommand,
   UpdateBattalionRankCommand,
 } from "../packages/domain/src";
 import type { ValidationResult } from "./forces-validation";
@@ -126,5 +127,32 @@ export function validateAssignBattalionMemberRank(value: unknown): ValidationRes
     rankId: value.rankId,
     expectedMembershipRevision: Number(value.expectedMembershipRevision),
     expectedRankVersion: Number(value.expectedRankVersion),
+  } };
+}
+
+export function validateTransferBattalionCommand(value: unknown): ValidationResult<TransferBattalionCommand> {
+  if (!record(value) || !only(value, [
+    "commandId", "targetUserId", "expectedBattalionVersion",
+    "expectedActorMembershipRevision", "expectedTargetMembershipRevision",
+  ])) {
+    return { valid: false, code: "COMMAND_INVALID", message: "Battalion command transfer contains unsupported fields." };
+  }
+  if (!commandId(value.commandId)) {
+    return { valid: false, code: "COMMAND_ID_INVALID", message: "commandId must be 16–128 safe characters." };
+  }
+  if (typeof value.targetUserId !== "string" || !idPattern.test(value.targetUserId)) {
+    return { valid: false, code: "TARGET_USER_INVALID", message: "targetUserId is invalid." };
+  }
+  if (!positiveRevision(value.expectedBattalionVersion)
+    || !positiveRevision(value.expectedActorMembershipRevision)
+    || !positiveRevision(value.expectedTargetMembershipRevision)) {
+    return { valid: false, code: "REVISION_INVALID", message: "Battalion and membership revisions must be positive integers." };
+  }
+  return { valid: true, value: {
+    commandId: value.commandId,
+    targetUserId: value.targetUserId,
+    expectedBattalionVersion: Number(value.expectedBattalionVersion),
+    expectedActorMembershipRevision: Number(value.expectedActorMembershipRevision),
+    expectedTargetMembershipRevision: Number(value.expectedTargetMembershipRevision),
   } };
 }

@@ -18,5 +18,6 @@ Current sequence:
 - `0012` actor-scoped active Battalion context switching receipts.
 - `0013` exact-once self-departure and authorized member-removal receipts.
 - `0014` rank/member-rank administration mutation tokens and actor-scoped receipts.
+- `0015` atomic Battalion creator/command transfer tokens and receipt vocabulary.
 
 Use the root `db:migrate:local` or guarded `db:migrate:remote` package scripts. Production-safe catalogue/onboarding seeds are separate from development fixtures.

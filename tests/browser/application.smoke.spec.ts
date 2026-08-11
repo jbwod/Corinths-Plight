@@ -646,6 +646,130 @@ test("Battalion command creates a permission rank and assigns it to a member", a
   await expect.poll(async () => (await battalion()).ranks.some((rank) => rank.id === created.id)).toBe(false);
 });
 
+test("Battalion creator transfers command authority and the new commander can hand it back", async ({ page }) => {
+  type BattalionProjection = {
+    battalion: { id: string; createdBy: string; version: number };
+  };
+  type Member = {
+    userId: string;
+    callsign: string;
+    rankId: string;
+    rankName: string;
+    commandRole: "PLAYER" | "BATTALION_COMMAND" | "ADMIN";
+    membershipRevision: number;
+    status: string;
+  };
+  type MemberProjection = { members: Member[] };
+  const origin = "http://127.0.0.1:4173";
+  const headersFor = (userId: string) => ({ "x-demo-user": userId, origin });
+  const battalion = async (userId: string) => {
+    const response = await page.request.get("/api/battalions/current", { headers: headersFor(userId) });
+    expect(response.status()).toBe(200);
+    return response.json() as Promise<BattalionProjection>;
+  };
+  const members = async (userId: string) => {
+    const response = await page.request.get("/api/battalions/current/members", { headers: headersFor(userId) });
+    expect(response.status()).toBe(200);
+    return response.json() as Promise<MemberProjection>;
+  };
+
+  const before = await battalion("demo-user");
+  const beforeMembers = await members("demo-user");
+  const originalCommander = beforeMembers.members.find((member) => member.userId === "demo-user")!;
+  const successor = beforeMembers.members.find((member) => member.userId === "demo-wing-user")!;
+  expect(before.battalion.createdBy).toBe("demo-user");
+  expect(originalCommander.commandRole).toBe("BATTALION_COMMAND");
+  expect(successor.commandRole).toBe("PLAYER");
+
+  const denied = await page.request.post("/api/battalions/current/command/transfer", {
+    headers: headersFor("demo-wing-user"),
+    data: {
+      commandId: `browser-transfer-denied-${crypto.randomUUID()}`,
+      targetUserId: "demo-user",
+      expectedBattalionVersion: before.battalion.version,
+      expectedActorMembershipRevision: successor.membershipRevision,
+      expectedTargetMembershipRevision: originalCommander.membershipRevision,
+    },
+  });
+  expect(denied.status()).toBe(403);
+  await expect(denied.json()).resolves.toMatchObject({ error: { code: "BATTALION_CREATOR_REQUIRED" } });
+
+  await page.goto("/?view=battalion");
+  await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();
+  await page.getByRole("tab", { name: "MEMBERS" }).click();
+  const successorRow = page.getByRole("row").filter({ hasText: "WING-2" });
+  await successorRow.getByRole("button", { name: "TRANSFER COMMAND", exact: true }).click();
+  const transferRequest = page.waitForRequest((request) =>
+    request.url().endsWith("/api/battalions/current/command/transfer") && request.method() === "POST");
+  await successorRow.getByRole("button", { name: "CONFIRM TRANSFER", exact: true }).click();
+  const transferCommand = (await transferRequest).postDataJSON() as {
+    commandId: string;
+    targetUserId: string;
+    expectedBattalionVersion: number;
+    expectedActorMembershipRevision: number;
+    expectedTargetMembershipRevision: number;
+  };
+
+  await expect.poll(async () => (await battalion("demo-wing-user")).battalion.createdBy).toBe("demo-wing-user");
+  const transferred = await battalion("demo-wing-user");
+  const transferredMembers = await members("demo-wing-user");
+  const formerCommander = transferredMembers.members.find((member) => member.userId === "demo-user")!;
+  const newCommander = transferredMembers.members.find((member) => member.userId === "demo-wing-user")!;
+  expect(transferred.battalion.version).toBe(before.battalion.version + 1);
+  expect(formerCommander).toMatchObject({
+    commandRole: "PLAYER",
+    rankId: successor.rankId,
+    membershipRevision: originalCommander.membershipRevision + 1,
+  });
+  expect(newCommander).toMatchObject({
+    commandRole: "BATTALION_COMMAND",
+    rankId: originalCommander.rankId,
+    membershipRevision: successor.membershipRevision + 1,
+  });
+
+  const replay = await page.request.post("/api/battalions/current/command/transfer", {
+    headers: headersFor("demo-user"),
+    data: transferCommand,
+  });
+  expect(replay.status()).toBe(200);
+  await expect(replay.json()).resolves.toMatchObject({
+    operation: "TRANSFER_BATTALION_COMMAND",
+    previousCommanderUserId: "demo-user",
+    commanderUserId: "demo-wing-user",
+  });
+  const collision = await page.request.post("/api/battalions/current/command/transfer", {
+    headers: headersFor("demo-user"),
+    data: { ...transferCommand, expectedBattalionVersion: transferCommand.expectedBattalionVersion + 1 },
+  });
+  expect(collision.status()).toBe(409);
+  await expect(collision.json()).resolves.toMatchObject({ error: { code: "IDEMPOTENCY_KEY_REUSED" } });
+
+  const restoreCommand = {
+    commandId: `browser-transfer-restore-${crypto.randomUUID()}`,
+    targetUserId: "demo-user",
+    expectedBattalionVersion: transferred.battalion.version,
+    expectedActorMembershipRevision: newCommander.membershipRevision,
+    expectedTargetMembershipRevision: formerCommander.membershipRevision,
+  };
+  const restored = await page.request.post("/api/battalions/current/command/transfer", {
+    headers: headersFor("demo-wing-user"),
+    data: restoreCommand,
+  });
+  expect(restored.status()).toBe(200);
+  await expect.poll(async () => (await battalion("demo-user")).battalion.createdBy).toBe("demo-user");
+  const restoredMembers = await members("demo-user");
+  expect(restoredMembers.members.find((member) => member.userId === "demo-user")).toMatchObject({
+    commandRole: "BATTALION_COMMAND",
+    rankId: originalCommander.rankId,
+    membershipRevision: originalCommander.membershipRevision + 2,
+  });
+  expect(restoredMembers.members.find((member) => member.userId === "demo-wing-user")).toMatchObject({
+    commandRole: "PLAYER",
+    rankId: successor.rankId,
+    membershipRevision: successor.membershipRevision + 2,
+  });
+});
+
 test("Battalion command removes an eligible ordinary member and preserves history", async ({ page }) => {
   const origin = "http://127.0.0.1:4173";
   const denied = await page.request.post("/api/onboarding/battalions/members/remove", {

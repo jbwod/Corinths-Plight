@@ -39,6 +39,7 @@ export function BattalionView({ snapshot, mode, onNotice }: BattalionViewProps) 
   const [tab, setTab] = useState<BattalionTab>("ORGANISATION");
   const [memberFilter, setMemberFilter] = useState("");
   const [confirmRemovalId, setConfirmRemovalId] = useState<string>();
+  const [confirmTransferId, setConfirmTransferId] = useState<string>();
   const [confirmRankDeleteId, setConfirmRankDeleteId] = useState<string>();
   const [memberMutationBusy, setMemberMutationBusy] = useState(false);
   const [rankMutationBusy, setRankMutationBusy] = useState(false);
@@ -62,7 +63,8 @@ export function BattalionView({ snapshot, mode, onNotice }: BattalionViewProps) 
 
   const canRemoveMembers = mode === "LIVE" && snapshot.battalion.permissions.includes("MEMBER_REMOVE");
   const canManageRanks = mode === "LIVE" && snapshot.battalion.permissions.includes("RANK_MANAGE");
-  const hasMemberAdministration = canRemoveMembers || canManageRanks;
+  const canTransferCommand = canManageRanks && snapshot.battalion.createdBy === snapshot.profile.userId;
+  const hasMemberAdministration = canRemoveMembers || canManageRanks || canTransferCommand;
 
   async function mutation(path: string, body: Record<string, unknown>): Promise<void> {
     const response = await fetch(path, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(body) });
@@ -185,6 +187,36 @@ export function BattalionView({ snapshot, mode, onNotice }: BattalionViewProps) 
     }
   }
 
+  async function transferCommand(member: BattalionMemberView) {
+    if (confirmTransferId !== member.userId) {
+      setConfirmTransferId(member.userId);
+      onNotice({ tone: "info", message: `Confirm command transfer to ${member.callsign}. Your command rank and authority will move to this member.` });
+      return;
+    }
+    const actorMembership = snapshot.members.find((item) => item.userId === snapshot.profile.userId);
+    if (!actorMembership) {
+      onNotice({ tone: "danger", message: "Your active membership could not be resolved. Refresh before transferring command." });
+      return;
+    }
+    setMemberMutationBusy(true);
+    try {
+      await mutation("/api/battalions/current/command/transfer", {
+        commandId: `command-transfer-${crypto.randomUUID()}`,
+        targetUserId: member.userId,
+        expectedBattalionVersion: snapshot.battalion.version,
+        expectedActorMembershipRevision: actorMembership.membershipRevision,
+        expectedTargetMembershipRevision: member.membershipRevision,
+      });
+      onNotice({ tone: "success", message: `Battalion command transferred to ${member.callsign}.` });
+      window.location.reload();
+    } catch (caught) {
+      onNotice({ tone: "danger", message: caught instanceof Error ? caught.message : "Command transfer failed." });
+      setConfirmTransferId(undefined);
+    } finally {
+      setMemberMutationBusy(false);
+    }
+  }
+
   return (
     <div className="battalion-workspace">
       <header className="strategic-hero battalion-hero">
@@ -278,6 +310,8 @@ export function BattalionView({ snapshot, mode, onNotice }: BattalionViewProps) 
                   <span role="cell"><b className={`status-chip state-${member.status.toLowerCase()}`}>{member.status}</b></span>
                   <span role="cell">{relativeActivity(member.lastActiveAt)}</span>
                   {hasMemberAdministration && <span role="cell" className="member-action-cell">
+                    {canTransferCommand && member.userId !== snapshot.profile.userId && member.commandRole === "PLAYER" && member.status === "ACTIVE"
+                      && <button className={confirmTransferId === member.userId ? "danger" : ""} disabled={memberMutationBusy} onClick={() => void transferCommand(member)}>{confirmTransferId === member.userId ? "CONFIRM TRANSFER" : "TRANSFER COMMAND"}</button>}
                     {canManageRanks && member.status === "ACTIVE" && (memberRankDrafts[member.userId] ?? member.rankId) !== member.rankId
                       && <button disabled={memberMutationBusy} onClick={() => void assignMemberRank(member)}>ASSIGN RANK</button>}
                     {canRemoveMembers && member.userId !== snapshot.profile.userId && member.commandRole === "PLAYER" && member.status === "ACTIVE"

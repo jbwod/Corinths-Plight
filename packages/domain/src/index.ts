@@ -1487,19 +1487,31 @@ export interface AssignBattalionMemberRankCommand {
   expectedRankVersion: number;
 }
 
+export interface TransferBattalionCommand {
+  commandId: string;
+  targetUserId: string;
+  expectedBattalionVersion: number;
+  expectedActorMembershipRevision: number;
+  expectedTargetMembershipRevision: number;
+}
+
 export type BattalionAdministrationOperation =
   | "CREATE_BATTALION_RANK"
   | "UPDATE_BATTALION_RANK"
   | "DELETE_BATTALION_RANK"
-  | "ASSIGN_BATTALION_MEMBER_RANK";
+  | "ASSIGN_BATTALION_MEMBER_RANK"
+  | "TRANSFER_BATTALION_COMMAND";
 
 export interface BattalionAdministrationMutationDto {
   operation: BattalionAdministrationOperation;
   battalionId: string;
-  rankId: string;
+  rankId?: string;
   rankVersion?: number;
   targetUserId?: string;
   membershipRevision?: number;
+  battalionVersion?: number;
+  previousCommanderUserId?: string;
+  commanderUserId?: string;
 }
 
 export interface BattalionMemberDto {

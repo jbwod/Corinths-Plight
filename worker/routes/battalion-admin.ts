@@ -3,6 +3,7 @@ import {
   validateAssignBattalionMemberRank,
   validateCreateBattalionRank,
   validateDeleteBattalionRank,
+  validateTransferBattalionCommand,
   validateUpdateBattalionRank,
 } from "../battalion-admin-validation";
 import type { Env } from "../env";
@@ -14,6 +15,7 @@ import {
   createBattalionRank,
   deleteBattalionRank,
   updateBattalionRank,
+  transferBattalionCommand,
 } from "../services/battalion-admin";
 import type { ValidationResult } from "../forces-validation";
 
@@ -28,6 +30,7 @@ function actorUserId(identity: AuthenticatedIdentity): string {
 function isBattalionAdminPath(pathname: string): boolean {
   return pathname === "/api/battalions/current/ranks"
     || pathname === "/api/battalions/current/members/rank"
+    || pathname === "/api/battalions/current/command/transfer"
     || updatePath.test(pathname)
     || deletePath.test(pathname);
 }
@@ -66,6 +69,9 @@ export async function routeBattalionAdminRequest(request: Request, env: Env): Pr
     }
     if (url.pathname === "/api/battalions/current/members/rank") {
       return json(await assignBattalionMemberRank(env, userId, valid(validateAssignBattalionMemberRank(await body(request)))));
+    }
+    if (url.pathname === "/api/battalions/current/command/transfer") {
+      return json(await transferBattalionCommand(env, userId, valid(validateTransferBattalionCommand(await body(request)))));
     }
     const update = url.pathname.match(updatePath);
     if (update) {

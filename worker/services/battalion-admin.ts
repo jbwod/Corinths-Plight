@@ -5,6 +5,7 @@ import type {
   BattalionPermission,
   CreateBattalionRankCommand,
   DeleteBattalionRankCommand,
+  TransferBattalionCommand,
   UpdateBattalionRankCommand,
 } from "../../packages/domain/src";
 import { commandHash } from "../forces-validation";
@@ -12,6 +13,7 @@ import type { Env } from "../env";
 import {
   getBattalionAdminContext,
   getBattalionAdminReceipt,
+  getBattalionCommandTransfer,
   getManagedBattalionMember,
   getManagedBattalionRank,
   listActiveBattalionPermissionDefinitions,
@@ -385,6 +387,114 @@ export async function assignBattalionMemberRank(
       receiptStatement(env, actorUserId, command.commandId, operation, requestHash, response,
         "EXISTS (SELECT 1 FROM battalion_memberships WHERE battalion_id=?6 AND user_id=?7 AND revision=?8 AND last_rank_mutation_token=?9)",
         [context.battalion_id, member.user_id, nextRevision, requestHash]),
+    ]);
+  } catch (error) {
+    const raced = await replay(env, actorUserId, command.commandId, operation, requestHash);
+    if (raced) return raced;
+    throw error;
+  }
+  return committed(env, actorUserId, command.commandId, operation, requestHash);
+}
+
+export async function transferBattalionCommand(
+  env: Env,
+  actorUserId: string,
+  command: TransferBattalionCommand,
+): Promise<BattalionAdministrationMutationDto> {
+  const operation = "TRANSFER_BATTALION_COMMAND" as const;
+  const requestHash = await commandHash({ actorUserId, operation, command });
+  const prior = await replay(env, actorUserId, command.commandId, operation, requestHash);
+  if (prior) return prior;
+  if (command.targetUserId === actorUserId) {
+    throw new BattalionAdminServiceError(409, "COMMAND_TRANSFER_SELF", "Choose another active Battalion member.");
+  }
+  const current = await getBattalionCommandTransfer(env.DB, actorUserId, command.targetUserId);
+  if (!current) throw new BattalionAdminServiceError(404, "TRANSFER_TARGET_NOT_FOUND", "Active transfer target was not found in the selected Battalion.");
+  if (current.creator_user_id !== actorUserId || current.actor_command_role !== "BATTALION_COMMAND") {
+    throw new BattalionAdminServiceError(403, "BATTALION_CREATOR_REQUIRED", "Only the current Battalion creator may transfer command.");
+  }
+  if (!new Set(parseJson<string[]>(current.actor_permissions_json, [])).has("RANK_MANAGE")) {
+    throw new BattalionAdminServiceError(403, "BATTALION_PERMISSION_REQUIRED", "RANK_MANAGE permission is required.");
+  }
+  if (current.target_command_role !== "PLAYER") {
+    throw new BattalionAdminServiceError(409, "TRANSFER_TARGET_COMMAND", "Choose an ordinary active member who does not already hold command authority.");
+  }
+  if (current.battalion_revision !== command.expectedBattalionVersion
+    || current.actor_membership_revision !== command.expectedActorMembershipRevision
+    || current.target_membership_revision !== command.expectedTargetMembershipRevision) {
+    throw new BattalionAdminServiceError(409, "COMMAND_TRANSFER_REVISION_CONFLICT", "Battalion command changed since it was opened.");
+  }
+  const nextBattalionVersion = current.battalion_revision + 1;
+  const nextActorRevision = current.actor_membership_revision + 1;
+  const nextTargetRevision = current.target_membership_revision + 1;
+  const response: BattalionAdministrationMutationDto = {
+    operation,
+    battalionId: current.battalion_id,
+    battalionVersion: nextBattalionVersion,
+    previousCommanderUserId: actorUserId,
+    commanderUserId: current.target_user_id,
+    targetUserId: current.target_user_id,
+    membershipRevision: nextTargetRevision,
+  };
+  try {
+    await env.DB.batch([
+      env.DB.prepare(`UPDATE battalions
+        SET created_by=?1,revision=revision+1,updated_at=unixepoch(),last_command_transfer_token=?2
+        WHERE id=?3 AND created_by=?4 AND status='ACTIVE' AND revision=?5
+          AND EXISTS (SELECT 1 FROM battalion_memberships
+            WHERE battalion_id=?3 AND user_id=?4 AND status='ACTIVE'
+              AND rank_id=?6 AND command_role='BATTALION_COMMAND' AND revision=?7)
+          AND EXISTS (SELECT 1 FROM battalion_memberships
+            WHERE battalion_id=?3 AND user_id=?1 AND status='ACTIVE'
+              AND rank_id=?8 AND command_role='PLAYER' AND revision=?9)`)
+        .bind(current.target_user_id, requestHash, current.battalion_id, actorUserId, current.battalion_revision,
+          current.actor_rank_id, current.actor_membership_revision, current.target_rank_id, current.target_membership_revision),
+      env.DB.prepare(`UPDATE battalion_memberships
+        SET rank_id=?1,command_role='PLAYER',revision=revision+1,updated_at=unixepoch(),last_command_transfer_token=?2
+        WHERE battalion_id=?3 AND user_id=?4 AND status='ACTIVE'
+          AND command_role='BATTALION_COMMAND' AND revision=?5
+          AND EXISTS (SELECT 1 FROM battalions WHERE id=?3 AND revision=?6
+            AND created_by=?7 AND last_command_transfer_token=?2)`)
+        .bind(current.target_rank_id, requestHash, current.battalion_id, actorUserId,
+          current.actor_membership_revision, nextBattalionVersion, current.target_user_id),
+      env.DB.prepare(`UPDATE battalion_memberships
+        SET rank_id=?1,command_role='BATTALION_COMMAND',revision=revision+1,updated_at=unixepoch(),last_command_transfer_token=?2
+        WHERE battalion_id=?3 AND user_id=?4 AND status='ACTIVE'
+          AND command_role='PLAYER' AND revision=?5
+          AND EXISTS (SELECT 1 FROM battalions WHERE id=?3 AND revision=?6
+            AND created_by=?4 AND last_command_transfer_token=?2)
+          AND EXISTS (SELECT 1 FROM battalion_memberships WHERE battalion_id=?3 AND user_id=?7
+            AND revision=?8 AND command_role='PLAYER' AND last_command_transfer_token=?2)`)
+        .bind(current.actor_rank_id, requestHash, current.battalion_id, current.target_user_id,
+          current.target_membership_revision, nextBattalionVersion, actorUserId, nextActorRevision),
+      eventStatement(env, {
+        eventType: "BATTALION_COMMAND_TRANSFERRED",
+        battalionId: current.battalion_id,
+        actorUserId,
+        subjectType: "USER",
+        subjectId: current.target_user_id,
+        summary: "Battalion command authority was transferred.",
+        payload: {
+          previousCommanderUserId: actorUserId,
+          commanderUserId: current.target_user_id,
+          battalionVersion: nextBattalionVersion,
+        },
+        requestHash,
+        guardSql: `EXISTS (SELECT 1 FROM battalions WHERE id=?11 AND revision=?12
+          AND created_by=?13 AND last_command_transfer_token=?14)
+          AND EXISTS (SELECT 1 FROM battalion_memberships WHERE battalion_id=?11 AND user_id=?13
+            AND revision=?15 AND command_role='BATTALION_COMMAND' AND last_command_transfer_token=?14)
+          AND EXISTS (SELECT 1 FROM battalion_memberships WHERE battalion_id=?11 AND user_id=?16
+            AND revision=?17 AND command_role='PLAYER' AND last_command_transfer_token=?14)`,
+        guardBindings: [current.battalion_id, nextBattalionVersion, current.target_user_id, requestHash,
+          nextTargetRevision, actorUserId, nextActorRevision],
+      }),
+      receiptStatement(env, actorUserId, command.commandId, operation, requestHash, response,
+        `EXISTS (SELECT 1 FROM battalions WHERE id=?6 AND revision=?7
+          AND created_by=?8 AND last_command_transfer_token=?9)
+          AND EXISTS (SELECT 1 FROM battalion_memberships WHERE battalion_id=?6 AND user_id=?8
+            AND revision=?10 AND command_role='BATTALION_COMMAND' AND last_command_transfer_token=?9)`,
+        [current.battalion_id, nextBattalionVersion, current.target_user_id, requestHash, nextTargetRevision]),
     ]);
   } catch (error) {
     const raced = await replay(env, actorUserId, command.commandId, operation, requestHash);

@@ -40,6 +40,21 @@ export interface BattalionAdminReceiptRow {
   response_json: string;
 }
 
+export interface BattalionCommandTransferRow {
+  battalion_id: string;
+  battalion_revision: number;
+  creator_user_id: string;
+  actor_user_id: string;
+  actor_rank_id: string;
+  actor_command_role: "PLAYER" | "BATTALION_COMMAND" | "ADMIN";
+  actor_membership_revision: number;
+  actor_permissions_json: string;
+  target_user_id: string;
+  target_rank_id: string;
+  target_command_role: "PLAYER" | "BATTALION_COMMAND" | "ADMIN";
+  target_membership_revision: number;
+}
+
 export async function getBattalionAdminContext(
   db: Env["DB"],
   actorUserId: string,
@@ -112,4 +127,31 @@ export async function getBattalionAdminReceipt(
     FROM battalion_administration_receipts
    WHERE actor_user_id=?1 AND command_id=?2
    LIMIT 1`).bind(actorUserId, commandId).first<BattalionAdminReceiptRow>();
+}
+
+export async function getBattalionCommandTransfer(
+  db: Env["DB"],
+  actorUserId: string,
+  targetUserId: string,
+): Promise<BattalionCommandTransferRow | null> {
+  return db.prepare(`SELECT battalions.id AS battalion_id,battalions.revision AS battalion_revision,
+      battalions.created_by AS creator_user_id,
+      actor.user_id AS actor_user_id,actor.rank_id AS actor_rank_id,
+      actor.command_role AS actor_command_role,actor.revision AS actor_membership_revision,
+      COALESCE((SELECT json_group_array(permissions.permission)
+        FROM rank_permissions AS permissions
+        JOIN battalion_permission_definitions AS definitions
+          ON definitions.permission=permissions.permission
+         AND definitions.implementation_status='ACTIVE'
+       WHERE permissions.rank_id=actor.rank_id), '[]') AS actor_permissions_json,
+      target.user_id AS target_user_id,target.rank_id AS target_rank_id,
+      target.command_role AS target_command_role,target.revision AS target_membership_revision
+    FROM user_active_battalions AS selected
+    JOIN battalions ON battalions.id=selected.battalion_id AND battalions.status='ACTIVE'
+    JOIN battalion_memberships AS actor
+      ON actor.battalion_id=battalions.id AND actor.user_id=selected.user_id AND actor.status='ACTIVE'
+    JOIN battalion_memberships AS target
+      ON target.battalion_id=battalions.id AND target.user_id=?2 AND target.status='ACTIVE'
+   WHERE selected.user_id=?1
+   LIMIT 1`).bind(actorUserId, targetUserId).first<BattalionCommandTransferRow>();
 }

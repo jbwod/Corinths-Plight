@@ -3,6 +3,7 @@ import {
   validateAssignBattalionMemberRank,
   validateCreateBattalionRank,
   validateDeleteBattalionRank,
+  validateTransferBattalionCommand,
   validateUpdateBattalionRank,
 } from "./battalion-admin-validation";
 
@@ -78,5 +79,38 @@ describe("Battalion administration validation", () => {
       expectedRankVersion: 2,
       commandRole: "ADMIN",
     })).toMatchObject({ valid: false, code: "COMMAND_INVALID" });
+  });
+
+  it("accepts a revision-guarded command transfer and rejects client-authored authority", () => {
+    expect(validateTransferBattalionCommand({
+      commandId: "transfer-command-00000001",
+      targetUserId: "member-user",
+      expectedBattalionVersion: 4,
+      expectedActorMembershipRevision: 7,
+      expectedTargetMembershipRevision: 3,
+    })).toEqual({ valid: true, value: {
+      commandId: "transfer-command-00000001",
+      targetUserId: "member-user",
+      expectedBattalionVersion: 4,
+      expectedActorMembershipRevision: 7,
+      expectedTargetMembershipRevision: 3,
+    } });
+    expect(validateTransferBattalionCommand({
+      commandId: "transfer-command-00000001",
+      targetUserId: "member-user",
+      expectedBattalionVersion: 4,
+      expectedActorMembershipRevision: 7,
+      expectedTargetMembershipRevision: 3,
+      battalionId: "battalion-foreign",
+      commandRole: "BATTALION_COMMAND",
+      rankId: "rank-command",
+    })).toMatchObject({ valid: false, code: "COMMAND_INVALID" });
+    expect(validateTransferBattalionCommand({
+      commandId: "transfer-command-00000001",
+      targetUserId: "member-user",
+      expectedBattalionVersion: 0,
+      expectedActorMembershipRevision: 7,
+      expectedTargetMembershipRevision: 3,
+    })).toMatchObject({ valid: false, code: "REVISION_INVALID" });
   });
 });

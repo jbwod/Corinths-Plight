@@ -594,6 +594,8 @@ export function normalizeStrategicPayloads(payloads: StrategicApiPayloads): Stra
       status: normalizedStatus(activeBattalion.status, "ACTIVE"),
       currentUserRank: activeRankName ?? asString(activeBattalion.currentUserRank, asString(profile.rankName, "Member")),
       permissions,
+      createdBy: identifier(activeBattalion, "createdBy", "created_by"),
+      version: asNumber(activeBattalion.version ?? activeBattalion.revision, 1),
     },
     ranks: enrichedRanks,
     permissionDefinitions,

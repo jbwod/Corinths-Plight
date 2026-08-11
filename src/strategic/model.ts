@@ -35,6 +35,8 @@ export interface BattalionSummaryView {
   status: string;
   currentUserRank: string;
   permissions: string[];
+  createdBy: string;
+  version: number;
 }
 
 export interface RankView {
@@ -274,6 +276,8 @@ export const SHOWCASE_STRATEGIC_SNAPSHOT: StrategicSnapshot = {
     status: "ACTIVE",
     currentUserRank: "Lieutenant",
     permissions: ["SHIP_VIEW", "SUPPLY_VIEW", "UNIT_DEPLOY_SELF"],
+    createdBy: "user-mercer",
+    version: 1,
   },
   ranks: [
     { id: "rank-colonel", name: "Colonel", precedence: 10, memberCount: 1, permissions: ["BATTALION_EDIT", "MEMBER_INVITE", "RANK_MANAGE", "OPERATION_COMMAND", "SHIP_MOVE", "STRATEGIC_ORDER_APPROVE"], version: 1 },
