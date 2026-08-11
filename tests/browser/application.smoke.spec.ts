@@ -443,6 +443,39 @@ test("quartermaster previews and persists equipment into a Reserve unit", async 
   });
 });
 
+test("commander edits a persistent unit identity and sees the service record", async ({ page }) => {
+  await page.goto("/?view=forces");
+  await expect(page.getByText("REGISTRY LIVE", { exact: true })).toBeVisible();
+  await page.locator(".grouped-roster").getByRole("button", { name: /SPECTRE/ }).click();
+  await page.getByRole("button", { name: "EDIT IDENTITY" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Edit unit identity" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel("UNIT NAME").fill("Spectre Pathfinder Cell");
+  await dialog.getByLabel("SERVICE DESCRIPTION").fill("Veteran pathfinders assigned to infiltration and reconnaissance duties.");
+  await dialog.getByRole("button", { name: "SAVE IDENTITY" }).click();
+
+  await expect(page.getByText(/SPECTRE identity saved to its persistent service record/i)).toBeVisible();
+  await expect(page.getByText("Spectre Pathfinder Cell", { exact: true })).toBeVisible();
+  await expect(page.getByText("Veteran pathfinders assigned to infiltration and reconnaissance duties.", { exact: true })).toBeVisible();
+  await expect(page.getByText("RENAMED", { exact: true })).toBeVisible();
+
+  const detail = await page.request.get("/api/forces/force-spectre", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(detail.status()).toBe(200);
+  await expect(detail.json()).resolves.toMatchObject({
+    unitId: "force-spectre",
+    callsign: "SPECTRE",
+    name: "Spectre Pathfinder Cell",
+    description: "Veteran pathfinders assigned to infiltration and reconnaissance duties.",
+    version: 2,
+    history: expect.arrayContaining([
+      expect.objectContaining({ type: "RENAMED" }),
+    ]),
+  });
+});
+
 test("strategic UI submits and resolves a Battlegroup disembark order", async ({ page }) => {
   await page.goto("/?view=galactic");
   await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();
@@ -1094,7 +1127,10 @@ test("tactical roster scope and map layers provide live planning views", async (
   await layers.getByRole("button", { name: "SUPPLY", exact: true }).click();
   await expect(page.locator(".map-legend")).toContainText("M# MEDICAL");
   await layers.getByRole("button", { name: "SURFACE", exact: true }).click();
-  await expect(page.locator(".map-legend")).toContainText("HOSTILE");
+  await expect(page.locator(".map-legend")).toContainText("MOVE");
+  await expect(page.locator(".map-legend")).toContainText("ATTACK");
+  await expect(page.locator(".map-legend")).toContainText("SUPPORT");
+  await expect(page.locator(".map-legend")).toContainText("FORTIFY");
 });
 
 test("public and authenticated shells do not overflow a 390px viewport", async ({ page }) => {

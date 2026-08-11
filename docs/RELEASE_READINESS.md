@@ -44,7 +44,7 @@ This is the live release checklist. A checked local build item is not permission
 | Seven seeds, twice | same isolated D1 | PASS | Core, Phase 2, equipment, onboarding and three development fixtures replayed twice. |
 | SQLite integrity | isolated D1 database | PASS | `integrity_check=ok`; `foreign_key_check` empty. |
 | `npm run ci:verify:d1` | isolated local D1 | PASS | Ten migrations; seven seeds twice; stable table fingerprints/counts; 117 checked application tables. |
-| `CI=1 npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 11/11 canaries pass, including a server-previewed/persisted Reserve equipment loadout, strategic Disembark, authoritative Task Force Large-Supply consumption, resolved operation deployment into a committed tactical campaign, live K-17 support/combat/victory resolution and interactive report reconstruction, the Heavy Air Transport manifested-drop composer, generated Logi/Artillery cargo controls, and 390px overflow coverage. |
+| `CI=1 npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 12/12 canaries pass, including persisted unit identity/history editing, a server-previewed/persisted Reserve equipment loadout, strategic Disembark, authoritative Task Force Large-Supply consumption, resolved operation deployment into a committed tactical campaign, live K-17 support/combat/victory resolution and interactive report reconstruction, the Heavy Air Transport manifested-drop composer, generated Logi/Artillery cargo controls, and 390px overflow coverage. |
 | `git diff --check` | local Phase-1 tree | PASS | No whitespace errors at final gate. |
 | `npm audit --audit-level=high` | npm advisory service | PASS | Zero known vulnerabilities at assessment time; the result is time-sensitive. |
 
@@ -172,7 +172,7 @@ No external state was changed during this Phase-0 assessment.
 |---|---:|---:|---:|---:|---:|---:|
 | Landing/auth | Playwright smoke | unknown | Playwright overflow canary | partial | unverified | missing |
 | Guided onboarding | manual foundation only | unknown | manual foundation only | unverified | unverified | missing |
-| Forces/loadout | live browser journey: Reserve unit opens quartermaster, previews Armor delta, commits owned Flak Vests and reads persisted effective unit | responsive dialog rules present | focused Chromium pass | unverified | unverified | broader matrix pending |
+| Forces/loadout | live browser journeys: owner edits an active unit's persistent identity/history; Reserve unit opens quartermaster, previews Armor delta, commits owned Flak Vests and reads persisted effective unit | responsive dialog rules present | focused Chromium pass | unverified | unverified | broader matrix pending |
 | Battalion/ship/strategic reads | prior visual inspection only | unknown | prior visual inspection only | partial | unverified | missing |
 | Tactical map/order | Playwright live-read/forged-field canary | unknown | Playwright overflow canary | **core route/target unavailable** | **no equivalent workflow** | missing |
 | Reports/replay | local interactive reconstruction proven in the four-round browser journey | unknown | responsive map/ledger controls; mobile overflow passes | semantic round/detail/playback controls and synchronized formation ledger | screen-reader audit missing | partial |

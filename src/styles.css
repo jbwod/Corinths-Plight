@@ -2438,6 +2438,29 @@ summary:focus-visible {
 }
 
 .inspection-state small { color: var(--dim); font: 500 7px/1 var(--mono); text-transform: uppercase; }
+.identity-edit-button { min-height: 28px; padding: 0 9px; border: 1px solid rgba(112, 217, 207, .28); background: rgba(42, 111, 105, .14); color: var(--teal-bright); font: 600 6px/1 var(--mono); cursor: pointer; }
+.identity-edit-button:disabled { cursor: not-allowed; filter: grayscale(.7); opacity: .35; }
+
+.identity-dialog { width: min(620px, calc(100vw - 24px)); max-width: none; padding: 0; border: 1px solid var(--line-strong); background: #071214; color: #c9d6d4; box-shadow: 0 24px 80px rgba(0, 0, 0, .72); }
+.identity-dialog::backdrop { background: rgba(1, 6, 8, .86); }
+.identity-dialog form > header { min-height: 64px; display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; border-bottom: 1px solid var(--line-strong); background: #0b1a1c; }
+.identity-dialog h2 { margin: 4px 0 0; color: #d5e2e1; font-size: 18px; text-transform: uppercase; }
+.identity-dialog form > header button { border: 0; background: none; color: var(--muted); font-size: 22px; cursor: pointer; }
+.identity-dialog form > section { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: start; padding: 18px; }
+.identity-dialog .identity-fields { min-width: 0; }
+.identity-dialog .identity-fields label.wide { grid-column: 1 / -1; }
+.identity-dialog .identity-fields input,
+.identity-dialog .identity-fields textarea { width: 100%; margin-top: 5px; padding: 9px; border: 1px solid var(--line); border-radius: 0; background: #091416; color: #c3d4d2; font: 500 9px/1.4 var(--mono); resize: vertical; }
+.identity-dialog .identity-fields input { height: 35px; }
+.identity-dialog .identity-fields input:focus-visible,
+.identity-dialog .identity-fields textarea:focus-visible { outline: 2px solid var(--teal-bright); outline-offset: 2px; }
+.identity-dialog form > section > p { grid-column: 1 / -1; margin: 0; padding: 9px; border-left: 2px solid var(--gold); background: rgba(170, 130, 46, .08); color: #baa96d; font-size: 8px; line-height: 1.45; }
+.identity-dialog form > footer { min-height: 70px; display: grid; grid-template-columns: minmax(180px, 1fr) auto auto; gap: 8px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--line-strong); background: #0b1a1c; }
+.identity-dialog form > footer p { margin: 0 0 4px; color: var(--danger); font-size: 7px; }
+.identity-dialog form > footer small { color: var(--dim); font: 500 6px/1 var(--mono); }
+.identity-dialog form > footer button { min-width: 118px; height: 39px; border: 1px solid rgba(112, 217, 207, .3); background: transparent; color: var(--muted); font: 600 7px/1 var(--mono); cursor: pointer; }
+.identity-dialog form > footer button.primary { background: rgba(42, 111, 105, .43); color: var(--teal-bright); }
+.identity-dialog form > footer button:disabled { cursor: not-allowed; filter: grayscale(.7); opacity: .35; }
 
 .durability-panel {
   display: grid;
@@ -2993,6 +3016,7 @@ summary:focus-visible {
   .force-marker.hero { width: 54px; height: 45px; font-size: 10px; }
   .inspection-identity h2 { font-size: 19px; }
   .inspection-state { grid-column: 1 / -1; flex-direction: row; align-items: center; text-align: left; }
+  .inspection-state .identity-edit-button { margin-left: auto; }
   .durability-panel { grid-template-columns: 100px 1fr; padding: 15px; }
   .durability-ring { width: 88px; height: 88px; }
   .durability-ring span { font-size: 21px; }
@@ -3017,6 +3041,12 @@ summary:focus-visible {
   .requisition-drawer > footer { grid-template-columns: 1fr 1fr; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
   .requisition-drawer > footer > div { grid-column: 1 / -1; }
   .requisition-drawer > footer button { min-width: 0; }
+  .identity-dialog { width: calc(100vw - 10px); }
+  .identity-dialog form > section { grid-template-columns: 1fr; }
+  .identity-dialog form > section > .force-marker { justify-self: start; }
+  .identity-dialog form > footer { grid-template-columns: 1fr 1fr; }
+  .identity-dialog form > footer > div { grid-column: 1 / -1; }
+  .identity-dialog form > footer button { min-width: 0; }
   .identity-fields { grid-template-columns: 1fr; }
   .identity-fields > .eyebrow { grid-column: 1; }
   .initial-equipment-list,

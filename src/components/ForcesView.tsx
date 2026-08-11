@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, FormEvent } from "react";
 import type {
   AbilityRef,
   AvailabilityStatus,
@@ -290,6 +290,96 @@ type LoadoutPreviewPayload = {
   effectiveUnit: LoadoutEffectiveUnit | null;
   validation: LoadoutValidation;
 };
+
+type IdentityMutationResult = {
+  unitId: string;
+  name: string;
+  callsign: string;
+  description: string;
+  version: number;
+};
+
+function IdentityDialog({
+  unit,
+  onClose,
+  onSaved,
+  onConflict,
+}: {
+  unit: ForceUnitView;
+  onClose: () => void;
+  onSaved: (result: IdentityMutationResult) => Promise<void>;
+  onConflict: () => Promise<void>;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [name, setName] = useState(unit.name);
+  const [callsign, setCallsign] = useState(unit.callsign);
+  const [description, setDescription] = useState(unit.descriptionText ?? unit.description);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+
+  useEffect(() => {
+    const dialog = ref.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError(undefined);
+    try {
+      const response = await fetch(`/api/forces/${encodeURIComponent(unit.unitId)}/rename`, {
+        method: "POST",
+        headers: JSON_HEADERS,
+        body: JSON.stringify({
+          commandId: crypto.randomUUID(),
+          expectedVersion: unit.version,
+          name,
+          callsign,
+          description,
+        }),
+      });
+      if (!response.ok) {
+        const payload = asRecord(await response.json().catch(() => undefined));
+        const detail = asRecord(payload?.error);
+        if (response.status === 409) await onConflict();
+        throw new Error(asString(detail?.message, errorMessage(response.status)));
+      }
+      await onSaved(await response.json() as IdentityMutationResult);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Unit identity could not be saved.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const unchanged = name.trim() === unit.name
+    && callsign.trim().toUpperCase() === unit.callsign
+    && description.trim() === (unit.descriptionText ?? unit.description);
+
+  return <dialog ref={ref} className="identity-dialog" aria-labelledby="identity-dialog-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
+    <form onSubmit={(event) => void save(event)}>
+      <header>
+        <div><span className="eyebrow">PERSISTENT UNIT RECORD</span><h2 id="identity-dialog-title">Edit unit identity</h2></div>
+        <button type="button" aria-label="Close unit identity editor" onClick={onClose}>×</button>
+      </header>
+      <section>
+        <div className={`force-marker hero role-${unit.role.toLowerCase()}`}>{markerCode(unit)}</div>
+        <div className="identity-fields">
+          <label>UNIT NAME<input autoFocus required minLength={2} maxLength={80} value={name} onChange={(event) => setName(event.target.value)} /></label>
+          <label>CALLSIGN<input required maxLength={7} pattern="[A-Z0-9][A-Z0-9-]{0,6}" value={callsign} onChange={(event) => setCallsign(event.target.value.toUpperCase())} /></label>
+          <label className="wide">SERVICE DESCRIPTION<textarea maxLength={500} rows={5} value={description} onChange={(event) => setDescription(event.target.value)} /></label>
+        </div>
+        <p>Identity changes are recorded in this unit's permanent service history. Combat class, ownership and rules-defined statistics are unchanged.</p>
+      </section>
+      <footer>
+        <div>{error && <p role="alert">{error}</p>}<small>RECORD VERSION {unit.version}</small></div>
+        <button type="button" onClick={onClose}>CANCEL</button>
+        <button className="primary" type="submit" disabled={busy || unchanged}>{busy ? "SAVING…" : "SAVE IDENTITY"}</button>
+      </footer>
+    </form>
+  </dialog>;
+}
 
 function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClose: () => void; onSaved: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -656,6 +746,7 @@ function normalizeInspection(payload: unknown, summary: ForceUnitView): ForceUni
     ...summary,
     callsign: asString(record.callsign, summary.callsign),
     name: asString(record.name, summary.name),
+    version: asNumber(record.version, summary.version),
     descriptionText: asString(record.descriptionText, asString(record.description, summary.descriptionText)) || undefined,
     tags: Array.isArray(dto.tags) ? dto.tags : summary.tags,
     abilities: abilityValues,
@@ -909,6 +1000,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
   const [detailLoading, setDetailLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loadoutOpen, setLoadoutOpen] = useState(false);
+  const [identityOpen, setIdentityOpen] = useState(false);
   const [battlegroupOpen, setBattlegroupOpen] = useState(false);
   const [requisitionBalance, setRequisitionBalance] = useState<number | null>(null);
   const [registryNote, setRegistryNote] = useState("Connecting to the owner-scoped force registry…");
@@ -990,6 +1082,22 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
     }
   }
 
+  async function identitySaved(result: IdentityMutationResult) {
+    if (!selectedUnit) return;
+    const updated: ForceUnitView = {
+      ...selectedUnit,
+      callsign: result.callsign,
+      name: result.name,
+      description: result.description,
+      descriptionText: result.description,
+      version: result.version,
+    };
+    setUnits((current) => current.map((candidate) => candidate.unitId === result.unitId ? updated : candidate));
+    setIdentityOpen(false);
+    onNotice({ tone: "success", message: `${result.callsign} identity saved to its persistent service record.` });
+    await inspect(updated);
+  }
+
   function clearFilters() {
     setRoleFilter("ALL");
     setStatusFilter("ALL");
@@ -1061,6 +1169,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
                 <span className={`force-state state-${statusLabel(selectedUnit).toLowerCase()}`}>{statusLabel(selectedUnit)}</span>
                 <small>{selectedUnit.className}</small>
                 <small>{selectedUnit.locationState.replaceAll("_", " ")}</small>
+                {selectedUnit.status !== "DESTROYED" && <button className="identity-edit-button" disabled={mode !== "LIVE"} onClick={() => setIdentityOpen(true)}>EDIT IDENTITY</button>}
               </div>
             </header>
 
@@ -1163,6 +1272,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
       </aside>
 
       {drawerOpen && <RequisitionDialog catalogue={catalogue} live={mode === "LIVE"} requisitionBalance={requisitionBalance} onClose={() => setDrawerOpen(false)} onPurchased={(unit) => { setUnits((current) => [unit, ...current]); setSelectedUnitId(unit.unitId); setDrawerOpen(false); onNotice({ tone: "success", message: `${unit.callsign} added to your persistent force.` }); void loadForces(true); }} />}
+      {identityOpen && selectedUnit && <IdentityDialog unit={selectedUnit} onClose={() => setIdentityOpen(false)} onSaved={identitySaved} onConflict={async () => { await inspect(selectedUnit); }} />}
       {loadoutOpen && selectedUnit && <LoadoutDialog unit={selectedUnit} onClose={() => setLoadoutOpen(false)} onSaved={() => { onNotice({ tone: "success", message: `${selectedUnit.callsign} effective loadout committed.` }); void inspect(selectedUnit); }} />}
       {battlegroupOpen && <BattlegroupDialog units={units} selectedUnit={selectedUnit} onClose={() => setBattlegroupOpen(false)} onChanged={(message) => { onNotice({ tone: "success", message }); void loadForces(true); }} />}
     </main>
