@@ -120,7 +120,7 @@ describe("server rules hydration", () => {
       id: "unit-heavy-air-transport",
       stats: { healthModel: "HITS", maxHealth: 1, armor: 0, speed: 7 },
       allowedOrders: ["HOLD", "ADVANCE"],
-      allowedActions: ["LOAD", "AIRDROP"],
+      allowedActions: ["LOAD", "AIRDROP", "LAND", "TAKE_OFF"],
       tags: expect.arrayContaining(["AEROSPACE", "AIRDROP", "CANNOT_SPOT_GROUND"]),
       weapons: [],
     });
@@ -138,13 +138,13 @@ describe("server rules hydration", () => {
       id: "unit-vtol",
       stats: { healthModel: "HITS", maxHealth: 2, armor: 1, speed: 5 },
       allowedOrders: ["HOLD", "ADVANCE"],
-      allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+      allowedActions: ["ATTACK", "LOAD", "UNLOAD", "LAND", "TAKE_OFF"],
       tags: expect.arrayContaining(["AEROSPACE", "VTOL", "CANNOT_SPOT_GROUND"]),
     });
     expect(result.authority.profiles.cargoProfile).toMatchObject({ id: "cargo-vtol-alternative" });
   });
 
-  test("hydrates the executable Fighter sortie without advertising rearm or Interceptor", () => {
+  test("hydrates the executable Fighter sortie with airfield operations but without Interceptor", () => {
     const result = resolveUnitRulesAuthority(unitInput("unit-aerospace-fighter"), "development");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.message);
@@ -152,13 +152,13 @@ describe("server rules hydration", () => {
       id: "unit-aerospace-fighter",
       stats: { healthModel: "HITS", maxHealth: 2, armor: 0, speed: 7 },
       allowedOrders: ["HOLD", "ADVANCE", "EVASIVE"],
-      allowedActions: ["ATTACK"],
+      allowedActions: ["ATTACK", "LAND", "TAKE_OFF", "REARM_AEROSPACE"],
       tags: expect.arrayContaining(["AEROSPACE", "RAPID_FIRE", "EVASIVE", "LIMITED_FORWARD_ARC", "CANNOT_SPOT_GROUND"]),
       weapons: [expect.objectContaining({ id: "weapon-fighter-snub-hmg", ammoCapacity: 1, range: 1 })],
     });
   });
 
-  test("hydrates the executable Bomber sortie without advertising landing or rearm", () => {
+  test("hydrates the executable Bomber sortie with airfield landing and rearm", () => {
     const result = resolveUnitRulesAuthority(unitInput("unit-aerospace-bomber"), "development");
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.message);
@@ -166,7 +166,7 @@ describe("server rules hydration", () => {
       id: "unit-aerospace-bomber",
       stats: { healthModel: "HITS", maxHealth: 2, armor: 0, speed: 6 },
       allowedOrders: ["HOLD", "ADVANCE"],
-      allowedActions: ["ATTACK"],
+      allowedActions: ["ATTACK", "LAND", "TAKE_OFF", "REARM_AEROSPACE"],
       tags: expect.arrayContaining(["AEROSPACE", "BOMBER", "FLY_OVER", "CANNOT_SPOT_GROUND"]),
       weapons: [expect.objectContaining({ id: "weapon-bomber-ordnance", ammoCapacity: 1, range: 0 })],
     });

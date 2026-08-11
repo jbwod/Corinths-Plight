@@ -118,7 +118,9 @@ function ironRainHex(q: number, r: number): BattlefieldHex {
         : [],
     objectiveId: ironRainObjectiveCoordinates.get(key),
     control: q < 0 ? "ALLIED" : q > 3 ? "ENEMY" : "NEUTRAL",
-    environment: isAirfield ? [INFANTRY_COVER_ARMOR_1, "ROUGH_AIRFIELD"] : [],
+    environment: isAirfield
+      ? [INFANTRY_COVER_ARMOR_1, "ROUGH_AIRFIELD", "LAND_AEROSPACE", "LAND_VTOL", "REARM_AEROSPACE"]
+      : [],
     visibility: q <= 1 ? "OBSERVED" : "UNKNOWN",
   };
 }
@@ -273,7 +275,11 @@ function coldHorizonHex(q: number, r: number): BattlefieldHex {
         : [],
     objectiveId: coldHorizonObjectiveCoordinates.get(key),
     control: q < 0 ? "ALLIED" : q > 2 ? "ENEMY" : "NEUTRAL",
-    environment: isBeacon ? [INFANTRY_COVER_ARMOR_1, "COLD", "COLONY_BEACON"] : ["COLD"],
+    environment: isBeacon
+      ? [INFANTRY_COVER_ARMOR_1, "COLD", "COLONY_BEACON"]
+      : isLandingField
+        ? ["COLD", "LAND_AEROSPACE", "LAND_VTOL", "REARM_AEROSPACE"]
+        : ["COLD"],
     visibility: q <= 0 ? "OBSERVED" : "UNKNOWN",
   };
 }

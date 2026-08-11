@@ -12,6 +12,9 @@ const identifierPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const orderTypes = new Set<OrderType>(["HOLD", "ADVANCE", "RUSH", "EVASIVE", "MELEE_CHARGE", "STEALTH"]);
 const actionTypes = new Set<ActionType>([
   "AIRDROP",
+  "LAND",
+  "TAKE_OFF",
+  "REARM_AEROSPACE",
   "ATTACK",
   "ASSAULT",
   "DIG_IN",
@@ -74,6 +77,9 @@ const eventTypes = new Set([
   "CARGO_UNLOADED",
   "AIR_DROP_COMPLETED",
   "AIR_DROP_FAILED",
+  "AEROSPACE_LANDED",
+  "AEROSPACE_TOOK_OFF",
+  "AEROSPACE_REARMED",
   "WEAPON_RELOADED",
   "MEDICAL_SUPPLY_RELOADED",
   "HEX_SCANNED",
@@ -197,6 +203,9 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
   const type = value.type as ActionType;
   const fieldsByType: Record<ActionType, string[]> = {
     AIRDROP: ["targetDeploymentId", "targetHex", "payload"],
+    LAND: [],
+    TAKE_OFF: [],
+    REARM_AEROSPACE: [],
     ATTACK: ["targetDeploymentId", "targetHex", "weaponId"],
     ASSAULT: ["targetDeploymentId", "targetHex", "weaponId"],
     DIG_IN: [],

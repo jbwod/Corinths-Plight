@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "6f4adbf5cc8ec1fe6604f8d6a3564aa2f09576374bb5802cecb22696c48abe4a",
+  "contentHash": "d445ebe5be88b769b3f8130b82efe0a894f29841408db3aa89a157184d9c991a",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1150,7 +1150,10 @@ const snapshot = {
           },
           "execution": {
             "allowedActions": [
-              "ATTACK"
+              "ATTACK",
+              "LAND",
+              "TAKE_OFF",
+              "REARM_AEROSPACE"
             ],
             "allowedOrders": [
               "HOLD",
@@ -1235,7 +1238,10 @@ const snapshot = {
           },
           "execution": {
             "allowedActions": [
-              "ATTACK"
+              "ATTACK",
+              "LAND",
+              "TAKE_OFF",
+              "REARM_AEROSPACE"
             ],
             "allowedOrders": [
               "HOLD",
@@ -1558,7 +1564,9 @@ const snapshot = {
           "execution": {
             "allowedActions": [
               "LOAD",
-              "AIRDROP"
+              "AIRDROP",
+              "LAND",
+              "TAKE_OFF"
             ],
             "allowedOrders": [
               "HOLD",
@@ -2323,7 +2331,9 @@ const snapshot = {
             "allowedActions": [
               "ATTACK",
               "LOAD",
-              "UNLOAD"
+              "UNLOAD",
+              "LAND",
+              "TAKE_OFF"
             ],
             "allowedOrders": [
               "HOLD",
@@ -7825,10 +7835,13 @@ const snapshot = {
             "action-first-aid",
             "action-trench-upgrade",
             "action-load-cargo",
+            "action-land",
             "action-pack-platform",
             "action-repair",
             "action-transfer-supply",
             "action-reload",
+            "action-rearm-aerospace",
+            "action-take-off",
             "action-unload-cargo"
           ],
           "resolverPath": "packages/rules-engine/src/resolver.ts",
@@ -8020,6 +8033,22 @@ const snapshot = {
       },
       {
         "definitionKind": "ACTION",
+        "definitionId": "action-land",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
         "definitionId": "action-load-cargo",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
@@ -8052,6 +8081,22 @@ const snapshot = {
       },
       {
         "definitionKind": "ACTION",
+        "definitionId": "action-rearm-aerospace",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
         "definitionId": "action-reload",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
@@ -8069,6 +8114,22 @@ const snapshot = {
       {
         "definitionKind": "ACTION",
         "definitionId": "action-repair",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-take-off",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
         "availabilityStatus": "AVAILABLE",
@@ -8679,6 +8740,8 @@ const snapshot = {
             "HOSTILE_PASSAGE",
             "FLY_OVER_TARGETING",
             "ORDNANCE_AMMO_ONE",
+            "LAND_TAKEOFF_STATE",
+            "REARM_FACILITY",
             "NO_GROUND_SPOTTING"
           ],
           "minimumMechanics": [
@@ -8687,12 +8750,9 @@ const snapshot = {
             "AMMUNITION",
             "LAND_REARM"
           ],
-          "missing": [
-            "LAND_TAKEOFF_STATE",
-            "REARM_FACILITY"
-          ],
+          "missing": [],
           "publicationCorrection": {
-            "reason": "The V5 Bomber sortie executes its chassis, one-shot D6 ordnance, terrain-independent flight, route-bound fly-over attack and no-ground-spotting rule. Landing and rearm remain gated.",
+            "reason": "The V5 Bomber sortie executes its chassis, one-shot D6 ordnance, terrain-independent flight, route-bound fly-over attack, friendly-airfield landing/takeoff, Primary rearm, and no-ground-spotting rule.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": false,
@@ -8726,6 +8786,8 @@ const snapshot = {
             "EVASIVE",
             "FORWARD_180_ARC",
             "MAIN_AMMO_ONE",
+            "LAND_TAKEOFF_STATE",
+            "REARM_FACILITY",
             "NO_GROUND_SPOTTING"
           ],
           "minimumMechanics": [
@@ -8735,12 +8797,10 @@ const snapshot = {
             "LAND_REARM"
           ],
           "missing": [
-            "LAND_TAKEOFF_STATE",
-            "REARM_FACILITY",
             "INTERCEPTOR"
           ],
           "publicationCorrection": {
-            "reason": "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc and no-ground-spotting rule. Landing/rearm and Interceptor remain gated.",
+            "reason": "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc, friendly-airfield landing/takeoff, Primary rearm, and no-ground-spotting rule. Interceptor remains gated.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": false,
@@ -8874,15 +8934,15 @@ const snapshot = {
             "HOSTILE_PASSAGE",
             "FIVE_SLOT_CARGO",
             "CLEAR_ROUTE_AIRDROP",
+            "LAND_TAKEOFF_STATE",
             "NO_GROUND_SPOTTING"
           ],
           "missing": [
-            "LAND_TAKEOFF_STATE",
             "HAZARDOUS_DROP_RESULTS",
             "COORDINATED_SUPPLY_DROP"
           ],
           "publicationCorrection": {
-            "reason": "The V5 Heavy Air Transport executes its chassis, five-slot conversion table, terrain-independent flight, loading, and no-cost clear route-bound Infantry/Light Vehicle airdrop. Hazardous outcomes, landing, and coordinated Supply drops remain gated.",
+            "reason": "The V5 Heavy Air Transport executes its chassis, five-slot conversion table, terrain-independent flight, loading, friendly-airfield landing state, and no-cost clear route-bound Infantry/Light Vehicle airdrop. Hazardous outcomes and coordinated Supply drops remain gated.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": true,
@@ -9211,11 +9271,11 @@ const snapshot = {
             "ATTACK",
             "AEROSPACE_MOVEMENT",
             "HOSTILE_PASSAGE",
+            "LAND_TAKEOFF_STATE",
             "NO_GROUND_SPOTTING",
             "ALTERNATIVE_CARGO"
           ],
           "missing": [
-            "LAND_TAKEOFF_STATE",
             "HAT_AIRDROP"
           ],
           "publicationCorrection": {
@@ -14549,5 +14609,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "6f4adbf5cc8ec1fe6604f8d6a3564aa2f09576374bb5802cecb22696c48abe4a" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "d445ebe5be88b769b3f8130b82efe0a894f29841408db3aa89a157184d9c991a" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

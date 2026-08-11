@@ -8,6 +8,7 @@ import {
   getTacticalActionRule,
   getTacticalUnitClass,
   hexDistance,
+  createScenarioCampaignState,
   resolveTacticalCover,
   resolveAttackRoll,
   resolveRound,
@@ -49,6 +50,89 @@ function input(orders: UnitOrder[]): RoundInput {
 }
 
 describe("equipment and transport actions", () => {
+  it("lands and rearms at Kestrel airfield, then takes off before moving", () => {
+    const fighterSource = createDemoCampaignState(1_000).deployments
+      .find((deployment) => deployment.definitionId === "unit-aerospace-fighter")!;
+    const landingState = createScenarioCampaignState({
+      mapSourceKey: "fixture/operation-iron-rain",
+      campaignId: "iron-rain-flight-ops",
+      campaignName: "Operation Iron Rain",
+      planetName: "Corinth",
+      now: 1_000,
+      durationMs: 300_000,
+      alliedDeployments: [{
+        ...structuredClone(fighterSource),
+        id: "iron-rain-fighter",
+        campaignId: "iron-rain-flight-ops",
+        position: { q: 0, r: 0 },
+        ammunition: { "weapon-fighter-snub-hmg": 0 },
+        statuses: [],
+      }],
+    });
+    const fighter = landingState.deployments.find((deployment) => deployment.id === "iron-rain-fighter")!;
+    const landAndRearm = order(landingState, fighter, [
+      action("fighter-land", "LAND"),
+      action("fighter-rearm", "REARM_AEROSPACE"),
+    ]);
+    landingState.orders = [landAndRearm];
+
+    const landed = resolveRound({
+      previousState: landingState,
+      rulesetVersion: landingState.rulesetVersion,
+      playerOrders: [landAndRearm],
+      enemyOrders: [],
+      seed: "flight-ops",
+      resolutionTime: 2_000,
+    });
+    expect(landed.state.deployments.find((deployment) => deployment.id === fighter.id)).toMatchObject({
+      statuses: ["LANDED"],
+      ammunition: { "weapon-fighter-snub-hmg": 1 },
+    });
+    expect(landed.events.map((event) => event.type)).toEqual(expect.arrayContaining([
+      "AEROSPACE_LANDED",
+      "AEROSPACE_REARMED",
+    ]));
+
+    const takeOffState = createScenarioCampaignState({
+      mapSourceKey: "fixture/operation-iron-rain",
+      campaignId: "iron-rain-takeoff",
+      campaignName: "Operation Iron Rain",
+      planetName: "Corinth",
+      now: 3_000,
+      durationMs: 300_000,
+      alliedDeployments: [{
+        ...structuredClone(fighterSource),
+        id: "iron-rain-fighter",
+        campaignId: "iron-rain-takeoff",
+        position: { q: 0, r: 0 },
+        statuses: ["LANDED"],
+      }],
+    });
+    const groundedFighter = takeOffState.deployments.find((deployment) => deployment.id === "iron-rain-fighter")!;
+    const takeOff = order(takeOffState, groundedFighter, [action("fighter-takeoff", "TAKE_OFF")]);
+    takeOff.orderType = "ADVANCE";
+    takeOff.route = [{ q: 0, r: 0 }, { q: 1, r: 0 }];
+    takeOff.endHex = { q: 1, r: 0 };
+    takeOffState.orders = [takeOff];
+
+    const airborne = resolveRound({
+      previousState: takeOffState,
+      rulesetVersion: takeOffState.rulesetVersion,
+      playerOrders: [takeOff],
+      enemyOrders: [],
+      seed: "flight-ops-takeoff",
+      resolutionTime: 4_000,
+    });
+    expect(airborne.state.deployments.find((deployment) => deployment.id === groundedFighter.id)).toMatchObject({
+      statuses: [],
+      position: { q: 1, r: 0 },
+    });
+    expect(airborne.events).toContainEqual(expect.objectContaining({
+      type: "AEROSPACE_TOOK_OFF",
+      actor: groundedFighter.id,
+    }));
+  });
+
   it("air drops manifested Infantry from a Heavy Air Transport on a clear straight flight path", () => {
     const state = createDemoCampaignState(1_000);
     const hat = state.deployments.find((deployment) => deployment.id === "dep-atlas-1")!;

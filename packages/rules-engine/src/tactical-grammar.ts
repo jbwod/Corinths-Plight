@@ -31,6 +31,9 @@ export const tacticalRulesCatalogueRuntime = runtimeBuild.runtime;
 
 const actionIds: Partial<Record<ActionType, string>> = {
   AIRDROP: "action-airdrop",
+  LAND: "action-land",
+  TAKE_OFF: "action-take-off",
+  REARM_AEROSPACE: "action-rearm-aerospace",
   ATTACK: "action-attack",
   ARTILLERY_DIG_IN: "action-artillery-dig-in",
   DIG_IN: "action-dig-in",

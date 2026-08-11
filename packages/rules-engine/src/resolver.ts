@@ -8,6 +8,7 @@ import type {
   PendingPersistentEffect,
   RoundInput,
   RoundOutput,
+  StructuredAction,
   UnitOrder,
   WeaponProfile,
 } from "../../domain/src";
@@ -83,6 +84,30 @@ function deploymentTags(deployment: CampaignDeployment): string[] {
   } catch {
     return [];
   }
+}
+
+function isAerospaceDeployment(deployment: CampaignDeployment): boolean {
+  const tags = deploymentTags(deployment);
+  return tags.includes("ATMO_FLIGHT") || tags.includes("VTOL");
+}
+
+function facilitySupports(
+  state: RoundOutput["state"],
+  deployment: CampaignDeployment,
+  position: CampaignDeployment["position"],
+  capability: "LAND" | "REARM_AEROSPACE",
+): boolean {
+  const hex = state.map.find((candidate) => sameCoord(candidate.coord, position));
+  if (!hex) return false;
+  const friendly = hex.control === deployment.side || (
+    hex.objectiveId !== undefined &&
+    state.objectives.find((objective) => objective.id === hex.objectiveId)?.owner === deployment.side
+  );
+  if (!friendly) return false;
+  if (capability === "REARM_AEROSPACE") return hex.environment.includes("REARM_AEROSPACE");
+  return deploymentTags(deployment).includes("VTOL")
+    ? hex.environment.includes("LAND_VTOL")
+    : hex.environment.includes("LAND_AEROSPACE");
 }
 
 function synchronizeEmbarkedCargo(deployments: CampaignDeployment[]): void {
@@ -175,6 +200,30 @@ export function validateOrder(
   if (hasDisabledSubsystem(deployment, "MOBILITY") && order.route.length > 1) {
     reasons.push("The unit's mobility subsystem is disabled.");
   }
+  const actions = [...order.actions, ...order.incidentalActions];
+  const takesOff = actions.some((action) => action.type === "TAKE_OFF");
+  const lands = actions.some((action) => action.type === "LAND");
+  const rearms = actions.some((action) => action.type === "REARM_AEROSPACE");
+  const landed = deployment.statuses.includes("LANDED");
+  if (landed && order.route.length > 1 && !takesOff) reasons.push("A landed aerospace unit must Take Off before moving.");
+  if (takesOff && lands) reasons.push("An aerospace unit cannot land and take off in the same round.");
+  if (takesOff && !landed) reasons.push("Only a landed aerospace unit can Take Off.");
+  if (lands && landed) reasons.push("The aerospace unit is already landed.");
+  if ((takesOff || lands || rearms) && !isAerospaceDeployment(deployment)) {
+    reasons.push("Landing, takeoff, and aerospace rearm require an aerospace unit.");
+  }
+  if (lands && !facilitySupports(input.previousState, deployment, order.endHex, "LAND")) {
+    reasons.push("Landing requires a friendly compatible airfield at the route endpoint.");
+  }
+  if (rearms) {
+    if (!landed && !lands) reasons.push("Aerospace rearm requires the unit to be landed.");
+    if (!facilitySupports(input.previousState, deployment, order.endHex, "REARM_AEROSPACE")) {
+      reasons.push("Aerospace rearm requires a friendly rearm facility.");
+    }
+    if (!deployment.weapons.some((weapon) => weapon.ammoCapacity !== undefined)) {
+      reasons.push("This aerospace unit has no ammunition store to rearm.");
+    }
+  }
   const artillery = isArtilleryDeployment(deployment);
   const artilleryDeployed = artilleryState(deployment) === "DEPLOYED";
   if (artillery && artilleryDeployed && order.route.length > 1) {
@@ -215,7 +264,7 @@ export function validateOrder(
     ...order.incidentalActions,
   ]);
   if (!budget.legal) reasons.push(`Speed budget exceeded (${budget.spent}/${budget.available}).`);
-  for (const action of [...order.actions, ...order.incidentalActions]) {
+  for (const action of actions) {
     let definition;
     try {
       definition = getTacticalActionRule(action.type);
@@ -432,6 +481,18 @@ export function resolveRound(input: RoundInput): RoundOutput {
 
   for (const order of validOrders.values()) {
     const deployment = state.deployments.find((candidate) => candidate.id === order.unitId)!;
+    const takeOff = order.actions.find((action) => action.type === "TAKE_OFF");
+    if (!takeOff) continue;
+    deployment.statuses = deployment.statuses.filter((status) => status !== "LANDED");
+    event("AEROSPACE_TOOK_OFF", deployment.id, {
+      actionId: takeOff.id,
+      position: deployment.position,
+      speedCost: takeOff.speedCost,
+    }, deployment.side === "ENEMY" ? "ENEMY" : "ALLIED");
+  }
+
+  for (const order of validOrders.values()) {
+    const deployment = state.deployments.find((candidate) => candidate.id === order.unitId)!;
     deployment.facing = order.facing;
   }
   const movementOutcomes = resolveSimultaneousMovement(
@@ -505,11 +566,56 @@ export function resolveRound(input: RoundInput): RoundOutput {
     const supportActions = order.actions
       .filter((candidate) => candidate.type !== "ATTACK")
       .map((action, index) => ({ action, index }))
-      .sort((left, right) =>
-        (left.action.type === "DEPLOY" ? -1 : 0) - (right.action.type === "DEPLOY" ? -1 : 0) || left.index - right.index
-      )
+      .sort((left, right) => {
+        const priority = (type: StructuredAction["type"]) => type === "LAND" ? -2 : type === "DEPLOY" ? -1 : 0;
+        return priority(left.action.type) - priority(right.action.type) || left.index - right.index;
+      })
       .map(({ action }) => action);
     for (const action of supportActions) {
+      if (action.type === "TAKE_OFF") continue;
+      if (action.type === "LAND") {
+        if (!facilitySupports(state, actor, actor.position, "LAND")) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: ["Landing requires a friendly compatible airfield at the route endpoint."],
+          }, actorVisibility);
+          continue;
+        }
+        actor.statuses = [...new Set([...actor.statuses, "LANDED"])];
+        event("AEROSPACE_LANDED", actor.id, {
+          actionId: action.id,
+          position: actor.position,
+          speedCost: action.speedCost,
+        }, actorVisibility);
+      }
+      if (action.type === "REARM_AEROSPACE") {
+        if (!actor.statuses.includes("LANDED") || !facilitySupports(state, actor, actor.position, "REARM_AEROSPACE")) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: ["Aerospace rearm requires a landed unit at a friendly rearm facility."],
+          }, actorVisibility);
+          continue;
+        }
+        const ammunitionBefore = { ...actor.ammunition };
+        const ammunitionAfter = { ...actor.ammunition };
+        const weaponIds: string[] = [];
+        for (const weapon of actor.weapons) {
+          if (weapon.ammoCapacity === undefined) continue;
+          ammunitionAfter[weapon.id] = weapon.ammoCapacity;
+          weaponIds.push(weapon.id);
+        }
+        actor.ammunition = ammunitionAfter;
+        event("AEROSPACE_REARMED", actor.id, {
+          actionId: action.id,
+          weaponIds,
+          ammunitionBefore,
+          ammunitionAfter,
+          supplyCost: null,
+          rulesDecisionId: "RC-V5-023",
+        }, actorVisibility);
+      }
       if (action.type === "DIG_IN") {
         if (actor.statuses.includes("DUG_IN")) {
           event("ORDER_REJECTED", actor.id, {

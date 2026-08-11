@@ -88,9 +88,9 @@ interface CampaignDirectoryEntry {
 }
 const campaignCanOpen = (entry: CampaignDirectoryEntry): boolean => entry.canEnter || entry.outcome !== undefined;
 type Notice = { tone: "info" | "success" | "danger"; message: string };
-type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "ARTILLERY_DIG_IN" | "RELOAD" | "RESUPPLY" | "LOAD" | "UNLOAD" | "AIRDROP" | "HEAL" | "REPAIR" | "CREW_REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
+type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "ARTILLERY_DIG_IN" | "RELOAD" | "RESUPPLY" | "LOAD" | "UNLOAD" | "AIRDROP" | "LAND" | "TAKE_OFF" | "REARM_AEROSPACE" | "HEAL" | "REPAIR" | "CREW_REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
 type RepairKind = "HIT" | "SUBSYSTEM";
-const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "ARTILLERY_DIG_IN", "RELOAD", "RESUPPLY", "LOAD", "UNLOAD", "AIRDROP", "HEAL", "REPAIR", "CREW_REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
+const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "ARTILLERY_DIG_IN", "RELOAD", "RESUPPLY", "LOAD", "UNLOAD", "AIRDROP", "LAND", "TAKE_OFF", "REARM_AEROSPACE", "HEAL", "REPAIR", "CREW_REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
 const constructibleFieldworks = CONSTRUCTIBLE_FIELDWORK_IDS.map(getFieldworkDefinition);
 
 function initialCampaign(): CampaignView {
@@ -156,6 +156,9 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "BOMBARDMENT_RECOVERED") return `${event.actor ?? "Unit"} recovered one Defense from bombardment.`;
   if (event.type === "AIR_DROP_COMPLETED") return `${event.actor ?? "Heavy Air Transport"} dropped ${String(payload.cargoDeploymentId ?? "cargo")} at ${String((payload.targetHex as AxialCoord | undefined)?.q ?? "?")}.${String((payload.targetHex as AxialCoord | undefined)?.r ?? "?")}.`;
   if (event.type === "AIR_DROP_FAILED") return `${event.actor ?? "Heavy Air Transport"} retained its cargo: ${String(payload.reason ?? "drop conditions were unsafe")}.`;
+  if (event.type === "AEROSPACE_LANDED") return `${event.actor ?? "Aerospace unit"} landed at a friendly airfield.`;
+  if (event.type === "AEROSPACE_TOOK_OFF") return `${event.actor ?? "Aerospace unit"} took off and rejoined the battle.`;
+  if (event.type === "AEROSPACE_REARMED") return `${event.actor ?? "Aerospace unit"} rearmed at the airfield.`;
   if (event.type === "MEDICAL_SUPPLY_RELOADED") return `${event.actor ?? "Medic"} restored Medical Supply to ${String(payload.medicalSupplyAfter ?? "?")}.`;
   if (event.type === "UNIT_DESTROYED") return `${event.actor ?? "Unit"} was destroyed.`;
   if (event.type === "ROUND_FINISHED") return `Round ${event.round} resolved and archived.`;
@@ -372,6 +375,8 @@ function GameApp() {
   const mobilityDisabled = disabledSubsystems.some((subsystem) => subsystem.subsystemId.toUpperCase() === "MOBILITY");
   const artilleryDeployed = selectedUnit?.artilleryDeployment === "DEPLOYED" || selectedUnit?.statuses.includes("DEPLOYED") === true;
   const dugIn = selectedUnit?.statuses.includes("DUG_IN") === true;
+  const aerospaceLanded = selectedUnit?.statuses.includes("LANDED") === true;
+  const isAerospaceUnit = selectedUnit?.tags?.some((tag) => tag === "ATMO_FLIGHT" || tag === "VTOL") === true;
   const artilleryWeapon = selectedUnit?.weapons.find((weapon) => weapon.indirect) ?? selectedUnit?.weapons[0];
   const medicalSupplyCapacity = selectedUnit ? Math.max(0, Math.floor(selectedUnit.currentHealth)) : 0;
   const selectedCargoValidation = selectedUnit?.cargoProfile
@@ -383,7 +388,10 @@ function GameApp() {
     (type !== "DEPLOY" || !artilleryDeployed) &&
     (type !== "PACK_UP" || artilleryDeployed) &&
     (type !== "BOMBARDMENT" || artilleryDeployed) &&
-    (type !== "DIG_IN" || !dugIn),
+    (type !== "DIG_IN" || !dugIn) &&
+    (type !== "LAND" || !aerospaceLanded) &&
+    (type !== "TAKE_OFF" || aerospaceLanded) &&
+    (type !== "REARM_AEROSPACE" || aerospaceLanded),
   );
   const targetUnit = campaign.deployments.find((deployment) => deployment.id === targetUnitId);
   const targetIsHorde = targetUnit?.tags?.includes("HORDE") === true;
@@ -563,6 +571,25 @@ function GameApp() {
     constructionTargetHex && coordinatesEqual(hex.coord, constructionTargetHex)
   )?.coord ?? constructionHexes[0]?.coord;
   const plannedEndHex = draftedRoute.at(-1) ?? selectedUnit?.position;
+  const plannedFacilityHex = plannedEndHex
+    ? campaign.map.find((hex) => coordinatesEqual(hex.coord, plannedEndHex))
+    : undefined;
+  const plannedFacilityFriendly = Boolean(selectedUnit && plannedFacilityHex && (
+    plannedFacilityHex.control === selectedUnit.side || (
+      plannedFacilityHex.objectiveId !== undefined &&
+      campaign.objectives.find((objective) => objective.id === plannedFacilityHex.objectiveId)?.owner === selectedUnit.side
+    )
+  ));
+  const landingCapability = selectedUnit?.tags?.includes("VTOL") ? "LAND_VTOL" : "LAND_AEROSPACE";
+  const canLandAtPlannedEnd = Boolean(
+    plannedFacilityFriendly && plannedFacilityHex?.environment.includes(landingCapability),
+  );
+  const canRearmAtPlannedEnd = Boolean(
+    plannedFacilityFriendly && plannedFacilityHex?.environment.includes("REARM_AEROSPACE"),
+  );
+  const aerospaceNeedsRearm = selectedUnit?.weapons.some((weapon) =>
+    weapon.ammoCapacity !== undefined && (selectedUnit.ammunition[weapon.id] ?? 0) < weapon.ammoCapacity
+  ) === true;
   const sandbagAtPlannedEnd = Boolean(plannedEndHex && campaign.map.find((hex) =>
     coordinatesEqual(hex.coord, plannedEndHex)
   )?.structureIds.some((id) => id === "structure-sandbag-line" || id.startsWith("structure-sandbag-line:")));
@@ -638,6 +665,11 @@ function GameApp() {
     (actionMode === "BOMBARDMENT" && Boolean(
       isArtilleryUnit && artilleryDeployed && selectedBombardmentHex && (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0,
     )) ||
+    (actionMode === "LAND" && Boolean(isAerospaceUnit && !aerospaceLanded && canLandAtPlannedEnd)) ||
+    (actionMode === "TAKE_OFF" && Boolean(isAerospaceUnit && aerospaceLanded)) ||
+    (actionMode === "REARM_AEROSPACE" && Boolean(
+      isAerospaceUnit && aerospaceLanded && canRearmAtPlannedEnd && aerospaceNeedsRearm,
+    )) ||
     ((actionMode === "LOAD" || actionMode === "UNLOAD" || actionMode === "AIRDROP") && Boolean(supportTarget));
   const canSubmit = Boolean(
     selectedUnit &&
@@ -646,6 +678,7 @@ function GameApp() {
       !routeOverBudget &&
       !evasiveRouteIncomplete &&
       !(mobilityDisabled && draftedRoute.length > 1) &&
+      !(aerospaceLanded && draftedRoute.length > 1 && actionMode !== "TAKE_OFF") &&
       !deployedArtilleryMoving &&
       !locked &&
       actionReady,
@@ -686,6 +719,12 @@ function GameApp() {
             ? "pack and hitch the artillery platform"
           : actionMode === "BOMBARDMENT" && selectedBombardmentHex
             ? `bombard hex ${selectedBombardmentHex.q}.${selectedBombardmentHex.r}`
+          : actionMode === "LAND"
+            ? `land at the friendly airfield on hex ${plannedEndHex?.q}.${plannedEndHex?.r}`
+          : actionMode === "TAKE_OFF"
+            ? "take off before following the plotted flight path"
+          : actionMode === "REARM_AEROSPACE"
+            ? "rearm all aerospace weapon stores"
           : undefined;
 
   useEffect(() => {
@@ -853,6 +892,8 @@ function GameApp() {
       actions.push({ type: actionMode, equipmentIds: [] });
     } else if (actionMode === "BOMBARDMENT" && selectedBombardmentHex) {
       actions.push({ type: "BOMBARDMENT", targetHex: selectedBombardmentHex, equipmentIds: [] });
+    } else if (actionMode === "LAND" || actionMode === "TAKE_OFF" || actionMode === "REARM_AEROSPACE") {
+      actions.push({ type: actionMode, equipmentIds: [] });
     }
     setBusy(true);
     try {
@@ -1622,6 +1663,20 @@ function GameApp() {
                     </p>
                     <p className="validation">PRIMARY ACTION · Radius 1 · hostile Defense −1 per active stack · requires a friendly spotter.</p>
                     {bombardmentHexes.length === 0 && <p className="validation danger">No known hex is within Artillery range.</p>}
+                  </>
+                ) : actionMode === "LAND" || actionMode === "TAKE_OFF" || actionMode === "REARM_AEROSPACE" ? (
+                  <>
+                    <p className="validation">
+                      {actionMode === "LAND"
+                        ? "STANDARD ACTION · 0.5 SPEED · finish at a friendly compatible airfield."
+                        : actionMode === "TAKE_OFF"
+                          ? "STANDARD ACTION · 0.5 SPEED · take off before following the plotted flight path."
+                          : "PRIMARY ACTION · restore every authored aerospace ammunition store at a friendly rearm facility."}
+                    </p>
+                    <p className="validation">FLIGHT STATE: {aerospaceLanded ? "LANDED" : "AIRBORNE"} · END HEX: {plannedEndHex?.q}.{plannedEndHex?.r}</p>
+                    {actionMode === "LAND" && !canLandAtPlannedEnd && <p className="validation danger">The plotted endpoint is not a friendly compatible airfield.</p>}
+                    {actionMode === "REARM_AEROSPACE" && !canRearmAtPlannedEnd && <p className="validation danger">This hex cannot rearm aerospace units.</p>}
+                    {actionMode === "REARM_AEROSPACE" && !aerospaceNeedsRearm && <p className="validation danger">All fitted aerospace weapons are already fully armed.</p>}
                   </>
                 ) : actionMode === "LOAD" || actionMode === "UNLOAD" || actionMode === "AIRDROP" ? (
                   <>

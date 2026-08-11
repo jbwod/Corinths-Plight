@@ -62,6 +62,9 @@ const MAX_ROUTE_LENGTH = 128;
 const EFFECT_RETRY_DELAY_MS = 5_000;
 const allowedActionTypes = new Set([
   "AIRDROP",
+  "LAND",
+  "TAKE_OFF",
+  "REARM_AEROSPACE",
   "ATTACK",
   "ASSAULT",
   "DIG_IN",
@@ -313,12 +316,6 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (!execution.ok) throw new Error(`CAMPAIGN_UNIT_DEFINITION_NOT_EXECUTABLE:${row.definition_id}:${execution.code}`);
       const position = snapshot.position as { q?: unknown; r?: unknown } | undefined;
       const stats = snapshot.stats as CampaignDeployment["stats"] | undefined;
-      const snapshotActions = Array.isArray(snapshot.allowedActions)
-        ? snapshot.allowedActions.filter((action): action is string => typeof action === "string")
-        : execution.allowedActionTypes;
-      const snapshotOrders = Array.isArray(snapshot.allowedOrders)
-        ? snapshot.allowedOrders.filter((order): order is string => typeof order === "string")
-        : execution.allowedOrderTypes;
       return {
         id: row.id,
         campaignId: campaign.id,
@@ -352,8 +349,8 @@ export class CampaignDurableObject extends DurableObject<Env> {
           ? snapshot.bombardmentSuppression as CampaignDeployment["bombardmentSuppression"]
           : undefined,
         equipmentIds: Array.isArray(snapshot.equipmentInstanceIds) ? snapshot.equipmentInstanceIds.filter((id): id is string => typeof id === "string") : [],
-        allowedActions: snapshotActions.filter((action) => execution.allowedActionTypes.includes(action)) as CampaignDeployment["allowedActions"],
-        allowedOrders: snapshotOrders.filter((order) => execution.allowedOrderTypes.includes(order)) as CampaignDeployment["allowedOrders"],
+        allowedActions: [...execution.allowedActionTypes] as CampaignDeployment["allowedActions"],
+        allowedOrders: [...execution.allowedOrderTypes] as CampaignDeployment["allowedOrders"],
         abilities: Array.isArray(snapshot.abilities) ? snapshot.abilities as CampaignDeployment["abilities"] : [],
         subsystems: Array.isArray(snapshot.subsystems)
           ? snapshot.subsystems as CampaignDeployment["subsystems"]
@@ -1035,6 +1032,52 @@ export class CampaignDurableObject extends DurableObject<Env> {
     const artillery = execution.legacyDefinition.tags.includes("ARTILLERY");
     const artilleryDeployed = deployment.artilleryDeployment === "DEPLOYED" || deployment.statuses.includes("DEPLOYED");
     const platformActions = actions.filter((action) => action.type === "DEPLOY" || action.type === "PACK_UP");
+    const takeOffActions = actions.filter((action) => action.type === "TAKE_OFF");
+    const landActions = actions.filter((action) => action.type === "LAND");
+    const rearmActions = actions.filter((action) => action.type === "REARM_AEROSPACE");
+    const landed = deployment.statuses.includes("LANDED");
+    const aerospaceTags = execution.legacyDefinition.tags;
+    const aerospace = aerospaceTags.includes("ATMO_FLIGHT") || aerospaceTags.includes("VTOL");
+    const endpointHex = state.map.find((hex) =>
+      hex.coord.q === route.at(-1)!.q && hex.coord.r === route.at(-1)!.r
+    );
+    const endpointFriendly = endpointHex?.control === deployment.side || (
+      endpointHex?.objectiveId !== undefined &&
+      state.objectives.find((objective) => objective.id === endpointHex.objectiveId)?.owner === deployment.side
+    );
+    const landingCapability = aerospaceTags.includes("VTOL") ? "LAND_VTOL" : "LAND_AEROSPACE";
+    if (takeOffActions.length > 1 || landActions.length > 1 || rearmActions.length > 1) {
+      return errorResponse(422, "AEROSPACE_ACTION_LIMIT", "Each aerospace state action may be declared once per round.");
+    }
+    if ((takeOffActions.length > 0 || landActions.length > 0 || rearmActions.length > 0) && !aerospace) {
+      return errorResponse(422, "AEROSPACE_ACTION_INELIGIBLE", "Landing, takeoff, and rearm require an aerospace unit.");
+    }
+    if (takeOffActions.length > 0 && landActions.length > 0) {
+      return errorResponse(422, "AEROSPACE_STATE_CONFLICT", "An aerospace unit cannot land and take off in the same round.");
+    }
+    if (takeOffActions.length > 0 && !landed) {
+      return errorResponse(422, "AEROSPACE_NOT_LANDED", "Only a landed aerospace unit can Take Off.");
+    }
+    if (landed && route.length > 1 && takeOffActions.length === 0) {
+      return errorResponse(422, "AEROSPACE_LANDED", "A landed aerospace unit must Take Off before moving.");
+    }
+    if (landActions.length > 0 && landed) {
+      return errorResponse(409, "AEROSPACE_ALREADY_LANDED", "This aerospace unit is already landed.");
+    }
+    if (landActions.length > 0 && (!endpointFriendly || !endpointHex?.environment.includes(landingCapability))) {
+      return errorResponse(422, "AEROSPACE_LANDING_FACILITY_REQUIRED", "Landing requires a friendly compatible airfield at the route endpoint.");
+    }
+    if (rearmActions.length > 0) {
+      if (!landed && landActions.length === 0) {
+        return errorResponse(422, "AEROSPACE_REARM_REQUIRES_LANDED", "Aerospace rearm requires the unit to be landed.");
+      }
+      if (!endpointFriendly || !endpointHex?.environment.includes("REARM_AEROSPACE")) {
+        return errorResponse(422, "AEROSPACE_REARM_FACILITY_REQUIRED", "Aerospace rearm requires a friendly rearm facility.");
+      }
+      if (!deployment.weapons.some((weapon) => weapon.ammoCapacity !== undefined)) {
+        return errorResponse(422, "AEROSPACE_REARM_UNAVAILABLE", "This aerospace unit has no ammunition store to rearm.");
+      }
+    }
     const digInActions = actions.filter((action) => action.type === "DIG_IN");
     if (digInActions.length > 1) {
       return errorResponse(422, "DIG_IN_LIMIT", "A unit may Dig In once per round.");

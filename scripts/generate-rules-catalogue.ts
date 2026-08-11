@@ -460,13 +460,13 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     capacity: 1,
     tags: ["AEROSPACE", "ATMO_FLIGHT", "VEHICLE", "BOMBER", "FLY_OVER", "CANNOT_SPOT_GROUND"],
     allowedOrders: ["HOLD", "ADVANCE"],
-    allowedActions: ["ATTACK"],
+    allowedActions: ["ATTACK", "LAND", "TAKE_OFF", "REARM_AEROSPACE"],
   },
   "unit-aerospace-fighter": {
     capacity: 1,
     tags: ["AEROSPACE", "ATMO_FLIGHT", "VEHICLE", "RAPID_FIRE", "EVASIVE", "LIMITED_FORWARD_ARC", "CANNOT_SPOT_GROUND"],
     allowedOrders: ["HOLD", "ADVANCE", "EVASIVE"],
-    allowedActions: ["ATTACK"],
+    allowedActions: ["ATTACK", "LAND", "TAKE_OFF", "REARM_AEROSPACE"],
   },
   "unit-artillery": {
     capacity: 1,
@@ -490,7 +490,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     capacity: 1,
     tags: ["AEROSPACE", "ATMO_FLIGHT", "VEHICLE", "TRANSPORT", "LOGISTICS", "AIRDROP", "CANNOT_SPOT_GROUND"],
     allowedOrders: ["HOLD", "ADVANCE"],
-    allowedActions: ["LOAD", "AIRDROP"],
+    allowedActions: ["LOAD", "AIRDROP", "LAND", "TAKE_OFF"],
   },
   "unit-infantry-squad": {
     capacity: 1,
@@ -532,7 +532,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     capacity: 1,
     tags: ["AEROSPACE", "VTOL", "VEHICLE", "ARMOURED", "TRANSPORT", "CANNOT_SPOT_GROUND"],
     allowedOrders: ["HOLD", "ADVANCE"],
-    allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+    allowedActions: ["ATTACK", "LOAD", "UNLOAD", "LAND", "TAKE_OFF"],
   },
 };
 
@@ -838,10 +838,13 @@ const foundationActionIds = [
   "action-first-aid",
   "action-trench-upgrade",
   "action-load-cargo",
+  "action-land",
   "action-pack-platform",
   "action-repair",
   "action-transfer-supply",
   "action-reload",
+  "action-rearm-aerospace",
+  "action-take-off",
   "action-unload-cargo",
 ] as const;
 
@@ -850,28 +853,28 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["HITS", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "FIVE_SLOT_CARGO", "CLEAR_ROUTE_AIRDROP", "NO_GROUND_SPOTTING"],
-      missing: ["LAND_TAKEOFF_STATE", "HAZARDOUS_DROP_RESULTS", "COORDINATED_SUPPLY_DROP"],
+      implementedSubset: ["HITS", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "FIVE_SLOT_CARGO", "CLEAR_ROUTE_AIRDROP", "LAND_TAKEOFF_STATE", "NO_GROUND_SPOTTING"],
+      missing: ["HAZARDOUS_DROP_RESULTS", "COORDINATED_SUPPLY_DROP"],
     },
-    explanation: "The V5 Heavy Air Transport executes its chassis, five-slot conversion table, terrain-independent flight, loading, and no-cost clear route-bound Infantry/Light Vehicle airdrop. Hazardous outcomes, landing, and coordinated Supply drops remain gated.",
+    explanation: "The V5 Heavy Air Transport executes its chassis, five-slot conversion table, terrain-independent flight, loading, friendly-airfield landing state, and no-cost clear route-bound Infantry/Light Vehicle airdrop. Hazardous outcomes and coordinated Supply drops remain gated.",
   },
   "UNIT:unit-aerospace-bomber": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["HITS", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "FLY_OVER_TARGETING", "ORDNANCE_AMMO_ONE", "NO_GROUND_SPOTTING"],
-      missing: ["LAND_TAKEOFF_STATE", "REARM_FACILITY"],
+      implementedSubset: ["HITS", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "FLY_OVER_TARGETING", "ORDNANCE_AMMO_ONE", "LAND_TAKEOFF_STATE", "REARM_FACILITY", "NO_GROUND_SPOTTING"],
+      missing: [],
     },
-    explanation: "The V5 Bomber sortie executes its chassis, one-shot D6 ordnance, terrain-independent flight, route-bound fly-over attack and no-ground-spotting rule. Landing and rearm remain gated.",
+    explanation: "The V5 Bomber sortie executes its chassis, one-shot D6 ordnance, terrain-independent flight, route-bound fly-over attack, friendly-airfield landing/takeoff, Primary rearm, and no-ground-spotting rule.",
   },
   "UNIT:unit-aerospace-fighter": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["HITS", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "RAPID_FIRE", "EVASIVE", "FORWARD_180_ARC", "MAIN_AMMO_ONE", "NO_GROUND_SPOTTING"],
-      missing: ["LAND_TAKEOFF_STATE", "REARM_FACILITY", "INTERCEPTOR"],
+      implementedSubset: ["HITS", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "RAPID_FIRE", "EVASIVE", "FORWARD_180_ARC", "MAIN_AMMO_ONE", "LAND_TAKEOFF_STATE", "REARM_FACILITY", "NO_GROUND_SPOTTING"],
+      missing: ["INTERCEPTOR"],
     },
-    explanation: "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc and no-ground-spotting rule. Landing/rearm and Interceptor remain gated.",
+    explanation: "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc, friendly-airfield landing/takeoff, Primary rearm, and no-ground-spotting rule. Interceptor remains gated.",
   },
   "UNIT:unit-artillery": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
@@ -949,8 +952,8 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["HITS", "ARMOUR", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "NO_GROUND_SPOTTING", "ALTERNATIVE_CARGO"],
-      missing: ["LAND_TAKEOFF_STATE", "HAT_AIRDROP"],
+      implementedSubset: ["HITS", "ARMOUR", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "LAND_TAKEOFF_STATE", "NO_GROUND_SPOTTING", "ALTERNATIVE_CARGO"],
+      missing: ["HAT_AIRDROP"],
     },
     explanation: "The generic V5 VTOL executes its chassis, nose gun, terrain-independent flight, hostile-ground passage, no-ground-spotting rule, and mutually exclusive infantry/Supply cargo; HAT and fixed-wing mechanics remain separate.",
   },
