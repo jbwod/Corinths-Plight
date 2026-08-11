@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CampaignEvent, CampaignView, ResolutionRecord } from "../../packages/domain/src";
 import { Glyph } from "./Glyph";
+import { CampaignReplay } from "./CampaignReplay";
+import type { CampaignReplayStartingState } from "../campaign/replay";
 import {
   CAMPAIGN_REPORT_GROUPS,
   campaignReportGroup,
@@ -11,6 +13,7 @@ import {
 interface CampaignReportResponse {
   resolution: Omit<ResolutionRecord, "seed">;
   events: CampaignEvent[];
+  startingState: CampaignReplayStartingState;
 }
 
 interface CampaignReportIndexResponse {
@@ -122,6 +125,7 @@ export function CampaignReports({
         report: {
           resolution: next.resolution,
           events: [...next.events].sort((left, right) => left.sequence - right.sequence),
+          startingState: next.startingState,
         },
       }))
       .catch((reason: unknown) => {
@@ -230,6 +234,8 @@ export function CampaignReports({
                 <div><small>OBJECTIVES</small><strong>{metrics.objectiveChanges}</strong><span>CONTROL CHANGES</span></div>
                 <div><small>EVENT LOG</small><strong>{report.events.length}</strong><span>ROUND {report.resolution.round}</span></div>
               </section>
+
+              <CampaignReplay startingState={report.startingState} events={report.events} names={names} />
 
               <section className="report-objectives panel">
                 <header><span className="eyebrow">MISSION STATE</span><strong>OBJECTIVE CONTROL</strong></header>

@@ -2135,13 +2135,26 @@ export class CampaignDurableObject extends DurableObject<Env> {
     const record = await this.ctx.storage.get<ResolutionRecord>(`resolution/${round}`);
     if (!record) return errorResponse(404, "REPORT_NOT_FOUND", "No resolved report exists for this round.");
     const storedEvents = await this.ctx.storage.list<CampaignEvent>({ prefix: `event/${round}/` });
-    const state = await this.getState();
+    const storedSnapshot = await this.ctx.storage.get<unknown>(`snapshot/${round}`);
+    if (storedSnapshot === undefined) {
+      return errorResponse(409, "REPORT_SNAPSHOT_UNAVAILABLE", "The round battlefield snapshot is unavailable for replay.");
+    }
+    const snapshot = parseCampaignStoredState(storedSnapshot, this.campaignId()).state;
     const projected = projectCampaignState(
-      { ...state, events: [...storedEvents.values()] },
+      { ...snapshot, events: [...storedEvents.values()] },
       viewer,
-      Date.now(),
+      record.startedAt,
     );
-    return json({ resolution: this.publicResolution(record), events: projected.events });
+    return json({
+      resolution: this.publicResolution(record),
+      events: projected.events,
+      startingState: {
+        round: projected.round,
+        map: projected.map,
+        deployments: projected.deployments,
+        objectives: projected.objectives,
+      },
+    });
   }
 
   private async handleReportIndex(request: Request): Promise<Response> {

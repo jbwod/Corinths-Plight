@@ -1013,6 +1013,14 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(rewards.getByText("RECORDED", { exact: true })).toBeVisible();
   await expect(rewards.getByText("BALANCE REQUIRED", { exact: true })).toBeVisible();
   await expect(rewards).toContainText("RC-V5-016");
+  const replay = page.getByRole("region", { name: "Round 4 event playback" });
+  await expect(replay).toBeVisible();
+  await expect(replay.getByRole("img", { name: "Round 4 tactical reconstruction" })).toBeVisible();
+  await replay.getByRole("button", { name: "Restart playback" }).click();
+  await expect(replay).toContainText("ROUND LOCKED");
+  await replay.getByRole("button", { name: "Next event" }).click();
+  await expect(replay).not.toContainText("EVENT 0 /");
+  await expect(replay.getByLabel("Units at current playback step")).toContainText("ANVIL");
   const warEffects = page.getByRole("region", { name: "Strategic war effects" });
   await expect(warEffects.getByText("ACKNOWLEDGED WAR EFFECTS", { exact: true })).toBeVisible();
   await expect(warEffects).toContainText("No additional node, route, or follow-on operation change was authored for this result.");

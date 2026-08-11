@@ -742,6 +742,18 @@ describe("CampaignDurableObject campaign contracts", () => {
         terminal: { result: "VICTORY", round: 21 },
       }],
     });
+    const reportDetail = await campaign.fetch(request("/reports/21"));
+    expect(reportDetail.status).toBe(200);
+    expect(await reportDetail.json()).toMatchObject({
+      resolution: { round: 21 },
+      startingState: {
+        round: 21,
+        map: expect.any(Array),
+        deployments: expect.any(Array),
+        objectives: expect.any(Array),
+      },
+      events: expect.arrayContaining([expect.objectContaining({ type: "CAMPAIGN_COMPLETED" })]),
+    });
 
     const pause = await campaign.fetch(request("/pause", { method: "POST" }));
     expect(pause.status).toBe(409);

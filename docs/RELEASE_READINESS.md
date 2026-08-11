@@ -37,14 +37,14 @@ This is the live release checklist. A checked local build item is not permission
 | `npm run seed:check` | macOS local, Node project toolchain | PASS | 42 definitions; 37 active; 100 SQL definitions; 16 allied classes; 7 enemy roles; 4 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
 | `npm run typecheck` | local | PASS | TypeScript 6.0.3. |
 | `npm run lint` | local | PASS | ESLint 10.8.1. |
-| `npm test` | local | PASS | Vitest 4.1.10; 59 files / 477 tests. |
+| `npm test` | local | PASS | Vitest 4.1.10; 60 files / 479 tests. |
 | `npm run build` | local development config | PASS | Worker 1,254.61 kB; client JS 777.40 kB; CSS 136.50 kB; Wrangler emitted only its known sandboxed debug-log warning. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
 | Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0010 applied. |
 | Seven seeds, twice | same isolated D1 | PASS | Core, Phase 2, equipment, onboarding and three development fixtures replayed twice. |
 | SQLite integrity | isolated D1 database | PASS | `integrity_check=ok`; `foreign_key_check` empty. |
 | `npm run ci:verify:d1` | isolated local D1 | PASS | Ten migrations; seven seeds twice; stable table fingerprints/counts; 117 checked application tables. |
-| `CI=1 npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 10/10 canaries pass, including strategic Disembark, authoritative Task Force Large-Supply consumption, resolved operation deployment into a committed tactical campaign, live K-17 support/combat/victory resolution, the Heavy Air Transport manifested-drop composer, generated Logi/Artillery cargo controls, and 390px overflow coverage. |
+| `CI=1 npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 10/10 canaries pass, including strategic Disembark, authoritative Task Force Large-Supply consumption, resolved operation deployment into a committed tactical campaign, live K-17 support/combat/victory resolution and interactive report reconstruction, the Heavy Air Transport manifested-drop composer, generated Logi/Artillery cargo controls, and 390px overflow coverage. |
 | `git diff --check` | local Phase-1 tree | PASS | No whitespace errors at final gate. |
 | `npm audit --audit-level=high` | npm advisory service | PASS | Zero known vulnerabilities at assessment time; the result is time-sensitive. |
 
@@ -162,7 +162,7 @@ No external state was changed during this Phase-0 assessment.
 | Submit/edit/cancel/schedule tactical orders | partial | Current-round generated order/action composer and cancel path exist; future scheduling remains intentionally unavailable pending its reliable semantics. |
 | Resolve deterministic PvE combined arms | narrow partial | CP-500–CP-507 |
 | Persist effects before next round | narrow pass | Supported tactical effects hold `EFFECTS_PENDING` and acknowledge before one next round; broaden under CP-402. |
-| Audience-safe reconnect/report/replay | partial/fail | Projected submitted Allied orders now drive command readiness and a distinct visual intent layer while Allied drafts remain owner-only. Round-scoped shared tactical markers are side-filtered, restricted to known hexes, persisted by the Campaign coordinator and refreshed through socket invalidation. A local report-detail UI consumes projected round events, but event-time redaction, playback/export and broader multi-account evidence remain CP-403/CP-700–CP-701. |
+| Audience-safe reconnect/report/replay | partial/fail | Projected submitted Allied orders drive readiness and a visual intent layer while drafts remain owner-only. Shared tactical markers are side-filtered and known-hex restricted. Report detail now consumes the audience-projected locked battlefield snapshot and archived events to provide interactive map reconstruction plus a synchronized accessible ledger. Event payload visibility is conservatively based on the locked snapshot; per-event knowledge evolution, declassification/export and broader multi-account evidence remain CP-403/CP-700–CP-701. |
 | Apply tactical result to living war | partial/playable local | Authored victories atomically change strategic nodes/routes/follow-on operations, and the terminal report names the acknowledged effects before returning to Galactic Operations. General result ingestion and production content remain CP-600–CP-603. |
 | Withdraw/re-embark/redeploy | partial/playable local | Survivors return to reserve with exact state, their Battlegroup enters recovery, and the live strategic UI can re-embark it. Repair/resupply and production evidence remain CP-603. |
 
@@ -175,7 +175,7 @@ No external state was changed during this Phase-0 assessment.
 | Forces/loadout | prior visual inspection only | unknown | prior visual inspection only | unverified | unverified | missing |
 | Battalion/ship/strategic reads | prior visual inspection only | unknown | prior visual inspection only | partial | unverified | missing |
 | Tactical map/order | Playwright live-read/forged-field canary | unknown | Playwright overflow canary | **core route/target unavailable** | **no equivalent workflow** | missing |
-| Reports/replay | local component; browser proof pending | unknown | responsive CSS; browser proof pending | semantic round/detail controls | screen-reader audit missing | missing |
+| Reports/replay | local interactive reconstruction proven in the four-round browser journey | unknown | responsive map/ledger controls; mobile overflow passes | semantic round/detail/playback controls and synchronized formation ledger | screen-reader audit missing | partial |
 
 Release target is WCAG 2.2 AA. The tactical map requires a semantic grid/list that can inspect/select units/hexes, compose a route, choose a target and review fog-safe information without the canvas.
 
