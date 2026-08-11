@@ -39,6 +39,7 @@ export interface AttackCalculation {
   highGroundModifier: 0 | 1;
   evasiveAttackModifier: 0 | -2;
   evasiveDefenseModifier: 0 | 3;
+  crewRepairArmorExposed: boolean;
   ammoAfter?: number;
   cooldownAfter?: number;
 }
@@ -121,7 +122,7 @@ export function resolveAttackRoll(
   hexes: BattlefieldHex[],
   random: SeededRandom,
   spotters: CampaignDeployment[] = [],
-  modifiers: { attackerEvasive?: boolean; targetEvasive?: boolean } = {},
+  modifiers: { attackerEvasive?: boolean; targetEvasive?: boolean; targetCrewRepairing?: boolean } = {},
 ): AttackCalculation {
   const targetCheck = canTarget(attacker, target, weapon, hexes, spotters);
   const rearGeometry = isRearAttack(attacker.position, target.position, target.facing);
@@ -135,7 +136,8 @@ export function resolveAttackRoll(
   const groundVehicleRear = rearGeometry && groundTarget && targetTags.has("VEHICLE");
   const groundInfantryRear = rearGeometry && groundTarget && (targetTags.has("INFANTRY") || targetTags.has("PERSONNEL"));
   const rearAttack = groundVehicleRear || groundInfantryRear;
-  const targetArmor = target.stats.armor;
+  const crewRepairArmorExposed = modifiers.targetCrewRepairing === true;
+  const targetArmor = crewRepairArmorExposed ? 0 : target.stats.armor;
   const cover = resolveTacticalCover(attacker, target, hexes);
   const effectiveArmor = groundVehicleRear ? 0 : Math.max(0, targetArmor + cover.armor - weapon.armorPiercing);
   const digInDefense: 0 | 2 = groundTarget && !groundInfantryRear && (targetTags.has("INFANTRY") || targetTags.has("PERSONNEL")) && target.statuses.includes("DUG_IN") ? 2 : 0;
@@ -163,6 +165,7 @@ export function resolveAttackRoll(
       highGroundModifier,
       evasiveAttackModifier,
       evasiveDefenseModifier,
+      crewRepairArmorExposed,
     };
   }
 
@@ -199,6 +202,7 @@ export function resolveAttackRoll(
     highGroundModifier,
     evasiveAttackModifier,
     evasiveDefenseModifier,
+    crewRepairArmorExposed,
     ammoAfter:
       weapon.ammoCapacity === undefined
         ? undefined

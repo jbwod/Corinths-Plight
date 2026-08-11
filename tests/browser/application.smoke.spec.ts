@@ -541,6 +541,13 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
   const composer = page.locator(".right-panel");
 
+  await page.locator(".unit-roster").getByRole("button", { name: /BELLATR/ }).click();
+  await expect(composer.getByRole("button", { name: "CREW REPAIR", exact: true })).toBeVisible();
+  await composer.getByRole("button", { name: "CREW REPAIR", exact: true }).click();
+  await expect(composer.getByText(/full stationary round/)).toBeVisible();
+  await expect(composer.getByText(/receives no Armor benefit/)).toBeVisible();
+  await expect(composer.getByLabel("DAMAGED SUBSYSTEM")).toContainText("MOBILITY");
+
   await page.locator(".unit-roster").getByRole("button", { name: /DOC-7/ }).click();
   await expect(composer.getByRole("button", { name: "LOAD", exact: true })).toBeVisible();
   await expect(composer.getByRole("button", { name: "UNLOAD", exact: true })).toBeVisible();

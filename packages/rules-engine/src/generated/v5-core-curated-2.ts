@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "64cd365531f3556ee05f8797362da47ad5564b8dde1507feae4a1d7364bda8a1",
+  "contentHash": "d9c21c634518c181c2219ea4ca60bbac5360e81d2843142aa3110bb48c6919c7",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1588,6 +1588,7 @@ const snapshot = {
           "execution": {
             "allowedActions": [
               "ATTACK",
+              "CREW_REPAIR",
               "LOAD",
               "UNLOAD"
             ],
@@ -2054,7 +2055,8 @@ const snapshot = {
           },
           "execution": {
             "allowedActions": [
-              "ATTACK"
+              "ATTACK",
+              "CREW_REPAIR"
             ],
             "allowedOrders": [
               "HOLD",
@@ -7734,6 +7736,7 @@ const snapshot = {
             "action-artillery-dig-in",
             "action-bombardment",
             "action-construct",
+            "action-crew-repair",
             "action-deploy-platform",
             "action-dig-in",
             "action-first-aid",
@@ -7839,6 +7842,22 @@ const snapshot = {
       {
         "definitionKind": "ACTION",
         "definitionId": "action-construct",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-crew-repair",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
         "availabilityStatus": "AVAILABLE",
@@ -8738,13 +8757,12 @@ const snapshot = {
             "ATTACK",
             "MOVEMENT",
             "SUBSYSTEMS",
-            "INFANTRY_CARGO"
-          ],
-          "missing": [
+            "INFANTRY_CARGO",
             "CREW_REPAIR"
           ],
+          "missing": [],
           "publicationCorrection": {
-            "reason": "The generated tactical handler executes the V5 IFV chassis, Snub Auto-Cannon, subsystem failures, and six-FS infantry compartment; full-round Crew Repair remains gated.",
+            "reason": "The generated tactical handler executes the V5 IFV chassis, Snub Auto-Cannon, subsystem failures, six-FS infantry compartment, and stationary Armor-exposed Crew Repair.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": true,
@@ -8953,13 +8971,12 @@ const snapshot = {
             "AP",
             "FACING",
             "REAR_ATTACK",
-            "SUBSYSTEMS"
-          ],
-          "missing": [
+            "SUBSYSTEMS",
             "CREW_REPAIR"
           ],
+          "missing": [],
           "publicationCorrection": {
-            "reason": "The V5 natural-5/6 subsystem malfunction rule now persists and gates later weapon and mobility use.",
+            "reason": "The V5 natural-5/6 subsystem malfunction rule persists and gates later use; stationary crews can repair one subsystem while forfeiting Armor for the round.",
             "seedOverlay": {
               "availabilityStatus": "DEV_ONLY",
               "executable": true,
@@ -14356,5 +14373,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "64cd365531f3556ee05f8797362da47ad5564b8dde1507feae4a1d7364bda8a1" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "d9c21c634518c181c2219ea4ca60bbac5360e81d2843142aa3110bb48c6919c7" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

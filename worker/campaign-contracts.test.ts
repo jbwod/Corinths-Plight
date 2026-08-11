@@ -234,6 +234,14 @@ describe("campaign order request contracts", () => {
       unitId: "unit-1", orderType: "HOLD", facing: 0,
       actions: [{ type: "REPAIR", targetDeploymentId: "unit-2", payload: { repairKind: "HIT", amount: 99 } }],
     }],
+    ["Crew Repair without a subsystem", {
+      unitId: "unit-1", orderType: "HOLD", facing: 0,
+      actions: [{ type: "CREW_REPAIR", payload: {} }],
+    }],
+    ["client-authored Crew Repair target", {
+      unitId: "unit-1", orderType: "HOLD", facing: 0,
+      actions: [{ type: "CREW_REPAIR", targetDeploymentId: "unit-2", payload: { subsystemId: "MOBILITY" } }],
+    }],
     ["invalid facing", { unitId: "unit-1", orderType: "HOLD", facing: 6 }],
     ["invalid round", { unitId: "unit-1", round: 0, orderType: "HOLD", facing: 0 }],
     ["fractional coordinate", { unitId: "unit-1", orderType: "ADVANCE", facing: 0, route: [{ q: 0.5, r: 1 }] }],

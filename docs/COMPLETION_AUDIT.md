@@ -27,10 +27,10 @@ The audit began with only two unrelated untracked user paths, which were preserv
 
 | Check | Result | Evidence |
 |---|---|---|
-| Seed/content validator | Pass | `npm run seed:check`: 41 definitions, 36 active, 100 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 4 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
+| Seed/content validator | Pass | `npm run seed:check`: 42 definitions, 37 active, 100 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 4 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
 | TypeScript | Pass | `npm run typecheck`. |
 | ESLint | Pass | `npm run lint`. |
-| Unit/contract tests | Pass | `npm test`: 59 files, 454 tests, Vitest 4.1.10. |
+| Unit/contract tests | Pass | `npm test`: 59 files, 458 tests, Vitest 4.1.10. |
 | Worker/client build | Pass | `npm run build`; Worker 1,254.61 kB, client JS 777.40 kB, CSS 136.50 kB. Wrangler's sandboxed debug-log write warns but the build exits successfully. |
 | Production-mode build | Pass | `WRANGLER_WRITE_LOGS=false npm run build:production`. |
 | Empty D1 migration replay | Pass | All eight migrations applied in isolated Wrangler state. |
@@ -213,8 +213,8 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 | Artillery | yes | yes | partial/playable | Deploy/Pack Up and Bombardment are connected through generated grammar, strict orders, resolver, reports and tactical UI. Bombardment requires deployment, spotting, range and Small Supply, applies capped/recovering Defense stacks, and changes combat calculations. Funnel and anti-orbital paths remain deferred; direct damage remains experimental. |
 | Logi Truck | yes, legacy seed marks executable | yes, partial | partial/playable | Ground passenger/Supply cargo, packed-Artillery towing and the narrow Artillery Small Supply transfer are connected; wider Resupply and coordinated airdrop remain deferred. |
 | Light Vehicle | yes | yes | partial/playable | HITS combat, Rapid Fire against Horde, persistent natural-5/6 weapon/mobility subsystem malfunctions, Evasive, and mutually-exclusive passenger-or-Small-Supply cargo are active. |
-| IFV | yes | yes, partial | playable | Generated attack, AP/Armor, subsystem and six-FS infantry-cargo subset; full-round Crew Repair remains deferred |
-| Main Battle Tank | yes | yes | partial/playable | Armor/AP/facing, ground-only rear Armor bypass, persistent subsystem malfunctions and Engineer subsystem repair are active. Class-specific crew repair remains incomplete. |
+| IFV | yes | yes, partial | playable | Generated attack, AP/Armor, subsystem, six-FS infantry-cargo and stationary Armor-exposed Crew Repair are connected; Req remains unresolved. |
+| Main Battle Tank | yes | yes | partial/playable | Armor/AP/facing, ground-only rear Armor bypass, persistent subsystem malfunctions, Engineer repair and stationary Armor-exposed Crew Repair are active. |
 | Light Mech | yes | yes, partial | partial/playable | Exact V5 chassis and Light Laser, hostile-ground passage, Evasive, persistent subsystem failures, live Campaign DO hydration, UI order guidance and report evidence are connected; Req remains unresolved. |
 | Fighter | yes | no | catalogue-only | Aerospace resolver absent |
 | Bomber | yes | no | catalogue-only | Aerospace resolver absent |
@@ -226,7 +226,7 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 - Generated executable orders: Hold, Advance and Rush only.
 - Generated executable action grammar and tactical UI: Attack, finite-weapon Reload, Medic field resupply, Load, Unload, First Aid, Engineer Repair, and Artillery Deploy/Pack Up/Bombardment; Scan and Drone are rejected and unadvertised until their visibility state effects exist.
 - The active Attack calculation now uses authoritative map elevation for the ground-only Terrain Advantage +1, governed weapon/target tags for Rapid Fire versus Horde, governed target domains for rear effects, and persistent natural-5/6 vehicle subsystem failures. Multiweapon and Evasive are playable; split fire, melee and firing arcs remain incomplete.
-- D1 has 22 action definitions. CP-201 preserves their audit links but exposes only action/order types backed by a registered generated foundation handler. MASH, Funnel, supply transfer, crew repair, flight operations, airdrop and sabotage remain non-executable end to end.
+- D1 has 22 action definitions. CP-201 preserves their audit links but exposes only action/order types backed by a registered generated foundation handler. Crew Repair is now executable for the governed IFV/MBT subset; MASH, Funnel, general supply transfer, flight operations, airdrop and sabotage remain non-executable end to end.
 - The executable equipment subset is narrow: Flak Vests and Light AT currently have proven handlers. Generated corrections fail closed on Optics and Drone Operator because their visibility effects are not implemented; Orbital Drop Training and the remaining items stay partial, blocked or hidden.
 - Standard, Vehicle, VTOL, HAT and Paradrop deployment rows are marked implemented, but planner/scenario/aerospace integration is incomplete; Orbital remains partial and unresolved.
 

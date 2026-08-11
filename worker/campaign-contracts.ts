@@ -19,6 +19,7 @@ const actionTypes = new Set<ActionType>([
   "DEPLOY",
   "PACK_UP",
   "REPAIR",
+  "CREW_REPAIR",
   "CONSTRUCT",
   "TRENCH_UPGRADE",
   "GARRISON",
@@ -202,6 +203,7 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     DEPLOY: [],
     PACK_UP: [],
     REPAIR: ["targetDeploymentId", "payload"],
+    CREW_REPAIR: ["payload"],
     CONSTRUCT: ["targetHex", "structureDefinitionId"],
     TRENCH_UPGRADE: ["targetHex"],
     GARRISON: ["targetHex"],
@@ -247,11 +249,15 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     parsed.equipmentIds = ids;
   }
   if (value.payload !== undefined) {
-    if (type !== "UNLOAD" && type !== "REPAIR") requestFail(`${path}.payload`, "This action type does not accept a payload.");
+    if (type !== "UNLOAD" && type !== "REPAIR" && type !== "CREW_REPAIR") requestFail(`${path}.payload`, "This action type does not accept a payload.");
     if (!isRecord(value.payload)) requestFail(`${path}.payload`, "Expected an action payload object.");
     onlyKeys(
       value.payload,
-      type === "REPAIR" ? ["repairKind", "subsystemId"] : ["cargoDeploymentId", "mode"],
+      type === "REPAIR"
+        ? ["repairKind", "subsystemId"]
+        : type === "CREW_REPAIR"
+          ? ["subsystemId"]
+          : ["cargoDeploymentId", "mode"],
       `${path}.payload`,
     );
     const payload: NonNullable<CampaignActionIntent["payload"]> = {};
@@ -269,7 +275,7 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
       payload.repairKind = value.payload.repairKind;
     }
     if (value.payload.subsystemId !== undefined) {
-      if (type !== "REPAIR") requestFail(`${path}.payload.subsystemId`, "Only Engineer Repair accepts a subsystem identifier.");
+      if (type !== "REPAIR" && type !== "CREW_REPAIR") requestFail(`${path}.payload.subsystemId`, "Only a repair action accepts a subsystem identifier.");
       payload.subsystemId = identifier(value.payload.subsystemId, `${path}.payload.subsystemId`);
     }
     parsed.payload = payload;
@@ -289,6 +295,9 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     if (parsed.payload.repairKind === "HIT" && parsed.payload.subsystemId) {
       requestFail(`${path}.payload.subsystemId`, "Hit repair does not accept subsystemId.");
     }
+  }
+  if (type === "CREW_REPAIR" && !parsed.payload?.subsystemId) {
+    requestFail(`${path}.payload.subsystemId`, "Crew Repair requires subsystemId.");
   }
   if ((type === "SCAN" || type === "DEPLOY_DRONE" || type === "BOMBARDMENT") && !parsed.targetHex) {
     requestFail(path, `${type} requires targetHex.`);

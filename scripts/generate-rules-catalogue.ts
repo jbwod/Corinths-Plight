@@ -484,7 +484,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     capacity: 1,
     tags: ["GROUND", "VEHICLE", "ARMOURED", "HEAVY", "SUBSYSTEMS", "TRANSPORT"],
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-    allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+    allowedActions: ["ATTACK", "CREW_REPAIR", "LOAD", "UNLOAD"],
   },
   "unit-light-vehicle": {
     capacity: 1,
@@ -508,7 +508,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     capacity: 1,
     tags: ["GROUND", "VEHICLE", "SUB_SYSTEM", "REAR_WEAK_SPOT"],
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-    allowedActions: ["ATTACK"],
+    allowedActions: ["ATTACK", "CREW_REPAIR"],
   },
 };
 
@@ -793,6 +793,7 @@ const foundationActionIds = [
   "action-artillery-dig-in",
   "action-bombardment",
   "action-construct",
+  "action-crew-repair",
   "action-deploy-platform",
   "action-dig-in",
   "action-first-aid",
@@ -842,10 +843,10 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["HITS", "ARMOUR", "AP", "ATTACK", "MOVEMENT", "SUBSYSTEMS", "INFANTRY_CARGO"],
-      missing: ["CREW_REPAIR"],
+      implementedSubset: ["HITS", "ARMOUR", "AP", "ATTACK", "MOVEMENT", "SUBSYSTEMS", "INFANTRY_CARGO", "CREW_REPAIR"],
+      missing: [],
     },
-    explanation: "The generated tactical handler executes the V5 IFV chassis, Snub Auto-Cannon, subsystem failures, and six-FS infantry compartment; full-round Crew Repair remains gated.",
+    explanation: "The generated tactical handler executes the V5 IFV chassis, Snub Auto-Cannon, subsystem failures, six-FS infantry compartment, and stationary Armor-exposed Crew Repair.",
   },
   "UNIT:unit-logi-truck": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
@@ -878,10 +879,10 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["HITS", "ARMOUR", "AP", "FACING", "REAR_ATTACK", "SUBSYSTEMS"],
-      missing: ["CREW_REPAIR"],
+      implementedSubset: ["HITS", "ARMOUR", "AP", "FACING", "REAR_ATTACK", "SUBSYSTEMS", "CREW_REPAIR"],
+      missing: [],
     },
-    explanation: "The V5 natural-5/6 subsystem malfunction rule now persists and gates later weapon and mobility use.",
+    explanation: "The V5 natural-5/6 subsystem malfunction rule persists and gates later use; stationary crews can repair one subsystem while forfeiting Armor for the round.",
   },
   "UNIT:unit-vtol": {
     implementationStatus: "PARTIAL", executable: false, handlerId: null,

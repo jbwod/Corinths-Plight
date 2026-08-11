@@ -718,6 +718,68 @@ describe("equipment and transport actions", () => {
     ]));
   });
 
+  it("repairs one vehicle subsystem during a stationary Armor-exposed Crew Repair round", () => {
+    const base = createDemoCampaignState(1_000);
+    const tank = base.deployments.find((unit) => unit.definitionId === "unit-main-battle-tank")!;
+    const hostile = base.deployments.find((unit) => unit.side === "ENEMY")!;
+    tank.position = { q: 0, r: 0 };
+    tank.subsystems = [{ subsystemId: "MOBILITY", state: "DISABLED", damageSourceId: hostile.id, damagedRound: 17 }];
+    hostile.position = { q: 1, r: 0 };
+    hostile.weapons = [{
+      id: "weapon-crew-exposure-probe",
+      name: "Exposure Probe",
+      damage: { count: 1, sides: 2, modifier: 0 },
+      range: 1,
+      armorPiercing: 0,
+      tags: [],
+    }];
+    const crewRepair = action("crew-repair-mobility", "CREW_REPAIR", {
+      payload: { subsystemId: "MOBILITY" },
+    });
+    const crewOrder = order(base, tank, [crewRepair]);
+    const hostileAttack = action("attack-exposed-crew", "ATTACK", { targetDeploymentId: tank.id });
+    const hostileOrder = order(base, hostile, [hostileAttack]);
+    base.orders = [crewOrder, hostileOrder];
+
+    const output = resolveRound({
+      previousState: base,
+      rulesetVersion: base.rulesetVersion,
+      playerOrders: [crewOrder],
+      enemyOrders: [hostileOrder],
+      seed: "crew-repair-exposure",
+      resolutionTime: 2_000,
+    });
+    const repaired = output.state.deployments.find((unit) => unit.id === tank.id)!;
+
+    expect(repaired.subsystems).toEqual([{ subsystemId: "MOBILITY", state: "OPERATIONAL" }]);
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "UNIT_REPAIRED",
+      actor: tank.id,
+      payload: expect.objectContaining({
+        targetId: tank.id,
+        repairMethod: "CREW",
+        subsystemId: "MOBILITY",
+        armorBenefitThisRound: false,
+      }),
+    }));
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "UNIT_ATTACKED",
+      actor: hostile.id,
+      payload: expect.objectContaining({
+        targetId: tank.id,
+        armor: 0,
+        crewRepairArmorExposed: true,
+      }),
+    }));
+    expect(output.persistentEffects).toContainEqual(expect.objectContaining({
+      type: "UNIT_STATE_UPDATED",
+      unitId: tank.persistentUnitId,
+      payload: expect.objectContaining({
+        subsystems: [{ subsystemId: "MOBILITY", state: "OPERATIONAL" }],
+      }),
+    }));
+  });
+
   it("builds a persistent Sandbag Line, spends Small Supply, and grants infantry cover", () => {
     const base = createDemoCampaignState(1_000);
     const engineer = base.deployments.find((unit) => unit.definitionId === "unit-engineers")!;

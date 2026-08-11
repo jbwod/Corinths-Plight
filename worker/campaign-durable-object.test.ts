@@ -293,6 +293,39 @@ describe("CampaignDurableObject campaign contracts", () => {
     });
   });
 
+  it("derives stationary Primary Crew Repair for a damaged vehicle subsystem", async () => {
+    const { campaign, storage } = campaignObject();
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    const tank = seeded.deployments.find((deployment) => deployment.id === "dep-bellator")!;
+    tank.subsystems = [{ subsystemId: "MOBILITY", state: "DISABLED", damageSourceId: "bug-heavy-1", damagedRound: 17 }];
+    storage.values.set("state/current", encodeCampaignStoredState(seeded));
+
+    const response = await campaign.fetch(request("/orders", {
+      method: "POST",
+      body: orderBody({
+        commandId: "command-crew-repair",
+        unitId: tank.id,
+        actions: [{ type: "CREW_REPAIR", payload: { subsystemId: "MOBILITY" } }],
+      }),
+    }));
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      order: {
+        unitId: tank.id,
+        orderType: "HOLD",
+        route: [tank.position],
+        actions: [{
+          type: "CREW_REPAIR",
+          economy: "PRIMARY",
+          speedCost: 0,
+          payload: { subsystemId: "MOBILITY" },
+        }],
+      },
+    });
+  });
+
   it("replaces a cancelled deterministic order instead of corrupting state with a duplicate ID", async () => {
     const { campaign, storage } = campaignObject();
     const first = await campaign.fetch(request("/orders", { method: "POST", body: orderBody() }));

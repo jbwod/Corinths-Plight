@@ -133,7 +133,7 @@ describe("server rules hydration", () => {
     expect(result.legacyDefinition).toMatchObject({
       id: "unit-infantry-fighting-vehicle",
       stats: { healthModel: "HITS", maxHealth: 3, armor: 2, speed: 2 },
-      allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+      allowedActions: ["ATTACK", "CREW_REPAIR", "LOAD", "UNLOAD"],
     });
     expect(result.authority.profiles.cargoProfile).toMatchObject({
       id: "cargo-ifv-infantry",

@@ -407,6 +407,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
     validOrders.set(order.unitId, order);
   }
 
+  const crewRepairingUnits = new Set<string>();
   for (const order of validOrders.values()) {
     if (!order.enemyIntent) continue;
     event("ENEMY_INTENTION_DECLARED", order.unitId, {
@@ -983,6 +984,39 @@ export function resolveRound(input: RoundInput): RoundOutput {
           medicalSupplySpent: healed.supplySpent,
         }, actorVisibility);
       }
+      if (action.type === "CREW_REPAIR") {
+        const subsystemId = action.payload?.subsystemId;
+        const subsystem = typeof subsystemId === "string"
+          ? actor.subsystems?.find((candidate) => candidate.subsystemId === subsystemId)
+          : undefined;
+        if (order.route.length !== 1 || !subsystem || subsystem.state === "OPERATIONAL") {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [order.route.length !== 1
+              ? "Crew Repair requires a full stationary round."
+              : "Crew Repair requires one damaged subsystem."],
+          }, actorVisibility);
+          continue;
+        }
+        actor.subsystems = actor.subsystems?.map((candidate) =>
+          candidate.subsystemId === subsystemId
+            ? { subsystemId: candidate.subsystemId, state: "OPERATIONAL" as const }
+            : candidate
+        );
+        crewRepairingUnits.add(actor.id);
+        event("UNIT_REPAIRED", actor.id, {
+          actionId: action.id,
+          targetId: actor.id,
+          repairKind: "SUBSYSTEM",
+          repairMethod: "CREW",
+          subsystemId,
+          before: actor.currentHealth,
+          after: actor.currentHealth,
+          armorBenefitThisRound: false,
+          smallSupplySpent: 0,
+        }, actorVisibility);
+      }
       if (action.type === "REPAIR") {
         const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
         let actorIsEngineer = false;
@@ -1137,7 +1171,6 @@ export function resolveRound(input: RoundInput): RoundOutput {
       .filter(([, order]) => order.orderType === "RUSH")
       .map(([unitId]) => unitId),
   );
-
   for (const order of validOrders.values()) {
     const attacker = state.deployments.find((candidate) => candidate.id === order.unitId)!;
     for (const action of order.actions.filter((candidate) => candidate.type === "ATTACK")) {
@@ -1165,6 +1198,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         const result = resolveAttackRoll(attacker, target, weapon, state.map, random, state.deployments, {
           attackerEvasive: evasiveUnits.has(attacker.id),
           targetEvasive: evasiveUnits.has(target.id),
+          targetCrewRepairing: crewRepairingUnits.has(target.id),
         });
         if (!result.legal || !result.roll) {
           event("WEAPON_SKIPPED", attacker.id, {
@@ -1214,6 +1248,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
           highGroundModifier: result.highGroundModifier,
           evasiveAttackModifier: result.evasiveAttackModifier,
           evasiveDefenseModifier: result.evasiveDefenseModifier,
+          crewRepairArmorExposed: result.crewRepairArmorExposed,
         });
         const subsystemRules = weapon.damage.count === 1
           ? getTacticalSubsystemRules(target.definitionId)

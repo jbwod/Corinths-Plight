@@ -86,9 +86,9 @@ interface CampaignDirectoryEntry {
 }
 const campaignCanOpen = (entry: CampaignDirectoryEntry): boolean => entry.canEnter || entry.outcome !== undefined;
 type Notice = { tone: "info" | "success" | "danger"; message: string };
-type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "ARTILLERY_DIG_IN" | "RELOAD" | "RESUPPLY" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
+type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "ARTILLERY_DIG_IN" | "RELOAD" | "RESUPPLY" | "LOAD" | "UNLOAD" | "HEAL" | "REPAIR" | "CREW_REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
 type RepairKind = "HIT" | "SUBSYSTEM";
-const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "ARTILLERY_DIG_IN", "RELOAD", "RESUPPLY", "LOAD", "UNLOAD", "HEAL", "REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
+const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "ARTILLERY_DIG_IN", "RELOAD", "RESUPPLY", "LOAD", "UNLOAD", "HEAL", "REPAIR", "CREW_REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
 const constructibleFieldworks = CONSTRUCTIBLE_FIELDWORK_IDS.map(getFieldworkDefinition);
 
 function initialCampaign(): CampaignView {
@@ -133,11 +133,13 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "EVASIVE_MANEUVER") return payload.active === true
     ? `${event.actor ?? "Unit"} completed an Evasive maneuver for +3 Defense and −2 outgoing attacks.`
     : `${event.actor ?? "Unit"} was stopped before completing its Evasive maneuver.`;
-  if (event.type === "UNIT_ATTACKED") return `${event.actor ?? "Unit"} engaged ${String(payload.targetId ?? "a hostile")}${payload.evasiveAttackModifier === -2 ? "; Evasive fire applied −2" : ""}${payload.coverArmor === 1 ? "; cover added +1 Armor" : ""}${payload.digInDefense === 2 ? "; Dig In added +2 Defense" : ""}${payload.evasiveDefenseModifier === 3 ? "; target Evasive added +3 Defense" : ""}.`;
+  if (event.type === "UNIT_ATTACKED") return `${event.actor ?? "Unit"} engaged ${String(payload.targetId ?? "a hostile")}${payload.evasiveAttackModifier === -2 ? "; Evasive fire applied −2" : ""}${payload.coverArmor === 1 ? "; cover added +1 Armor" : ""}${payload.digInDefense === 2 ? "; Dig In added +2 Defense" : ""}${payload.evasiveDefenseModifier === 3 ? "; target Evasive added +3 Defense" : ""}${payload.crewRepairArmorExposed === true ? "; exposed crew received no Armor benefit" : ""}.`;
   if (event.type === "WEAPON_SKIPPED") return `${event.actor ?? "Unit"}'s ${String(payload.weaponId ?? "weapon")} did not fire: ${String(payload.reason ?? "not eligible")}.`;
   if (event.type === "DAMAGE_APPLIED") return `${event.actor ?? "Unit"} lost ${String(payload.loss ?? "?")} strength.`;
   if (event.type === "UNIT_HEALED") return `${event.actor ?? "Medic"} restored ${String(payload.amount ?? "?")} strength to ${String(payload.targetId ?? "an allied unit")}.`;
-  if (event.type === "UNIT_REPAIRED") return `${event.actor ?? "Engineer"} repaired ${String(payload.targetId ?? "an allied vehicle")}.`;
+  if (event.type === "UNIT_REPAIRED") return payload.repairMethod === "CREW"
+    ? `${event.actor ?? "Vehicle"}'s crew repaired ${String(payload.subsystemId ?? "a subsystem")} while exposed.`
+    : `${event.actor ?? "Engineer"} repaired ${String(payload.targetId ?? "an allied vehicle")}.`;
   if (event.type === "SUPPLY_TRANSFERRED") return `${event.actor ?? "Logi"} transferred one Small Supply to ${String(payload.targetId ?? "an allied unit")}.`;
   if (event.type === "STRUCTURE_COMPLETED") return `${event.actor ?? "Engineer"} completed ${String(payload.structureName ?? "a fieldwork")} at ${String((payload.targetHex as AxialCoord | undefined)?.q ?? "?")}.${String((payload.targetHex as AxialCoord | undefined)?.r ?? "?")}.`;
   if (event.type === "STRUCTURE_UPGRADED") return `${event.actor ?? "Infantry"} upgraded a Sandbag Line into a Trench.`;
@@ -502,6 +504,9 @@ function GameApp() {
   const repairableSubsystems = supportTarget?.subsystems?.filter((subsystem) => subsystem.state !== "OPERATIONAL") ?? [];
   const selectedRepairSubsystem = repairableSubsystems.find((subsystem) => subsystem.subsystemId === repairSubsystemId)
     ?? repairableSubsystems[0];
+  const crewRepairableSubsystems = selectedUnit?.subsystems?.filter((subsystem) => subsystem.state !== "OPERATIONAL") ?? [];
+  const selectedCrewRepairSubsystem = crewRepairableSubsystems.find((subsystem) => subsystem.subsystemId === repairSubsystemId)
+    ?? crewRepairableSubsystems[0];
   const bombardmentHexes = selectedUnit && artilleryWeapon ? campaign.map
     .filter((hex) => {
       const distance = hexDistance(selectedUnit.position, hex.coord);
@@ -593,6 +598,9 @@ function GameApp() {
       (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0 &&
       (repairKind === "HIT" ? supportTarget.currentHealth < supportTarget.stats.maxHealth : selectedRepairSubsystem),
     )) ||
+    (actionMode === "CREW_REPAIR" && Boolean(
+      selectedCrewRepairSubsystem && orderType === "HOLD" && draftedRoute.length === 1
+    )) ||
     (actionMode === "ARTILLERY_DIG_IN" && Boolean(isEngineerUnit && supportTarget)) ||
     (actionMode === "RESUPPLY" && Boolean(supportTarget && (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0)) ||
     (actionMode === "CONSTRUCT" && Boolean(
@@ -636,6 +644,8 @@ function GameApp() {
             ? repairKind === "HIT"
               ? `restore one Hit to ${supportTarget.callsign}`
               : `repair ${selectedRepairSubsystem?.subsystemId ?? "a subsystem"} on ${supportTarget.callsign}`
+          : actionMode === "CREW_REPAIR" && selectedCrewRepairSubsystem
+            ? `expose the crew and repair ${selectedCrewRepairSubsystem.subsystemId}`
           : actionMode === "ARTILLERY_DIG_IN" && supportTarget
             ? `dig in deployed artillery ${supportTarget.callsign} for +2 Defense`
           : actionMode === "RESUPPLY" && supportTarget
@@ -680,7 +690,7 @@ function GameApp() {
     );
     setRepairKind(storedAction?.type === "REPAIR" && storedAction.payload?.repairKind === "SUBSYSTEM" ? "SUBSYSTEM" : "HIT");
     setRepairSubsystemId(
-      storedAction?.type === "REPAIR" && typeof storedAction.payload?.subsystemId === "string"
+      (storedAction?.type === "REPAIR" || storedAction?.type === "CREW_REPAIR") && typeof storedAction.payload?.subsystemId === "string"
         ? storedAction.payload.subsystemId
         : undefined,
     );
@@ -785,6 +795,12 @@ function GameApp() {
         payload: repairKind === "HIT"
           ? { repairKind: "HIT" }
           : { repairKind: "SUBSYSTEM", subsystemId: selectedRepairSubsystem?.subsystemId },
+      });
+    } else if (actionMode === "CREW_REPAIR" && selectedCrewRepairSubsystem) {
+      actions.push({
+        type: "CREW_REPAIR",
+        equipmentIds: [],
+        payload: { subsystemId: selectedCrewRepairSubsystem.subsystemId },
       });
     } else if (actionMode === "ARTILLERY_DIG_IN" && supportTarget) {
       actions.push({ type: "ARTILLERY_DIG_IN", targetDeploymentId: supportTarget.id, equipmentIds: [] });
@@ -1242,6 +1258,11 @@ function GameApp() {
                           setOrderType("HOLD");
                           setDraftedRoute([{ ...selectedUnit.position }]);
                         }
+                        if (type === "CREW_REPAIR") {
+                          setOrderType("HOLD");
+                          setDraftedRoute([{ ...selectedUnit.position }]);
+                          setRepairSubsystemId(crewRepairableSubsystems[0]?.subsystemId);
+                        }
                         if (type !== "ATTACK") setTargetUnitId(undefined);
                         if (type === "RELOAD") setSelectedWeaponId(reloadableWeapons[0]?.id);
                         setSupportTargetUnitId(
@@ -1266,7 +1287,7 @@ function GameApp() {
                         if (type === "CONSTRUCT") setConstructionTargetHex(constructionHexes[0]?.coord);
                         if (type === "BOMBARDMENT") setBombardmentTargetHex(bombardmentHexes[0]?.coord);
                       }}
-                    >{type === "ARTILLERY_DIG_IN" ? "DIG IN ARTILLERY" : type}</button>
+                    >{type === "ARTILLERY_DIG_IN" ? "DIG IN ARTILLERY" : type === "CREW_REPAIR" ? "CREW REPAIR" : type}</button>
                   ))}
                 </div>
                 {actionMode === "ATTACK" && selectedUnit.weapons.length > 0 ? (
@@ -1426,6 +1447,25 @@ function GameApp() {
                     </p>
                     <p className="validation">Restore one vehicle Hit or one damaged subsystem to a friendly vehicle in base contact.</p>
                     {repairTargets.length === 0 && <p className="validation danger">No damaged friendly vehicle is in base contact at the planned destination.</p>}
+                  </>
+                ) : actionMode === "CREW_REPAIR" ? (
+                  <>
+                    <label className="field-label" htmlFor="crew-repair-subsystem">DAMAGED SUBSYSTEM</label>
+                    <select
+                      id="crew-repair-subsystem"
+                      value={selectedCrewRepairSubsystem?.subsystemId ?? ""}
+                      onChange={(event) => setRepairSubsystemId(event.target.value)}
+                      disabled={crewRepairableSubsystems.length === 0}
+                    >
+                      {crewRepairableSubsystems.map((subsystem) => (
+                        <option value={subsystem.subsystemId} key={subsystem.subsystemId}>
+                          {subsystem.subsystemId.replaceAll("_", " ")} · {subsystem.state}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="validation">PRIMARY ACTION · full stationary round · repair one subsystem.</p>
+                    <p className="validation danger">CREW EXPOSED: this unit receives no Armor benefit during the round.</p>
+                    {crewRepairableSubsystems.length === 0 && <p className="validation danger">This vehicle has no damaged subsystem.</p>}
                   </>
                 ) : actionMode === "ARTILLERY_DIG_IN" ? (
                   <>

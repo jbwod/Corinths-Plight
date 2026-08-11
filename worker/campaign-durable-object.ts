@@ -66,6 +66,7 @@ const allowedActionTypes = new Set([
   "DEPLOY",
   "PACK_UP",
   "REPAIR",
+  "CREW_REPAIR",
   "CONSTRUCT",
   "TRENCH_UPGRADE",
   "GARRISON",
@@ -1263,6 +1264,19 @@ export class CampaignDurableObject extends DurableObject<Env> {
         !target.subsystems?.some((subsystem) => subsystem.subsystemId === subsystemId && subsystem.state !== "OPERATIONAL")
       ) {
         return errorResponse(422, "REPAIR_SUBSYSTEM_INVALID", "The selected subsystem is not damaged.");
+      }
+    }
+    for (const action of actions) {
+      if (action.type !== "CREW_REPAIR") continue;
+      const subsystemId = action.payload?.subsystemId;
+      if (route.length !== 1) {
+        return errorResponse(422, "CREW_REPAIR_REQUIRES_HOLD", "Crew Repair requires a full stationary round.");
+      }
+      if (
+        typeof subsystemId !== "string" ||
+        !deployment.subsystems?.some((subsystem) => subsystem.subsystemId === subsystemId && subsystem.state !== "OPERATIONAL")
+      ) {
+        return errorResponse(422, "CREW_REPAIR_SUBSYSTEM_INVALID", "Crew Repair requires one damaged subsystem on this vehicle.");
       }
     }
     for (const action of actions) {

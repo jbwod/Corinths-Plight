@@ -34,6 +34,12 @@ describe("generated tactical grammar", () => {
     expect(getTacticalActionRule("DEPLOY")).toMatchObject({ speedCost: 0.5, executable: true });
     expect(getTacticalActionRule("PACK_UP")).toMatchObject({ speedCost: 0.5, executable: true });
     expect(getTacticalActionRule("BOMBARDMENT")).toMatchObject({ economy: "PRIMARY", executable: true });
+    expect(getTacticalActionRule("CREW_REPAIR")).toMatchObject({
+      id: "action-crew-repair",
+      economy: "PRIMARY",
+      speedCost: 0,
+      executable: true,
+    });
   });
 
   it("keeps catalogue-only mechanics out of live orders", () => {
@@ -56,7 +62,7 @@ describe("generated tactical grammar", () => {
     ]);
     expect(getTacticalUnitClass("unit-main-battle-tank")).toMatchObject({
       stats: { maxHealth: 3, armor: 3, speed: 2 },
-      allowedActions: ["ATTACK"],
+      allowedActions: ["ATTACK", "CREW_REPAIR"],
     });
     expect(getTacticalUnitClass("unit-combat-medic")).toMatchObject({
       category: "SUPPORT",
@@ -75,7 +81,7 @@ describe("generated tactical grammar", () => {
       tags: expect.arrayContaining(["ARMOURED", "SUBSYSTEMS", "TRANSPORT"]),
       stats: { healthModel: "HITS", maxHealth: 3, armor: 2, speed: 2, capacity: 1 },
       allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-      allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+      allowedActions: ["ATTACK", "CREW_REPAIR", "LOAD", "UNLOAD"],
       weapons: [expect.objectContaining({ id: "weapon-ifv-snub-autocannon", range: 1, armorPiercing: 1 })],
     });
     expect(getTacticalUnitClass("unit-light-mech")).toMatchObject({

@@ -745,6 +745,7 @@ export type ActionType =
   | "DEPLOY"
   | "PACK_UP"
   | "REPAIR"
+  | "CREW_REPAIR"
   | "CONSTRUCT"
   | "TRENCH_UPGRADE"
   | "GARRISON"
