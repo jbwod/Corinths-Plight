@@ -19,11 +19,27 @@ interface CampaignDirectoryRow {
   maximum_players: number;
   member_count: number;
   deployment_count: number;
+  force_policy_json: string;
+  reinforcement_policy_json: string | null;
+  current_round: number;
   result: "VICTORY" | "DEFEAT" | null;
   outcome_reason: string | null;
   result_round: number | null;
   rewards_json: string | null;
   resolved_at: number | null;
+}
+
+function reinforcementOpen(row: CampaignDirectoryRow): boolean {
+  if (row.status !== "ACTIVE") return false;
+  let force: { reinforcementStatus?: string } = {};
+  let operation: { status?: string; closesAfterTacticalRound?: number } = {};
+  try { force = JSON.parse(row.force_policy_json) as typeof force; } catch { /* fail closed */ }
+  try { operation = row.reinforcement_policy_json ? JSON.parse(row.reinforcement_policy_json) as typeof operation : {}; } catch { /* fail closed */ }
+  if (Number.isInteger(operation.closesAfterTacticalRound)) {
+    return row.current_round <= Number(operation.closesAfterTacticalRound) &&
+      (force.reinforcementStatus === "OPEN" || operation.status === "OPEN");
+  }
+  return force.reinforcementStatus === "OPEN" || operation.status === "OPEN";
 }
 
 interface PublicCampaignRow {
@@ -222,6 +238,8 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
   const [result, available] = await Promise.all([
     env.DB.prepare(`SELECT campaigns.id AS campaign_id, campaigns.name,
       campaigns.status, planets.name AS planet_name, campaigns.map_source_key,
+      campaigns.force_policy_json,operations.reinforcement_policy_json,
+      COALESCE((SELECT MAX(round_number) + 1 FROM round_metadata WHERE campaign_id=campaigns.id),1) AS current_round,
       memberships.side, memberships.role, memberships.joined_at,
       campaigns.minimum_players, campaigns.maximum_players,
       results.result,results.reason AS outcome_reason,results.round_number AS result_round,
@@ -234,6 +252,7 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
     FROM campaign_memberships AS memberships
     JOIN campaigns ON campaigns.id = memberships.campaign_id
     JOIN planets ON planets.id = campaigns.planet_id
+    LEFT JOIN strategic_operations AS operations ON operations.campaign_id=campaigns.id
     LEFT JOIN campaign_results AS results ON results.campaign_id=campaigns.id
     WHERE memberships.user_id = ?1
       AND campaigns.status IN ('RECRUITING','ACTIVE','PAUSED','COMPLETE','FAILED')
@@ -267,6 +286,7 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
       minimumPlayers: Number(row.minimum_players),
       maximumPlayers: Number(row.maximum_players),
       scenarioAvailable: isAuthoredScenarioMapSourceKey(row.map_source_key),
+      canReinforce: reinforcementOpen(row),
       canWithdraw: row.status === "RECRUITING" && row.role === "PLAYER" && Number(row.deployment_count) === 0,
       canEnter: isAuthoredScenarioMapSourceKey(row.map_source_key) && Number(row.deployment_count) > 0 &&
         ["RECRUITING", "ACTIVE", "PAUSED", "COMPLETE", "FAILED"].includes(row.status),

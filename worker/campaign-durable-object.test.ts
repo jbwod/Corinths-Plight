@@ -76,6 +76,9 @@ class EffectStatement {
   }
 
   async first(): Promise<Record<string, unknown> | null> {
+    if (this.query.includes("FROM campaigns") && this.query.includes("JOIN planets")) {
+      return this.database.campaignRow;
+    }
     if (this.query.includes("FROM campaign_effect_receipts")) {
       return this.database.receipts.has(String(this.bindings[0])) ? { applied: 1 } : null;
     }
@@ -96,6 +99,9 @@ class EffectStatement {
   }
 
   async all<T>(): Promise<D1Result<T>> {
+    if (this.query.includes("FROM deployments JOIN player_units")) {
+      return { success: true, meta: {}, results: this.database.deploymentRows as T[] } as D1Result<T>;
+    }
     if (this.query.includes("FROM strategic_effect_receipts AS receipts")) {
       return {
         success: true,
@@ -120,6 +126,8 @@ class EffectDatabase {
     summary: string | null;
   }>();
   linkedOperation: Record<string, unknown> | null = null;
+  campaignRow: Record<string, unknown> | null = null;
+  deploymentRows: Record<string, unknown>[] = [];
 
   prepare(query: string): D1PreparedStatement {
     return new EffectStatement(this, query) as unknown as D1PreparedStatement;
@@ -197,6 +205,54 @@ function orderBody(overrides: Record<string, unknown> = {}): string {
 }
 
 describe("CampaignDurableObject campaign contracts", () => {
+  it("imports a committed Allied reinforcement once and exposes its Battlegroup", async () => {
+    const database = new EffectDatabase();
+    const { campaign, storage } = campaignObject(database);
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    const infantry = seeded.deployments.find((deployment) => deployment.definitionId === "unit-infantry-squad")!;
+    database.campaignRow = {
+      id: CAMPAIGN_ID,
+      status: "ACTIVE",
+      name: "Outpost K-17",
+      map_source_key: "fixture/outpost-k17",
+      round_duration_ms: 300000,
+      planet_name: "Corinth",
+    };
+    database.deploymentRows = [{
+      id: "deployment:outpost-k17:reinforcement-1",
+      owner_id: "demo-user",
+      side: "ALLIED",
+      status: "READY",
+      snapshot_json: JSON.stringify({
+        ...infantry,
+        position: { q: -4, r: 1 },
+        currentHealth: infantry.currentHealth,
+      }),
+      persistent_unit_id: "reinforcement-1",
+      ruleset_id: "ruleset-v5-core-curated-1",
+      definition_id: "unit-infantry-squad",
+      callsign: "RELIEF-1",
+      battlegroup_id: "battlegroup-relief",
+    }];
+
+    const first = await campaign.fetch(request("/reinforcements/sync", { method: "POST" }));
+    const replay = await campaign.fetch(request("/reinforcements/sync", { method: "POST" }));
+
+    expect(first.status).toBe(200);
+    await expect(first.json()).resolves.toMatchObject({
+      addedDeploymentIds: ["deployment:outpost-k17:reinforcement-1"],
+      round: seeded.round,
+    });
+    expect(replay.status).toBe(200);
+    await expect(replay.json()).resolves.toMatchObject({ addedDeploymentIds: [] });
+    const current = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    expect(current.deployments.filter((deployment) => deployment.persistentUnitId === "reinforcement-1")).toEqual([
+      expect.objectContaining({ callsign: "RELIEF-1", battlegroupId: "battlegroup-relief", position: { q: -4, r: 1 } }),
+    ]);
+    expect(current.events.filter((event) => event.type === "ALLIED_REINFORCEMENTS_ARRIVED")).toHaveLength(1);
+  });
+
   it("persists, revises, replays, and removes round-scoped Allied operation notes", async () => {
     const { campaign, storage } = campaignObject();
     await campaign.fetch(request("/state"));

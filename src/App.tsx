@@ -87,6 +87,7 @@ interface CampaignDirectoryEntry {
   scenarioAvailable: boolean;
   canEnter: boolean;
   canJoin?: boolean;
+  canReinforce?: boolean;
   canWithdraw?: boolean;
   briefing?: {
     threat: string;
@@ -1351,7 +1352,15 @@ function GameApp() {
       ) : activeNav === "Forces" ? (
         <ForcesView onNotice={setNotice} />
       ) : activeNav === "Deployment" ? (
-        <DeploymentPlanner onNotice={setNotice} />
+        <DeploymentPlanner
+          onNotice={setNotice}
+          onCampaignReady={(readyCampaignId) => {
+            setCampaignId(readyCampaignId);
+            setCampaignDirectoryOpen(false);
+            navigate("Campaigns");
+            void loadCampaign(false, readyCampaignId);
+          }}
+        />
       ) : (activeNav === "Campaigns" || activeNav === "Reports") && connection === "ERROR" ? (
         <main className="operations-layout">
           <section className="panel" style={{ gridColumn: "1 / -1", padding: "2rem" }}>
@@ -1387,6 +1396,7 @@ function GameApp() {
                   <footer>
                     {entry.canEnter && <button className="primary" disabled={busy} onClick={() => openCampaign(entry)}>OPEN CAMPAIGN</button>}
                     {entry.status === "RECRUITING" && entry.scenarioAvailable && <button className="primary" disabled={busy} onClick={() => openDeployment(entry)}>PLAN DEPLOYMENT</button>}
+                    {entry.canReinforce && entry.scenarioAvailable && <button disabled={busy} onClick={() => openDeployment(entry)}>REINFORCE</button>}
                     {entry.canWithdraw && <button className={withdrawConfirmCampaignId === entry.campaignId ? "danger confirm" : "danger"} disabled={busy} onClick={() => void withdrawCampaign(entry)}>{withdrawConfirmCampaignId === entry.campaignId ? "CONFIRM LEAVE" : "LEAVE CAMPAIGN"}</button>}
                   </footer>
                   {withdrawConfirmCampaignId === entry.campaignId && <small className="campaign-withdraw-warning">This cancels your uncommitted plans. Once units deploy, tactical extraction rules apply instead.</small>}

@@ -9,7 +9,7 @@ type Unit = { unitId: string; callsign: string; name: string; definitionId: stri
 type Loadout = { unitId: string; unitVersion: number; loadout: { id: string; revision: number; status: string }; effectiveUnit: EffectiveUnit | null; validation: { valid: boolean; errors: Array<{ code: string; message: string }> } };
 type Method = { id: DeploymentMethodId; name: string; implementation_status: string };
 type Zone = { id: string; hex: { q: number; r: number }; allowedMethods: DeploymentMethodId[]; environment: string[] };
-type Context = { campaignId: string; battalionId: string; canCommit: boolean; strategicOperation: { id: string; nodeId: string; status: string } | null; methods: Method[]; insertionZones: Zone[] };
+type Context = { campaignId: string; battalionId: string; canCommit: boolean; deploymentMode: "INITIAL" | "REINFORCEMENT"; reinforcementOpen: boolean; reinforcementClosesAfterRound: number | null; strategicOperation: { id: string; nodeId: string; status: string } | null; methods: Method[]; insertionZones: Zone[] };
 type PlanResponse = { planId: string; campaignId?: string; revision: number; status: string; validation: { valid: boolean; errors: Array<{ code: string; message: string; entityId?: string }>; warnings: Array<{ code: string; message: string }> } };
 type CampaignOption = {
   campaignId: string;
@@ -38,7 +38,10 @@ async function message(response: Response): Promise<string> {
   catch { return `Request failed (${response.status}).`; }
 }
 
-export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "info" | "success" | "danger"; message: string }) => void }) {
+export function DeploymentPlanner({ onNotice, onCampaignReady }: {
+  onNotice: (notice: { tone: "info" | "success" | "danger"; message: string }) => void;
+  onCampaignReady?: (campaignId: string) => void;
+}) {
   const [mode, setMode] = useState<"LOADING" | "LIVE" | "ERROR">("LOADING");
   const [units, setUnits] = useState<Unit[]>([]);
   const [loadouts, setLoadouts] = useState<Map<string, Loadout>>(new Map());
@@ -161,18 +164,29 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
         body: JSON.stringify({ commandId: crypto.randomUUID(), expectedRevision: plan.revision }),
       });
       if (!response.ok) throw new Error(await message(response));
-      const committed = await response.json() as { revision: number; status: string };
+      const committed = await response.json() as {
+        revision: number;
+        status: string;
+        campaignId: string;
+        reinforcementSync?: { status?: "APPLIED" | "PENDING" | "PENDING_NEXT_PLANNING"; addedDeploymentIds?: string[] };
+      };
       setPlan((current) => current ? { ...current, revision: committed.revision, status: committed.status } : current);
-      onNotice({ tone: "success", message: context.strategicOperation
-        ? "Battlegroup reserved, campaign snapshots committed, and the operation is active."
-        : "Campaign loadouts locked and deployment snapshots committed." });
+      const synchronized = committed.reinforcementSync?.status === "APPLIED";
+      onNotice({ tone: synchronized ? "success" : "info", message: synchronized
+        ? `${committed.reinforcementSync?.addedDeploymentIds?.length ?? selectedUnits.length} unit reinforcement package is live on the tactical board.`
+        : committed.reinforcementSync?.status === "PENDING_NEXT_PLANNING"
+          ? "Force package committed. It will enter automatically when the next planning phase opens."
+          : context.strategicOperation
+            ? "Battlegroup reserved and campaign snapshots committed. Campaign synchronization remains pending."
+            : "Campaign loadouts locked. Campaign synchronization remains pending." });
+      if (synchronized) onCampaignReady?.(committed.campaignId);
     } catch (error) { onNotice({ tone: "danger", message: error instanceof Error ? error.message : "Deployment commit failed." }); }
     finally { setBusy(false); }
   }
 
   return <main className="deployment-layout">
     <header className="deployment-commandbar">
-      <div><span className="eyebrow">CAMPAIGN MUSTER CONTROL</span><h1>Deployment planner</h1><p>Force package, lift assignment and insertion are validated against pinned server rules.</p></div>
+      <div><span className="eyebrow">{context?.deploymentMode === "REINFORCEMENT" ? "ACTIVE CAMPAIGN REINFORCEMENT" : "CAMPAIGN MUSTER CONTROL"}</span><h1>{context?.deploymentMode === "REINFORCEMENT" ? "Reinforcement planner" : "Deployment planner"}</h1><p>Force package, lift assignment and insertion are validated against pinned server rules.</p></div>
       <span className={`registry-mode ${mode.toLowerCase()}`}><i /> {mode === "LIVE" ? "PLANNER LIVE" : mode}</span>
       <div className="deployment-verdict"><small>PLAN STATE</small><strong>{plan?.status ?? "UNSAVED"}</strong><span>{plan?.validation.valid ? "ALL GATES SATISFIED" : `${plan?.validation.errors.length ?? 0} BLOCKERS`}</span></div>
     </header>
@@ -186,6 +200,10 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
       <h2>{selectedCampaign.name}</h2>
       <p><strong>Objectives:</strong> {selectedCampaign.briefing.objectives.join(" · ")}</p>
       <p><strong>Recommended:</strong> {selectedCampaign.briefing.recommendedCapabilities.map((item) => item.replaceAll("_", " ")).join(" · ")}</p>
+    </section> : null}
+    {context && !context.reinforcementOpen ? <section className="panel" style={{ padding: "1rem", gridColumn: "1 / -1" }}>
+      <span className="eyebrow">WINDOW CLOSED</span>
+      <p>This operation is not currently accepting another force package{context.reinforcementClosesAfterRound ? ` after round ${context.reinforcementClosesAfterRound}` : ""}.</p>
     </section> : null}
     <section className="deployment-steps panel">
       <article><b>01</b><div><strong>Force package</strong><small>Select persistent units and their locked revisions</small></div></article>
@@ -216,8 +234,8 @@ export function DeploymentPlanner({ onNotice }: { onNotice: (notice: { tone: "in
       <div>{plan?.validation.errors.map((error) => <p className="blocked" key={`${error.code}:${error.entityId}`}><b>{error.code.replaceAll("_", " ")}</b>{error.message}</p>)}{plan?.validation.warnings.map((warning) => <p className="warning" key={warning.code}><b>{warning.code.replaceAll("_", " ")}</b>{warning.message}</p>)}</div>
       {context?.strategicOperation && !selectedBattlegroupId && selectedUnits.length > 0 && <p className="blocked"><b>BATTLEGROUP REQUIRED</b>Choose units belonging to one Battlegroup so the strategic formation can be reserved with the campaign.</p>}
       {!plan && <p>Select a package and ask the server to validate it.</p>}
-      <button onClick={() => void save()} disabled={mode !== "LIVE" || busy || selectedUnits.length === 0 || !zoneId || Boolean(context?.strategicOperation && !selectedBattlegroupId)}>{busy ? "WORKING…" : plan ? "REVALIDATE PLAN" : "VALIDATE PLAN"}</button>
-      <button className="primary" onClick={() => void commit()} disabled={mode !== "LIVE" || busy || !plan?.validation.valid || !context?.canCommit || plan.status === "COMMITTED"}>COMMIT DEPLOYMENT</button>
+      <button onClick={() => void save()} disabled={mode !== "LIVE" || busy || context?.reinforcementOpen === false || selectedUnits.length === 0 || !zoneId || Boolean(context?.strategicOperation && !selectedBattlegroupId)}>{busy ? "WORKING…" : plan ? "REVALIDATE PLAN" : "VALIDATE PLAN"}</button>
+      <button className="primary" onClick={() => void commit()} disabled={mode !== "LIVE" || busy || context?.reinforcementOpen === false || !plan?.validation.valid || !context?.canCommit || plan.status === "COMMITTED"}>{context?.deploymentMode === "REINFORCEMENT" ? "COMMIT REINFORCEMENT" : "COMMIT DEPLOYMENT"}</button>
       <small>Commit locks each loadout, freezes ammo/cooldowns/effects, and reserves every selected unit exactly once.</small>
     </aside>
   </main>;

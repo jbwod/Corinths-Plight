@@ -182,7 +182,7 @@ INSERT INTO campaigns (
   'campaign-k17-relay','planet-corinth','ruleset-v5-core-curated-1',
   'K-17: Hold the Relay','RECRUITING',300000,'fixture/outpost-k17',
   1,500,'system-onboarding-director',
-  '{"allowedDefinitions":["unit-infantry-squad","unit-light-vehicle","unit-main-battle-tank"],"maximumUnits":8}',
+  '{"allowedDefinitions":["unit-infantry-squad","unit-light-vehicle","unit-main-battle-tank"],"maximumUnits":8,"reinforcementStatus":"OPEN"}',
   'MUSTERING'
 )
 ON CONFLICT(id) DO UPDATE SET

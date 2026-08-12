@@ -370,13 +370,16 @@ export class CampaignDurableObject extends DurableObject<Env> {
     if (!campaign) throw new Error("CAMPAIGN_NOT_INITIALISED");
     const rows = await this.env.DB.prepare(`SELECT deployments.id, deployments.owner_id,
         deployments.side, deployments.status, deployments.snapshot_json,
-        units.id AS persistent_unit_id, units.ruleset_id, units.definition_id, units.callsign
+        units.id AS persistent_unit_id, units.ruleset_id, units.definition_id, units.callsign,
+        battlegroup_links.battlegroup_id
       FROM deployments JOIN player_units AS units ON units.id = deployments.player_unit_id
+      LEFT JOIN battlegroup_units AS battlegroup_links ON battlegroup_links.player_unit_id=units.id
       WHERE deployments.campaign_id = ?1 AND deployments.status IN ('READY','ACTIVE','IMMOBILISED')
       ORDER BY deployments.id`).bind(campaign.id).all<{
         id: string; owner_id: string; side: CampaignDeployment["side"];
         status: CampaignDeployment["status"]; snapshot_json: string;
         persistent_unit_id: string; ruleset_id: string; definition_id: string; callsign: string;
+        battlegroup_id: string | null;
       }>();
     if (rows.results.length === 0) throw new Error("CAMPAIGN_NOT_INITIALISED");
     const supplyRows = await this.env.DB.prepare(`SELECT supplies.player_unit_id,
@@ -468,6 +471,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
           ? snapshot.cargoProfile as CampaignDeployment["cargoProfile"]
           : getTacticalCargoProfile(row.definition_id),
         locationState: activeCarrierByPassenger.has(row.persistent_unit_id) ? "EMBARKED" : "ON_MAP",
+        battlegroupId: row.battlegroup_id ?? undefined,
       };
     });
     for (const cargoRow of cargoRows.results) {
@@ -987,6 +991,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (url.pathname === "/markers" && request.method === "POST") return await this.handleMarkerCommand(request);
       if (url.pathname === "/operation-notes" && request.method === "GET") return await this.handleOperationNotes(request);
       if (url.pathname === "/operation-notes" && request.method === "POST") return await this.handleOperationNoteCommand(request);
+      if (url.pathname === "/reinforcements/sync" && request.method === "POST") return await this.handleReinforcementSync(request);
       if (url.pathname === "/orders" && request.method === "POST") return await this.handleOrder(request);
       if (url.pathname.startsWith("/orders/") && request.method === "DELETE") {
         return await this.handleCancelOrder(request, decodeURIComponent(url.pathname.slice("/orders/".length)));
@@ -1254,6 +1259,71 @@ export class CampaignDurableObject extends DurableObject<Env> {
     });
     this.broadcast(remove ? "operation-note-removed" : "operation-note-updated", state);
     return json(response, { status });
+  }
+
+  private async handleReinforcementSync(request: Request): Promise<Response> {
+    const viewer = this.viewer(request);
+    await assertCampaignMutationBodyEmpty(request);
+    if (viewer.side !== "ALLIED") {
+      return errorResponse(403, "REINFORCEMENT_FORBIDDEN", "Only Allied campaign members may synchronize committed reinforcements.");
+    }
+    const result = await this.synchronizeCommittedReinforcements();
+    if (result.windowClosed) {
+      return errorResponse(409, "REINFORCEMENT_WINDOW_CLOSED", "Committed reinforcements enter during the next planning phase.");
+    }
+    if (result.addedDeploymentIds.length > 0) this.broadcast("allied-reinforcements-arrived", result.state);
+    return json({
+      addedDeploymentIds: result.addedDeploymentIds,
+      round: result.state.round,
+      campaignVersion: result.state.version,
+    });
+  }
+
+  private async synchronizeCommittedReinforcements(): Promise<{
+    state: CampaignRuntimeState;
+    addedDeploymentIds: string[];
+    windowClosed: boolean;
+  }> {
+    const state = await this.getState();
+    if (state.phase !== "PLANNING") return { state, addedDeploymentIds: [], windowClosed: true };
+    const refreshed = await this.createPersistentCampaignState();
+    const result = await this.ctx.storage.transaction(async (transaction) => {
+      const raw = await transaction.get<unknown>(STATE_KEY);
+      if (raw === undefined) throw new Error("CAMPAIGN_STATE_MISSING");
+      const current = this.storedState(raw, state);
+      if (current.phase !== "PLANNING") {
+        return { state: current, addedDeploymentIds: [] as string[], windowClosed: true };
+      }
+      const currentIds = new Set(current.deployments.map((deployment) => deployment.id));
+      const incoming = refreshed.deployments
+        .filter((deployment) => deployment.side === "ALLIED" && !currentIds.has(deployment.id))
+        .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+      if (incoming.length === 0) return { state: current, addedDeploymentIds: [] as string[], windowClosed: false };
+      const next = structuredClone(current);
+      const now = Date.now();
+      const sequence = eventSequence(next);
+      const event: CampaignEvent = {
+        eventId: `${next.campaignId}:${next.round}:${String(sequence).padStart(6, "0")}:ALLIED_REINFORCEMENTS_ARRIVED`,
+        campaignId: next.campaignId,
+        round: next.round,
+        sequence,
+        type: "ALLIED_REINFORCEMENTS_ARRIVED",
+        payload: {
+          deploymentIds: incoming.map((deployment) => deployment.id),
+          callsigns: incoming.map((deployment) => deployment.callsign),
+          insertionHexes: incoming.map((deployment) => ({ ...deployment.position })),
+        },
+        timestamp: now,
+        visibility: "ALLIED",
+      };
+      next.deployments.push(...incoming.map((deployment) => structuredClone(deployment)));
+      next.events.push(event);
+      next.version += 1;
+      await transaction.put(STATE_KEY, encodeCampaignStoredState(next));
+      await transaction.put(`event/${next.round}/${String(sequence).padStart(6, "0")}`, event);
+      return { state: next, addedDeploymentIds: incoming.map((deployment) => deployment.id), windowClosed: false };
+    });
+    return result;
   }
 
   private sanitiseActions(
@@ -2135,8 +2205,18 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (roundStarted) await transaction.put(`event/${state.round}/${String(roundStarted.sequence).padStart(6, "0")}`, roundStarted);
       return { state, record, complete: true };
     });
-    await this.scheduleNextAlarm(result.state);
-    return result;
+    let state = result.state;
+    if (result.complete && state.phase === "PLANNING") {
+      try {
+        const reinforcements = await this.synchronizeCommittedReinforcements();
+        state = reinforcements.state;
+        if (reinforcements.addedDeploymentIds.length > 0) this.broadcast("allied-reinforcements-arrived", state);
+      } catch (error) {
+        this.log("reinforcement.sync.deferred", { round: state.round, error: error instanceof Error ? error.message : "UNKNOWN" });
+      }
+    }
+    await this.scheduleNextAlarm(state);
+    return { ...result, state };
   }
 
   private async resumePersistentEffects(

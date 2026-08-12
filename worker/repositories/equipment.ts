@@ -311,6 +311,9 @@ export interface DeploymentAuthorityRow {
   operation_node_id: string | null;
   operation_status: string | null;
   campaign_node_id: string | null;
+  force_policy_json: string;
+  reinforcement_policy_json: string | null;
+  current_round: number;
 }
 
 export async function getDeploymentAuthority(
@@ -324,6 +327,8 @@ export async function getDeploymentAuthority(
       campaign_memberships.side, campaign_memberships.role AS campaign_role,
       operations.id AS operation_id, operations.node_id AS operation_node_id,
       operations.status AS operation_status, campaigns.strategic_node_id AS campaign_node_id
+      ,campaigns.force_policy_json,operations.reinforcement_policy_json,
+      COALESCE((SELECT MAX(round_number) + 1 FROM round_metadata WHERE campaign_id=campaigns.id),1) AS current_round
     FROM campaign_memberships
     JOIN campaigns ON campaigns.id = campaign_memberships.campaign_id
     LEFT JOIN strategic_operations AS operations ON operations.campaign_id = campaigns.id
@@ -398,6 +403,7 @@ export async function listInsertionZones(db: D1Database, campaignId: string): Pr
 export interface DeploymentUnitRow {
   unit_id: string;
   owner_id: string;
+  definition_id: string;
   loadout_id: string;
   unit_version: number;
   loadout_revision: number;
@@ -415,7 +421,7 @@ export async function getDeploymentUnit(
   campaignId: string,
   unitId: string,
 ): Promise<DeploymentUnitRow | null> {
-  return db.prepare(`SELECT units.id AS unit_id, units.owner_id,
+  return db.prepare(`SELECT units.id AS unit_id, units.owner_id, units.definition_id,
       loadouts.id AS loadout_id, units.version AS unit_version,
       loadouts.revision AS loadout_revision, links.battlegroup_id,
       units.status AS unit_status,units.location_state,units.location_id,

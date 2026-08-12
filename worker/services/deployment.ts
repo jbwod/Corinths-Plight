@@ -9,6 +9,7 @@ import {
   validateDeploymentPlan,
 } from "../../packages/rules-engine/src";
 import type { Env } from "../env";
+import { internalViewerHeaders } from "../auth";
 import type { SaveDeploymentPlanCommand } from "../equipment-validation";
 import { commandHash } from "../forces-validation";
 import {
@@ -38,6 +39,39 @@ function canCommand(role: string, campaignRole: string): boolean {
     campaignRole === "GM" || campaignRole === "BATTALION_COMMAND" || campaignRole === "PLAYER";
 }
 
+interface CampaignDeploymentPolicy {
+  allowedDefinitions?: string[];
+  allowedDefinitionIds?: string[];
+  maximumUnits?: number;
+  reinforcementStatus?: "OPEN" | "CLOSED";
+}
+
+function reinforcementWindow(authority: NonNullable<Awaited<ReturnType<typeof getDeploymentAuthority>>>): {
+  open: boolean;
+  mode: "INITIAL" | "REINFORCEMENT";
+  closesAfterRound?: number;
+} {
+  if (authority.campaign_status === "DRAFT" || authority.campaign_status === "RECRUITING") {
+    return { open: true, mode: "INITIAL" };
+  }
+  if (authority.campaign_status !== "ACTIVE") return { open: false, mode: "REINFORCEMENT" };
+  const forcePolicy = parseJson<CampaignDeploymentPolicy>(authority.force_policy_json, {});
+  const strategicPolicy = parseJson<{ status?: string; closesAfterTacticalRound?: number }>(authority.reinforcement_policy_json, {});
+  if (Number.isInteger(strategicPolicy.closesAfterTacticalRound)) {
+    const closesAfterRound = Number(strategicPolicy.closesAfterTacticalRound);
+    return {
+      open: authority.current_round <= closesAfterRound &&
+        (strategicPolicy.status === "OPEN" || forcePolicy.reinforcementStatus === "OPEN"),
+      mode: "REINFORCEMENT",
+      closesAfterRound,
+    };
+  }
+  if (strategicPolicy.status === "OPEN" || forcePolicy.reinforcementStatus === "OPEN") {
+    return { open: true, mode: "REINFORCEMENT" };
+  }
+  return { open: false, mode: "REINFORCEMENT" };
+}
+
 async function requireStrategicDeploymentOrder(
   db: D1Database,
   operationId: string | null,
@@ -45,6 +79,7 @@ async function requireStrategicDeploymentOrder(
   deploymentMethod: string,
 ): Promise<void> {
   if (!operationId) return;
+  if (formation.status === "DEPLOYED" && formation.current_operation_id === operationId) return;
   if (formation.status !== "DEPLOYING" || formation.current_operation_id !== operationId) {
     throw new ForceServiceError(
       409,
@@ -167,10 +202,14 @@ export async function getPlanningContext(env: Env, userId: string, campaignId: s
       FROM deployment_method_definitions WHERE ruleset_id = ?1 ORDER BY id`)
       .bind(authority.campaign_ruleset_id).all<{ id: string; name: string; implementation_status: string; requirements_json: string }>(),
   ]);
+  const reinforcement = reinforcementWindow(authority);
   return {
     campaignId,
     battalionId: authority.battalion_id,
     canCommit: canCommand(authority.command_role, authority.campaign_role),
+    deploymentMode: reinforcement.mode,
+    reinforcementOpen: reinforcement.open,
+    reinforcementClosesAfterRound: reinforcement.closesAfterRound ?? null,
     strategicOperation: authority.operation_id ? {
       id: authority.operation_id,
       nodeId: authority.operation_node_id,
@@ -222,6 +261,12 @@ async function materialize(
     throw new ForceServiceError(422, "INSERTION_METHOD_UNAVAILABLE", "The insertion zone does not permit this method.");
   }
   const commandAuthority = canCommand(authority.command_role, authority.campaign_role);
+  const reinforcement = reinforcementWindow(authority);
+  if (!reinforcement.open) {
+    throw new ForceServiceError(409, "REINFORCEMENT_WINDOW_CLOSED", "This campaign is not accepting an initial deployment or reinforcement package.");
+  }
+  const campaignPolicy = parseJson<CampaignDeploymentPolicy>(authority.force_policy_json, {});
+  const allowedDefinitions = new Set(campaignPolicy.allowedDefinitionIds ?? campaignPolicy.allowedDefinitions ?? []);
   if (authority.operation_id && !command.battlegroupId) {
     throw new ForceServiceError(422, "BATTLEGROUP_REQUIRED", "A strategic operation deployment must reserve one Battlegroup.");
   }
@@ -232,7 +277,7 @@ async function materialize(
     const formation = await getDeploymentFormation(env.DB, authority.battalion_id, command.battlegroupId);
     if (!formation) throw new ForceServiceError(404, "BATTLEGROUP_NOT_FOUND", "The selected Battlegroup is outside this Battalion.");
     const allowedFormationStatuses = authority.operation_id
-      ? ["DEPLOYING"]
+      ? ["DEPLOYING", "DEPLOYED"]
       : ["READY", "EMBARKED", "RECOVERING"];
     if (!allowedFormationStatuses.includes(formation.status)) {
       throw new ForceServiceError(409, "BATTLEGROUP_UNAVAILABLE", `Battlegroup ${command.battlegroupId} is ${formation.status.toLowerCase()} and cannot deploy.`);
@@ -252,6 +297,9 @@ async function materialize(
     const unit = await getDeploymentUnit(env.DB, actorId, authority.battalion_id, command.campaignId, requested.unitId);
     if (!unit || unit.authority === "NONE") {
       throw new ForceServiceError(404, "UNIT_NOT_FOUND", "A selected unit is outside the actor's Battalion authority.");
+    }
+    if (allowedDefinitions.size > 0 && !allowedDefinitions.has(unit.definition_id)) {
+      throw new ForceServiceError(422, "CAMPAIGN_FORCE_POLICY_BLOCKED", `Unit ${requested.unitId} is not permitted by this campaign's force policy.`);
     }
     if (!["ACTIVE", "DAMAGED"].includes(unit.unit_status) || !["RESERVE", "ON_SHIP"].includes(unit.location_state)) {
       throw new ForceServiceError(409, "UNIT_LOCATION_UNAVAILABLE", `Unit ${requested.unitId} is not available from its current persistent location.`);
@@ -283,6 +331,14 @@ async function materialize(
     });
   }
   const selectedById = new Map(selected.map((item) => [item.unitId, item]));
+  if (Number.isInteger(campaignPolicy.maximumUnits)) {
+    const deployed = await env.DB.prepare(`SELECT COUNT(*) AS count FROM deployments
+      WHERE campaign_id=?1 AND side='ALLIED' AND status IN ('READY','ACTIVE','IMMOBILISED')`)
+      .bind(command.campaignId).first<{ count: number }>();
+    if (Number(deployed?.count ?? 0) + selected.length > Number(campaignPolicy.maximumUnits)) {
+      throw new ForceServiceError(422, "CAMPAIGN_FORCE_LIMIT_EXCEEDED", `This campaign permits at most ${campaignPolicy.maximumUnits} active Allied units.`);
+    }
+  }
   const assignments = command.transports.map((transport) => {
     const carrier = selectedById.get(transport.carrierUnitId);
     if (!carrier?.effectiveUnit.cargoProfile) {
@@ -443,7 +499,7 @@ export async function commitPlan(
 ): Promise<unknown> {
   const requestHash = await commandHash({ actorId, operation: "COMMIT_DEPLOYMENT_PLAN", planId, ...command });
   const prior = receiptReplay(await getDeploymentReceipt(env.DB, actorId, command.commandId), "COMMIT_DEPLOYMENT_PLAN", requestHash);
-  if (prior) return prior;
+  if (prior) return await attachReinforcementSync(env, actorId, prior);
   const row = await getDeploymentPlan(env.DB, actorId, planId);
   if (!row) throw new ForceServiceError(404, "DEPLOYMENT_PLAN_NOT_FOUND", "Deployment plan was not found.");
   if (row.revision !== command.expectedRevision || row.status !== "VALID") {
@@ -453,6 +509,11 @@ export async function commitPlan(
   if (!authority || !canCommand(authority.command_role, authority.campaign_role)) {
     throw new ForceServiceError(403, "DEPLOYMENT_COMMAND_APPROVAL_REQUIRED", "Battalion Command must commit deployment plans.");
   }
+  const reinforcement = reinforcementWindow(authority);
+  if (!reinforcement.open) {
+    throw new ForceServiceError(409, "REINFORCEMENT_WINDOW_CLOSED", "The campaign deployment window closed before this plan was committed.");
+  }
+  const campaignPolicy = parseJson<CampaignDeploymentPolicy>(authority.force_policy_json, {});
   const formation = row.battlegroup_id
     ? await getDeploymentFormation(env.DB, row.battalion_id, row.battlegroup_id)
     : null;
@@ -460,7 +521,7 @@ export async function commitPlan(
     throw new ForceServiceError(409, "BATTLEGROUP_REQUIRED", "The linked strategic operation requires a current Battlegroup reservation.");
   }
   const allowedFormationStatuses = authority.operation_id
-    ? ["DEPLOYING"]
+    ? ["DEPLOYING", "DEPLOYED"]
     : ["READY", "EMBARKED", "RECOVERING"];
   if (formation && !allowedFormationStatuses.includes(formation.status)) {
     throw new ForceServiceError(409, "BATTLEGROUP_UNAVAILABLE", `Battlegroup ${formation.id} is no longer available for deployment.`);
@@ -483,12 +544,24 @@ export async function commitPlan(
   const zone = (await listInsertionZones(env.DB, row.campaign_id)).find((candidate) => candidate.id === row.insertion_zone_id);
   if (!zone) throw new ForceServiceError(422, "INSERTION_ZONE_INVALID", "A current open insertion zone is required.");
   const lockedAt = Math.floor(Date.now() / 1000);
+  if (Number.isInteger(campaignPolicy.maximumUnits)) {
+    const deployed = await env.DB.prepare(`SELECT COUNT(*) AS count FROM deployments
+      WHERE campaign_id=?1 AND side='ALLIED' AND status IN ('READY','ACTIVE','IMMOBILISED')`)
+      .bind(row.campaign_id).first<{ count: number }>();
+    if (Number(deployed?.count ?? 0) + units.length > Number(campaignPolicy.maximumUnits)) {
+      throw new ForceServiceError(422, "CAMPAIGN_FORCE_LIMIT_EXCEEDED", `This campaign permits at most ${campaignPolicy.maximumUnits} active Allied units.`);
+    }
+  }
+  const allowedDefinitions = new Set(campaignPolicy.allowedDefinitionIds ?? campaignPolicy.allowedDefinitions ?? []);
   const statements: D1PreparedStatement[] = [];
   const snapshotIds: string[] = [];
   for (const selected of units) {
     const built = await buildStoredEffectiveUnit(env, selected.owner_id, selected.player_unit_id);
     if (!built.result.valid || !built.result.unit || built.context.unit_version !== selected.expected_unit_version || built.context.loadout_revision !== selected.expected_loadout_revision) {
       throw new ForceServiceError(409, "DEPLOYMENT_UNIT_VERSION_CONFLICT", `Unit ${selected.player_unit_id} changed after validation.`);
+    }
+    if (allowedDefinitions.size > 0 && !allowedDefinitions.has(built.context.definition_id)) {
+      throw new ForceServiceError(422, "CAMPAIGN_FORCE_POLICY_BLOCKED", `Unit ${selected.player_unit_id} is no longer permitted by this campaign's force policy.`);
     }
     const snapshotId = `${row.campaign_id}:${selected.player_unit_id}:loadout`;
     const snapshot = createCampaignLoadoutSnapshot({
@@ -602,10 +675,49 @@ export async function commitPlan(
   );
   try { await env.DB.batch(statements); } catch (error) {
     const raced = receiptReplay(await getDeploymentReceipt(env.DB, actorId, command.commandId), "COMMIT_DEPLOYMENT_PLAN", requestHash);
-    if (raced) return raced;
+    if (raced) return await attachReinforcementSync(env, actorId, raced);
     throw error;
   }
   const committed = receiptReplay(await getDeploymentReceipt(env.DB, actorId, command.commandId), "COMMIT_DEPLOYMENT_PLAN", requestHash);
   if (!committed) throw new ForceServiceError(409, "DEPLOYMENT_PLAN_VERSION_CONFLICT", "Deployment plan changed while it was committed.");
-  return committed;
+  return await attachReinforcementSync(env, actorId, committed);
+}
+
+async function attachReinforcementSync(env: Env, actorId: string, committed: unknown): Promise<unknown> {
+  if (!committed || typeof committed !== "object" || Array.isArray(committed)) return committed;
+  const record = committed as Record<string, unknown>;
+  if (typeof record.campaignId !== "string") return committed;
+  const authority = await getDeploymentAuthority(env.DB, actorId, record.campaignId);
+  if (!authority) return { ...record, reinforcementSync: { status: "PENDING", reason: "CAMPAIGN_ACCESS_CHANGED" } };
+  const headers = internalViewerHeaders({
+    userId: actorId,
+    side: "ALLIED",
+    role: authority.command_role === "ADMIN" || authority.campaign_role === "GM"
+      ? "ADMIN"
+      : authority.command_role === "BATTALION_COMMAND" || authority.campaign_role === "BATTALION_COMMAND"
+        ? "BATTALION_COMMAND"
+        : "PLAYER",
+    battalionId: authority.battalion_id,
+  });
+  try {
+    const response = await env.CAMPAIGN.getByName(record.campaignId).fetch(new Request(
+      `https://campaign.internal/reinforcements/sync`,
+      { method: "POST", headers },
+    ));
+    const payload = await response.json().catch(() => undefined) as Record<string, unknown> | undefined;
+    if (!response.ok) {
+      return {
+        ...record,
+        reinforcementSync: {
+          status: response.status === 409 ? "PENDING_NEXT_PLANNING" : "PENDING",
+          reason: payload?.error && typeof payload.error === "object"
+            ? (payload.error as Record<string, unknown>).code
+            : "CAMPAIGN_COORDINATOR_UNAVAILABLE",
+        },
+      };
+    }
+    return { ...record, reinforcementSync: { status: "APPLIED", ...payload } };
+  } catch {
+    return { ...record, reinforcementSync: { status: "PENDING", reason: "CAMPAIGN_COORDINATOR_UNAVAILABLE" } };
+  }
 }
