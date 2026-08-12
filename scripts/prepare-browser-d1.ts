@@ -9,6 +9,7 @@ const database = "corinths-plight";
 const seeds = [
   "v5-core-curated.sql",
   "v5-phase2-combined-arms.sql",
+  "v5-classes-catalogue.sql",
   "v5-equipment-deployment.sql",
   "v5-store-catalogue.sql",
   "onboarding-foundation.sql",

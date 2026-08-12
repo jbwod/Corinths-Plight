@@ -660,10 +660,6 @@ export async function listCatalogueUnits(
                  ON deployment.id = profiles.deployment_profile_id
                 AND deployment.ruleset_id = profiles.ruleset_id
               WHERE rulesets.status = 'ACTIVE'
-                AND (
-                  definitions.definition_status <> 'legacy'
-                  OR (?1 = 1 AND overlay.availability_status = 'DEV_ONLY')
-                )
                 AND (overlay.availability_status IS NULL
                      OR overlay.availability_status <> 'HIDDEN')
                 AND (?1 = 1 OR overlay.availability_status <> 'DEV_ONLY')

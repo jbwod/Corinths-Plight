@@ -4,13 +4,29 @@ import artilleryArt from "./assets/unit-art/generated/artillery.png";
 import combatEngineersArt from "./assets/unit-art/generated/combat-engineers.png";
 import combatMedicArt from "./assets/unit-art/generated/combat-medic.png";
 import heavyAirTransportArt from "./assets/unit-art/generated/heavy-air-transport.png";
+import heavyArtilleryArt from "./assets/unit-art/generated/heavy-artillery.png";
+import heavyBattleTankArt from "./assets/unit-art/generated/heavy-battle-tank.png";
+import heavyMechArt from "./assets/unit-art/generated/heavy-mech.png";
 import infantryFightingVehicleArt from "./assets/unit-art/generated/infantry-fighting-vehicle.png";
 import infantryArt from "./assets/unit-art/generated/infantry.png";
+import irregularInfantryArt from "./assets/unit-art/generated/irregular-infantry.png";
+import lightArtilleryArt from "./assets/unit-art/generated/light-artillery.png";
+import lightBattleTankArt from "./assets/unit-art/generated/light-battle-tank.png";
 import lightMechArt from "./assets/unit-art/generated/light-mech.png";
 import lightVehicleArt from "./assets/unit-art/generated/light-vehicle.png";
 import logiTruckArt from "./assets/unit-art/generated/logi-truck.png";
 import mainBattleTankArt from "./assets/unit-art/generated/main-battle-tank.png";
+import mechanizedInfantryArt from "./assets/unit-art/generated/mechanized-infantry.png";
+import mediumMechArt from "./assets/unit-art/generated/medium-mech.png";
+import powerArmouredInfantryArt from "./assets/unit-art/generated/power-armoured-infantry.png";
+import sappersArt from "./assets/unit-art/generated/sappers.png";
+import selfPropelledArtilleryArt from "./assets/unit-art/generated/self-propelled-artillery.png";
+import specialForcesArt from "./assets/unit-art/generated/special-forces.png";
+import superHeavyTankArt from "./assets/unit-art/generated/super-heavy-tank.png";
 import vtolArt from "./assets/unit-art/generated/vtol.png";
+import vtolHeavyLiftArt from "./assets/unit-art/generated/vtol-heavy-lift.png";
+import vtolMultipurposeAirliftArt from "./assets/unit-art/generated/vtol-multipurpose-airlift.png";
+import vtolTroopAirliftArt from "./assets/unit-art/generated/vtol-troop-airlift.png";
 
 export type TacticalUnitGlyphKind =
   | "INFANTRY"
@@ -39,7 +55,7 @@ export interface UnitVisualDefinition {
   artSrc: string;
 }
 
-const CANONICAL_UNIT_VISUALS = [
+const CATALOGUED_UNIT_VISUALS = [
   { assetKey: "unit.infantry", definitionId: "unit-infantry-squad", aliases: [], label: "Infantry", shortCode: "INF", tacticalGlyph: "INFANTRY", artSrc: infantryArt },
   { assetKey: "unit.combat-medic", definitionId: "unit-combat-medic", aliases: [], label: "Combat Medic", shortCode: "MED", tacticalGlyph: "MEDIC", artSrc: combatMedicArt },
   { assetKey: "unit.combat-engineers", definitionId: "unit-engineers", aliases: ["unit-combat-engineers"], label: "Combat Engineers", shortCode: "ENG", tacticalGlyph: "ENGINEER", artSrc: combatEngineersArt },
@@ -53,12 +69,28 @@ const CANONICAL_UNIT_VISUALS = [
   { assetKey: "unit.aerospace-fighter", definitionId: "unit-aerospace-fighter", aliases: [], label: "Aerospace Fighter", shortCode: "FTR", tacticalGlyph: "FIGHTER", artSrc: aerospaceFighterArt },
   { assetKey: "unit.aerospace-bomber", definitionId: "unit-aerospace-bomber", aliases: [], label: "Aerospace Bomber", shortCode: "BMB", tacticalGlyph: "BOMBER", artSrc: aerospaceBomberArt },
   { assetKey: "unit.heavy-air-transport", definitionId: "unit-heavy-air-transport", aliases: ["unit-heavy-aerospace-transport"], label: "Heavy Air Transport", shortCode: "HAT", tacticalGlyph: "TRANSPORT", artSrc: heavyAirTransportArt },
+  { assetKey: "unit.power-armoured-infantry", definitionId: "unit-power-armoured-infantry", aliases: [], label: "Power Armoured Infantry", shortCode: "PAI", tacticalGlyph: "INFANTRY", artSrc: powerArmouredInfantryArt },
+  { assetKey: "unit.irregular", definitionId: "unit-irregular", aliases: [], label: "Irregular Unit", shortCode: "IRR", tacticalGlyph: "INFANTRY", artSrc: irregularInfantryArt },
+  { assetKey: "unit.special-forces", definitionId: "unit-special-forces", aliases: [], label: "Special Forces", shortCode: "SFC", tacticalGlyph: "INFANTRY", artSrc: specialForcesArt },
+  { assetKey: "unit.sappers", definitionId: "unit-sappers", aliases: [], label: "Sappers", shortCode: "SAP", tacticalGlyph: "ENGINEER", artSrc: sappersArt },
+  { assetKey: "unit.mechanized-infantry", definitionId: "unit-mechanized-infantry", aliases: [], label: "Mechanized Infantry", shortCode: "MIF", tacticalGlyph: "IFV", artSrc: mechanizedInfantryArt },
+  { assetKey: "unit.light-battle-tank", definitionId: "unit-light-battle-tank", aliases: [], label: "Light Battle Tank", shortCode: "LBT", tacticalGlyph: "TANK", artSrc: lightBattleTankArt },
+  { assetKey: "unit.heavy-battle-tank", definitionId: "unit-heavy-battle-tank", aliases: [], label: "Heavy Battle Tank", shortCode: "HBT", tacticalGlyph: "TANK", artSrc: heavyBattleTankArt },
+  { assetKey: "unit.super-heavy-tank", definitionId: "unit-super-heavy-tank", aliases: [], label: "Super Heavy Tank", shortCode: "SHT", tacticalGlyph: "TANK", artSrc: superHeavyTankArt },
+  { assetKey: "unit.light-artillery", definitionId: "unit-light-artillery", aliases: [], label: "Light Artillery", shortCode: "LAR", tacticalGlyph: "ARTILLERY", artSrc: lightArtilleryArt },
+  { assetKey: "unit.heavy-artillery", definitionId: "unit-heavy-artillery", aliases: [], label: "Heavy Artillery", shortCode: "HAR", tacticalGlyph: "ARTILLERY", artSrc: heavyArtilleryArt },
+  { assetKey: "unit.self-propelled-artillery", definitionId: "unit-self-propelled-artillery", aliases: [], label: "Self-Propelled Artillery", shortCode: "SPA", tacticalGlyph: "ARTILLERY", artSrc: selfPropelledArtilleryArt },
+  { assetKey: "unit.vtol-troop-airlift", definitionId: "unit-vtol-troop-airlift", aliases: [], label: "VTOL Heavy Troop Airlift", shortCode: "VTA", tacticalGlyph: "VTOL", artSrc: vtolTroopAirliftArt },
+  { assetKey: "unit.vtol-multipurpose-airlift", definitionId: "unit-vtol-multipurpose-airlift", aliases: [], label: "VTOL Multi-Purpose Airlift", shortCode: "VMP", tacticalGlyph: "VTOL", artSrc: vtolMultipurposeAirliftArt },
+  { assetKey: "unit.vtol-heavy-lift", definitionId: "unit-vtol-heavy-lift", aliases: [], label: "VTOL Heavy Lift", shortCode: "VHL", tacticalGlyph: "VTOL", artSrc: vtolHeavyLiftArt },
+  { assetKey: "unit.medium-mech", definitionId: "unit-medium-mech", aliases: [], label: "Medium Mech", shortCode: "MMC", tacticalGlyph: "MECH", artSrc: mediumMechArt },
+  { assetKey: "unit.heavy-mech", definitionId: "unit-heavy-mech", aliases: [], label: "Heavy Mech", shortCode: "HMC", tacticalGlyph: "MECH", artSrc: heavyMechArt },
 ] as const satisfies readonly UnitVisualDefinition[];
 
-export const UNIT_VISUALS: readonly UnitVisualDefinition[] = CANONICAL_UNIT_VISUALS;
+export const UNIT_VISUALS: readonly UnitVisualDefinition[] = CATALOGUED_UNIT_VISUALS;
 
 const UNIT_VISUAL_BY_ID = new Map<string, UnitVisualDefinition>();
-for (const visual of CANONICAL_UNIT_VISUALS) {
+for (const visual of CATALOGUED_UNIT_VISUALS) {
   UNIT_VISUAL_BY_ID.set(visual.definitionId, visual);
   for (const alias of visual.aliases) UNIT_VISUAL_BY_ID.set(alias, visual);
 }
@@ -121,4 +153,3 @@ export function resolveUnitVisual(input: UnitVisualLookup): UnitVisualDefinition
     ...semanticFallback(input),
   };
 }
-

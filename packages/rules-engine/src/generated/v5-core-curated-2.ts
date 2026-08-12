@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "2f071d83544f29cd8e94b78415fa7be63c1eb006f070056f84b212a3d8da4f5c",
+  "contentHash": "8292d363ba287d583afb80a1cb044e140832b33f1c85d5bdd66e41c5eb354ad6",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -731,9 +731,9 @@ const snapshot = {
           "source-classes",
           "source-v5-core"
         ],
-        "disposition": "preserve names, prose, and raw values; none is selectable or inherited by a V5 class.",
+        "disposition": "preserve names, prose, and raw values; none is selectable or inherited by a V5 class. The literal `[Redacted]` row has no usable identity or stat block and therefore remains provenance only rather than a fabricated runtime definition.",
         "status": "CATALOGUED",
-        "notes": "Canonical section: 2. Unit profile conflicts\nCanonical status: `CATALOGUED`.\n\n\n- **Companion-only values:** Power Armored Infantry, Irregular Unit, Special Forces, Sappers, Light/Heavy/Super-Heavy Battle Tanks, Light/Heavy/SP Artillery, three VTOL refits, Medium/Heavy Mechs, and `[Redacted]` appear in `Classes.html` but not in V5 starting classes.\n- **Disposition:** preserve names, prose, and raw values; none is selectable or inherited by a V5 class.\n- **Status:** `CATALOGUED`."
+        "notes": "Canonical section: 2. Unit profile conflicts\nCanonical status: `CATALOGUED`.\n\n\n- **Companion-only values:** Power Armored Infantry, Irregular Unit, Special Forces, Sappers, Light/Heavy/Super-Heavy Battle Tanks, Light/Heavy/SP Artillery, three VTOL refits, Medium/Heavy Mechs, and `[Redacted]` appear in `Classes.html` but not in V5 starting classes.\n- **Disposition:** preserve names, prose, and raw values; none is selectable or inherited by a V5 class. The literal `[Redacted]` row has no usable identity or stat block and therefore remains provenance only rather than a fabricated runtime definition.\n- **Status:** `CATALOGUED`."
       },
       {
         "id": "RC-V5-001",
@@ -1087,9 +1087,22 @@ const snapshot = {
       "unit-vtol"
     ],
     "companionUnitIds": [
+      "unit-heavy-artillery",
+      "unit-heavy-battle-tank",
+      "unit-heavy-mech",
       "unit-irregular",
+      "unit-light-artillery",
+      "unit-light-battle-tank",
+      "unit-mechanized-infantry",
+      "unit-medium-mech",
       "unit-power-armoured-infantry",
-      "unit-special-forces"
+      "unit-sappers",
+      "unit-self-propelled-artillery",
+      "unit-special-forces",
+      "unit-super-heavy-tank",
+      "unit-vtol-heavy-lift",
+      "unit-vtol-multipurpose-airlift",
+      "unit-vtol-troop-airlift"
     ],
     "units": [
       {
@@ -1589,6 +1602,216 @@ const snapshot = {
         }
       },
       {
+        "id": "unit-heavy-artillery",
+        "kind": "UNIT",
+        "name": "Heavy Artillery",
+        "definitionStatus": "legacy",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html row 20 / Heavy Artillery",
+        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourcedNumbers": {
+          "armor": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "defense": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "maxHealth": {
+            "status": "PUBLISHED",
+            "value": 3
+          },
+          "requisitionCost": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "sensorRange": {
+            "status": "SCENARIO_DEFINED",
+            "value": null
+          },
+          "speedQuarters": {
+            "status": "PUBLISHED",
+            "value": 0
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SUPPORT",
+          "definition": {
+            "canonicalActivation": "CATALOGUED",
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-014"
+            ],
+            "description": "Heavy Arty Called the \"King of the Battlefield\" for a reason. Artillery lobs rounds at the longest ranges. Weakening targets, supporting friendlies and opening holes in the front lines when needed. While having the most out going damage potential Heavy Artillery is the most limited in moblity. Being unable to move without support.",
+            "equipmentSlots": {
+              "INTERNAL": 2,
+              "SECONDARY": 1
+            },
+            "gameplayGaps": [
+              "FIXED_DAMAGE",
+              "THREE_ATTACK_SPLIT_FIRE",
+              "AREA_HEX_DAMAGE",
+              "ABANDON_GUNS",
+              "CAMPAIGN_REPLACEMENT"
+            ],
+            "raw": {
+              "armor": 0,
+              "cost": "0",
+              "forceStrength": 3,
+              "range": 8,
+              "speed": 0
+            },
+            "sourceRow": 20,
+            "specialRules": "3 Damage, Range 8 Can't Attack Unless Deployed Action: Deploy - sets up guns to fire. Can't move while deployed. Action: Abandon Guns - flee from your quipment and tunrin into a 1FS 1 Speed Infantry Unit. Can retreieve new equipment from a supply depot for 5 supply crates. Can be loaded into a Heavy Air Transport. 1 Time for the entire campaign 3 Attacks per Action ! Can be all on 1 Hex or split! Indirect Fire - Doesn't need direct LOS to fire on hostiles and hits all units in HEX targeted. Upgrades 1 Secondary 2 Internal"
+          },
+          "execution": null,
+          "healthModel": "FORCE_STRENGTH",
+          "legacyProjectionSensorRange": 0
+        }
+      },
+      {
+        "id": "unit-heavy-battle-tank",
+        "kind": "UNIT",
+        "name": "Heavy Battle Tank",
+        "definitionStatus": "legacy",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html row 16 / Heavy Battle Tank",
+        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourcedNumbers": {
+          "armor": {
+            "status": "PUBLISHED",
+            "value": 4
+          },
+          "defense": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "maxHealth": {
+            "status": "PUBLISHED",
+            "value": 3
+          },
+          "requisitionCost": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "sensorRange": {
+            "status": "SCENARIO_DEFINED",
+            "value": null
+          },
+          "speedQuarters": {
+            "status": "PUBLISHED",
+            "value": 8
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ARMOUR",
+          "definition": {
+            "canonicalActivation": "CATALOGUED",
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-014"
+            ],
+            "description": "Heavy Battle Tank Heavyer and larger than a standard main battle tank. Up armored with a longer barreled main cannon for increased range. This increase weight limits the transportation options for the Heavy Battle tank. Does not fit inside the Heavy Air Transport.",
+            "equipmentSlots": {
+              "INTERNAL": 1,
+              "SECONDARY": 1
+            },
+            "gameplayGaps": [
+              "FS_VEHICLE_DAMAGE_MODEL",
+              "WEAPON_DAMAGE_PROFILE",
+              "HEAVY_TRANSPORT_POLICY"
+            ],
+            "raw": {
+              "armor": 4,
+              "cost": null,
+              "forceStrength": 3,
+              "range": 3,
+              "speed": 2
+            },
+            "sourceRow": 16,
+            "specialRules": "AP 2 Armor Weak Spot - Rear Hex Wall Upgrades 1 Secondary 1 Internal"
+          },
+          "execution": null,
+          "healthModel": "FORCE_STRENGTH",
+          "legacyProjectionSensorRange": 0
+        }
+      },
+      {
+        "id": "unit-heavy-mech",
+        "kind": "UNIT",
+        "name": "Heavy Mech",
+        "definitionStatus": "legacy",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html row 32 / Heavy Mech",
+        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourcedNumbers": {
+          "armor": {
+            "status": "PUBLISHED",
+            "value": 3
+          },
+          "defense": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "maxHealth": {
+            "status": "PUBLISHED",
+            "value": 5
+          },
+          "requisitionCost": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "sensorRange": {
+            "status": "SCENARIO_DEFINED",
+            "value": null
+          },
+          "speedQuarters": {
+            "status": "PUBLISHED",
+            "value": 8
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH",
+          "definition": {
+            "canonicalActivation": "CATALOGUED",
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-014"
+            ],
+            "description": "Heavy Mech Slow but incredably well armored. The heavy mech towers over the battlefield. With its large collections of weapons which can all be fired at once or 1 at a time. If a heavy Mech sees a problem. It probably has a solution.",
+            "equipmentSlots": {
+              "EXTERNAL": 3,
+              "INTERNAL": 4
+            },
+            "gameplayGaps": [
+              "FS_MECH_DAMAGE_MODEL",
+              "MULTIWEAPON_REFIT",
+              "LEG_HEIGHT_LOS",
+              "DOTTED_REQUISITION_COST"
+            ],
+            "raw": {
+              "armor": 3,
+              "cost": "....2",
+              "forceStrength": 5,
+              "range": 0,
+              "speed": 2
+            },
+            "sourceRow": 32,
+            "specialRules": "3/4 Can't reload there weapons without being at a supply point due to the scale of the weapon systems. This mech comes with No Weapons. You can transfer your prior Mechs Weapons Mechs can fire all weapons at once or 1 at a time. Legged - Can see over Terrain at lvl 1 higher."
+          },
+          "execution": null,
+          "healthModel": "FORCE_STRENGTH",
+          "legacyProjectionSensorRange": 0
+        }
+      },
+      {
         "id": "unit-infantry-fighting-vehicle",
         "kind": "UNIT",
         "name": "Infantry Fighting Vehicle",
@@ -1816,6 +2039,146 @@ const snapshot = {
             },
             "role": "IRREGULAR_MANPOWER",
             "sensorRange": "SCENARIO_DEFINED"
+          },
+          "execution": null,
+          "healthModel": "FORCE_STRENGTH",
+          "legacyProjectionSensorRange": 0
+        }
+      },
+      {
+        "id": "unit-light-artillery",
+        "kind": "UNIT",
+        "name": "Light Artillery",
+        "definitionStatus": "legacy",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html row 19 / Light Artillery",
+        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourcedNumbers": {
+          "armor": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "defense": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "maxHealth": {
+            "status": "PUBLISHED",
+            "value": 2
+          },
+          "requisitionCost": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "sensorRange": {
+            "status": "SCENARIO_DEFINED",
+            "value": null
+          },
+          "speedQuarters": {
+            "status": "PUBLISHED",
+            "value": 4
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SUPPORT",
+          "definition": {
+            "canonicalActivation": "CATALOGUED",
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-014"
+            ],
+            "description": "Light Arty A set of light guns able to be deployed and rain fire on distant enemies. While it doesn't have the damage potential of the heavy artillery these field guns can be moved by the infantry manning them and transported much easier. Light Artillery can be para-dropped from a heavy air transport or brought down in Heavy Drop Pods if an obital has the equipment.",
+            "equipmentSlots": {
+              "INTERNAL": 2,
+              "SECONDARY": 1
+            },
+            "gameplayGaps": [
+              "FIXED_DAMAGE",
+              "TWO_ATTACK_SPLIT_FIRE",
+              "AREA_HEX_DAMAGE",
+              "ABANDON_GUNS",
+              "CAMPAIGN_REPLACEMENT"
+            ],
+            "raw": {
+              "armor": 0,
+              "cost": "0",
+              "forceStrength": 2,
+              "range": 5,
+              "speed": 1
+            },
+            "sourceRow": 19,
+            "specialRules": "2 Damage, Range 5 Can't Attack Unless Deployed Action: Deploy - sets up guns to fire. Can't move while deployed. Action: Abandon Guns - flee from your quipment and turn into a 1FS 1 Speed Infantry Unit. Can retreieve new equipment from a supply depot for 5 supply crates 1 Time for the entire campaign. This unit can dropped from a orbital with the Heavy Drop Pod Upgrade. This unit can para-drop from Heavy Transport Aerospace Craft. 2 Attacks per Action ! Can be all on 1 Hex or split! Indirect Fire - Doesn't need direct LOS to fire on hostiles and hits all units in HEX targeted. Upgrades 1 Secondary 2 Internal"
+          },
+          "execution": null,
+          "healthModel": "FORCE_STRENGTH",
+          "legacyProjectionSensorRange": 0
+        }
+      },
+      {
+        "id": "unit-light-battle-tank",
+        "kind": "UNIT",
+        "name": "Light Battle Tank",
+        "definitionStatus": "legacy",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html row 14 / Light Battle Tank",
+        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourcedNumbers": {
+          "armor": {
+            "status": "PUBLISHED",
+            "value": 2
+          },
+          "defense": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "maxHealth": {
+            "status": "PUBLISHED",
+            "value": 3
+          },
+          "requisitionCost": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "sensorRange": {
+            "status": "SCENARIO_DEFINED",
+            "value": null
+          },
+          "speedQuarters": {
+            "status": "PUBLISHED",
+            "value": 12
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ARMOUR",
+          "definition": {
+            "canonicalActivation": "CATALOGUED",
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-014"
+            ],
+            "description": "Light Battle Tank Uses for scouting duty, front line combat and capable of being dropped with para-troopers forces out of the back of a Heavy Air Transport. Unlike any other type of tank. These tanks are tipically faster but with less armor then a standard main battle tank.",
+            "equipmentSlots": {
+              "INTERNAL": 1,
+              "SECONDARY": 1
+            },
+            "gameplayGaps": [
+              "FS_VEHICLE_DAMAGE_MODEL",
+              "WEAPON_DAMAGE_PROFILE",
+              "HAT_TANK_AIRDROP"
+            ],
+            "raw": {
+              "armor": 2,
+              "cost": null,
+              "forceStrength": 3,
+              "range": 2,
+              "speed": 3
+            },
+            "sourceRow": 14,
+            "specialRules": "AP 2 Fits Inside and be air dropped out of a Heavy Air Transport Armor Weak Spot - Rear Hex Wall Upgrades 1 Secondary 1 Internal"
           },
           "execution": null,
           "healthModel": "FORCE_STRENGTH",
@@ -2141,6 +2504,147 @@ const snapshot = {
         }
       },
       {
+        "id": "unit-mechanized-infantry",
+        "kind": "UNIT",
+        "name": "Mechanized Infantry",
+        "definitionStatus": "legacy",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html row 10 / Mechanized Infantry",
+        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourcedNumbers": {
+          "armor": {
+            "status": "PUBLISHED",
+            "value": 2
+          },
+          "defense": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "maxHealth": {
+            "status": "PUBLISHED",
+            "value": 3
+          },
+          "requisitionCost": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "sensorRange": {
+            "status": "SCENARIO_DEFINED",
+            "value": null
+          },
+          "speedQuarters": {
+            "status": "PUBLISHED",
+            "value": 12
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ARMOUR",
+          "definition": {
+            "canonicalActivation": "CATALOGUED",
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-014"
+            ],
+            "description": "Mechanized Infantry The only vehicle based unit that can hold a hex like infantry but only from one direction; mechanized infantry can hold 1 forward hex line instead of 3. Mechanized infantry are infantry deployed from armored fighting vehicles",
+            "equipmentSlots": {
+              "INTERNAL": 1,
+              "PRIMARY": 1,
+              "SECONDARY": 1
+            },
+            "gameplayGaps": [
+              "FORWARD_LINE_CONTROL",
+              "MIXED_EQUIPMENT_POLICY",
+              "FS_VEHICLE_DAMAGE_MODEL"
+            ],
+            "raw": {
+              "armor": 2,
+              "cost": null,
+              "forceStrength": 3,
+              "range": 2,
+              "speed": 3
+            },
+            "sourceRow": 10,
+            "specialRules": "Can Hold a Center Hex Line Like Infantry. Has the range and speed of a vehicle without the AP of a tank. Can take upgrades from both infantry and vehicle lists. All AP, Armor and Speed upgrades must come from the vehicle list. 1 Primary, 1 Secondary, 1 Internal slot."
+          },
+          "execution": null,
+          "healthModel": "FORCE_STRENGTH",
+          "legacyProjectionSensorRange": 0
+        }
+      },
+      {
+        "id": "unit-medium-mech",
+        "kind": "UNIT",
+        "name": "Medium Mech",
+        "definitionStatus": "legacy",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html row 31 / Medium Mech",
+        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourcedNumbers": {
+          "armor": {
+            "status": "PUBLISHED",
+            "value": 2
+          },
+          "defense": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "maxHealth": {
+            "status": "PUBLISHED",
+            "value": 4
+          },
+          "requisitionCost": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "sensorRange": {
+            "status": "SCENARIO_DEFINED",
+            "value": null
+          },
+          "speedQuarters": {
+            "status": "PUBLISHED",
+            "value": 12
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH",
+          "definition": {
+            "canonicalActivation": "CATALOGUED",
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-014"
+            ],
+            "description": "Medium Mech Still decently fast for a mech, the medium mech has more space for weapons and equipment.",
+            "equipmentSlots": {
+              "EXTERNAL": 2,
+              "INTERNAL": 4
+            },
+            "gameplayGaps": [
+              "FS_MECH_DAMAGE_MODEL",
+              "MULTIWEAPON_REFIT",
+              "LEG_HEIGHT_LOS",
+              "CROUCH_COVER",
+              "DOTTED_REQUISITION_COST"
+            ],
+            "raw": {
+              "armor": 2,
+              "cost": "..1",
+              "forceStrength": 4,
+              "range": 0,
+              "speed": 3
+            },
+            "sourceRow": 31,
+            "specialRules": "2/4 Can't reload there weapons without being at a supply point due to the scale of the weapon systems. This mech comes with No Weapons. You can transfer your prior Mechs Weapon Mechs can fire all weapons at once or 1 at a time. Legged - Can see over Terrain at lvl 1 higher. Can Crouch to use lvl 1 terrain as cover from direct weapons if blocking LOS."
+          },
+          "execution": null,
+          "healthModel": "FORCE_STRENGTH",
+          "legacyProjectionSensorRange": 0
+        }
+      },
+      {
         "id": "unit-power-armoured-infantry",
         "kind": "UNIT",
         "name": "Power Armoured Infantry",
@@ -2207,6 +2711,147 @@ const snapshot = {
         }
       },
       {
+        "id": "unit-sappers",
+        "kind": "UNIT",
+        "name": "Sappers",
+        "definitionStatus": "legacy",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html row 8 / Sappers",
+        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourcedNumbers": {
+          "armor": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "defense": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "maxHealth": {
+            "status": "PUBLISHED",
+            "value": 2
+          },
+          "requisitionCost": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "sensorRange": {
+            "status": "SCENARIO_DEFINED",
+            "value": null
+          },
+          "speedQuarters": {
+            "status": "PUBLISHED",
+            "value": 4
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SUPPORT",
+          "definition": {
+            "canonicalActivation": "CATALOGUED",
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-014"
+            ],
+            "description": "Sappers A smaller group of engineers trained move around quietly. Can do everything the Engineers do but quietly. Sappers are an elite group and very few in number.",
+            "equipmentSlots": {
+              "PRIMARY": 1,
+              "SECONDARY": 1
+            },
+            "gameplayGaps": [
+              "SAPPER_STRUCTURE_LIST",
+              "MINES",
+              "BUILD_SUPPLY",
+              "STEALTH_CONSTRUCTION"
+            ],
+            "raw": {
+              "armor": 0,
+              "cost": null,
+              "forceStrength": 2,
+              "range": 1,
+              "speed": 1
+            },
+            "sourceRow": 8,
+            "specialRules": "Stealth Engineers - Can Build and Repair Structures and Repair Vehicles at 2FS per Repair Action. Can Build Limited Structures. Can Take Limited SF Equipment. Has Stealth Each Build Action makes 3 Building Progress on the project using up 3 Building Supply. Building Supply can be reloaded for 1 General Supply crate. Sappers Have 6/6 Build Supply and come with mines. Mines - Can set mines. Explodes on enemy contact. Structures - Sensor Tower: Build in a hex, reveal area 1 hex out around Sensor Tower. Weapon Emplacement Equipment Upgrades Primary Equipment Slot 1 Secondary Equipment Slot 1"
+          },
+          "execution": null,
+          "healthModel": "FORCE_STRENGTH",
+          "legacyProjectionSensorRange": 0
+        }
+      },
+      {
+        "id": "unit-self-propelled-artillery",
+        "kind": "UNIT",
+        "name": "Self-Propelled Artillery",
+        "definitionStatus": "legacy",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html row 21 / Self-Propelled Artillery",
+        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourcedNumbers": {
+          "armor": {
+            "status": "PUBLISHED",
+            "value": 2
+          },
+          "defense": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "maxHealth": {
+            "status": "PUBLISHED",
+            "value": 2
+          },
+          "requisitionCost": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "sensorRange": {
+            "status": "SCENARIO_DEFINED",
+            "value": null
+          },
+          "speedQuarters": {
+            "status": "PUBLISHED",
+            "value": 8
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SUPPORT",
+          "definition": {
+            "canonicalActivation": "CATALOGUED",
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-014"
+            ],
+            "description": "Self-Propelled The most mobile of the artillery units. Guns mounted on tracks or wheels.. While they can get up and move and fire without needing to setup and deploy SPG's do not get multiple shots like other artillery types.",
+            "equipmentSlots": {
+              "INTERNAL": 2,
+              "SECONDARY": 1
+            },
+            "gameplayGaps": [
+              "FS_VEHICLE_DAMAGE_MODEL",
+              "FIXED_DAMAGE",
+              "MINIMUM_RANGE",
+              "FINITE_AP_ROUNDS",
+              "AREA_HEX_DAMAGE"
+            ],
+            "raw": {
+              "armor": 2,
+              "cost": "0",
+              "forceStrength": 2,
+              "range": 4,
+              "speed": 2
+            },
+            "sourceRow": 21,
+            "specialRules": "Minimum Range 2, Choose Wheeled or Tracked. (Comes with (5) AP Rounds, Gift from Haven. Once Used they are gone forever) Indirect Fire - Doesn't need direct LOS to fire on hostiles and hits all units in HEX targeted. Upgrades 1 Secondary 2 Internal"
+          },
+          "execution": null,
+          "healthModel": "FORCE_STRENGTH",
+          "legacyProjectionSensorRange": 0
+        }
+      },
+      {
         "id": "unit-special-forces",
         "kind": "UNIT",
         "name": "Special Forces",
@@ -2265,6 +2910,76 @@ const snapshot = {
               "INFANTRY",
               "INFANTRY_STEALTH"
             ]
+          },
+          "execution": null,
+          "healthModel": "FORCE_STRENGTH",
+          "legacyProjectionSensorRange": 0
+        }
+      },
+      {
+        "id": "unit-super-heavy-tank",
+        "kind": "UNIT",
+        "name": "Super Heavy Tank",
+        "definitionStatus": "legacy",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html row 17 / Super Heavy Tank",
+        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourcedNumbers": {
+          "armor": {
+            "status": "PUBLISHED",
+            "value": 5
+          },
+          "defense": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "maxHealth": {
+            "status": "PUBLISHED",
+            "value": 4
+          },
+          "requisitionCost": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "sensorRange": {
+            "status": "SCENARIO_DEFINED",
+            "value": null
+          },
+          "speedQuarters": {
+            "status": "PUBLISHED",
+            "value": 4
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ARMOUR",
+          "definition": {
+            "canonicalActivation": "CATALOGUED",
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-014"
+            ],
+            "description": "Super Heavy Tank \"Single Tank\" This is the king or armored combat. Dual main weapon systems bring more firepower to the field, each cannon larger than even the Heavy Battle Tank. Only specialized transports can move this Behemoth. The biggest issue for a commander of this unit is incredably limited mobility. Unlike every other tank unit this unit is a single tank.",
+            "equipmentSlots": {
+              "INTERNAL": 2,
+              "SECONDARY": 2
+            },
+            "gameplayGaps": [
+              "FS_VEHICLE_DAMAGE_MODEL",
+              "DUAL_CANNON_ATTACK",
+              "WEAPON_DAMAGE_PROFILE",
+              "SPECIAL_TRANSPORT_POLICY"
+            ],
+            "raw": {
+              "armor": 5,
+              "cost": null,
+              "forceStrength": 4,
+              "range": 3,
+              "speed": 1
+            },
+            "sourceRow": 17,
+            "specialRules": "AP 5 Fires TWICE with each action. Armor Weak Spot - Rear Hex Wall Upgrades 2 Secondary 2 Internal"
           },
           "execution": null,
           "healthModel": "FORCE_STRENGTH",
@@ -2351,6 +3066,215 @@ const snapshot = {
             ]
           },
           "healthModel": "HITS",
+          "legacyProjectionSensorRange": 0
+        }
+      },
+      {
+        "id": "unit-vtol-heavy-lift",
+        "kind": "UNIT",
+        "name": "VTOL Heavy Lift",
+        "definitionStatus": "legacy",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html row 26 / VTOL Heavy Lift",
+        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourcedNumbers": {
+          "armor": {
+            "status": "PUBLISHED",
+            "value": 3
+          },
+          "defense": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "maxHealth": {
+            "status": "PUBLISHED",
+            "value": 3
+          },
+          "requisitionCost": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "sensorRange": {
+            "status": "SCENARIO_DEFINED",
+            "value": null
+          },
+          "speedQuarters": {
+            "status": "PUBLISHED",
+            "value": 20
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "AEROSPACE",
+          "definition": {
+            "canonicalActivation": "CATALOGUED",
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-014"
+            ],
+            "description": "VTOL Heavy Lift Refit for 1 purpose.. To move the heavy equipment. Be they an objective in the field that no one else can move or a friendly Super heavy tank / Mech to bring the pain. Some argue the most powerful team is a VTOL Heavy Lift with a friend.",
+            "equipmentSlots": {
+              "INTERNAL": 1,
+              "LIGHT": 1
+            },
+            "gameplayGaps": [
+              "FS_AEROSPACE_DAMAGE_MODEL",
+              "EXTERNAL_HEAVY_LIFT",
+              "OBJECTIVE_CARGO",
+              "HEAVY_TRANSPORT_CAPACITY"
+            ],
+            "raw": {
+              "armor": 3,
+              "cost": "0",
+              "forceStrength": 3,
+              "range": 0,
+              "speed": 5
+            },
+            "sourceRow": 26,
+            "specialRules": "VTOL Craft No Weapon Can move a single Mech or a Single SHBT, or a Heavy Tank Unit Hollow Mid Section for Lifting Massive Equipment. Can lift 1 Supply Cargo Upgrades - 1 Light Weapon Mounts 1 Internal Upgrades"
+          },
+          "execution": null,
+          "healthModel": "FORCE_STRENGTH",
+          "legacyProjectionSensorRange": 0
+        }
+      },
+      {
+        "id": "unit-vtol-multipurpose-airlift",
+        "kind": "UNIT",
+        "name": "VTOL Multi-Purpose Airlift",
+        "definitionStatus": "legacy",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html row 25 / VTOL Multi-Purpose Airlift",
+        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourcedNumbers": {
+          "armor": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "defense": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "maxHealth": {
+            "status": "PUBLISHED",
+            "value": 3
+          },
+          "requisitionCost": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "sensorRange": {
+            "status": "SCENARIO_DEFINED",
+            "value": null
+          },
+          "speedQuarters": {
+            "status": "PUBLISHED",
+            "value": 20
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "AEROSPACE",
+          "definition": {
+            "canonicalActivation": "CATALOGUED",
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-014"
+            ],
+            "description": "VTOL Multi-Purpose Airlift A smaller VTOL outfitted with enough space for an infantry unit and a single light vehicle unit. Some call it a pelican others with taste a warden.",
+            "equipmentSlots": {
+              "INTERNAL": 1,
+              "LIGHT": 1
+            },
+            "gameplayGaps": [
+              "FS_AEROSPACE_DAMAGE_MODEL",
+              "SIMULTANEOUS_PERSONNEL_AND_VEHICLE_CARGO",
+              "FS_BASED_REARM"
+            ],
+            "raw": {
+              "armor": 1,
+              "cost": "0",
+              "forceStrength": 3,
+              "range": 1,
+              "speed": 5
+            },
+            "sourceRow": 25,
+            "specialRules": "1 Infantry Unit Capacity or one supply cargo and 1 Light Vehicle Unit Capacity Rearm after every FS based Attack Upgrades - 1 Light Weapon Mounts 1 Internal Upgrades"
+          },
+          "execution": null,
+          "healthModel": "FORCE_STRENGTH",
+          "legacyProjectionSensorRange": 0
+        }
+      },
+      {
+        "id": "unit-vtol-troop-airlift",
+        "kind": "UNIT",
+        "name": "VTOL Heavy Troop Airlift",
+        "definitionStatus": "legacy",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html row 24 / VTOL Heavy Troop Airlift",
+        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourcedNumbers": {
+          "armor": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "defense": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "maxHealth": {
+            "status": "PUBLISHED",
+            "value": 3
+          },
+          "requisitionCost": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "sensorRange": {
+            "status": "SCENARIO_DEFINED",
+            "value": null
+          },
+          "speedQuarters": {
+            "status": "PUBLISHED",
+            "value": 20
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "AEROSPACE",
+          "definition": {
+            "canonicalActivation": "CATALOGUED",
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-014"
+            ],
+            "description": "VTOL Heavy Troop Airlift A infantry focused troop transport that can move multiple platoon of infantry to and from the battlefield as well as some Supply inside its dedicated bay. Forward mounted light weapon offers cover for ground forces.",
+            "equipmentSlots": {
+              "INTERNAL": 1,
+              "LIGHT": 1
+            },
+            "gameplayGaps": [
+              "FS_AEROSPACE_DAMAGE_MODEL",
+              "TROOP_OR_SUPPLY_CAPACITY",
+              "RAPPELLING_GARRISON",
+              "FS_BASED_REARM"
+            ],
+            "raw": {
+              "armor": 1,
+              "cost": "0",
+              "forceStrength": 3,
+              "range": 1,
+              "speed": 5
+            },
+            "sourceRow": 24,
+            "specialRules": "2 Infantry Unit Capactiy or 1 Supply Cargo Rearm after every FS based Attack Comes with Repelling gear allowing infantry to drop from the VTOL and garrison a building without using an action or requiring the VTOL to land. Upgrades - 1 Light Weapon Mounts 1 Internal Upgrades"
+          },
+          "execution": null,
+          "healthModel": "FORCE_STRENGTH",
           "legacyProjectionSensorRange": 0
         }
       }
@@ -13206,6 +14130,81 @@ const snapshot = {
       },
       {
         "definitionKind": "UNIT",
+        "definitionId": "unit-heavy-artillery",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "BALANCE_REQUIRED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "RC_UNIT_015",
+        "sourcePath": "rules/Classes.html",
+        "sourceLocator": "Heavy Artillery / row 20",
+        "parameters": {
+          "conflictIds": [
+            "RC-UNIT-015"
+          ],
+          "gameplayGaps": [
+            "FIXED_DAMAGE",
+            "THREE_ATTACK_SPLIT_FIRE",
+            "AREA_HEX_DAMAGE",
+            "ABANDON_GUNS",
+            "CAMPAIGN_REPLACEMENT"
+          ],
+          "sourceExact": true
+        }
+      },
+      {
+        "definitionKind": "UNIT",
+        "definitionId": "unit-heavy-battle-tank",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "BALANCE_REQUIRED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "RC_UNIT_015",
+        "sourcePath": "rules/Classes.html",
+        "sourceLocator": "Heavy Battle Tank / row 16",
+        "parameters": {
+          "conflictIds": [
+            "RC-UNIT-015"
+          ],
+          "gameplayGaps": [
+            "FS_VEHICLE_DAMAGE_MODEL",
+            "WEAPON_DAMAGE_PROFILE",
+            "HEAVY_TRANSPORT_POLICY"
+          ],
+          "sourceExact": true
+        }
+      },
+      {
+        "definitionKind": "UNIT",
+        "definitionId": "unit-heavy-mech",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "BALANCE_REQUIRED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "RC_UNIT_015",
+        "sourcePath": "rules/Classes.html",
+        "sourceLocator": "Heavy Mech / row 32",
+        "parameters": {
+          "conflictIds": [
+            "RC-UNIT-015"
+          ],
+          "gameplayGaps": [
+            "FS_MECH_DAMAGE_MODEL",
+            "MULTIWEAPON_REFIT",
+            "LEG_HEIGHT_LOS",
+            "DOTTED_REQUISITION_COST"
+          ],
+          "sourceExact": true
+        }
+      },
+      {
+        "definitionKind": "UNIT",
         "definitionId": "unit-infantry-fighting-vehicle",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
@@ -13292,7 +14291,7 @@ const snapshot = {
         "definitionId": "unit-irregular",
         "implementationStatus": "CATALOGUE_ONLY",
         "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -13303,6 +14302,56 @@ const snapshot = {
           "conflictIds": [
             "RC-UNIT-015"
           ]
+        }
+      },
+      {
+        "definitionKind": "UNIT",
+        "definitionId": "unit-light-artillery",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "BALANCE_REQUIRED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "RC_UNIT_015",
+        "sourcePath": "rules/Classes.html",
+        "sourceLocator": "Light Artillery / row 19",
+        "parameters": {
+          "conflictIds": [
+            "RC-UNIT-015"
+          ],
+          "gameplayGaps": [
+            "FIXED_DAMAGE",
+            "TWO_ATTACK_SPLIT_FIRE",
+            "AREA_HEX_DAMAGE",
+            "ABANDON_GUNS",
+            "CAMPAIGN_REPLACEMENT"
+          ],
+          "sourceExact": true
+        }
+      },
+      {
+        "definitionKind": "UNIT",
+        "definitionId": "unit-light-battle-tank",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "BALANCE_REQUIRED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "RC_UNIT_015",
+        "sourcePath": "rules/Classes.html",
+        "sourceLocator": "Light Battle Tank / row 14",
+        "parameters": {
+          "conflictIds": [
+            "RC-UNIT-015"
+          ],
+          "gameplayGaps": [
+            "FS_VEHICLE_DAMAGE_MODEL",
+            "WEAPON_DAMAGE_PROFILE",
+            "HAT_TANK_AIRDROP"
+          ],
+          "sourceExact": true
         }
       },
       {
@@ -13468,10 +14517,60 @@ const snapshot = {
       },
       {
         "definitionKind": "UNIT",
+        "definitionId": "unit-mechanized-infantry",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "BALANCE_REQUIRED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "RC_UNIT_015",
+        "sourcePath": "rules/Classes.html",
+        "sourceLocator": "Mechanized Infantry / row 10",
+        "parameters": {
+          "conflictIds": [
+            "RC-UNIT-015"
+          ],
+          "gameplayGaps": [
+            "FORWARD_LINE_CONTROL",
+            "MIXED_EQUIPMENT_POLICY",
+            "FS_VEHICLE_DAMAGE_MODEL"
+          ],
+          "sourceExact": true
+        }
+      },
+      {
+        "definitionKind": "UNIT",
+        "definitionId": "unit-medium-mech",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "BALANCE_REQUIRED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "RC_UNIT_015",
+        "sourcePath": "rules/Classes.html",
+        "sourceLocator": "Medium Mech / row 31",
+        "parameters": {
+          "conflictIds": [
+            "RC-UNIT-015"
+          ],
+          "gameplayGaps": [
+            "FS_MECH_DAMAGE_MODEL",
+            "MULTIWEAPON_REFIT",
+            "LEG_HEIGHT_LOS",
+            "CROUCH_COVER",
+            "DOTTED_REQUISITION_COST"
+          ],
+          "sourceExact": true
+        }
+      },
+      {
+        "definitionKind": "UNIT",
         "definitionId": "unit-power-armoured-infantry",
         "implementationStatus": "CATALOGUE_ONLY",
         "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -13486,10 +14585,61 @@ const snapshot = {
       },
       {
         "definitionKind": "UNIT",
+        "definitionId": "unit-sappers",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "BALANCE_REQUIRED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "RC_UNIT_015",
+        "sourcePath": "rules/Classes.html",
+        "sourceLocator": "Sappers / row 8",
+        "parameters": {
+          "conflictIds": [
+            "RC-UNIT-015"
+          ],
+          "gameplayGaps": [
+            "SAPPER_STRUCTURE_LIST",
+            "MINES",
+            "BUILD_SUPPLY",
+            "STEALTH_CONSTRUCTION"
+          ],
+          "sourceExact": true
+        }
+      },
+      {
+        "definitionKind": "UNIT",
+        "definitionId": "unit-self-propelled-artillery",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "BALANCE_REQUIRED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "RC_UNIT_015",
+        "sourcePath": "rules/Classes.html",
+        "sourceLocator": "Self-Propelled Artillery / row 21",
+        "parameters": {
+          "conflictIds": [
+            "RC-UNIT-015"
+          ],
+          "gameplayGaps": [
+            "FS_VEHICLE_DAMAGE_MODEL",
+            "FIXED_DAMAGE",
+            "MINIMUM_RANGE",
+            "FINITE_AP_ROUNDS",
+            "AREA_HEX_DAMAGE"
+          ],
+          "sourceExact": true
+        }
+      },
+      {
+        "definitionKind": "UNIT",
         "definitionId": "unit-special-forces",
         "implementationStatus": "CATALOGUE_ONLY",
         "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -13500,6 +14650,31 @@ const snapshot = {
           "conflictIds": [
             "RC-UNIT-015"
           ]
+        }
+      },
+      {
+        "definitionKind": "UNIT",
+        "definitionId": "unit-super-heavy-tank",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "BALANCE_REQUIRED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "RC_UNIT_015",
+        "sourcePath": "rules/Classes.html",
+        "sourceLocator": "Super Heavy Tank / row 17",
+        "parameters": {
+          "conflictIds": [
+            "RC-UNIT-015"
+          ],
+          "gameplayGaps": [
+            "FS_VEHICLE_DAMAGE_MODEL",
+            "DUAL_CANNON_ATTACK",
+            "WEAPON_DAMAGE_PROFILE",
+            "SPECIAL_TRANSPORT_POLICY"
+          ],
+          "sourceExact": true
         }
       },
       {
@@ -13546,6 +14721,80 @@ const snapshot = {
             }
           },
           "verticalSlice": "equipment-deployment"
+        }
+      },
+      {
+        "definitionKind": "UNIT",
+        "definitionId": "unit-vtol-heavy-lift",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "BALANCE_REQUIRED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "RC_UNIT_015",
+        "sourcePath": "rules/Classes.html",
+        "sourceLocator": "VTOL Heavy Lift / row 26",
+        "parameters": {
+          "conflictIds": [
+            "RC-UNIT-015"
+          ],
+          "gameplayGaps": [
+            "FS_AEROSPACE_DAMAGE_MODEL",
+            "EXTERNAL_HEAVY_LIFT",
+            "OBJECTIVE_CARGO",
+            "HEAVY_TRANSPORT_CAPACITY"
+          ],
+          "sourceExact": true
+        }
+      },
+      {
+        "definitionKind": "UNIT",
+        "definitionId": "unit-vtol-multipurpose-airlift",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "BALANCE_REQUIRED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "RC_UNIT_015",
+        "sourcePath": "rules/Classes.html",
+        "sourceLocator": "VTOL Multi-Purpose Airlift / row 25",
+        "parameters": {
+          "conflictIds": [
+            "RC-UNIT-015"
+          ],
+          "gameplayGaps": [
+            "FS_AEROSPACE_DAMAGE_MODEL",
+            "SIMULTANEOUS_PERSONNEL_AND_VEHICLE_CARGO",
+            "FS_BASED_REARM"
+          ],
+          "sourceExact": true
+        }
+      },
+      {
+        "definitionKind": "UNIT",
+        "definitionId": "unit-vtol-troop-airlift",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "BALANCE_REQUIRED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "RC_UNIT_015",
+        "sourcePath": "rules/Classes.html",
+        "sourceLocator": "VTOL Heavy Troop Airlift / row 24",
+        "parameters": {
+          "conflictIds": [
+            "RC-UNIT-015"
+          ],
+          "gameplayGaps": [
+            "FS_AEROSPACE_DAMAGE_MODEL",
+            "TROOP_OR_SUPPLY_CAPACITY",
+            "RAPPELLING_GARRISON",
+            "FS_BASED_REARM"
+          ],
+          "sourceExact": true
         }
       }
     ],
@@ -14056,6 +15305,240 @@ const snapshot = {
           }
         },
         {
+          "id": "unit-profile:unit-heavy-artillery:movement",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-artillery"
+          },
+          "to": {
+            "definitionKind": "MOVEMENT_PROFILE",
+            "definitionId": "movement-ground-standard"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "movement"
+          }
+        },
+        {
+          "id": "unit-profile:unit-heavy-artillery:durability",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-artillery"
+          },
+          "to": {
+            "definitionKind": "DURABILITY_PROFILE",
+            "definitionId": "durability-personnel-fs"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-heavy-artillery:deployment",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-artillery"
+          },
+          "to": {
+            "definitionKind": "DEPLOYMENT_PROFILE",
+            "definitionId": "deployment-ground"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "deployment"
+          }
+        },
+        {
+          "id": "unit-profile:unit-heavy-battle-tank:movement",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-battle-tank"
+          },
+          "to": {
+            "definitionKind": "MOVEMENT_PROFILE",
+            "definitionId": "movement-tracked-ground"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "movement"
+          }
+        },
+        {
+          "id": "unit-profile:unit-heavy-battle-tank:durability",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-battle-tank"
+          },
+          "to": {
+            "definitionKind": "DURABILITY_PROFILE",
+            "definitionId": "durability-personnel-fs"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-heavy-battle-tank:deployment",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-battle-tank"
+          },
+          "to": {
+            "definitionKind": "DEPLOYMENT_PROFILE",
+            "definitionId": "deployment-ground"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "deployment"
+          }
+        },
+        {
+          "id": "unit-profile:unit-heavy-mech:movement",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-mech"
+          },
+          "to": {
+            "definitionKind": "MOVEMENT_PROFILE",
+            "definitionId": "movement-mech"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "movement"
+          }
+        },
+        {
+          "id": "unit-profile:unit-heavy-mech:durability",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-mech"
+          },
+          "to": {
+            "definitionKind": "DURABILITY_PROFILE",
+            "definitionId": "durability-personnel-fs"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-heavy-mech:deployment",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-mech"
+          },
+          "to": {
+            "definitionKind": "DEPLOYMENT_PROFILE",
+            "definitionId": "deployment-ground"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "deployment"
+          }
+        },
+        {
           "id": "unit-profile:unit-infantry-fighting-vehicle:movement",
           "kind": "UNIT_PROFILE",
           "from": {
@@ -14267,6 +15750,162 @@ const snapshot = {
           "parameters": {
             "profile": {
               "canonicalActivation": "CATALOGUED"
+            },
+            "profileRole": "deployment"
+          }
+        },
+        {
+          "id": "unit-profile:unit-light-artillery:movement",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-artillery"
+          },
+          "to": {
+            "definitionKind": "MOVEMENT_PROFILE",
+            "definitionId": "movement-ground-standard"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "movement"
+          }
+        },
+        {
+          "id": "unit-profile:unit-light-artillery:durability",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-artillery"
+          },
+          "to": {
+            "definitionKind": "DURABILITY_PROFILE",
+            "definitionId": "durability-personnel-fs"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-light-artillery:deployment",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-artillery"
+          },
+          "to": {
+            "definitionKind": "DEPLOYMENT_PROFILE",
+            "definitionId": "deployment-ground"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "deployment"
+          }
+        },
+        {
+          "id": "unit-profile:unit-light-battle-tank:movement",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-battle-tank"
+          },
+          "to": {
+            "definitionKind": "MOVEMENT_PROFILE",
+            "definitionId": "movement-tracked-ground"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "movement"
+          }
+        },
+        {
+          "id": "unit-profile:unit-light-battle-tank:durability",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-battle-tank"
+          },
+          "to": {
+            "definitionKind": "DURABILITY_PROFILE",
+            "definitionId": "durability-personnel-fs"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-light-battle-tank:deployment",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-battle-tank"
+          },
+          "to": {
+            "definitionKind": "DEPLOYMENT_PROFILE",
+            "definitionId": "deployment-ground"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
             },
             "profileRole": "deployment"
           }
@@ -14566,6 +16205,162 @@ const snapshot = {
           }
         },
         {
+          "id": "unit-profile:unit-mechanized-infantry:movement",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-mechanized-infantry"
+          },
+          "to": {
+            "definitionKind": "MOVEMENT_PROFILE",
+            "definitionId": "movement-ground-standard"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "movement"
+          }
+        },
+        {
+          "id": "unit-profile:unit-mechanized-infantry:durability",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-mechanized-infantry"
+          },
+          "to": {
+            "definitionKind": "DURABILITY_PROFILE",
+            "definitionId": "durability-personnel-fs"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-mechanized-infantry:deployment",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-mechanized-infantry"
+          },
+          "to": {
+            "definitionKind": "DEPLOYMENT_PROFILE",
+            "definitionId": "deployment-ground"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "deployment"
+          }
+        },
+        {
+          "id": "unit-profile:unit-medium-mech:movement",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-medium-mech"
+          },
+          "to": {
+            "definitionKind": "MOVEMENT_PROFILE",
+            "definitionId": "movement-mech"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "movement"
+          }
+        },
+        {
+          "id": "unit-profile:unit-medium-mech:durability",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-medium-mech"
+          },
+          "to": {
+            "definitionKind": "DURABILITY_PROFILE",
+            "definitionId": "durability-personnel-fs"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-medium-mech:deployment",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-medium-mech"
+          },
+          "to": {
+            "definitionKind": "DEPLOYMENT_PROFILE",
+            "definitionId": "deployment-ground"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "deployment"
+          }
+        },
+        {
           "id": "unit-profile:unit-power-armoured-infantry:movement",
           "kind": "UNIT_PROFILE",
           "from": {
@@ -14635,6 +16430,162 @@ const snapshot = {
           }
         },
         {
+          "id": "unit-profile:unit-sappers:movement",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-sappers"
+          },
+          "to": {
+            "definitionKind": "MOVEMENT_PROFILE",
+            "definitionId": "movement-infantry-ground"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "movement"
+          }
+        },
+        {
+          "id": "unit-profile:unit-sappers:durability",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-sappers"
+          },
+          "to": {
+            "definitionKind": "DURABILITY_PROFILE",
+            "definitionId": "durability-personnel-fs"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-sappers:deployment",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-sappers"
+          },
+          "to": {
+            "definitionKind": "DEPLOYMENT_PROFILE",
+            "definitionId": "deployment-ground"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "deployment"
+          }
+        },
+        {
+          "id": "unit-profile:unit-self-propelled-artillery:movement",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-self-propelled-artillery"
+          },
+          "to": {
+            "definitionKind": "MOVEMENT_PROFILE",
+            "definitionId": "movement-tracked-ground"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "movement"
+          }
+        },
+        {
+          "id": "unit-profile:unit-self-propelled-artillery:durability",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-self-propelled-artillery"
+          },
+          "to": {
+            "definitionKind": "DURABILITY_PROFILE",
+            "definitionId": "durability-personnel-fs"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-self-propelled-artillery:deployment",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-self-propelled-artillery"
+          },
+          "to": {
+            "definitionKind": "DEPLOYMENT_PROFILE",
+            "definitionId": "deployment-ground"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "deployment"
+          }
+        },
+        {
           "id": "unit-profile:unit-special-forces:movement",
           "kind": "UNIT_PROFILE",
           "from": {
@@ -14699,6 +16650,84 @@ const snapshot = {
           "parameters": {
             "profile": {
               "canonicalActivation": "CATALOGUED"
+            },
+            "profileRole": "deployment"
+          }
+        },
+        {
+          "id": "unit-profile:unit-super-heavy-tank:movement",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-super-heavy-tank"
+          },
+          "to": {
+            "definitionKind": "MOVEMENT_PROFILE",
+            "definitionId": "movement-tracked-ground"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "movement"
+          }
+        },
+        {
+          "id": "unit-profile:unit-super-heavy-tank:durability",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-super-heavy-tank"
+          },
+          "to": {
+            "definitionKind": "DURABILITY_PROFILE",
+            "definitionId": "durability-personnel-fs"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-super-heavy-tank:deployment",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-super-heavy-tank"
+          },
+          "to": {
+            "definitionKind": "DEPLOYMENT_PROFILE",
+            "definitionId": "deployment-ground"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
             },
             "profileRole": "deployment"
           }
@@ -14784,6 +16813,240 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {},
+            "profileRole": "deployment"
+          }
+        },
+        {
+          "id": "unit-profile:unit-vtol-heavy-lift:movement",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-heavy-lift"
+          },
+          "to": {
+            "definitionKind": "MOVEMENT_PROFILE",
+            "definitionId": "movement-vtol"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "movement"
+          }
+        },
+        {
+          "id": "unit-profile:unit-vtol-heavy-lift:durability",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-heavy-lift"
+          },
+          "to": {
+            "definitionKind": "DURABILITY_PROFILE",
+            "definitionId": "durability-personnel-fs"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-vtol-heavy-lift:deployment",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-heavy-lift"
+          },
+          "to": {
+            "definitionKind": "DEPLOYMENT_PROFILE",
+            "definitionId": "deployment-vtol"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "deployment"
+          }
+        },
+        {
+          "id": "unit-profile:unit-vtol-multipurpose-airlift:movement",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-multipurpose-airlift"
+          },
+          "to": {
+            "definitionKind": "MOVEMENT_PROFILE",
+            "definitionId": "movement-vtol"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "movement"
+          }
+        },
+        {
+          "id": "unit-profile:unit-vtol-multipurpose-airlift:durability",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-multipurpose-airlift"
+          },
+          "to": {
+            "definitionKind": "DURABILITY_PROFILE",
+            "definitionId": "durability-personnel-fs"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-vtol-multipurpose-airlift:deployment",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-multipurpose-airlift"
+          },
+          "to": {
+            "definitionKind": "DEPLOYMENT_PROFILE",
+            "definitionId": "deployment-vtol"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "deployment"
+          }
+        },
+        {
+          "id": "unit-profile:unit-vtol-troop-airlift:movement",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-troop-airlift"
+          },
+          "to": {
+            "definitionKind": "MOVEMENT_PROFILE",
+            "definitionId": "movement-vtol"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "movement"
+          }
+        },
+        {
+          "id": "unit-profile:unit-vtol-troop-airlift:durability",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-troop-airlift"
+          },
+          "to": {
+            "definitionKind": "DURABILITY_PROFILE",
+            "definitionId": "durability-personnel-fs"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-vtol-troop-airlift:deployment",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-troop-airlift"
+          },
+          "to": {
+            "definitionKind": "DEPLOYMENT_PROFILE",
+            "definitionId": "deployment-vtol"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
             "profileRole": "deployment"
           }
         }
@@ -15168,6 +17431,204 @@ const snapshot = {
           "parameters": {}
         },
         {
+          "id": "unit-tag:unit-heavy-artillery:tag-artillery",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-artillery"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-artillery"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-heavy-artillery:tag-indirect-fire",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-artillery"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-indirect-fire"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-heavy-artillery:tag-ponderous",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-artillery"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-ponderous"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-heavy-battle-tank:tag-armoured",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-battle-tank"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-armoured"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-heavy-battle-tank:tag-heavy",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-battle-tank"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-heavy"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-heavy-battle-tank:tag-vehicle",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-battle-tank"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-vehicle"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-heavy-mech:tag-armoured",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-mech"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-armoured"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-heavy-mech:tag-heavy",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-mech"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-heavy"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-heavy-mech:tag-mech",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-mech"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-mech"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-heavy-mech:tag-ponderous",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-mech"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-ponderous"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-heavy-mech:tag-vehicle",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-mech"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-vehicle"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
           "id": "unit-tag:unit-infantry-fighting-vehicle:tag-armoured",
           "kind": "UNIT_TAG",
           "from": {
@@ -15285,6 +17746,96 @@ const snapshot = {
           "to": {
             "definitionKind": "TAG",
             "definitionId": "tag-infantry"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-light-artillery:tag-artillery",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-artillery"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-artillery"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-light-artillery:tag-indirect-fire",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-artillery"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-indirect-fire"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-light-battle-tank:tag-armoured",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-battle-tank"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-armoured"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-light-battle-tank:tag-light",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-battle-tank"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-light"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-light-battle-tank:tag-vehicle",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-battle-tank"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-vehicle"
           },
           "ordinal": null,
           "sourceId": null,
@@ -15636,6 +18187,132 @@ const snapshot = {
           "parameters": {}
         },
         {
+          "id": "unit-tag:unit-mechanized-infantry:tag-armoured",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-mechanized-infantry"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-armoured"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-mechanized-infantry:tag-infantry",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-mechanized-infantry"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-infantry"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-mechanized-infantry:tag-transport",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-mechanized-infantry"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-transport"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-mechanized-infantry:tag-vehicle",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-mechanized-infantry"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-vehicle"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-medium-mech:tag-armoured",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-medium-mech"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-armoured"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-medium-mech:tag-mech",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-medium-mech"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-mech"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-medium-mech:tag-vehicle",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-medium-mech"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-vehicle"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
           "id": "unit-tag:unit-power-armoured-infantry:tag-armoured",
           "kind": "UNIT_TAG",
           "from": {
@@ -15690,6 +18367,132 @@ const snapshot = {
           "parameters": {}
         },
         {
+          "id": "unit-tag:unit-sappers:tag-engineer",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-sappers"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-engineer"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-sappers:tag-infantry",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-sappers"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-infantry"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-sappers:tag-infantry-stealth",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-sappers"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-infantry-stealth"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-self-propelled-artillery:tag-armoured",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-self-propelled-artillery"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-armoured"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-self-propelled-artillery:tag-artillery",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-self-propelled-artillery"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-artillery"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-self-propelled-artillery:tag-indirect-fire",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-self-propelled-artillery"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-indirect-fire"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-self-propelled-artillery:tag-vehicle",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-self-propelled-artillery"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-vehicle"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
           "id": "unit-tag:unit-special-forces:tag-infantry",
           "kind": "UNIT_TAG",
           "from": {
@@ -15717,6 +18520,78 @@ const snapshot = {
           "to": {
             "definitionKind": "TAG",
             "definitionId": "tag-infantry-stealth"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-super-heavy-tank:tag-armoured",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-super-heavy-tank"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-armoured"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-super-heavy-tank:tag-heavy",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-super-heavy-tank"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-heavy"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-super-heavy-tank:tag-ponderous",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-super-heavy-tank"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-ponderous"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-super-heavy-tank:tag-vehicle",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-super-heavy-tank"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-vehicle"
           },
           "ordinal": null,
           "sourceId": null,
@@ -15803,6 +18678,312 @@ const snapshot = {
           "from": {
             "definitionKind": "UNIT",
             "definitionId": "unit-vtol"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-vtol"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-heavy-lift:tag-aerospace",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-heavy-lift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-aerospace"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-heavy-lift:tag-atmo-flight",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-heavy-lift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-atmo-flight"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-heavy-lift:tag-heavy",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-heavy-lift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-heavy"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-heavy-lift:tag-logistics",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-heavy-lift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-logistics"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-heavy-lift:tag-transport",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-heavy-lift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-transport"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-heavy-lift:tag-vehicle",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-heavy-lift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-vehicle"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-heavy-lift:tag-vtol",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-heavy-lift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-vtol"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-multipurpose-airlift:tag-aerospace",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-multipurpose-airlift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-aerospace"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-multipurpose-airlift:tag-atmo-flight",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-multipurpose-airlift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-atmo-flight"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-multipurpose-airlift:tag-transport",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-multipurpose-airlift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-transport"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-multipurpose-airlift:tag-vehicle",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-multipurpose-airlift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-vehicle"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-multipurpose-airlift:tag-vtol",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-multipurpose-airlift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-vtol"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-troop-airlift:tag-aerospace",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-troop-airlift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-aerospace"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-troop-airlift:tag-atmo-flight",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-troop-airlift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-atmo-flight"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-troop-airlift:tag-transport",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-troop-airlift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-transport"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-troop-airlift:tag-vehicle",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-troop-airlift"
+          },
+          "to": {
+            "definitionKind": "TAG",
+            "definitionId": "tag-vehicle"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {}
+        },
+        {
+          "id": "unit-tag:unit-vtol-troop-airlift:tag-vtol",
+          "kind": "UNIT_TAG",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-troop-airlift"
           },
           "to": {
             "definitionKind": "TAG",
@@ -16278,6 +19459,46 @@ const snapshot = {
           }
         },
         {
+          "id": "unit-ability:unit-heavy-artillery:ability-deploy-platform:base",
+          "kind": "UNIT_ABILITY",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-artillery"
+          },
+          "to": {
+            "definitionKind": "ABILITY",
+            "definitionId": "ability-deploy-platform"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "sourceKind": "BASE"
+          }
+        },
+        {
+          "id": "unit-ability:unit-heavy-artillery:ability-indirect-fire:base",
+          "kind": "UNIT_ABILITY",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-artillery"
+          },
+          "to": {
+            "definitionKind": "ABILITY",
+            "definitionId": "ability-indirect-fire"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "sourceKind": "BASE"
+          }
+        },
+        {
           "id": "unit-ability:unit-infantry-fighting-vehicle:ability-crew-repair:base",
           "kind": "UNIT_ABILITY",
           "from": {
@@ -16327,6 +19548,46 @@ const snapshot = {
           "to": {
             "definitionKind": "ABILITY",
             "definitionId": "ability-dig-in"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "sourceKind": "BASE"
+          }
+        },
+        {
+          "id": "unit-ability:unit-light-artillery:ability-deploy-platform:base",
+          "kind": "UNIT_ABILITY",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-artillery"
+          },
+          "to": {
+            "definitionKind": "ABILITY",
+            "definitionId": "ability-deploy-platform"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "sourceKind": "BASE"
+          }
+        },
+        {
+          "id": "unit-ability:unit-light-artillery:ability-indirect-fire:base",
+          "kind": "UNIT_ABILITY",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-artillery"
+          },
+          "to": {
+            "definitionKind": "ABILITY",
+            "definitionId": "ability-indirect-fire"
           },
           "ordinal": null,
           "sourceId": null,
@@ -16538,6 +19799,86 @@ const snapshot = {
           }
         },
         {
+          "id": "unit-ability:unit-sappers:ability-construct:base",
+          "kind": "UNIT_ABILITY",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-sappers"
+          },
+          "to": {
+            "definitionKind": "ABILITY",
+            "definitionId": "ability-construct"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "sourceKind": "BASE"
+          }
+        },
+        {
+          "id": "unit-ability:unit-sappers:ability-infantry-stealth:base",
+          "kind": "UNIT_ABILITY",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-sappers"
+          },
+          "to": {
+            "definitionKind": "ABILITY",
+            "definitionId": "ability-infantry-stealth"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "sourceKind": "BASE"
+          }
+        },
+        {
+          "id": "unit-ability:unit-sappers:ability-repair-vehicle:base",
+          "kind": "UNIT_ABILITY",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-sappers"
+          },
+          "to": {
+            "definitionKind": "ABILITY",
+            "definitionId": "ability-repair-vehicle"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "sourceKind": "BASE"
+          }
+        },
+        {
+          "id": "unit-ability:unit-self-propelled-artillery:ability-indirect-fire:base",
+          "kind": "UNIT_ABILITY",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-self-propelled-artillery"
+          },
+          "to": {
+            "definitionKind": "ABILITY",
+            "definitionId": "ability-indirect-fire"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "sourceKind": "BASE"
+          }
+        },
+        {
           "id": "unit-ability:unit-special-forces:ability-infantry-stealth:base",
           "kind": "UNIT_ABILITY",
           "from": {
@@ -16623,6 +19964,126 @@ const snapshot = {
           "from": {
             "definitionKind": "UNIT",
             "definitionId": "unit-vtol"
+          },
+          "to": {
+            "definitionKind": "ABILITY",
+            "definitionId": "ability-transport-cargo"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "sourceKind": "BASE"
+          }
+        },
+        {
+          "id": "unit-ability:unit-vtol-heavy-lift:ability-flight-path:base",
+          "kind": "UNIT_ABILITY",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-heavy-lift"
+          },
+          "to": {
+            "definitionKind": "ABILITY",
+            "definitionId": "ability-flight-path"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "sourceKind": "BASE"
+          }
+        },
+        {
+          "id": "unit-ability:unit-vtol-heavy-lift:ability-transport-cargo:base",
+          "kind": "UNIT_ABILITY",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-heavy-lift"
+          },
+          "to": {
+            "definitionKind": "ABILITY",
+            "definitionId": "ability-transport-cargo"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "sourceKind": "BASE"
+          }
+        },
+        {
+          "id": "unit-ability:unit-vtol-multipurpose-airlift:ability-flight-path:base",
+          "kind": "UNIT_ABILITY",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-multipurpose-airlift"
+          },
+          "to": {
+            "definitionKind": "ABILITY",
+            "definitionId": "ability-flight-path"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "sourceKind": "BASE"
+          }
+        },
+        {
+          "id": "unit-ability:unit-vtol-multipurpose-airlift:ability-transport-cargo:base",
+          "kind": "UNIT_ABILITY",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-multipurpose-airlift"
+          },
+          "to": {
+            "definitionKind": "ABILITY",
+            "definitionId": "ability-transport-cargo"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "sourceKind": "BASE"
+          }
+        },
+        {
+          "id": "unit-ability:unit-vtol-troop-airlift:ability-flight-path:base",
+          "kind": "UNIT_ABILITY",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-troop-airlift"
+          },
+          "to": {
+            "definitionKind": "ABILITY",
+            "definitionId": "ability-flight-path"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "sourceKind": "BASE"
+          }
+        },
+        {
+          "id": "unit-ability:unit-vtol-troop-airlift:ability-transport-cargo:base",
+          "kind": "UNIT_ABILITY",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-troop-airlift"
           },
           "to": {
             "definitionKind": "ABILITY",
@@ -17184,6 +20645,174 @@ const snapshot = {
           }
         },
         {
+          "id": "unit-equipment-slot:unit-heavy-artillery:internal",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-artillery"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Heavy Artillery / row 20",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 2
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "INTERNAL"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-heavy-artillery:secondary",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-artillery"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Heavy Artillery / row 20",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "SECONDARY"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-heavy-battle-tank:internal",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-battle-tank"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Heavy Battle Tank / row 16",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "INTERNAL"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-heavy-battle-tank:secondary",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-battle-tank"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Heavy Battle Tank / row 16",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "SECONDARY"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-heavy-mech:external",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-mech"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Heavy Mech / row 32",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 3
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "EXTERNAL"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-heavy-mech:internal",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-mech"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Heavy Mech / row 32",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 4
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "INTERNAL"
+          }
+        },
+        {
           "id": "unit-equipment-slot:unit-infantry-squad:primary",
           "kind": "UNIT_EQUIPMENT_SLOT",
           "from": {
@@ -17287,6 +20916,118 @@ const snapshot = {
               "canonicalActivation": "CATALOGUED"
             },
             "slotType": "LOW_TECH_MELEE"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-light-artillery:internal",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-artillery"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Light Artillery / row 19",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 2
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "INTERNAL"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-light-artillery:secondary",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-artillery"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Light Artillery / row 19",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "SECONDARY"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-light-battle-tank:internal",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-battle-tank"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Light Battle Tank / row 14",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "INTERNAL"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-light-battle-tank:secondary",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-battle-tank"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Light Battle Tank / row 14",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "SECONDARY"
           }
         },
         {
@@ -17458,6 +21199,146 @@ const snapshot = {
           }
         },
         {
+          "id": "unit-equipment-slot:unit-mechanized-infantry:internal",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-mechanized-infantry"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Mechanized Infantry / row 10",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "INTERNAL"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-mechanized-infantry:primary",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-mechanized-infantry"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Mechanized Infantry / row 10",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "PRIMARY"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-mechanized-infantry:secondary",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-mechanized-infantry"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Mechanized Infantry / row 10",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "SECONDARY"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-medium-mech:external",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-medium-mech"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Medium Mech / row 31",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 2
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "EXTERNAL"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-medium-mech:internal",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-medium-mech"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Medium Mech / row 31",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 4
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "INTERNAL"
+          }
+        },
+        {
           "id": "unit-equipment-slot:unit-power-armoured-infantry:mech_weapon",
           "kind": "UNIT_EQUIPMENT_SLOT",
           "from": {
@@ -17508,6 +21389,118 @@ const snapshot = {
           }
         },
         {
+          "id": "unit-equipment-slot:unit-sappers:primary",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-sappers"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Sappers / row 8",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "PRIMARY"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-sappers:secondary",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-sappers"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Sappers / row 8",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "SECONDARY"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-self-propelled-artillery:internal",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-self-propelled-artillery"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Self-Propelled Artillery / row 21",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 2
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "INTERNAL"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-self-propelled-artillery:secondary",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-self-propelled-artillery"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Self-Propelled Artillery / row 21",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "SECONDARY"
+          }
+        },
+        {
           "id": "unit-equipment-slot:unit-special-forces:primary",
           "kind": "UNIT_EQUIPMENT_SLOT",
           "from": {
@@ -17555,6 +21548,230 @@ const snapshot = {
               "canonicalActivation": "CATALOGUED"
             },
             "slotType": "SECONDARY"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-super-heavy-tank:internal",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-super-heavy-tank"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Super Heavy Tank / row 17",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 2
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "INTERNAL"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-super-heavy-tank:secondary",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-super-heavy-tank"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "Super Heavy Tank / row 17",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 2
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "SECONDARY"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-vtol-heavy-lift:internal",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-heavy-lift"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "VTOL Heavy Lift / row 26",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "INTERNAL"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-vtol-heavy-lift:light",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-heavy-lift"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "VTOL Heavy Lift / row 26",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "LIGHT"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-vtol-multipurpose-airlift:internal",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-multipurpose-airlift"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "VTOL Multi-Purpose Airlift / row 25",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "INTERNAL"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-vtol-multipurpose-airlift:light",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-multipurpose-airlift"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "VTOL Multi-Purpose Airlift / row 25",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "LIGHT"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-vtol-troop-airlift:internal",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-troop-airlift"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "VTOL Heavy Troop Airlift / row 24",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "INTERNAL"
+          }
+        },
+        {
+          "id": "unit-equipment-slot:unit-vtol-troop-airlift:light",
+          "kind": "UNIT_EQUIPMENT_SLOT",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-troop-airlift"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-classes",
+          "sourcePath": null,
+          "sourceLocator": "VTOL Heavy Troop Airlift / row 24",
+          "sourcedNumbers": {
+            "slotCount": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "eligibility": {
+              "canonicalActivation": "CATALOGUED",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "slotType": "LIGHT"
           }
         }
       ],
@@ -17905,8 +22122,15 @@ const snapshot = {
               "unit-logi-truck",
               "unit-light-vehicle",
               "unit-infantry-fighting-vehicle",
+              "unit-mechanized-infantry",
+              "unit-light-battle-tank",
               "unit-main-battle-tank",
-              "unit-artillery"
+              "unit-heavy-battle-tank",
+              "unit-super-heavy-tank",
+              "unit-artillery",
+              "unit-light-artillery",
+              "unit-heavy-artillery",
+              "unit-self-propelled-artillery"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -17941,7 +22165,7 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-artillery"
+              "unit-heavy-artillery"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -17976,7 +22200,10 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-artillery"
+              "unit-artillery",
+              "unit-light-artillery",
+              "unit-heavy-artillery",
+              "unit-self-propelled-artillery"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18013,7 +22240,8 @@ const snapshot = {
             "allowedUnitDefinitions": [
               "unit-infantry-squad",
               "unit-special-forces",
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18050,7 +22278,8 @@ const snapshot = {
             "allowedUnitDefinitions": [
               "unit-infantry-squad",
               "unit-special-forces",
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18085,7 +22314,8 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18155,7 +22385,10 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-main-battle-tank"
+              "unit-light-battle-tank",
+              "unit-main-battle-tank",
+              "unit-heavy-battle-tank",
+              "unit-super-heavy-tank"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18195,7 +22428,9 @@ const snapshot = {
               "unit-combat-medic",
               "unit-irregular",
               "unit-special-forces",
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18270,7 +22505,9 @@ const snapshot = {
               "unit-combat-medic",
               "unit-irregular",
               "unit-special-forces",
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18343,7 +22580,9 @@ const snapshot = {
               "unit-infantry-squad",
               "unit-power-armoured-infantry",
               "unit-irregular",
-              "unit-special-forces"
+              "unit-special-forces",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18383,7 +22622,9 @@ const snapshot = {
               "unit-combat-medic",
               "unit-irregular",
               "unit-special-forces",
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18418,7 +22659,7 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-artillery"
+              "unit-heavy-artillery"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18458,7 +22699,9 @@ const snapshot = {
               "unit-combat-medic",
               "unit-irregular",
               "unit-special-forces",
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18496,7 +22739,8 @@ const snapshot = {
             "allowedUnitDefinitions": [
               "unit-infantry-squad",
               "unit-power-armoured-infantry",
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18537,7 +22781,9 @@ const snapshot = {
               "unit-combat-medic",
               "unit-irregular",
               "unit-special-forces",
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18575,8 +22821,15 @@ const snapshot = {
               "unit-logi-truck",
               "unit-light-vehicle",
               "unit-infantry-fighting-vehicle",
+              "unit-mechanized-infantry",
+              "unit-light-battle-tank",
               "unit-main-battle-tank",
-              "unit-artillery"
+              "unit-heavy-battle-tank",
+              "unit-super-heavy-tank",
+              "unit-artillery",
+              "unit-light-artillery",
+              "unit-heavy-artillery",
+              "unit-self-propelled-artillery"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18649,8 +22902,15 @@ const snapshot = {
               "unit-logi-truck",
               "unit-light-vehicle",
               "unit-infantry-fighting-vehicle",
+              "unit-mechanized-infantry",
+              "unit-light-battle-tank",
               "unit-main-battle-tank",
-              "unit-artillery"
+              "unit-heavy-battle-tank",
+              "unit-super-heavy-tank",
+              "unit-artillery",
+              "unit-light-artillery",
+              "unit-heavy-artillery",
+              "unit-self-propelled-artillery"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18720,7 +22980,8 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18760,7 +23021,9 @@ const snapshot = {
               "unit-combat-medic",
               "unit-irregular",
               "unit-special-forces",
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18798,7 +23061,9 @@ const snapshot = {
               "unit-infantry-squad",
               "unit-power-armoured-infantry",
               "unit-irregular",
-              "unit-special-forces"
+              "unit-special-forces",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18870,7 +23135,10 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-artillery"
+              "unit-artillery",
+              "unit-light-artillery",
+              "unit-heavy-artillery",
+              "unit-self-propelled-artillery"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18945,7 +23213,9 @@ const snapshot = {
               "unit-combat-medic",
               "unit-irregular",
               "unit-special-forces",
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -18983,7 +23253,9 @@ const snapshot = {
               "unit-infantry-squad",
               "unit-power-armoured-infantry",
               "unit-irregular",
-              "unit-special-forces"
+              "unit-special-forces",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19053,7 +23325,7 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-artillery"
+              "unit-self-propelled-artillery"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19158,7 +23430,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19193,7 +23467,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19228,7 +23504,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19263,7 +23541,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19298,7 +23578,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19333,7 +23615,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19368,7 +23652,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19403,7 +23689,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19438,7 +23726,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19473,7 +23763,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19509,7 +23801,9 @@ const snapshot = {
           "parameters": {
             "allowedUnitDefinitions": [
               "unit-power-armoured-infantry",
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19544,7 +23838,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19579,7 +23875,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19614,7 +23912,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19649,7 +23949,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19684,7 +23986,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19719,7 +24023,9 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-light-mech"
+              "unit-light-mech",
+              "unit-medium-mech",
+              "unit-heavy-mech"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19756,7 +24062,8 @@ const snapshot = {
             "allowedUnitDefinitions": [
               "unit-infantry-squad",
               "unit-special-forces",
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19791,7 +24098,10 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-artillery"
+              "unit-artillery",
+              "unit-light-artillery",
+              "unit-heavy-artillery",
+              "unit-self-propelled-artillery"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19829,7 +24139,9 @@ const snapshot = {
               "unit-infantry-squad",
               "unit-power-armoured-infantry",
               "unit-irregular",
-              "unit-special-forces"
+              "unit-special-forces",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19868,7 +24180,9 @@ const snapshot = {
               "unit-power-armoured-infantry",
               "unit-combat-medic",
               "unit-special-forces",
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19942,7 +24256,9 @@ const snapshot = {
               "unit-infantry-squad",
               "unit-power-armoured-infantry",
               "unit-irregular",
-              "unit-special-forces"
+              "unit-special-forces",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -19980,7 +24296,8 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -20124,8 +24441,15 @@ const snapshot = {
               "unit-logi-truck",
               "unit-light-vehicle",
               "unit-infantry-fighting-vehicle",
+              "unit-mechanized-infantry",
+              "unit-light-battle-tank",
               "unit-main-battle-tank",
-              "unit-artillery"
+              "unit-heavy-battle-tank",
+              "unit-super-heavy-tank",
+              "unit-artillery",
+              "unit-light-artillery",
+              "unit-heavy-artillery",
+              "unit-self-propelled-artillery"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -20165,7 +24489,9 @@ const snapshot = {
               "unit-combat-medic",
               "unit-irregular",
               "unit-special-forces",
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -20203,8 +24529,15 @@ const snapshot = {
               "unit-logi-truck",
               "unit-light-vehicle",
               "unit-infantry-fighting-vehicle",
+              "unit-mechanized-infantry",
+              "unit-light-battle-tank",
               "unit-main-battle-tank",
-              "unit-artillery"
+              "unit-heavy-battle-tank",
+              "unit-super-heavy-tank",
+              "unit-artillery",
+              "unit-light-artillery",
+              "unit-heavy-artillery",
+              "unit-self-propelled-artillery"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -20278,8 +24611,15 @@ const snapshot = {
               "unit-logi-truck",
               "unit-light-vehicle",
               "unit-infantry-fighting-vehicle",
+              "unit-mechanized-infantry",
+              "unit-light-battle-tank",
               "unit-main-battle-tank",
-              "unit-artillery"
+              "unit-heavy-battle-tank",
+              "unit-super-heavy-tank",
+              "unit-artillery",
+              "unit-light-artillery",
+              "unit-heavy-artillery",
+              "unit-self-propelled-artillery"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -20317,8 +24657,15 @@ const snapshot = {
               "unit-logi-truck",
               "unit-light-vehicle",
               "unit-infantry-fighting-vehicle",
+              "unit-mechanized-infantry",
+              "unit-light-battle-tank",
               "unit-main-battle-tank",
-              "unit-artillery"
+              "unit-heavy-battle-tank",
+              "unit-super-heavy-tank",
+              "unit-artillery",
+              "unit-light-artillery",
+              "unit-heavy-artillery",
+              "unit-self-propelled-artillery"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -20358,7 +24705,9 @@ const snapshot = {
               "unit-combat-medic",
               "unit-irregular",
               "unit-special-forces",
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -20397,7 +24746,9 @@ const snapshot = {
               "unit-power-armoured-infantry",
               "unit-combat-medic",
               "unit-special-forces",
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -20470,7 +24821,9 @@ const snapshot = {
               "unit-infantry-squad",
               "unit-power-armoured-infantry",
               "unit-irregular",
-              "unit-special-forces"
+              "unit-special-forces",
+              "unit-sappers",
+              "unit-mechanized-infantry"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -20508,8 +24861,15 @@ const snapshot = {
               "unit-logi-truck",
               "unit-light-vehicle",
               "unit-infantry-fighting-vehicle",
+              "unit-mechanized-infantry",
+              "unit-light-battle-tank",
               "unit-main-battle-tank",
-              "unit-artillery"
+              "unit-heavy-battle-tank",
+              "unit-super-heavy-tank",
+              "unit-artillery",
+              "unit-light-artillery",
+              "unit-heavy-artillery",
+              "unit-self-propelled-artillery"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -20544,7 +24904,10 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-vtol"
+              "unit-vtol",
+              "unit-vtol-troop-airlift",
+              "unit-vtol-multipurpose-airlift",
+              "unit-vtol-heavy-lift"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -20579,7 +24942,8 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
-              "unit-engineers"
+              "unit-engineers",
+              "unit-sappers"
             ],
             "forbiddenTags": [],
             "requiredTagsAll": [],
@@ -21396,5 +25760,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "2f071d83544f29cd8e94b78415fa7be63c1eb006f070056f84b212a3d8da4f5c" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "8292d363ba287d583afb80a1cb044e140832b33f1c85d5bdd66e41c5eb354ad6" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

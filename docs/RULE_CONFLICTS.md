@@ -50,7 +50,7 @@ Migration `0003_phase2_persistent_forces.sql` and companion seed `v5-phase2-comb
 | Requisition status | `PUBLISHED`, `BALANCE_REQUIRED`, `NOT_APPLICABLE` | Whether a source-backed price exists. `BALANCE_REQUIRED` always keeps the price `NULL`. |
 | Availability status | `AVAILABLE`, `BLOCKED`, `DEV_ONLY`, `HIDDEN` | Whether production requisition may expose the definition. This is not inferred from implementation status. |
 
-The catalogue contains all thirteen non-orbital V5 starting classes plus Power Armoured Infantry, Irregulars, and Special Forces. The latter three remain `CATALOGUE_ONLY`/`DEV_ONLY` because `RC-UNIT-015` has not been overturned. Combat Medic uses the V5 heal selected by `RC-UNIT-002` and `RC-V5-009`; its companion MASH record remains catalogue-only. No companion FS vehicle value replaces a V5 Hits profile.
+The catalogue contains all thirteen non-orbital V5 starting classes plus all sixteen non-orbital companion classes named by `RC-UNIT-015`. Companion classes remain `CATALOGUE_ONLY`/`BLOCKED`; their exact raw profiles, slots, restrictions and prose are discoverable, but no companion FS vehicle/mech/aerospace value replaces a V5 Hits profile. Combat Medic uses the V5 heal selected by `RC-UNIT-002` and `RC-V5-009`; its companion MASH record remains catalogue-only.
 
 The seven Bug role records include Drone, Warrior, Spitter, Heavy, Burrower, Flyer, and Artillery. The four new roles contain tags/doctrine only and remain hidden catalogue entries because the product brief supplies no authoritative durability, weapon dice, range, or price. That is incomplete data, not a new conflicting value.
 
@@ -186,7 +186,7 @@ No new conflict ID is introduced by this overlay. Cargo, aerospace, healing, con
 ### RC-UNIT-015 — Expanded companion classes absent from V5
 
 - **Companion-only values:** Power Armored Infantry, Irregular Unit, Special Forces, Sappers, Light/Heavy/Super-Heavy Battle Tanks, Light/Heavy/SP Artillery, three VTOL refits, Medium/Heavy Mechs, and `[Redacted]` appear in `Classes.html` but not in V5 starting classes.
-- **Disposition:** preserve names, prose, and raw values; none is selectable or inherited by a V5 class.
+- **Disposition:** preserve names, prose, and raw values; none is selectable or inherited by a V5 class. The literal `[Redacted]` row has no usable identity or stat block and therefore remains provenance only rather than a fabricated runtime definition.
 - **Status:** `CATALOGUED`.
 
 ## 3. Action, map, and cover conflicts

@@ -12,97 +12,6 @@
   },
   "assets": [
     {
-      "key": "unit.aerospace-bomber",
-      "path": "src/assets/unit-art/generated/aerospace-bomber.png",
-      "sha256": "e9d1f118dc374b7c2ec652db1bcc2efcec0ff0aef0fd7749999b7f10246fe336",
-      "source": "exec-617d929c-c64a-479b-85f8-10cf1796e5c5.png",
-      "status": "ACTIVE"
-    },
-    {
-      "key": "unit.aerospace-fighter",
-      "path": "src/assets/unit-art/generated/aerospace-fighter.png",
-      "sha256": "dd3a2eb1903917bed8c40796c9c480c0bb904c13fe46a3209ba8887f96dad1b0",
-      "source": "exec-e538bcd3-b375-4009-8a53-60dbc52c399f.png",
-      "status": "ACTIVE"
-    },
-    {
-      "key": "unit.artillery",
-      "path": "src/assets/unit-art/generated/artillery.png",
-      "sha256": "e620f8f2a098a76c0524cb12e2dd473677af81a33a82a72a6ced28cad1d019d8",
-      "source": "exec-3eec17a3-dad3-470a-89e5-c7f7463c45e9.png",
-      "status": "ACTIVE"
-    },
-    {
-      "key": "unit.combat-engineers",
-      "path": "src/assets/unit-art/generated/combat-engineers.png",
-      "sha256": "a46494989282485e3e9a78fe2b1262cebfbb9e6a56d5325acabc380a7a0bcc5c",
-      "source": "exec-041244d2-8219-4174-8f32-e7edd4183973.png",
-      "status": "ACTIVE"
-    },
-    {
-      "key": "unit.combat-medic",
-      "path": "src/assets/unit-art/generated/combat-medic.png",
-      "sha256": "43757e34d64774c2de942260fece6b260d08520824a09c06154ff9f963ed0e67",
-      "source": "exec-32bbfef8-6748-41de-8ff0-a95daa508be0.png",
-      "status": "ACTIVE"
-    },
-    {
-      "key": "unit.heavy-air-transport",
-      "path": "src/assets/unit-art/generated/heavy-air-transport.png",
-      "sha256": "6079a6daa35dcbc274b34edf137d0a264fa74bf3eeb560d31bb563372eeefab8",
-      "source": "exec-1ff4b7cf-50c1-4490-80ee-6f9ea40b3c3f.png",
-      "status": "ACTIVE"
-    },
-    {
-      "key": "unit.infantry-fighting-vehicle",
-      "path": "src/assets/unit-art/generated/infantry-fighting-vehicle.png",
-      "sha256": "dc9ce8452858107cd74f3c7146f14f60931a790d7a8808cf9afaf096c0adfc7b",
-      "source": "exec-94466b6d-d5dd-4203-8661-d7adf19a80f9.png",
-      "status": "ACTIVE"
-    },
-    {
-      "key": "unit.infantry",
-      "path": "src/assets/unit-art/generated/infantry.png",
-      "sha256": "bcef431fb4f0b9570902d63bb0ff1fe22dfd73107f78893e08f52298eb6c5f65",
-      "source": "exec-7167c3a6-e911-4b5a-89c2-7fd71fd419da.png",
-      "status": "ACTIVE"
-    },
-    {
-      "key": "unit.light-mech",
-      "path": "src/assets/unit-art/generated/light-mech.png",
-      "sha256": "fd8a39abf974a08e425f317ea3e5a5dfe62af82821f386dd3b54e4f4d6eadf45",
-      "source": "exec-e9da523a-09f7-4e4a-8a49-36afa9447c5f.png",
-      "status": "ACTIVE"
-    },
-    {
-      "key": "unit.light-vehicle",
-      "path": "src/assets/unit-art/generated/light-vehicle.png",
-      "sha256": "b017c2356469f7390f8f1906204f8530ff61d4545d2fcd7f487faf6eb7de4e96",
-      "source": "exec-73d4fb90-aed1-459a-9afd-83744fd1cbc7.png",
-      "status": "ACTIVE"
-    },
-    {
-      "key": "unit.logi-truck",
-      "path": "src/assets/unit-art/generated/logi-truck.png",
-      "sha256": "54bca84f4a5d145f6f819d98415910cbbbda532665677d80f2d892582eedf8fc",
-      "source": "exec-db5dbba6-a9a8-4c28-b9cd-48b1e32cb9b3.png",
-      "status": "ACTIVE"
-    },
-    {
-      "key": "unit.main-battle-tank",
-      "path": "src/assets/unit-art/generated/main-battle-tank.png",
-      "sha256": "47f875429de7ff6d5c09ef57730f534a857f0a0935b92a0499fa82c93066f48b",
-      "source": "exec-593b091f-c6bf-48ee-9f5a-fbc3feec1bae.png",
-      "status": "ACTIVE"
-    },
-    {
-      "key": "unit.vtol",
-      "path": "src/assets/unit-art/generated/vtol.png",
-      "sha256": "7febc11301229e18c0b7aa13f237b6f2edcc0cd91e0b205521be4421bd9a2aa2",
-      "source": "exec-e6a25f62-f91d-4e76-ba01-62a8465d3658.png",
-      "status": "ACTIVE"
-    },
-    {
       "key": "equipment.aerospace-500kg-bomb",
       "path": "src/assets/equipment-art/generated/aerospace-500kg-bomb.png",
       "sha256": "3d30e15fcb9c75c59a95be4f31c5ce10002c5c2300985e2805f7a10e199e3964",
@@ -727,6 +636,13 @@
       "derivativeHistory": "Second composition requested by the project owner; replaces the dual-SMG composition in the registry"
     },
     {
+      "key": "equipment.silent-smgs.variant-1",
+      "path": "src/assets/equipment-art/generated/silent-smgs.png",
+      "sha256": "da10a8f820bbee387db2811140af83e1d6cee05ba274c694d741aad3b4e12548",
+      "source": "exec-4bec7b7c-c013-40d3-8814-710baf9e838b.png",
+      "status": "ALTERNATE"
+    },
+    {
       "key": "equipment.simple-med-stimpacks",
       "path": "src/assets/equipment-art/generated/simple-med-stimpacks.png",
       "sha256": "3e38d1cf24da24b388172a2540d541cbb5bb0259b1b72634b1e78d76ca526453",
@@ -839,11 +755,207 @@
       "status": "ACTIVE"
     },
     {
-      "key": "equipment.silent-smgs.variant-1",
-      "path": "src/assets/equipment-art/generated/silent-smgs.png",
-      "sha256": "da10a8f820bbee387db2811140af83e1d6cee05ba274c694d741aad3b4e12548",
-      "source": "exec-4bec7b7c-c013-40d3-8814-710baf9e838b.png",
-      "status": "ALTERNATE"
+      "key": "unit.aerospace-bomber",
+      "path": "src/assets/unit-art/generated/aerospace-bomber.png",
+      "sha256": "e9d1f118dc374b7c2ec652db1bcc2efcec0ff0aef0fd7749999b7f10246fe336",
+      "source": "exec-617d929c-c64a-479b-85f8-10cf1796e5c5.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.aerospace-fighter",
+      "path": "src/assets/unit-art/generated/aerospace-fighter.png",
+      "sha256": "dd3a2eb1903917bed8c40796c9c480c0bb904c13fe46a3209ba8887f96dad1b0",
+      "source": "exec-e538bcd3-b375-4009-8a53-60dbc52c399f.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.artillery",
+      "path": "src/assets/unit-art/generated/artillery.png",
+      "sha256": "e620f8f2a098a76c0524cb12e2dd473677af81a33a82a72a6ced28cad1d019d8",
+      "source": "exec-3eec17a3-dad3-470a-89e5-c7f7463c45e9.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.combat-engineers",
+      "path": "src/assets/unit-art/generated/combat-engineers.png",
+      "sha256": "a46494989282485e3e9a78fe2b1262cebfbb9e6a56d5325acabc380a7a0bcc5c",
+      "source": "exec-041244d2-8219-4174-8f32-e7edd4183973.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.combat-medic",
+      "path": "src/assets/unit-art/generated/combat-medic.png",
+      "sha256": "43757e34d64774c2de942260fece6b260d08520824a09c06154ff9f963ed0e67",
+      "source": "exec-32bbfef8-6748-41de-8ff0-a95daa508be0.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.heavy-air-transport",
+      "path": "src/assets/unit-art/generated/heavy-air-transport.png",
+      "sha256": "6079a6daa35dcbc274b34edf137d0a264fa74bf3eeb560d31bb563372eeefab8",
+      "source": "exec-1ff4b7cf-50c1-4490-80ee-6f9ea40b3c3f.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.heavy-artillery",
+      "path": "src/assets/unit-art/generated/heavy-artillery.png",
+      "sha256": "819f6a8f7526a6220162d734aa8c8cdacf38b36303c03592b7d844b5fde418f4",
+      "source": "OpenAI built-in imagegen Classes expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.heavy-battle-tank",
+      "path": "src/assets/unit-art/generated/heavy-battle-tank.png",
+      "sha256": "7918ec69b1326f155db9e2ce608632ea9526f95655b1029987ecb1fd40796dc3",
+      "source": "OpenAI built-in imagegen Classes expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.heavy-mech",
+      "path": "src/assets/unit-art/generated/heavy-mech.png",
+      "sha256": "9dd3a5ab241e9b0e8528a5f429f5352cbc17167f92c8133a054640729a036ac0",
+      "source": "exec-9c7862f8-1ca8-43ba-8d96-70642c8903ca.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.infantry",
+      "path": "src/assets/unit-art/generated/infantry.png",
+      "sha256": "bcef431fb4f0b9570902d63bb0ff1fe22dfd73107f78893e08f52298eb6c5f65",
+      "source": "exec-7167c3a6-e911-4b5a-89c2-7fd71fd419da.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.infantry-fighting-vehicle",
+      "path": "src/assets/unit-art/generated/infantry-fighting-vehicle.png",
+      "sha256": "dc9ce8452858107cd74f3c7146f14f60931a790d7a8808cf9afaf096c0adfc7b",
+      "source": "exec-94466b6d-d5dd-4203-8661-d7adf19a80f9.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.irregular",
+      "path": "src/assets/unit-art/generated/irregular-infantry.png",
+      "sha256": "7febdd08af6cc40818fbcf7c5a6ac25fc94d91205ed9429547b36d3eb3e4a9a3",
+      "source": "exec-3c1600a0-e90c-471c-802b-0f8aa8bb40f3.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.light-artillery",
+      "path": "src/assets/unit-art/generated/light-artillery.png",
+      "sha256": "ef0dfa47c77cdb23362d2a15443823f6daab22623b4c1d70b81638aff486c251",
+      "source": "OpenAI built-in imagegen Classes expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.light-battle-tank",
+      "path": "src/assets/unit-art/generated/light-battle-tank.png",
+      "sha256": "3811b2bbe7d1c8719bbcdb74ae3b250a159bf99d85fe776d3fa0e06e68fec1e0",
+      "source": "OpenAI built-in imagegen Classes expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.light-mech",
+      "path": "src/assets/unit-art/generated/light-mech.png",
+      "sha256": "fd8a39abf974a08e425f317ea3e5a5dfe62af82821f386dd3b54e4f4d6eadf45",
+      "source": "exec-e9da523a-09f7-4e4a-8a49-36afa9447c5f.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.light-vehicle",
+      "path": "src/assets/unit-art/generated/light-vehicle.png",
+      "sha256": "b017c2356469f7390f8f1906204f8530ff61d4545d2fcd7f487faf6eb7de4e96",
+      "source": "exec-73d4fb90-aed1-459a-9afd-83744fd1cbc7.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.logi-truck",
+      "path": "src/assets/unit-art/generated/logi-truck.png",
+      "sha256": "54bca84f4a5d145f6f819d98415910cbbbda532665677d80f2d892582eedf8fc",
+      "source": "exec-db5dbba6-a9a8-4c28-b9cd-48b1e32cb9b3.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.main-battle-tank",
+      "path": "src/assets/unit-art/generated/main-battle-tank.png",
+      "sha256": "47f875429de7ff6d5c09ef57730f534a857f0a0935b92a0499fa82c93066f48b",
+      "source": "exec-593b091f-c6bf-48ee-9f5a-fbc3feec1bae.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.mechanized-infantry",
+      "path": "src/assets/unit-art/generated/mechanized-infantry.png",
+      "sha256": "342b8f8d1f37091495447a8bc3bfab3513a389222a7e77f70f0099f19b1b3f89",
+      "source": "exec-c47b6174-970e-4860-af3d-d392aaa413a1.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.medium-mech",
+      "path": "src/assets/unit-art/generated/medium-mech.png",
+      "sha256": "e953f3c30ca451cf361177271c487f53a392a978a06e9035364a3363c36a8f3c",
+      "source": "exec-53079f1d-20ce-40be-9112-1e8c3752802d.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.power-armoured-infantry",
+      "path": "src/assets/unit-art/generated/power-armoured-infantry.png",
+      "sha256": "0e417260faeee678709e2907b204ad535276fea90a441c9b027d31728ff49ff6",
+      "source": "exec-f5243f87-690e-489e-b908-b50de5b72b38.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.sappers",
+      "path": "src/assets/unit-art/generated/sappers.png",
+      "sha256": "4fe43f26ea4c06c056455acb6d59574254d7847a449134c53da638533165474b",
+      "source": "exec-9a7f08da-db69-4b2b-815b-639c2c22b7af.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.self-propelled-artillery",
+      "path": "src/assets/unit-art/generated/self-propelled-artillery.png",
+      "sha256": "11041349f951a41de93a143f521b2c1cb29a8ac902499aaadf936ac28d7e5b9c",
+      "source": "OpenAI built-in imagegen Classes expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.special-forces",
+      "path": "src/assets/unit-art/generated/special-forces.png",
+      "sha256": "51d6859a3cbfc561c9feb1f09197f9256cf88e9771cdaae5aca11747d4f715e2",
+      "source": "exec-b33da7bf-8f8b-40c1-97ea-847be9920370.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.super-heavy-tank",
+      "path": "src/assets/unit-art/generated/super-heavy-tank.png",
+      "sha256": "87df0b5ef02a658c4814fbda1799576be8a1b9d6831050ece635829859ba75bd",
+      "source": "OpenAI built-in imagegen Classes expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.vtol",
+      "path": "src/assets/unit-art/generated/vtol.png",
+      "sha256": "7febc11301229e18c0b7aa13f237b6f2edcc0cd91e0b205521be4421bd9a2aa2",
+      "source": "exec-e6a25f62-f91d-4e76-ba01-62a8465d3658.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.vtol-heavy-lift",
+      "path": "src/assets/unit-art/generated/vtol-heavy-lift.png",
+      "sha256": "7d8a734c2ea9abcd29064c2379b5ae24824af432a2a2368b5f8ea7acff8804c3",
+      "source": "OpenAI built-in imagegen Classes expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.vtol-multipurpose-airlift",
+      "path": "src/assets/unit-art/generated/vtol-multipurpose-airlift.png",
+      "sha256": "cd6b320001a9822d99c4cb2da31f0a80432abd7a12668ab6bb3a6e97f86d4eb8",
+      "source": "OpenAI built-in imagegen Classes expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.vtol-troop-airlift",
+      "path": "src/assets/unit-art/generated/vtol-troop-airlift.png",
+      "sha256": "0d48c7f6982dd626576e261f0e28ead735265c7b3158fc918efbc4e50f1e8f17",
+      "source": "OpenAI built-in imagegen Classes expansion batch",
+      "status": "ACTIVE"
     }
   ]
 }

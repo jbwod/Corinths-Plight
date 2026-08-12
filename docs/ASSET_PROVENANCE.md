@@ -4,7 +4,7 @@ Status: `IN_PROGRESS` for public-release review. The gameplay art is integrated 
 
 ## Generated gameplay pack
 
-The 13 canonical non-orbital unit portraits and 22 equipment/upgrade illustrations were generated on 2026-08-11 with OpenAI's built-in image generation tool under the direction of the Corinth's Plight project owner. No third-party reference image was supplied. The common art direction was:
+The 29 catalogued non-orbital unit portraits and 105 equipment/upgrade illustrations were generated on 2026-08-11–12 with OpenAI's built-in image generation tool under the direction of the Corinth's Plight project owner. No third-party reference image was supplied. The common art direction was:
 
 > Isolated Corinth's Plight sci-fi game inventory icon; bold high-contrast inked graphic-novel linework; cool white and blue-grey hardware with dark navy shadows; clean silhouette; no text, logo, watermark, scenery, hands, people, or additional objects; centred square composition on a flat chroma-magenta background.
 

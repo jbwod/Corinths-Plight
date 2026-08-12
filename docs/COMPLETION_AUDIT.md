@@ -27,15 +27,15 @@ The audit began with only two unrelated untracked user paths, which were preserv
 
 | Check | Result | Evidence |
 |---|---|---|
-| Seed/content validator | Pass | `npm run seed:check`: 46 definitions, 41 active, 100 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 4 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
+| Seed/content validator | Pass | `npm run seed:check`: 46 definitions, 41 active, 196 SQL definitions, 13 canonical and 16 companion allied classes, 7 enemy roles, 4 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
 | TypeScript | Pass | `npm run typecheck`. |
 | ESLint | Pass | `npm run lint`. |
 | Unit/contract tests | Pass | `npm test`: 66 files, 500 tests, Vitest 4.1.10. |
 | Worker/client build | Pass | `npm run build`; Worker 1,401.56 kB, client JS 867.98 kB, CSS 162.14 kB. Wrangler's sandboxed debug-log write warns but the build exits successfully. |
 | Production-mode build | Pass | `WRANGLER_WRITE_LOGS=false npm run build:production`. |
-| Empty D1 migration replay | Pass | All seventeen migrations through `0017_public_v1_economy.sql` applied in isolated Wrangler state; seven seeds replayed twice across 122 tables with integrity/FK clean. |
-| Repeat seed replay | Pass | All seven seeds applied twice. |
-| D1 integrity | Pass | SQLite `integrity_check=ok`; `foreign_key_check` empty; 16 migration records and 120 application tables. |
+| Empty D1 migration replay | Pass | All seventeen migrations through `0017_public_v1_economy.sql` applied in isolated Wrangler state; nine seeds replayed twice across 122 tables with integrity/FK clean. |
+| Repeat seed replay | Pass | All nine seeds applied twice. |
+| D1 integrity | Pass | SQLite `integrity_check=ok`; `foreign_key_check` empty; 17 migration records and 122 application tables. |
 | Application CI | Local baseline implemented; remote proof pending | The application workflow now runs locked install, advisory audit, seed validation, typecheck, lint, Vitest, empty-D1 replay, production build and Playwright, then retains bundle/browser evidence. It has not run on GitHub or been made a protected required check. See CP-001. |
 | Browser/a11y/performance tests | Browser baseline partial | `npm run test:browser`: 18/18 pass for the signed-out auth/enlist shell, authenticated live local strategic/tactical reads without showcase fallback, Battalion join/switch/leave/rank/command-transfer administration, primary-ship identity mutation/replay/history, campaign join/staging/withdrawal with exact replay protection, persistent unit identity/history editing, an authoritative Reserve loadout preview/commit, strategic Disembark, resolved Large-Supply logistics, strategic deployment authorization through tactical snapshot commit, forged tactical economy rejection, Heavy Air Transport composer, executable-action composer, four-round report playback, planning layers, and 390px document overflow. Full onboarding/game E2E, Axe/manual accessibility, performance and load remain CP-800/CP-702/CP-802. |
 
@@ -199,13 +199,13 @@ No public campaign directory/create/join/leave, profile/settings/session-managem
 | Ship configure/upgrade/movement/transfer/consumption/combat | blocked/notice-only | Explicit deferred controls. |
 | Strategic order | functional supported slice | UI submits Disembark, Task Force resupply and campaign Support, and exposes approval-gated round resolution; unresolved movement remains unavailable. |
 | Strategic-to-tactical deploy/result reconciliation | blocked/notice-only | No bootstrap/effect flow. |
-| Unit/equipment gameplay imagery | integrated local slice | Stable registries cover all 13 canonical non-orbital unit classes and 22 authoritative equipment definitions. Portraits are used across Forces, deployment and tactical inspection; equipment images are used in requisition/loadout/inspection and ship modules; replay and tactical maps use compact semantic glyphs with labels/fallbacks. `src/assets/gameplay-visuals.manifest.json` pins paths and hashes. Final public legal review and unrelated planet/ship/legacy asset coverage remain open. |
+| Unit/equipment gameplay imagery | integrated local slice | Stable registries cover all 29 catalogued non-orbital unit classes and all 105 Store equipment definitions. Portraits are used across Forces, deployment and tactical inspection; equipment images are used in requisition/loadout/inspection and ship modules; replay and tactical maps use compact semantic glyphs with labels/fallbacks. `src/assets/gameplay-visuals.manifest.json` pins paths and hashes. Final public legal review and unrelated planet/ship/legacy asset coverage remain open. |
 
 ## Rule-to-runtime activation matrix
 
 ### Canonical V5 roster
 
-All 13 non-orbital classes have null Req prices and remain non-purchasable unless a separate product grant is explicitly allowed. Companion Power Armour, Irregulars and Special Forces remain catalogued/dev-only under RC-UNIT-015.
+All 13 V5 non-orbital classes have published application prices. The 16 companion classes from `Classes.html` are preserved as complete source-exact catalogue records with artwork, slots and restrictions, but remain blocked/non-purchasable under RC-UNIT-015 until their conflicting FS chassis, attacks and prices are resolved through CP-209.
 
 | Class | D1 | Generated tactical class | End-to-end status | Principal gap |
 |---|---:|---:|---:|---|
@@ -261,7 +261,9 @@ Twenty-one tables fall into groups with no direct non-test runtime reference or 
 |---|---|---|
 | `v5-core-curated.sql` | Core ruleset, limited definitions/conflicts | Production source, but conflict register and compiled drift must be repaired. |
 | `v5-phase2-combined-arms.sql` | Full class/profile/ability/capability catalogue | Production data with mixed implementation overlays; not proof of mechanics. |
+| `v5-classes-catalogue.sql` | Source-exact companion class records, slots, tags and named mechanics | Production catalogue data; every companion class remains blocked and non-executable pending CP-209 decisions. |
 | `v5-equipment-deployment.sql` | Equipment effects, deployment methods and overlays | Production data; narrow activated subset, several overstated statuses. |
+| `v5-store-catalogue.sql` | Complete Store item catalogue and class eligibility links | Production catalogue data; availability remains governed per item and does not imply an implemented effect. |
 | `onboarding-foundation.sql` | Starter/Battalion onboarding policies and NPC Battalions | Product policy, not canonical V5 lore/balance. |
 | `development-forces.sql` | Demonstration roster/ship/Battlegroups | Development only; must never be required by production. |
 | `development-strategic-world.sql` | Corinth/Corinth II map, scenario-priced routes, ships, Battlegroups and four operations | Development only; never a production grant or canonical travel-time source. |
@@ -281,7 +283,7 @@ Retained V1 reference findings:
 
 ## Documentation reconciliation
 
-CP-004 reconciled the architecture, authentication, Battalion, Cloudflare, data-model, onboarding and rules documents against the local Phase-1 checkpoint. They now distinguish deployed production migration `0007` from local migration head `0008`, the five-class compiled engine from the 16 allied D1 catalogue rows, the 72 canonical Markdown conflicts from 12 obsolete D1 IDs, tactical command receipts/state envelopes from the still-unsafe resolution journal, and implemented reads from strategic/tactical deferrals. Documentation agreement does not close the underlying implementation findings.
+CP-004 reconciled the architecture, authentication, Battalion, Cloudflare, data-model, onboarding and rules documents against the local Phase-1 checkpoint. The generated catalogue now distinguishes 13 canonical playable allied classes from 16 blocked companion classes, the 72 canonical Markdown conflicts from 12 obsolete D1 IDs, tactical command receipts/state envelopes from the still-unsafe resolution journal, and implemented reads from strategic/tactical deferrals. Documentation agreement does not close the underlying implementation findings.
 
 ## Release decision
 

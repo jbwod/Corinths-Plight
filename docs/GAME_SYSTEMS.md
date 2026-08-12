@@ -281,7 +281,7 @@ The scenario must define the set of enemy observers and its LOS limit. More than
 
 These V5 values override same-named rows in `Classes.html`.
 
-This is the selected profile roster, not a statement that every row is tactically executable. D1 catalogues all thirteen non-orbital V5 classes plus three companion-only classes. The separate compiled tactical catalogue supplies only five allied definitions: Infantry Squad, Engineers, Light Vehicle, Main Battle Tank, and Artillery. Its Bug Drone/Warrior/Heavy definitions are scenario-specific experimental enemies, not additional V5 source classes. A missing compiled definition MUST NOT be filled by a same-named legacy class or treated as executable merely because D1 says it is.
+This is the selected profile roster, not a statement that every row is tactically executable. The generated/D1 catalogue contains all thirteen non-orbital V5 classes plus sixteen companion-only classes from `Classes.html`. Generated tactical materialization supplies the thirteen V5 classes; every companion class remains blocked by `RC-UNIT-015` and CP-209. Bug definitions are scenario-specific experimental enemies, not additional V5 source classes. A blocked definition MUST NOT be filled by same-named legacy behavior or treated as executable merely because its source profile or artwork exists.
 
 | Unit | Canonical base profile | Active notes |
 |---|---|---|

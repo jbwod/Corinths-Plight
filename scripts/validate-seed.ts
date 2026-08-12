@@ -43,6 +43,7 @@ for (const [path, expected] of Object.entries(sourceHashes)) {
 
 const seedSql = await readFile("seeds/v5-core-curated.sql", "utf8");
 const phase2SeedSql = await readFile("seeds/v5-phase2-combined-arms.sql", "utf8");
+const classesSeedSql = await readFile("seeds/v5-classes-catalogue.sql", "utf8");
 const phase3MigrationSql = await readFile("migrations/0004_phase3_strategic_layer.sql", "utf8");
 const phase3SeedSql = await readFile("seeds/development-strategic-world.sql", "utf8");
 const equipmentMigrationSql = await readFile("migrations/0005_equipment_deployment_vertical_slice.sql", "utf8");
@@ -52,7 +53,7 @@ const spearheadSeedSql = await readFile("seeds/development-spearhead.sql", "utf8
 const onboardingMigrationSql = await readFile("migrations/0007_guided_onboarding_and_battalions.sql", "utf8");
 const economyMigrationSql = await readFile("migrations/0017_public_v1_economy.sql", "utf8");
 const onboardingSeedSql = await readFile("seeds/onboarding-foundation.sql", "utf8");
-const combinedSeedSql = `${seedSql}\n${phase2SeedSql}\n${equipmentSeedSql}\n${storeSeedSql}`;
+const combinedSeedSql = `${seedSql}\n${phase2SeedSql}\n${classesSeedSql}\n${equipmentSeedSql}\n${storeSeedSql}`;
 
 const definitionTables = new Set([
   "unit_class_definitions",
@@ -129,6 +130,22 @@ const phase2PlayerUnits = [
   "unit-heavy-air-transport",
 ] as const;
 
+const companionClassUnits = [
+  "unit-sappers",
+  "unit-mechanized-infantry",
+  "unit-light-battle-tank",
+  "unit-heavy-battle-tank",
+  "unit-super-heavy-tank",
+  "unit-light-artillery",
+  "unit-heavy-artillery",
+  "unit-self-propelled-artillery",
+  "unit-vtol-troop-airlift",
+  "unit-vtol-multipurpose-airlift",
+  "unit-vtol-heavy-lift",
+  "unit-medium-mech",
+  "unit-heavy-mech",
+] as const;
+
 const phase2Enemies = [
   "enemy-bug-drone",
   "enemy-bug-warrior",
@@ -141,6 +158,7 @@ const phase2Enemies = [
 
 const phase2RequiredDefinitions = [
   ...phase2PlayerUnits,
+  ...companionClassUnits,
   ...phase2Enemies,
   "weapon-ifv-snub-autocannon",
   "weapon-light-mech-laser",
@@ -193,6 +211,15 @@ for (const unitId of phase2PlayerUnits) {
     if (costAndStatus[1] !== "NULL") failures.push(`Companion unit ${unitId} must remain unpriced.`);
   } else if (Number(costAndStatus[1]) !== approvedPrice) {
     failures.push(`Public-v1 unit ${unitId} price is ${costAndStatus[1]}; expected ${approvedPrice}.`);
+  }
+}
+
+for (const unitId of companionClassUnits) {
+  const tuple = seedTupleLines.get(unitId);
+  if (!tuple) failures.push(`Classes catalogue seed is missing ${unitId}.`);
+  else if (!tuple.includes(", NULL, 'legacy',")) failures.push(`Companion class ${unitId} must remain unpriced legacy catalogue data.`);
+  if (!classesSeedSql.includes(`'UNIT', '${unitId}'`) || !classesSeedSql.includes("'CATALOGUE_ONLY', 'BALANCE_REQUIRED', 'BLOCKED', 0, 0")) {
+    failures.push(`Companion class ${unitId} must fail closed in its implementation overlay.`);
   }
 }
 
@@ -387,6 +414,7 @@ if (failures.length > 0) {
         activeDefinitions: allDefinitions.filter((definition) => definition.status === "active").length,
         sqlDefinitions: seedTupleLines.size,
         phase2PlayerUnits: phase2PlayerUnits.length,
+        companionClassUnits: companionClassUnits.length,
         phase2EnemyRoles: phase2Enemies.length,
         phase3Map: "strategic-map-corinth",
         phase3Operations: 4,

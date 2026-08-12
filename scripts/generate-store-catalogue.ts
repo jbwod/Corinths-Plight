@@ -96,10 +96,10 @@ const explicitIds = new Map<number, string>([
   [112, "equipment-through-ship-interior-hangar"],
 ]);
 
-const allInfantry = ["unit-infantry-squad", "unit-power-armoured-infantry", "unit-combat-medic", "unit-irregular", "unit-special-forces", "unit-engineers"];
+const allInfantry = ["unit-infantry-squad", "unit-power-armoured-infantry", "unit-combat-medic", "unit-irregular", "unit-special-forces", "unit-engineers", "unit-sappers", "unit-mechanized-infantry"];
 const nonIrregularInfantry = allInfantry.filter((id) => id !== "unit-irregular");
-const fieldInfantry = ["unit-infantry-squad", "unit-power-armoured-infantry", "unit-irregular", "unit-special-forces"];
-const groundVehicles = ["unit-logi-truck", "unit-light-vehicle", "unit-infantry-fighting-vehicle", "unit-main-battle-tank"];
+const fieldInfantry = ["unit-infantry-squad", "unit-power-armoured-infantry", "unit-irregular", "unit-special-forces", "unit-sappers", "unit-mechanized-infantry"];
+const groundVehicles = ["unit-logi-truck", "unit-light-vehicle", "unit-infantry-fighting-vehicle", "unit-mechanized-infantry", "unit-light-battle-tank", "unit-main-battle-tank", "unit-heavy-battle-tank", "unit-super-heavy-tank"];
 
 function decodeHtml(value: string): string {
   return value
@@ -165,25 +165,27 @@ function restrictions(row: number): Restriction | null {
   if (row <= 41) {
     if ([2, 3].includes(row)) allowed = nonIrregularInfantry;
     else if ([4, 5, 9, 12, 13, 14, 22, 23, 32].includes(row)) allowed = allInfantry;
-    else if ([6, 7, 24].includes(row)) allowed = ["unit-infantry-squad", "unit-special-forces", "unit-engineers"];
+    else if ([6, 7, 24].includes(row)) allowed = ["unit-infantry-squad", "unit-special-forces", "unit-engineers", "unit-sappers"];
     else if ([8, 10, 11, 15, 17, 18].includes(row)) allowed = fieldInfantry;
     else if ([19, 20, 21].includes(row)) allowed = ["unit-power-armoured-infantry", "unit-special-forces"];
     else if (row === 16 || row === 30) allowed = ["unit-power-armoured-infantry"];
-    else if (row >= 25 && row <= 29) allowed = row === 25 ? ["unit-infantry-squad", "unit-power-armoured-infantry", "unit-engineers"] : ["unit-engineers"];
+    else if (row >= 25 && row <= 29) allowed = row === 25 ? ["unit-infantry-squad", "unit-power-armoured-infantry", "unit-engineers", "unit-sappers"] : ["unit-engineers", "unit-sappers"];
     else if (row >= 31 && row <= 37) allowed = row === 32 ? allInfantry : ["unit-irregular"];
     else if (row >= 38) allowed = ["unit-combat-medic"];
     if (row === 18) prerequisites.push("equipment-delayed-explosive-charge");
     if (row === 20) prerequisites.push("equipment-sniper-rifles");
     if (row === 30) prerequisites.push("equipment-standard-melee-weapons");
   } else if (row <= 57) {
-    if ([51, 52, 54, 55, 56, 57].includes(row)) allowed = ["unit-artillery"];
-    else if (row === 53) allowed = ["unit-main-battle-tank"];
-    else allowed = [...groundVehicles, "unit-artillery"];
+    if (row === 52 || row === 56) allowed = ["unit-heavy-artillery"];
+    else if (row === 54) allowed = ["unit-self-propelled-artillery"];
+    else if ([51, 55, 57].includes(row)) allowed = ["unit-artillery", "unit-light-artillery", "unit-heavy-artillery", "unit-self-propelled-artillery"];
+    else if (row === 53) allowed = ["unit-light-battle-tank", "unit-main-battle-tank", "unit-heavy-battle-tank", "unit-super-heavy-tank"];
+    else allowed = [...groundVehicles, "unit-artillery", "unit-light-artillery", "unit-heavy-artillery", "unit-self-propelled-artillery"];
   } else if (row <= 77) {
-    allowed = row === 68 ? ["unit-power-armoured-infantry", "unit-light-mech"] : ["unit-light-mech"];
+    allowed = row === 68 ? ["unit-power-armoured-infantry", "unit-light-mech", "unit-medium-mech", "unit-heavy-mech"] : row === 77 ? ["unit-light-mech"] : ["unit-light-mech", "unit-medium-mech", "unit-heavy-mech"];
   } else {
     if ([79, 80, 81, 83].includes(row)) allowed = ["unit-aerospace-fighter"];
-    else if (row === 84) allowed = ["unit-vtol"];
+    else if (row === 84) allowed = ["unit-vtol", "unit-vtol-troop-airlift", "unit-vtol-multipurpose-airlift", "unit-vtol-heavy-lift"];
     else if (row >= 85) allowed = ["unit-aerospace-bomber"];
     else requiredTagsAll = ["tag-aerospace"];
   }

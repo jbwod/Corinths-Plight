@@ -9,9 +9,9 @@ import {
 } from "./unit-visuals";
 
 describe("unit visual registry", () => {
-  it("covers every canonical non-orbital unit with a stable asset and tactical glyph", () => {
+  it("covers every catalogued non-orbital unit with a stable asset and tactical glyph", () => {
     expect(UNIT_VISUALS.map((visual) => visual.definitionId).sort()).toEqual(
-      [...catalogue.content.canonicalUnitIds].sort(),
+      [...catalogue.content.canonicalUnitIds, ...catalogue.content.companionUnitIds].sort(),
     );
     expect(new Set(UNIT_VISUALS.map((visual) => visual.assetKey)).size).toBe(UNIT_VISUALS.length);
 
@@ -24,7 +24,7 @@ describe("unit visual registry", () => {
 
   it("resolves retained class aliases to the canonical visual", () => {
     expect(findUnitVisual("unit-combat-engineers")?.definitionId).toBe("unit-engineers");
-    expect(findUnitVisual("unit-light-artillery")?.definitionId).toBe("unit-artillery");
+    expect(findUnitVisual("unit-light-artillery")?.definitionId).toBe("unit-light-artillery");
     expect(findUnitVisual("unit-logistics-vehicle")?.definitionId).toBe("unit-logi-truck");
     expect(findUnitVisual("unit-heavy-aerospace-transport")?.definitionId).toBe("unit-heavy-air-transport");
   });

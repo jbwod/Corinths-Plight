@@ -25,7 +25,7 @@ describe("rules catalogue bootstrap", () => {
     const snapshot = await readLegacyCatalogueSnapshot();
 
     expect(legacyDefinitionCounts(snapshot)).toEqual({
-      units: 16,
+      units: 29,
       weapons: 12,
       equipment: 105,
       actions: 24,
@@ -35,7 +35,7 @@ describe("rules catalogue bootstrap", () => {
       ships: 4,
       enemies: 7,
     });
-    expect(legacyTopLevelDefinitionCount(snapshot)).toBe(184);
+    expect(legacyTopLevelDefinitionCount(snapshot)).toBe(197);
     expect(await legacySourceHashMismatches(snapshot)).toEqual([]);
     expect(legacyUnitPublicationSplit(snapshot)).toEqual({
       canonicalUnitIds: [
@@ -54,9 +54,22 @@ describe("rules catalogue bootstrap", () => {
         "unit-vtol",
       ],
       companionUnitIds: [
+        "unit-heavy-artillery",
+        "unit-heavy-battle-tank",
+        "unit-heavy-mech",
         "unit-irregular",
+        "unit-light-artillery",
+        "unit-light-battle-tank",
+        "unit-mechanized-infantry",
+        "unit-medium-mech",
         "unit-power-armoured-infantry",
+        "unit-sappers",
+        "unit-self-propelled-artillery",
         "unit-special-forces",
+        "unit-super-heavy-tank",
+        "unit-vtol-heavy-lift",
+        "unit-vtol-multipurpose-airlift",
+        "unit-vtol-troop-airlift",
       ],
     });
   });
@@ -89,12 +102,26 @@ describe("rules catalogue bootstrap", () => {
     expect(await readFile(generatedPath, "utf8")).toBe(renderGeneratedCatalogueModule(parsed));
 
     expect(content.canonicalUnitIds).toHaveLength(13);
-    expect(content.companionUnitIds).toHaveLength(3);
+    expect(content.companionUnitIds).toHaveLength(16);
     expect([
       ...content.units, ...content.weapons, ...content.equipment, ...content.actions,
       ...content.orders, ...content.structures, ...content.terrain, ...content.ships, ...content.enemies,
-    ]).toHaveLength(184);
+    ]).toHaveLength(197);
     expect(content.conflicts).toHaveLength(84);
+
+    const companionIds = new Set(content.companionUnitIds);
+    const unitOverlays = content.overlays.filter((overlay) => overlay.definitionKind === "UNIT");
+    for (const companionId of companionIds) {
+      expect(content.units.find((unit) => unit.id === companionId)?.definitionStatus).toBe("legacy");
+      expect(unitOverlays.find((overlay) => overlay.definitionId === companionId)).toMatchObject({
+        implementationStatus: "CATALOGUE_ONLY",
+        requisitionStatus: "BALANCE_REQUIRED",
+        availabilityStatus: "BLOCKED",
+        executable: false,
+        purchasable: false,
+        reasonCode: "RC_UNIT_015",
+      });
+    }
 
     const medic = content.units.find((unit) => unit.id === "unit-combat-medic")!;
     const fighter = content.units.find((unit) => unit.id === "unit-aerospace-fighter")!;

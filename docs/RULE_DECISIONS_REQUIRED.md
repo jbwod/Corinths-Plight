@@ -324,6 +324,20 @@ For every `PENDING` row:
 
 **Acceptance:** campaigns pin source/version/hash; production never depends on `development-*.sql`; fixture IDs/lore do not leak into unrelated campaigns.
 
+### DEC-021 — Companion class activation model
+
+**Sources:** `RC-UNIT-015` catalogues sixteen non-V5 classes from `Classes.html`. Several vehicles, aerospace craft and mechs use Force Strength where V5 uses Hits; several attack profiles give AP/range or fixed damage without a complete V5-compatible weapon definition; artillery rows display zero cost and mech rows use dotted cost notation.
+
+**Options:**
+
+1. Keep all companion classes as visible catalogue expansions until a separately versioned companion rules profile defines durability, attacks and economy.
+2. Convert companion FS chassis to Hits and dotted/zero prices to Req through a new application balance policy.
+3. Activate only personnel classes that already fit V5 Force Strength, with each special mechanic independently implemented, while the vehicle/mech/aerospace set remains blocked.
+
+**Recommendation:** Option 3 as the next expansion after the V5 public loop is complete. Start with Sappers and Special Forces; do not infer vehicle Hits, weapon dice, dual-cannon behavior or prices. Record any later conversions in a named profile rather than editing V5 truth.
+
+**Acceptance:** every activated companion class has an explicit durability/attack/economy source, generated handler, persistent state, tactical UI/report coverage and a scenario proving its signature mechanic. Catalogue presence or generated artwork alone never grants execution or purchase.
+
 ## Provisional V5 rulings requiring owner confirmation
 
 These already have recorded provisional dispositions. Confirming them does not mean their mechanics are implemented.
