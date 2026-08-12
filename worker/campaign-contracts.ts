@@ -1060,12 +1060,28 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     stateOnlyKeys(rewards, ["serviceHistory", "requisition"], "$.outcome.rewards");
     if (rewards.serviceHistory !== "RECORDED") stateFail("$.outcome.rewards.serviceHistory", "invalid service history status");
     const requisition = stateRecord(rewards.requisition, "$.outcome.rewards.requisition");
-    stateOnlyKeys(requisition, ["status", "amount", "rulesDecisionId"], "$.outcome.rewards.requisition");
-    if (
-      requisition.status !== "BALANCE_REQUIRED" || requisition.amount !== null ||
-      requisition.rulesDecisionId !== "RC-V5-016"
-    ) {
-      stateFail("$.outcome.rewards.requisition", "unpublished requisition reward must remain blocked");
+    if (requisition.status === "BALANCE_REQUIRED") {
+      stateOnlyKeys(requisition, ["status", "amount", "rulesDecisionId"], "$.outcome.rewards.requisition");
+      if (requisition.amount !== null || requisition.rulesDecisionId !== "RC-V5-016") {
+        stateFail("$.outcome.rewards.requisition", "legacy unpublished reward is malformed");
+      }
+    } else {
+      stateOnlyKeys(requisition, ["status", "amount", "rulesDecisionId", "policyId", "breakdown"], "$.outcome.rewards.requisition");
+      const rewardAmount = stateInteger(requisition.amount, "$.outcome.rewards.requisition.amount", 0);
+      const rewardBreakdown = stateRecord(requisition.breakdown, "$.outcome.rewards.requisition.breakdown");
+      stateOnlyKeys(rewardBreakdown, ["mission", "campaign"], "$.outcome.rewards.requisition.breakdown");
+      const missionReward = stateInteger(rewardBreakdown.mission, "$.outcome.rewards.requisition.breakdown.mission", 0);
+      const campaignReward = stateInteger(rewardBreakdown.campaign, "$.outcome.rewards.requisition.breakdown.campaign", 0);
+      if (
+        requisition.status !== "PUBLISHED" ||
+        requisition.rulesDecisionId !== "RC-V5-016" ||
+        requisition.policyId !== "public-v1-economy@1" ||
+        rewardAmount !== missionReward + campaignReward ||
+        missionReward !== 5 ||
+        (campaignOutcome.result === "VICTORY" ? campaignReward !== 20 : campaignReward !== 0)
+      ) {
+        stateFail("$.outcome.rewards.requisition", "reward does not match the pinned public economy policy");
+      }
     }
   }
 

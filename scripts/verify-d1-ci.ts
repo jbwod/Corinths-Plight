@@ -4,6 +4,10 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import {
+  PUBLIC_V1_ECONOMY_POLICY,
+  PUBLIC_V1_UNIT_PRICES,
+} from "../packages/domain/src/economy-policy";
 
 const databaseName = "corinths-plight";
 const rootDirectory = resolve(import.meta.dirname, "..");
@@ -119,6 +123,30 @@ function verifyDatabase(databasePath: string, expectedMigrations: readonly strin
         `Applied migrations do not match the migration directory. Expected ${expectedMigrations.join(", ")}; ` +
         `received ${appliedMigrations.join(", ")}.`,
       );
+    }
+
+    const policy = rows(database, `SELECT starting_requisition,battalion_charter_cost,
+      mission_reward,campaign_victory_reward,passive_income,loss_policy,replacement_policy
+      FROM economy_policies WHERE id='public-v1-economy@1' AND status='ACTIVE'`);
+    const expectedPolicy: SqlValue[][] = [[
+      BigInt(PUBLIC_V1_ECONOMY_POLICY.startingRequisition),
+      BigInt(PUBLIC_V1_ECONOMY_POLICY.battalionCharterCost),
+      BigInt(PUBLIC_V1_ECONOMY_POLICY.missionReward),
+      BigInt(PUBLIC_V1_ECONOMY_POLICY.campaignVictoryReward),
+      BigInt(PUBLIC_V1_ECONOMY_POLICY.passiveIncome),
+      PUBLIC_V1_ECONOMY_POLICY.lossPolicy,
+      PUBLIC_V1_ECONOMY_POLICY.replacementPolicy,
+    ]];
+    if (JSON.stringify(policy, (_key, value) => typeof value === "bigint" ? value.toString() : value) !==
+        JSON.stringify(expectedPolicy, (_key, value) => typeof value === "bigint" ? value.toString() : value)) {
+      fail(`Active economy policy drifted: ${JSON.stringify(policy, (_key, value) => typeof value === "bigint" ? value.toString() : value)}.`);
+    }
+    const publishedPrices = rows(database, `SELECT definition_id,requisition_cost FROM economy_unit_prices
+      WHERE policy_id='public-v1-economy@1' AND status='PUBLISHED' ORDER BY definition_id`)
+      .map(([definitionId, price]) => [String(definitionId), Number(price)] as const);
+    const expectedPrices = Object.entries(PUBLIC_V1_UNIT_PRICES).sort(([left], [right]) => left.localeCompare(right));
+    if (JSON.stringify(publishedPrices) !== JSON.stringify(expectedPrices)) {
+      fail(`Published unit-price table drifted: ${JSON.stringify(publishedPrices)}.`);
     }
 
     const tableNames = rows(

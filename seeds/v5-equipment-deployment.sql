@@ -161,10 +161,11 @@ ON CONFLICT(definition_kind, definition_id, ruleset_id) DO UPDATE SET
 
 UPDATE ruleset_implementation_overlays
 SET implementation_status = 'IMPLEMENTED',
-    availability_status = 'DEV_ONLY',
+    availability_status = 'AVAILABLE',
     executable = 1,
-    reason_code = 'VERTICAL_SLICE_TRANSPORT_HANDLER',
-    overlay_json = '{"verticalSlice":"equipment-deployment","handlers":["LOAD","UNLOAD","AIRDROP"]}'
+    purchasable = 1,
+    reason_code = NULL,
+    overlay_json = '{"verticalSlice":"equipment-deployment","handlers":["LOAD","UNLOAD","AIRDROP"],"economyPolicyId":"public-v1-economy@1"}'
 WHERE definition_kind = 'UNIT'
   AND ruleset_id = 'ruleset-v5-core-curated-1'
   AND definition_id IN ('unit-logi-truck','unit-infantry-fighting-vehicle','unit-vtol','unit-heavy-air-transport');

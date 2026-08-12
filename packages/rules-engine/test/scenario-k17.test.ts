@@ -108,7 +108,13 @@ describe("declarative Outpost K-17 scenario policy", () => {
       ],
       rewards: {
         serviceHistory: "RECORDED",
-        requisition: { status: "BALANCE_REQUIRED", amount: null, rulesDecisionId: "RC-V5-016" },
+        requisition: {
+          status: "PUBLISHED",
+          amount: 25,
+          rulesDecisionId: "RC-V5-016",
+          policyId: "public-v1-economy@1",
+          breakdown: { mission: 5, campaign: 20 },
+        },
       },
     });
   });
@@ -144,7 +150,13 @@ describe("declarative Outpost K-17 scenario policy", () => {
       reason: "FINAL_ROUND_PRIMARY_HELD",
       rewards: {
         serviceHistory: "RECORDED",
-        requisition: { status: "BALANCE_REQUIRED", amount: null, rulesDecisionId: "RC-V5-016" },
+        requisition: {
+          status: "PUBLISHED",
+          amount: 25,
+          rulesDecisionId: "RC-V5-016",
+          policyId: "public-v1-economy@1",
+          breakdown: { mission: 5, campaign: 20 },
+        },
       },
     });
     expect(output.persistentEffects.find((effect) => effect.type === "CAMPAIGN_HISTORY")?.payload).toMatchObject({

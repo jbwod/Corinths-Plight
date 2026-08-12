@@ -156,6 +156,13 @@ export function CampaignReports({
   );
   const terminalEvent = report?.events.find((event) => ["CAMPAIGN_COMPLETED", "CAMPAIGN_FAILED"].includes(String(event.type)));
   const terminalVictory = String(terminalEvent?.type) === "CAMPAIGN_COMPLETED";
+  const terminalRewards = terminalEvent?.payload.rewards;
+  const requisitionReward = terminalRewards && typeof terminalRewards === "object" && !Array.isArray(terminalRewards)
+    ? (terminalRewards as Record<string, unknown>).requisition
+    : undefined;
+  const requisitionAmount = requisitionReward && typeof requisitionReward === "object" && !Array.isArray(requisitionReward)
+    ? (requisitionReward as Record<string, unknown>).amount
+    : undefined;
 
   return (
     <main className="reports-page">
@@ -206,7 +213,7 @@ export function CampaignReports({
                   </section>
                   <section className="campaign-rewards panel" aria-label="Campaign rewards">
                     <div><small>SERVICE HISTORY</small><strong>RECORDED</strong><span>Every participating persistent unit received campaign credit.</span></div>
-                    <div><small>REQUISITION AWARD</small><strong>BALANCE REQUIRED</strong><span>No Req was granted because campaign reward values remain unpublished under RC-V5-016.</span></div>
+                    <div><small>REQUISITION AWARD</small><strong>{typeof requisitionAmount === "number" ? `+${requisitionAmount} RP` : "HISTORICAL — NONE"}</strong><span>{typeof requisitionAmount === "number" ? "Applied once to each Allied commander under public-v1-economy@1." : "This result predates the published public-v1 reward policy."}</span></div>
                   </section>
                   <section className="campaign-war-effects panel" aria-label="Strategic war effects">
                     <header><span className="eyebrow">ACKNOWLEDGED WAR EFFECTS</span><strong>STRATEGIC RECONCILIATION</strong></header>

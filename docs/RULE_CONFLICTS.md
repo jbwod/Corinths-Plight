@@ -54,7 +54,7 @@ The catalogue contains all thirteen non-orbital V5 starting classes plus Power A
 
 The seven Bug role records include Drone, Warrior, Spitter, Heavy, Burrower, Flyer, and Artillery. The four new roles contain tags/doctrine only and remain hidden catalogue entries because the product brief supplies no authoritative durability, weapon dice, range, or price. That is incomplete data, not a new conflicting value.
 
-All player-unit requisition prices remain `NULL`/`BALANCE_REQUIRED` under `RC-V5-016`. Store equipment and ship modules retain published row prices; Road Building Equipment retains a `NULL` price because its Store cost cell is blank. Database checks prohibit `purchasable=1` unless both `requisition_status=PUBLISHED` and `availability_status=AVAILABLE`.
+The thirteen canonical non-orbital player classes have application prices under `public-v1-economy@1`; companion-only classes remain `NULL`/unavailable. Executable Store equipment retains published row prices, while Road Building Equipment and other blank/blocked entries remain `NULL`. Database checks prohibit `purchasable=1` unless both `requisition_status=PUBLISHED` and `availability_status=AVAILABLE`.
 
 No new conflict ID is introduced by this overlay. Cargo, aerospace, healing, construction, repair, and companion-class decisions all map to existing records (`RC-UNIT-002`–`RC-UNIT-015`, `RC-V5-010`, `RC-V5-017`, `RC-V5-018`, `RC-V5-023`, `RC-V5-024`, `RC-V5-029`, and `RC-V5-030`). A seed row or normalized profile is not evidence that its action resolves.
 
@@ -467,8 +467,8 @@ No new conflict ID is introduced by this overlay. Cargo, aerospace, healing, con
 ### RC-V5-016 — Req economy
 
 - **Evidence:** `V5 > Req Value` defines cost/value and links to a spreadsheet. V5 has no starting budget/income. Most companion class cost cells are blank; some are `0`, `..1`, `....2`, or `......3`; Store gear is mainly cost 1–2, with Road Building Equipment blank.
-- **Disposition:** preserve every raw cost string; purchasing/refits are blocked. Do not treat blank as zero or strip dots without migration approval.
-- **Status:** `BLOCKED`.
+- **Disposition:** preserve every raw source cost string. The owner-approved application profile `public-v1-economy@1` supplies a 20 Req opening grant/charter cost, 5 mission reward, 20 campaign-victory reward, and explicit prices for the thirteen canonical non-orbital classes (4/6/8/10/12/14 tiers). Executable Store equipment retains its literal published price; blank values remain unavailable. Loss is permanent with no refund/salvage, and replacement is a fresh purchase or explicit grant. These values are application balance policy, not reconstructed V5 numbers.
+- **Status:** `RESOLVED-MVP`.
 
 ### RC-V5-017 — VTOL infantry and Supply capacity
 

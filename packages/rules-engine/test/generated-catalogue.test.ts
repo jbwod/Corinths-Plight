@@ -109,31 +109,46 @@ describe("rules catalogue bootstrap", () => {
       implementationStatus: "PARTIAL",
       executable: true,
       handlerId: "foundation-generated-unit-class",
-      reasonCode: "MISSING_CANONICAL_PRICE",
+      requisitionStatus: "PUBLISHED",
+      availabilityStatus: "AVAILABLE",
+      purchasable: true,
+      reasonCode: null,
     });
     expect(overlays.get("UNIT:unit-vtol")).toMatchObject({
       implementationStatus: "PARTIAL",
       executable: true,
       handlerId: "foundation-generated-unit-class",
-      reasonCode: "MISSING_CANONICAL_PRICE",
+      requisitionStatus: "PUBLISHED",
+      availabilityStatus: "AVAILABLE",
+      purchasable: true,
+      reasonCode: null,
     });
     expect(overlays.get("UNIT:unit-logi-truck")).toMatchObject({
       implementationStatus: "PARTIAL",
       executable: true,
       handlerId: "foundation-generated-unit-class",
-      reasonCode: "MISSING_CANONICAL_PRICE",
+      requisitionStatus: "PUBLISHED",
+      availabilityStatus: "AVAILABLE",
+      purchasable: true,
+      reasonCode: null,
     });
     expect(overlays.get("UNIT:unit-infantry-fighting-vehicle")).toMatchObject({
       implementationStatus: "PARTIAL",
       executable: true,
       handlerId: "foundation-generated-unit-class",
-      reasonCode: "MISSING_CANONICAL_PRICE",
+      requisitionStatus: "PUBLISHED",
+      availabilityStatus: "AVAILABLE",
+      purchasable: true,
+      reasonCode: null,
     });
     expect(overlays.get("UNIT:unit-light-mech")).toMatchObject({
       implementationStatus: "PARTIAL",
       executable: true,
       handlerId: "foundation-generated-unit-class",
-      reasonCode: "MISSING_CANONICAL_PRICE",
+      requisitionStatus: "PUBLISHED",
+      availabilityStatus: "AVAILABLE",
+      purchasable: true,
+      reasonCode: null,
     });
     for (const equipmentId of ["equipment-drone-operator", "equipment-vehicle-optics"]) {
       expect(overlays.get(`EQUIPMENT:${equipmentId}`)).toMatchObject({

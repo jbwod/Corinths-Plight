@@ -81,6 +81,7 @@ export interface StarterDefinitionRow {
   defense: number;
   speed_quarters: number;
   sensor_range: number;
+  requisition_cost: number;
   implementation_status: string;
   executable: number;
 }
@@ -260,7 +261,7 @@ export async function listPendingInvitations(db: D1Database, userId: string): Pr
 export async function listStarterDefinitions(db: D1Database): Promise<StarterDefinitionRow[]> {
   const result = await db.prepare(`SELECT definitions.id,definitions.ruleset_id,definitions.name,
       definitions.category,definitions.health_model,definitions.max_health,
-      definitions.armor,definitions.defense,definitions.speed_quarters,definitions.sensor_range,
+      definitions.armor,definitions.defense,definitions.speed_quarters,definitions.sensor_range,definitions.requisition_cost,
       overlays.implementation_status,overlays.executable
     FROM unit_class_definitions AS definitions
     JOIN rulesets ON rulesets.id=definitions.ruleset_id AND rulesets.status='ACTIVE'
@@ -268,7 +269,8 @@ export async function listStarterDefinitions(db: D1Database): Promise<StarterDef
       ON overlays.definition_kind='UNIT' AND overlays.definition_id=definitions.id
      AND overlays.ruleset_id=definitions.ruleset_id
     WHERE definitions.id IN ('unit-infantry-squad','unit-light-vehicle','unit-main-battle-tank')
-      AND definitions.definition_status='active' AND overlays.executable=1
+      AND definitions.definition_status='active' AND definitions.requisition_cost IS NOT NULL
+      AND overlays.executable=1 AND overlays.requisition_status='PUBLISHED'
       AND overlays.implementation_status IN ('IMPLEMENTED','PARTIAL')
     ORDER BY CASE definitions.id
       WHEN 'unit-infantry-squad' THEN 1 WHEN 'unit-light-vehicle' THEN 2 ELSE 3 END`).all<StarterDefinitionRow>();
@@ -374,7 +376,7 @@ export async function getInviteTarget(db: D1Database, targetType: "USERNAME" | "
 export async function getStarterDefinition(db: D1Database, definitionId: string): Promise<StarterDefinitionRow | null> {
   return db.prepare(`SELECT definitions.id,definitions.ruleset_id,definitions.name,
       definitions.category,definitions.health_model,definitions.max_health,
-      definitions.armor,definitions.defense,definitions.speed_quarters,definitions.sensor_range,
+      definitions.armor,definitions.defense,definitions.speed_quarters,definitions.sensor_range,definitions.requisition_cost,
       overlays.implementation_status,overlays.executable
     FROM unit_class_definitions AS definitions
     JOIN rulesets ON rulesets.id=definitions.ruleset_id AND rulesets.status='ACTIVE'
@@ -383,7 +385,8 @@ export async function getStarterDefinition(db: D1Database, definitionId: string)
      AND overlays.ruleset_id=definitions.ruleset_id
     WHERE definitions.id=?1
       AND definitions.id IN ('unit-infantry-squad','unit-light-vehicle','unit-main-battle-tank')
-      AND definitions.definition_status='active' AND overlays.executable=1
+      AND definitions.definition_status='active' AND definitions.requisition_cost IS NOT NULL
+      AND overlays.executable=1 AND overlays.requisition_status='PUBLISHED'
       AND overlays.implementation_status IN ('IMPLEMENTED','PARTIAL') LIMIT 1`)
     .bind(definitionId).first<StarterDefinitionRow>();
 }

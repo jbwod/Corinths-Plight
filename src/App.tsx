@@ -1416,7 +1416,10 @@ function GameApp() {
 
         <section className="map-panel" aria-label="Tactical operations map">
           <div className="map-toolbar">
-            <div><span className="eyebrow">TACTICAL FEED</span><strong>{campaign.campaignName.toUpperCase()} // GRID {String(campaign.scenarioVersion).padStart(2, "0")}</strong></div>
+            <div>
+              <span className="eyebrow">TACTICAL FEED</span>
+              <strong>{campaign.campaignName.toUpperCase()} // {campaign.scenarioVersion === undefined ? "LIVE GRID" : `SCENARIO v${String(campaign.scenarioVersion).padStart(2, "0")}`}</strong>
+            </div>
             <div className="map-tools" aria-label="Tactical map layer">
               {(["SURFACE", "INTEL", "SUPPLY"] as TacticalMapLayer[]).map((layer) => (
                 <button className={mapLayer === layer ? "active" : ""} key={layer} onClick={() => setMapLayer(layer)}>{layer}</button>

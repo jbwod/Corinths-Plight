@@ -7,6 +7,10 @@ import type {
   FactionSide,
   ObjectiveState,
 } from "../../domain/src";
+import {
+  PUBLIC_V1_ECONOMY_POLICY_ID,
+  publicV1CampaignReward,
+} from "../../domain/src";
 
 export interface ObjectiveCaptureResult {
   objectiveId: string;
@@ -56,6 +60,7 @@ function outcome(
   result: CampaignOutcome["result"],
   reason: CampaignOutcome["reason"],
 ): CampaignOutcome {
+  const reward = publicV1CampaignReward(result);
   return {
     result,
     round: state.round,
@@ -64,9 +69,14 @@ function outcome(
     rewards: {
       serviceHistory: "RECORDED",
       requisition: {
-        status: "BALANCE_REQUIRED",
-        amount: null,
+        status: "PUBLISHED",
+        amount: reward.total,
         rulesDecisionId: "RC-V5-016",
+        policyId: PUBLIC_V1_ECONOMY_POLICY_ID,
+        breakdown: {
+          mission: reward.mission,
+          campaign: reward.campaign,
+        },
       },
     },
   };

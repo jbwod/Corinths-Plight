@@ -15,6 +15,7 @@ export interface CampaignMarkerDto {
 }
 
 export * from "./json-contract";
+export * from "./economy-policy";
 export * from "./rules-catalogue-contract";
 export * from "./governed-cargo";
 export * from "./governed-supply";
@@ -959,6 +960,15 @@ export interface CampaignObjectiveSummary {
 export interface CampaignRewardSummary {
   serviceHistory: "RECORDED";
   requisition: {
+    status: "PUBLISHED";
+    amount: number;
+    rulesDecisionId: "RC-V5-016";
+    policyId: "public-v1-economy@1";
+    breakdown: {
+      mission: number;
+      campaign: number;
+    };
+  } | {
     status: "BALANCE_REQUIRED";
     amount: null;
     rulesDecisionId: "RC-V5-016";

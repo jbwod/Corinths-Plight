@@ -1,6 +1,6 @@
 # Corinth's Plight — Rules and Product Decisions Required
 
-**Snapshot:** 2026-08-10
+**Snapshot:** 2026-08-12
 
 **Rules profile:** V5-first curated profile
 
@@ -27,10 +27,10 @@ For every `PENDING` row:
 
 | ID | Decision | Existing authority | Status | Blocks |
 |---|---|---|---:|---|
-| DEC-001 | Starting Req and normal income | RC-V5-016 | PENDING | General economy and acquisition |
-| DEC-002 | Unit prices and purchase timing | RC-V5-016 | PENDING | Unit catalogue purchases/replacement |
-| DEC-003 | Equipment/refit/module prices and mutation timing | RC-V5-016, RC-EQP-* | PENDING | Loadout/refit/ship economy |
-| DEC-004 | Rewards, loss, replacement, salvage/refund and Battalion funds | RC-V5-016 | PENDING | Campaign outcome/economy loop |
+| DEC-001 | Starting Req and normal income | RC-V5-016 | APPROVED — PUBLIC V1 | General economy and acquisition |
+| DEC-002 | Unit prices and purchase timing | RC-V5-016 | APPROVED — PUBLIC V1 | Unit catalogue purchases/replacement |
+| DEC-003 | Equipment/refit/module prices and mutation timing | RC-V5-016, RC-EQP-* | PARTIAL — STORE EQUIPMENT ONLY | Loadout/refit/ship economy |
+| DEC-004 | Rewards, loss, replacement, salvage/refund and Battalion funds | RC-V5-016 | APPROVED — PUBLIC V1 | Campaign outcome/economy loop |
 | DEC-005 | Strategic route travel time/cost/supply model | No stable conflict ID yet | PENDING | Public strategic movement |
 | DEC-006 | Structure/build/repair values | RC-BUILD-002/004/005/006/007 | PENDING | Construction/attackable structures |
 | DEC-007 | Scenario terrain/cover/high-ground/LOS profile | RC-V5-005/014/021 plus road/river conflict | PENDING | General tactical maps |
@@ -54,7 +54,7 @@ For every `PENDING` row:
 
 **Sources:** V5 requisition references at `Meta - Core Rules (V5).md:193-195,506-508`; RC-V5-016 at `RULE_CONFLICTS.md:463-467`. V5 does not provide starting balances or an ordinary income schedule.
 
-**Current behavior:** production onboarding uses a product-policy grant/charter flow, while canonical unit prices remain null/BALANCE_REQUIRED. Treating this as the whole game economy would silently invent a V5 rule.
+**Current behavior:** the application-owned `public-v1-economy@1` profile is active. It is labelled separately because treating its approved values as source-supplied V5 numbers would be inaccurate.
 
 **Options:**
 
@@ -64,11 +64,13 @@ For every `PENDING` row:
 
 **Recommendation:** Option 3 as an application policy, not a canonical V5 claim. Keep amounts unset until a small preview economy simulation is approved.
 
+**Approved disposition (project owner, 2026-08-12):** `public-v1-economy@1` grants 20 Req once after verification, charges 20 Req for the one-account Battalion charter, grants 5 Req for completing a mission, grants an additional 20 Req for a campaign victory, and provides no passive income. These are application balance values, not a claim that V5 supplied the numbers.
+
 **Acceptance:** every grant has a source event/receipt; totals balance under replay/concurrency; no client or schema default creates Req.
 
 ### DEC-002 — Unit prices and purchase timing
 
-**Sources:** RC-V5-016. All canonical unit prices are currently null, DEV_ONLY/BALANCE_REQUIRED and non-purchasable.
+**Sources:** RC-V5-016 plus the owner approval recorded on 2026-08-12. The thirteen canonical class prices are published only by the application policy; companion-only classes remain unpriced.
 
 **Options:**
 
@@ -77,6 +79,8 @@ For every `PENDING` row:
 3. Relative tier/budget drafting system, requiring a new product rules profile rather than currency prices.
 
 **Recommendation:** Option 2 for the first complete K-17 slice, then approve Option 1 only with recorded balance evidence. Never derive prices from stats or companion prose.
+
+**Approved disposition (project owner, 2026-08-12):** Option 1 is activated for the thirteen canonical non-orbital V5 classes: Infantry/Medic/Engineer 4; Artillery/Logi 6; Light Vehicle/IFV 8; MBT/Light Mech/VTOL 10; Fighter/Bomber 12; Heavy Air Transport 14. Purchases are reserve acquisitions, debit the actor ledger atomically, and require the published executable catalogue row. The onboarding starter remains free and is explicitly recorded as a grant.
 
 **Acceptance:** every public catalogue row has either an approved price/source or an unavailable reason; null never maps to zero.
 
@@ -92,6 +96,8 @@ For every `PENDING` row:
 
 **Recommendation:** Option 2 for the narrow activated equipment subset until slot semantics (DEC-017) and economic values are approved; later adopt Option 3 for ship modules.
 
+**Approved partial disposition (project owner, 2026-08-12):** executable equipment with an explicit Store price may be purchased at that published price. Missing-price, blocked, catalogue-only, refit, and ship-module acquisition remains unavailable. Public commands have no developer override.
+
 **Acceptance:** inventory ownership, installation, loss and ledger entries reconcile exactly once; developer overrides are unreachable in production.
 
 ### DEC-004 — Rewards, loss, replacement, salvage/refund and Battalion funds
@@ -105,6 +111,8 @@ For every `PENDING` row:
 3. Insurance/reserve-pool policy at Battalion level, a new application rule.
 
 **Recommendation:** Option 1 for public v1 because it introduces no hidden formula. Replacement remains a fresh approved grant/purchase. Revisit after loss-rate playtests.
+
+**Approved disposition (project owner, 2026-08-12):** Option 1. Destruction is permanent, with no refund or salvage. Replacement is a fresh published purchase or an explicit grant. A terminal mission awards 5 Req; a victorious completed campaign adds 20 Req. Each Allied commander receives one actor ledger transaction per campaign result.
 
 **Acceptance:** destroyed units and installed gear are never restored or paid twice; reward/replacement effects are hashed and idempotent.
 

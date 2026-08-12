@@ -1066,9 +1066,19 @@ function buildOverlays(snapshot: LegacyCatalogueSnapshot): RuleImplementationOve
     };
     if (!correction) return base;
     const { explanation, ...changes } = correction;
+    const publicEconomy = definitionKind === "UNIT" &&
+      foundationUnitIds.includes(definitionId as (typeof foundationUnitIds)[number])
+      ? {
+          requisitionStatus: "PUBLISHED" as const,
+          availabilityStatus: "AVAILABLE" as const,
+          purchasable: true,
+          reasonCode: null,
+        }
+      : {};
     return {
       ...base,
       ...changes,
+      ...publicEconomy,
       parameters: {
         ...base.parameters,
         ...(changes.parameters ?? {}),
@@ -1076,6 +1086,9 @@ function buildOverlays(snapshot: LegacyCatalogueSnapshot): RuleImplementationOve
           reason: explanation,
           seedOverlay,
         },
+        ...(definitionKind === "UNIT" && foundationUnitIds.includes(definitionId as (typeof foundationUnitIds)[number])
+          ? { economyPolicyId: "public-v1-economy@1" }
+          : {}),
       },
     };
   });

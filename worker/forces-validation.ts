@@ -12,7 +12,6 @@ export interface PurchaseForceCommand {
   definitionId: string;
   desiredName: string;
   callsign: string;
-  developerOverride: boolean;
 }
 
 export interface ReadinessCheckCommand {
@@ -79,7 +78,7 @@ export function validateRenameForceCommand(value: unknown): ValidationResult<Ren
 }
 
 export function validatePurchaseForceCommand(value: unknown): ValidationResult<PurchaseForceCommand> {
-  if (!isRecord(value) || !hasOnlyKeys(value, ["commandId", "kind", "definitionId", "desiredName", "callsign", "developerOverride"])) {
+  if (!isRecord(value) || !hasOnlyKeys(value, ["commandId", "kind", "definitionId", "desiredName", "callsign"])) {
     return { valid: false, code: "COMMAND_INVALID", message: "Purchase command contains unsupported fields." };
   }
   if (typeof value.commandId !== "string" || !commandIdPattern.test(value.commandId)) {
@@ -97,9 +96,6 @@ export function validatePurchaseForceCommand(value: unknown): ValidationResult<P
   if (typeof value.callsign !== "string" || !callsignPattern.test(value.callsign.trim().toUpperCase())) {
     return { valid: false, code: "CALLSIGN_INVALID", message: "Callsign must contain at most seven letters, digits, or hyphens." };
   }
-  if (value.developerOverride !== undefined && typeof value.developerOverride !== "boolean") {
-    return { valid: false, code: "OVERRIDE_INVALID", message: "developerOverride must be boolean when supplied." };
-  }
   return {
     valid: true,
     value: {
@@ -108,7 +104,6 @@ export function validatePurchaseForceCommand(value: unknown): ValidationResult<P
       definitionId: value.definitionId,
       desiredName: value.desiredName.trim(),
       callsign: value.callsign.trim().toUpperCase(),
-      developerOverride: value.developerOverride === true,
     },
   };
 }

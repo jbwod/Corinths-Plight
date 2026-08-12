@@ -85,16 +85,6 @@ function semanticTag(tag: Pick<DefinitionTagRow, "tag_id" | "tag_name">): string
   return named || tag.tag_id.replace(/^tag-/, "").toUpperCase().replaceAll("-", "_");
 }
 
-export function developerOverrideAllowed(
-  includeDevelopment: boolean,
-  definition: Pick<CatalogueUnitRow, "implementation_status" | "requisition_status" | "availability_status">,
-): boolean {
-  return includeDevelopment &&
-    definition.implementation_status !== "CATALOGUE_ONLY" &&
-    definition.requisition_status === "BALANCE_REQUIRED" &&
-    (definition.availability_status === "AVAILABLE" || definition.availability_status === "DEV_ONLY");
-}
-
 export function identityUserId(identity: AuthenticatedIdentity): string {
   return identity.kind === "SESSION" ? identity.userId : identity.viewer.userId;
 }
@@ -864,7 +854,6 @@ function catalogueItem(
   abilities: DefinitionAbilityRow[],
   weapons: CatalogueWeaponRow[],
   slots: CatalogueSlotRow[],
-  includeDevelopment: boolean,
 ): Record<string, unknown> {
   const definition = parseJson<Record<string, unknown>>(row.definition_json, {});
   const movementRules = parseJson<Record<string, unknown>>(row.movement_definition_json, {});
@@ -886,7 +875,6 @@ function catalogueItem(
     availabilityStatus: row.availability_status ?? "HIDDEN",
     executable: row.executable === 1 && governed !== null,
     purchasable: row.purchasable === 1,
-    developerOverrideAllowed: developerOverrideAllowed(includeDevelopment, row),
     reasonCode: row.reason_code,
     requisitionCost: row.requisition_cost,
     durability: {
@@ -1010,7 +998,6 @@ export async function getUnitCatalogue(env: Env): Promise<{ units: Array<Record<
         abilities.filter((ability) => ability.definition_id === row.id),
         weapons.filter((weapon) => weapon.definition_id === row.id),
         slots.filter((slot) => slot.definition_id === row.id),
-        includeDevelopment,
       ),
     ),
   };
@@ -1172,15 +1159,14 @@ export async function purchaseForce(
   const definition = await getPurchasableDefinition(env.DB, command.definitionId);
   if (!definition) throw new ForceServiceError(404, "DEFINITION_NOT_FOUND", "Unit definition was not found.");
 
-  const developerOverride =
-    command.developerOverride &&
-    developerOverrideAllowed(env.ENVIRONMENT === "development", definition);
   const normallyPurchasable =
+    definition.implementation_status !== "CATALOGUE_ONLY" &&
+    definition.executable === 1 &&
     definition.purchasable === 1 &&
     definition.availability_status === "AVAILABLE" &&
     definition.requisition_status === "PUBLISHED" &&
     definition.requisition_cost !== null;
-  if (!normallyPurchasable && !developerOverride) {
+  if (!normallyPurchasable) {
     throw new ForceServiceError(422, "DEFINITION_NOT_PURCHASABLE", "This class cannot be requisitioned in the active profile.", {
       implementationStatus: definition.implementation_status,
       requisitionStatus: definition.requisition_status,
@@ -1188,8 +1174,8 @@ export async function purchaseForce(
       reasonCode: definition.reason_code,
     });
   }
-  const price = normallyPurchasable ? definition.requisition_cost! : null;
-  if (price !== null && (await getRequisitionBalance(env.DB, ownerId)) < price) {
+  const price = definition.requisition_cost!;
+  if ((await getRequisitionBalance(env.DB, ownerId)) < price) {
     throw new ForceServiceError(422, "REQUISITION_INSUFFICIENT", "Insufficient requisition balance.");
   }
   const unitId = `unit-${requestHash.slice(0, 24)}`;
@@ -1198,7 +1184,7 @@ export async function purchaseForce(
     definitionId: definition.id,
     name: command.desiredName,
     callsign: command.callsign,
-    acquisition: price === null ? "DEVELOPMENT_BALANCE_OVERRIDE" : "REQUISITION",
+    acquisition: "REQUISITION",
     requisitionSpent: price,
     version: 1,
   };
@@ -1213,8 +1199,7 @@ export async function purchaseForce(
   });
 
   const statements: D1PreparedStatement[] = [];
-  if (price !== null) {
-    statements.push(
+  statements.push(
       env.DB
         .prepare(`INSERT INTO requisition_transactions (
                     id, user_id, amount, reason_code, description,
@@ -1233,7 +1218,6 @@ export async function purchaseForce(
           `requisition:${ownerNamespace}:${command.commandId}`,
         ),
     );
-  }
   statements.push(
     env.DB
       .prepare(`INSERT INTO player_units (
@@ -1259,9 +1243,9 @@ export async function purchaseForce(
         command.desiredName,
         definition.max_health,
         baseStats,
-        price ?? 0,
-        price === null ? "DEV_OVERRIDE" : "PUBLISHED",
-        price === null ? 1 : 0,
+        price,
+        "PUBLISHED",
+        0,
         `req:${ownerNamespace}:${command.commandId}`,
       ),
     env.DB
@@ -1378,8 +1362,7 @@ export async function purchaseForce(
   }
   const committed = replayReceipt(await getMutationReceipt(env.DB, ownerId, command.commandId), ownerId, "PURCHASE_UNIT", requestHash);
   if (!committed) {
-    if (price !== null) throw new ForceServiceError(422, "REQUISITION_INSUFFICIENT", "Insufficient requisition balance.");
-    throw new ForceServiceError(409, "PURCHASE_CONFLICT", "Purchase could not be committed exactly once.");
+    throw new ForceServiceError(422, "REQUISITION_INSUFFICIENT", "Insufficient requisition balance.");
   }
   return committed;
 }

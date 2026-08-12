@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ForceRow } from "../repositories/forces";
-import { developerOverrideAllowed, readinessFor } from "./forces";
+import { readinessFor } from "./forces";
 
 function forceRow(overrides: Partial<ForceRow> = {}): ForceRow {
   return {
@@ -37,24 +37,5 @@ describe("Phase 2 force authority gates", () => {
       code: "DEFINITION_NOT_EXECUTABLE",
       requirementId: "definition-executable",
     }));
-  });
-
-  it("never offers the developer requisition override for catalogue-only definitions", () => {
-    expect(developerOverrideAllowed(true, {
-      implementation_status: "CATALOGUE_ONLY",
-      requisition_status: "BALANCE_REQUIRED",
-      availability_status: "DEV_ONLY",
-    })).toBe(false);
-  });
-
-  it("offers the override only for non-production, balance-required foundation definitions", () => {
-    const definition = {
-      implementation_status: "PARTIAL",
-      requisition_status: "BALANCE_REQUIRED",
-      availability_status: "DEV_ONLY",
-    };
-
-    expect(developerOverrideAllowed(true, definition)).toBe(true);
-    expect(developerOverrideAllowed(false, definition)).toBe(false);
   });
 });

@@ -28,6 +28,17 @@ describe("Phase 2 force command validation", () => {
         cost: 0,
       }),
     ).toMatchObject({ valid: false, code: "COMMAND_INVALID" });
+
+    expect(
+      validatePurchaseForceCommand({
+        commandId: "purchase:unit:02",
+        kind: "UNIT",
+        definitionId: "unit-infantry-squad",
+        desiredName: "Free Override",
+        callsign: "FORGED",
+        developerOverride: true,
+      }),
+    ).toMatchObject({ valid: false, code: "COMMAND_INVALID" });
   });
 
   it("rejects duplicate readiness IDs and oversized callsigns", () => {

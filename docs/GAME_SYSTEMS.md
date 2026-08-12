@@ -80,7 +80,7 @@ Canonical status MUST NOT be inferred from an implementation flag, and implement
 | Optional Store equipment/refits | `catalogued` unless separately migrated | `foundation_partial`: Flak Vests and Lightweight Anti-armour have narrow effective-unit/resolver handling. Vehicle Optics and Drone Operator are release-blocked because their current handlers do not implement the advertised state/visibility effects and depend on unresolved interpretation; Orbital Drop Training records an eligibility mutation while orbital deployment remains disabled. Other Store items remain blocked/catalogue-only. |
 | Orbital Crew and hull combat | `catalogued`/`blocked` | `not_executable`: no canonical Light Freighter/hull, Atmo-Fuel, Req, or conversion data. |
 | Medium/Large Supply, FOBs, HQs, Tac-Com, strategic movement, boarding | `deferred` | `not_executable`. |
-| Req economy/store purchasing | `blocked` for canonical balance | `foundation_partial` product infrastructure: user ledger, published equipment purchases, and the onboarding charter grant/cost exist. All base player-class prices remain `NULL/BALANCE_REQUIRED`, so ordinary production unit purchase is blocked and onboarding policy is not canonical V5 balance. |
+| Req economy/store purchasing | `active application policy` | `public-v1-economy@1`: 20 opening/charter, 5 mission, +20 campaign victory, explicit 4–14 class prices, source-priced executable equipment, permanent loss/no refund, exact-once ledger. Values are not claimed as canonical V5 balance. |
 | Legacy Build Points, expanded classes, occupancy thirds, battleline, Combat Ineffective | `rejected_by_profile`/`catalogued` | `not_executable`; they require a separate legacy profile or explicit V5 migration. |
 | Deterministic replay, event sequencing, and hidden-information projection | Application contract | `foundation_partial`/unsafe for release: the pure resolver is deterministic for its narrow grammar and events continue sequence numbers, but ordering uses locale-sensitive comparison in tactical paths, hashes are non-cryptographic, the seed is predictable, and reports use present-time visibility. Socket invalidations are now per-viewer and identifier-free with bounded projected reconnect catch-up; event-time historical intelligence remains open. |
 
@@ -106,7 +106,7 @@ Production requisition MUST query the implementation overlay. A definition is pu
 3. its availability status is `AVAILABLE`; and
 4. ownership, equipment-slot, ship-capability, campaign, and readiness checks pass server-side.
 
-`DEV_ONLY` permits an explicitly authenticated developer fixture to exercise a class; it is not a zero-cost purchase rule. All base player-class prices currently remain `NULL`/`BALANCE_REQUIRED` under `RC-V5-016`. The Store's published equipment/module prices are retained exactly, while blank costs such as Road Building Equipment remain `NULL`.
+`DEV_ONLY` is not a zero-cost purchase rule. `public-v1-economy@1` publishes application prices for all thirteen canonical non-orbital classes: 4 Req Infantry/Medic/Engineer; 6 Artillery/Logi; 8 Light Vehicle/IFV; 10 MBT/Light Mech/VTOL; 12 Fighter/Bomber; and 14 Heavy Air Transport. The opening grant and one-account Battalion charter are 20 Req, terminal missions grant 5 Req, and campaign victories add 20 Req. The Store's published executable equipment prices are retained exactly, while blank costs such as Road Building Equipment remain unavailable.
 
 The new `STEALTHED`, `PACKED`, `DEPLOYED`, `DUG_IN`, `EVASIVE`, `AIRBORNE`, `LANDED`, and `REARM_REQUIRED` definitions are server-owned statuses. Their presence in D1 does not authorize a client to set them or claim their effects. First Aid, Medic field resupply, Engineer vehicle Repair, IFV/MBT Crew Repair, Sandbag/Razor Wire/Tank Trap construction, Infantry Trench Upgrade, Artillery Deploy/Pack Up/Bombardment, aerospace Land/Take Off and landed aerospace Rearm are activated support actions. MASH, Bridge, Funnel, general Supply transfer, hazardous airdrop outcomes, Interceptor, and sabotage remain disabled until their implementation overlay, server validation, deterministic resolver hook, fog projection, and tests agree.
 
@@ -154,7 +154,7 @@ This glossary states canonical profile meaning. Terms marked as foundation-defer
 - **Small Supply**: tactical ammunition, repair, medical, or construction supply.
 - **Medium Supply**: FOB construction/operation resource; deferred in the selected profile and not foundation-executable.
 - **Large Supply**: strategic orbital/HQ resource; deferred in the selected profile and not foundation-executable.
-- **Requisition Value (Req)**: purchase/customization cost. The concept is canonical, but canonical unit budgets/prices remain blocked. The deployed onboarding charter and published-equipment ledger are product infrastructure, not a V5 balance ruling.
+- **Requisition Value (Req)**: purchase/customization cost. The concept is canonical; all current numbers come from the separately named, owner-approved application profile `public-v1-economy@1`, not from V5.
 - **Cooldown**: whole rounds remaining before an ability can be used again. Weapon cooldowns execute. Deploy Drone currently records a cooldown, but its gameplay effect remains release-blocked; other optional equipment cooldowns remain catalogue data only.
 
 ### 2.4 Canonical tags

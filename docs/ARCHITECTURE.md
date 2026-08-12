@@ -25,7 +25,7 @@ The current repository is a deployed identity/guided-enlistment foundation with 
 | Deliverable | Repository evidence | Status |
 |---|---|---|
 | Foundation and Phase 3 design/audit documents | Original seven documents plus `STRATEGIC_LAYER.md`, `BATTALION_MODEL.md`, `SHIP_SYSTEM.md`, and `STRATEGIC_RESOLUTION.md` | Implemented |
-| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0016_ship_identity_mutations.sql` | Sixteen additive schema artifacts in the repository; production is recorded only through `0007`, so later gameplay and operations migrations are local until an explicitly authorized release |
+| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0017_public_v1_economy.sql` | Seventeen additive schema artifacts in the repository; production is recorded only through `0007`, so later gameplay and operations migrations are local until an explicitly authorized release |
 | Ruleset seed | `seeds/v5-core-curated.sql`; consistency check in `scripts/validate-seed.ts` | Idempotent SQL artifact exists, but its 12 obsolete conflict IDs and split compiled/D1 catalogue prevent a complete authority claim |
 | Domain contracts | `packages/domain/src/index.ts`, `worker/campaign-contracts.ts` | Shared TypeScript interfaces plus bounded tactical request contracts and a versioned, validated Campaign DO state/snapshot envelope; general public DTO/runtime schemas remain incomplete |
 | Pure rules engine | `packages/rules-engine/src/` and `packages/rules-engine/test/` | Implemented foundation subset |
@@ -153,7 +153,7 @@ Strategic reads use global session identity and explicit current-Battalion conte
 
 `user_active_battalions` is navigation context, not an authorization cache: each request rechecks active membership. Where revealing an ID would leak another Battalion's assets, a failed owner predicate returns not found.
 
-Guided enlistment follows the same boundary. Verified accounts receive an actor-scoped onboarding aggregate, a one-time 100 Req command-charter grant, and server-derived public/invitation join choices. Battalion creation spends the full grant and is limited to one charter per creator. The starter unit is a one-time grant from a three-definition executable whitelist; its unpublished requisition value remains `BALANCE_REQUIRED`. Recruitment settings and invitations require active rank permissions and every committed organisation mutation writes both an idempotency receipt and a Battalion-audience strategic event. See [ONBOARDING.md](./ONBOARDING.md).
+Guided enlistment follows the same boundary. Verified accounts receive an actor-scoped onboarding aggregate, a one-time 20 Req opening grant, and server-derived public/invitation join choices. Battalion creation costs 20 Req and is limited to one charter per creator. The starter unit is a free one-time grant from a three-definition executable whitelist, while its published replacement value remains recorded on the persistent asset. Recruitment settings and invitations require active rank permissions and every committed organisation mutation writes both an idempotency receipt and a Battalion-audience strategic event. See [ONBOARDING.md](./ONBOARDING.md).
 
 The stable strategic coordinator name comes from `strategic_maps.coordinator_key`; the development value is `strategic-map-corinth`. No request may derive a singleton `GLOBAL_GAME_DURABLE_OBJECT` name.
 
@@ -279,7 +279,7 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 |---|---|---|
 | Package skeleton, TypeScript, lint, unit tests, local production build | Complete | Root package scripts |
 | Application browser smoke baseline | Partial/local | Playwright covers public auth, authenticated live navigation without showcase fallback, tactical rejection of client-authored economy, and 390px overflow (4 tests); remote CI evidence, broader browser matrix, accessibility, and performance gates remain open |
-| Migrations and idempotent seed artifacts | Local head `0016`; production head `0007` | Fresh empty D1 replay through all sixteen migrations and all seven seeds twice passes integrity/FK checks; production-approved and development seed families remain separated |
+| Migrations and idempotent seed artifacts | Local head `0017`; production head `0007` | Fresh empty D1 replay through all seventeen migrations and all seven seeds twice passes integrity/FK checks across 122 tables; production-approved and development seed families remain separated |
 | Deterministic resolver subset and regression coverage | Partial but tested | Narrow Hold/Advance/Rush/Attack/equipment paths have unit coverage; locale ordering, terrain defaults, category-scoped flanking, cargo ledger, and release journal defects remain |
 | K-17 state, alarms, clock, pause/resume, sockets | Partial | Unit coverage exists; crash/alarm/WebSocket integration coverage does not |
 | Viewer projection | Partial | Basic state/report redaction exists; event-time and socket-field leakage tests remain |
@@ -288,7 +288,7 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 | Separate persisted schedule records and reconnect catch-up | Partial | Schedule lives inside current state; sockets provide bounded projected cursor catch-up but no separate persisted feed |
 | Production passwordless identity/session issuance | Deployed foundation | Resend verified-email links, opaque sessions, logout, auth rate limits, and pseudonymized audit are deployed; `0008` retention schedule is local-only pending migration/deployment |
 | Guided enlistment and Battalion recruitment | Deployed foundation | Public/private/code/targeted joins, one-charter economy, starter grant, tour, recruitment settings, and Resend delivery are deployed; `0008` invitation throttling/expiry is local-only |
-| Helion/Corinth strategic schema and fixture | Complete as development data only | Fresh 0001–0016 replay and all seven seeds twice passed; production seeds still create no strategic world or campaigns |
+| Helion/Corinth strategic schema and fixture | Complete as development data only | Fresh 0001–0017 replay and all seven seeds twice passed; production seeds still create no strategic world or campaigns |
 | Strategic map sharding, pure resolver, permission-scoped reads, responsive UI | Partial/blocked | Unit tests cover the pure resolver and service shell; public order submission and DO resolution return `501`, route durations are `BALANCE_REQUIRED`, and the UI can use showcase state |
 | Strategic-to-tactical deployment/result reconciliation | Partial | Loadout/deployment commit and narrow tactical writeback exist; scenario bootstrap remains K-17-derived, and withdrawal plus the acknowledgement-gated protocol remain deferred |
 | Production D1 and custom-domain foundation | Complete | Production binding is migrated through `0007`; `corinthplight.qnetica.com.au` serves the current Worker/UI |

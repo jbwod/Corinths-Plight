@@ -196,7 +196,6 @@ function normalizeCatalogue(value: unknown): ForceCatalogueView | undefined {
     availabilityStatus: validAvailability(record.availabilityStatus),
     availabilityReason: asString(record.availabilityReason, asString(record.availabilityReasonCode, asString(record.reasonCode))) || undefined,
     requisitionCost: typeof record.requisitionCost === "number" ? record.requisitionCost : null,
-    developerOverrideAllowed: record.developerOverrideAllowed === true,
     initialEquipment,
   };
 }
@@ -490,7 +489,7 @@ function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClos
     try {
       const response = await fetch("/api/requisition/equipment-purchases", {
         method: "POST", headers: JSON_HEADERS,
-        body: JSON.stringify({ commandId: crypto.randomUUID(), definitionId, developerOverride: false }),
+        body: JSON.stringify({ commandId: crypto.randomUUID(), definitionId }),
       });
       if (!response.ok) throw new Error(errorMessage(response.status));
       refresh();
@@ -828,10 +827,9 @@ function RequisitionDialog({
   const [error, setError] = useState<string>();
   const selected = catalogue.find((item) => item.id === selectedId);
   const eligible = Boolean(
-    live && selected && selected.implementationStatus !== "CATALOGUE_ONLY" && (
-      selected.availabilityStatus === "AVAILABLE" && selected.requisitionStatus === "PUBLISHED" && selected.requisitionCost !== null ||
-      selected.developerOverrideAllowed
-    ),
+    live && selected && selected.implementationStatus !== "CATALOGUE_ONLY" &&
+      selected.availabilityStatus === "AVAILABLE" && selected.requisitionStatus === "PUBLISHED" &&
+      selected.requisitionCost !== null && requisitionBalance !== null && requisitionBalance >= selected.requisitionCost,
   );
 
   useEffect(() => {
@@ -864,7 +862,6 @@ function RequisitionDialog({
           definitionId: selected.id,
           desiredName: name.trim(),
           callsign: callsign.trim().toUpperCase(),
-          developerOverride: selected.developerOverrideAllowed,
         }),
       });
       if (!response.ok) throw new Error(errorMessage(response.status));
@@ -966,7 +963,7 @@ function RequisitionDialog({
           </section>
         </div>
         <footer>
-          <div><span>REQUISITION</span><strong>{selected?.developerOverrideAllowed ? "DEV OVERRIDE" : selected?.requisitionCost === null || selected?.requisitionCost === undefined ? "BALANCE REQUIRED" : `${selected.requisitionCost} RP`}</strong><small>{requisitionBalance === null ? "Balance unavailable" : `${requisitionBalance} RP available`}{selected?.availabilityReason ? ` · ${selected.availabilityReason}` : ""}</small></div>
+          <div><span>REQUISITION</span><strong>{selected?.requisitionCost === null || selected?.requisitionCost === undefined ? "UNAVAILABLE" : `${selected.requisitionCost} RP`}</strong><small>{requisitionBalance === null ? "Balance unavailable" : `${requisitionBalance} RP available`}{selected?.availabilityReason ? ` · ${selected.availabilityReason}` : ""}</small></div>
           <button className="secondary" onClick={onClose}>CANCEL</button>
           <button className="primary" disabled={!eligible || busy} onClick={() => void purchase()}>{busy ? "PROCESSING…" : "PURCHASE UNIT"}</button>
           {error && <p className="requisition-error" role="alert">{error}</p>}

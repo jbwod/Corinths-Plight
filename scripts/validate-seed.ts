@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { allDefinitions, unitClasses } from "../packages/rules-engine/src/catalogue";
+import { PUBLIC_V1_UNIT_PRICES } from "../packages/domain/src/economy-policy";
 
 const sourceHashes: Record<string, string> = {
   "rules/Meta - Core Rules (V5).md": "9076241b32332743307a1bbcdfac8becf44bbff371e4945a31af78a914d39345",
@@ -48,6 +49,7 @@ const equipmentMigrationSql = await readFile("migrations/0005_equipment_deployme
 const equipmentSeedSql = await readFile("seeds/v5-equipment-deployment.sql", "utf8");
 const spearheadSeedSql = await readFile("seeds/development-spearhead.sql", "utf8");
 const onboardingMigrationSql = await readFile("migrations/0007_guided_onboarding_and_battalions.sql", "utf8");
+const economyMigrationSql = await readFile("migrations/0017_public_v1_economy.sql", "utf8");
 const onboardingSeedSql = await readFile("seeds/onboarding-foundation.sql", "utf8");
 const combinedSeedSql = `${seedSql}\n${phase2SeedSql}\n${equipmentSeedSql}`;
 
@@ -183,16 +185,20 @@ for (const unitId of phase2PlayerUnits) {
     continue;
   }
   const costAndStatus = tuple.match(/,\s*(NULL|\d+)\s*,\s*'(active|experimental|legacy|incomplete)'\s*,/);
+  const approvedPrice = PUBLIC_V1_UNIT_PRICES[unitId as keyof typeof PUBLIC_V1_UNIT_PRICES];
   if (!costAndStatus) {
     failures.push(`Cannot audit requisition cost for ${unitId}.`);
-  } else if (costAndStatus[1] !== "NULL") {
-    failures.push(`Phase 2 unit ${unitId} invents requisition cost ${costAndStatus[1]}; use NULL.`);
+  } else if (approvedPrice === undefined) {
+    if (costAndStatus[1] !== "NULL") failures.push(`Companion unit ${unitId} must remain unpriced.`);
+  } else if (Number(costAndStatus[1]) !== approvedPrice) {
+    failures.push(`Public-v1 unit ${unitId} price is ${costAndStatus[1]}; expected ${approvedPrice}.`);
   }
-  const overlayPattern = new RegExp(
-    `'UNIT',\\s*'${unitId}',[^\\n]+?'BALANCE_REQUIRED'`,
-  );
-  if (!overlayPattern.test(phase2SeedSql)) {
-    failures.push(`Phase 2 unit ${unitId} is not explicitly marked BALANCE_REQUIRED.`);
+}
+
+for (const [unitId, price] of Object.entries(PUBLIC_V1_UNIT_PRICES)) {
+  if (!combinedSeedSql.includes(`'${unitId}'`)) failures.push(`Economy policy references missing unit ${unitId}.`);
+  if (!onboardingSeedSql.includes(`'${unitId}',${price},'PUBLISHED'`)) {
+    failures.push(`Economy policy seed is missing published price ${price} for ${unitId}.`);
   }
 }
 
@@ -299,8 +305,14 @@ for (const requiredId of [
 ]) {
   if (!onboardingSeedSql.includes(`'${requiredId}'`)) failures.push(`Onboarding seed is missing ${requiredId}.`);
 }
-if (!onboardingSeedSql.includes("'production-onboarding-v1', 100, 100, 1, 1")) {
-  failures.push("Onboarding charter policy must explicitly retain the audited 100 grant / 100 creation cost / one-charter limit.");
+if (!onboardingSeedSql.includes("'production-onboarding-v1', 20, 20, 1, 1")) {
+  failures.push("Onboarding charter policy must match public-v1-economy@1: 20 grant / 20 creation cost / one-charter limit.");
+}
+for (const required of ["CREATE TABLE economy_policies", "CREATE TABLE economy_unit_prices"]) {
+  if (!economyMigrationSql.includes(required)) failures.push(`Economy migration is missing ${required}.`);
+}
+if (!onboardingSeedSql.includes("'public-v1-economy@1','ACTIVE',20,20,5,20,0")) {
+  failures.push("Public-v1 economy policy values are missing or drifted.");
 }
 if (!onboardingSeedSql.includes("ON CONFLICT")) failures.push("Onboarding seed is not repeat-idempotent.");
 if ((phase3SeedSql.match(/'SCENARIO_CONFIG'/g) ?? []).length < 9 ||

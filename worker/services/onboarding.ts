@@ -938,7 +938,7 @@ export async function grantStarterUnit(env: Env, userId: string, command: GrantS
     unit: { unitId, definitionId: definition.id, name: command.name, callsign: command.callsign },
     acquisition: "ONBOARDING_STARTER_GRANT",
     requisitionSpent: 0,
-    requisitionValueStatus: "BALANCE_REQUIRED",
+    requisitionValueStatus: "PUBLISHED",
     nextStep: "TOUR",
   };
   const baseStats = JSON.stringify({
@@ -950,7 +950,7 @@ export async function grantStarterUnit(env: Env, userId: string, command: GrantS
         id,owner_id,ruleset_id,definition_id,callsign,name,status,current_health,
         base_stats_json,requisition_value,requisition_value_status,location_kind,
         location_state,description,version
-      ) SELECT ?1,?2,?3,?4,?5,?6,'ACTIVE',?7,?8,0,'BALANCE_REQUIRED',
+      ) SELECT ?1,?2,?3,?4,?5,?6,'ACTIVE',?7,?8,?9,'PUBLISHED',
                'RESERVE','RESERVE','First command issued through guided enlistment.',1
           WHERE EXISTS (SELECT 1 FROM onboarding_progress
             WHERE user_id=?2 AND status='IN_PROGRESS' AND current_step='UNIT')
@@ -960,7 +960,7 @@ export async function grantStarterUnit(env: Env, userId: string, command: GrantS
               WHERE active.user_id=?2)
             AND NOT EXISTS (SELECT 1 FROM onboarding_starter_unit_grants WHERE user_id=?2)`)
       .bind(unitId, userId, definition.ruleset_id, definition.id, command.callsign, command.name,
-        definition.max_health, baseStats),
+        definition.max_health, baseStats, definition.requisition_cost),
     env.DB.prepare(`INSERT INTO player_unit_weapon_mounts (
         id,player_unit_id,ruleset_id,weapon_definition_id,source_kind,mount_role,mount_index,current_ammo
       ) SELECT ?1 || ':weapon:' || links.mount_role || ':' || links.mount_index,
@@ -1020,7 +1020,7 @@ export async function grantStarterUnit(env: Env, userId: string, command: GrantS
       ) SELECT ?1,id,'ONBOARDING_GRANTED',?2,definition_id,?3,unixepoch(),?4,owner_id,'OWNER'
           FROM player_units WHERE id=?5 AND owner_id=?6`)
       .bind(`history:${ownerNamespace}:${command.commandId}`, `${command.callsign} received its first command charter.`,
-        JSON.stringify({ definitionId: definition.id, acquisition: "ONBOARDING_STARTER_GRANT", requisitionValueStatus: "BALANCE_REQUIRED" }),
+        JSON.stringify({ definitionId: definition.id, acquisition: "ONBOARDING_STARTER_GRANT", requisitionSpent: 0, requisitionValue: definition.requisition_cost, requisitionValueStatus: "PUBLISHED" }),
         `starter-unit:${ownerNamespace}:${command.commandId}`, unitId, userId),
     env.DB.prepare(`INSERT INTO onboarding_starter_unit_grants (user_id,player_unit_id,definition_id,ruleset_id)
       SELECT owner_id,id,definition_id,ruleset_id FROM player_units WHERE id=?1 AND owner_id=?2`)

@@ -592,35 +592,30 @@ export async function purchaseEquipment(
     rulesResolution.authority.status.requisitionStatus === "PUBLISHED" &&
     rulesResolution.authority.status.availabilityStatus === "AVAILABLE" &&
     rulesResolution.authority.sourcedNumbers.requisitionCost.value !== null;
-  const developmentOverride = env.ENVIRONMENT === "development" && command.developerOverride &&
-    rulesResolution.authority.status.implementationStatus !== "CATALOGUE_ONLY" &&
-    rulesResolution.authority.status.executable;
-  if (!normal && !developmentOverride) {
+  if (!normal) {
     throw new ForceServiceError(422, "DEFINITION_NOT_PURCHASABLE", "This equipment cannot be requisitioned in the active ruleset.");
   }
-  const price = normal ? rulesResolution.authority.sourcedNumbers.requisitionCost.value : null;
-  if (price !== null && await getRequisitionBalance(env.DB, ownerId) < price) {
+  const price = rulesResolution.authority.sourcedNumbers.requisitionCost.value!;
+  if (await getRequisitionBalance(env.DB, ownerId) < price) {
     throw new ForceServiceError(422, "REQUISITION_INSUFFICIENT", "Insufficient requisition balance.");
   }
   const namespace = (await commandHash({ ownerId })).slice(0, 16);
   const inventoryId = `inventory:${namespace}:${command.commandId}`;
   const response = { inventoryId, definitionId: definition.id, name: definition.name, requisitionSpent: price, state: "AVAILABLE" };
   const statements: D1PreparedStatement[] = [];
-  if (price !== null) {
-    statements.push(env.DB.prepare(`INSERT INTO requisition_transactions (
+  statements.push(env.DB.prepare(`INSERT INTO requisition_transactions (
       id,user_id,amount,reason_code,description,related_entity_type,related_entity_id,idempotency_key
     ) SELECT ?1,?2,-?3,'EQUIPMENT_PURCHASE',?4,'EQUIPMENT_INVENTORY',?5,?6
       WHERE (SELECT COALESCE(SUM(amount),0) FROM requisition_transactions WHERE user_id = ?2) >= ?3`)
       .bind(`req:${namespace}:${command.commandId}`, ownerId, price, `Requisitioned ${definition.name}.`, inventoryId,
         `equipment-requisition:${namespace}:${command.commandId}`));
-  }
   statements.push(
     env.DB.prepare(`INSERT INTO player_equipment_inventory (
       id,owner_id,ruleset_id,equipment_definition_id,state,state_json
     ) SELECT ?1,?2,?3,?4,'AVAILABLE',?5
       WHERE ?6 = 1 OR EXISTS (SELECT 1 FROM requisition_transactions WHERE id = ?7 AND user_id = ?2)`)
       .bind(inventoryId, ownerId, definition.ruleset_id, definition.id,
-        JSON.stringify({ acquisition: price === null ? "DEVELOPMENT_OVERRIDE" : "REQUISITION" }), price === null ? 1 : 0,
+        JSON.stringify({ acquisition: "REQUISITION" }), 0,
         `req:${namespace}:${command.commandId}`),
     env.DB.prepare(`INSERT INTO force_mutation_receipts (
       idempotency_key,owner_id,operation,request_hash,response_json

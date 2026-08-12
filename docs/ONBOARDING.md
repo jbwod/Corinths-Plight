@@ -32,13 +32,13 @@ Existing accounts without an `onboarding_progress` record are not retroactively 
 
 ## Economy and rules disposition
 
-The V5 concept of Requisition is canonical, but general unit prices and starting budgets remain blocked by `RC-V5-016`. This slice therefore makes two narrower decisions:
+The V5 concept of Requisition is canonical. The owner-approved application policy `public-v1-economy@1` now provides the playable opening economy:
 
-- verified accounts receive one 100 Req **command charter grant**;
-- chartering a Battalion consumes exactly 100 Req and one creator may charter only one Battalion;
-- the first unit is a one-time onboarding grant, not a purchase. It records requisition value `0` with `BALANCE_REQUIRED`, preserving the fact that the class price is unpublished.
+- verified accounts receive one 20 Req opening grant;
+- chartering a Battalion consumes exactly 20 Req and one creator may charter only one Battalion;
+- the first unit is a one-time free onboarding grant, not a purchase. Its class still has a published replacement price, while the grant history explicitly records that no Req was spent.
 
-The charter policy is application anti-spam policy, not a canonical V5 unit or equipment price. The starter list is limited to definitions whose current foundation mechanics are executable: Infantry Squad, Light Vehicle, and Main Battle Tank. Catalogue-only, non-executable, and hidden definitions are never offered.
+The policy is application balance/anti-spam policy, not a canonical V5 number. The starter list remains Infantry Squad, Light Vehicle, and Main Battle Tank. Catalogue-only, non-executable, and hidden definitions are never offered.
 
 ## System Battalions
 

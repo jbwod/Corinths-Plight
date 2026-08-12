@@ -3,12 +3,53 @@ PRAGMA foreign_keys = ON;
 INSERT INTO onboarding_economy_policies (
   id, starter_charter_grant, battalion_creation_cost,
   maximum_battalions_per_creator, revision
-) VALUES ('production-onboarding-v1', 100, 100, 1, 1)
+) VALUES ('production-onboarding-v1', 20, 20, 1, 1)
 ON CONFLICT(id) DO UPDATE SET
   starter_charter_grant = excluded.starter_charter_grant,
   battalion_creation_cost = excluded.battalion_creation_cost,
   maximum_battalions_per_creator = excluded.maximum_battalions_per_creator,
   revision = onboarding_economy_policies.revision;
+
+INSERT INTO economy_policies (
+  id,status,starting_requisition,battalion_charter_cost,mission_reward,
+  campaign_victory_reward,passive_income,loss_policy,replacement_policy,
+  decision_id,approved_at,revision
+) VALUES (
+  'public-v1-economy@1','ACTIVE',20,20,5,20,0,
+  'PERMANENT_NO_REFUND','FRESH_PURCHASE_OR_EXPLICIT_GRANT',
+  'RC-V5-016',unixepoch('2026-08-12T00:00:00Z'),1
+)
+ON CONFLICT(id) DO UPDATE SET
+  status=excluded.status,
+  starting_requisition=excluded.starting_requisition,
+  battalion_charter_cost=excluded.battalion_charter_cost,
+  mission_reward=excluded.mission_reward,
+  campaign_victory_reward=excluded.campaign_victory_reward,
+  passive_income=excluded.passive_income,
+  loss_policy=excluded.loss_policy,
+  replacement_policy=excluded.replacement_policy,
+  decision_id=excluded.decision_id,
+  updated_at=economy_policies.updated_at;
+
+INSERT INTO economy_unit_prices (
+  policy_id,ruleset_id,definition_id,requisition_cost,status,revision
+) VALUES
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-infantry-squad',4,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-combat-medic',4,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-engineers',4,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-artillery',6,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-logi-truck',6,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-light-vehicle',8,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-infantry-fighting-vehicle',8,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-main-battle-tank',10,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-light-mech',10,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-vtol',10,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-aerospace-fighter',12,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-aerospace-bomber',12,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-heavy-air-transport',14,'PUBLISHED',1)
+ON CONFLICT(policy_id,definition_id) DO UPDATE SET
+  requisition_cost=excluded.requisition_cost,
+  status=excluded.status;
 
 INSERT INTO battalion_permission_definitions (permission, description, implementation_status) VALUES
   ('BATTALION_EDIT', 'Edit Battalion public identity and recruitment configuration.', 'ACTIVE'),
@@ -192,4 +233,26 @@ SELECT 'req:onboarding-charter:' || users.id,
    AND users.status = 'ACTIVE'
    AND users.email_verified_at IS NOT NULL
    AND users.email NOT LIKE '%.invalid'
+ON CONFLICT(idempotency_key) DO NOTHING;
+
+-- Upgrade reconciliation: accounts which still hold the former 100-point
+-- unspent charter grant are brought to the approved 20-point opening balance.
+-- Accounts that already chartered at the former cost already net to zero and
+-- are not rewritten; the immutable ledger remains auditable.
+INSERT INTO requisition_transactions (
+  id,user_id,amount,reason_code,description,
+  related_entity_type,related_entity_id,idempotency_key
+)
+SELECT 'req:economy-v1-reconcile:' || grants.user_id,
+       grants.user_id,-80,'ECONOMY_POLICY_RECONCILIATION',
+       'Reconciled the unused preview charter grant to public-v1-economy@1.',
+       'ECONOMY_POLICY','public-v1-economy@1',
+       'economy-v1-reconcile:' || grants.user_id
+  FROM requisition_transactions AS grants
+ WHERE grants.reason_code='ONBOARDING_CHARTER_GRANT'
+   AND grants.amount=100
+   AND NOT EXISTS (
+     SELECT 1 FROM battalion_creation_charters AS charters
+      WHERE charters.user_id=grants.user_id
+   )
 ON CONFLICT(idempotency_key) DO NOTHING;

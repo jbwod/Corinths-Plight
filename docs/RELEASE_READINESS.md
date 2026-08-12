@@ -37,10 +37,10 @@ This is the live release checklist. A checked local build item is not permission
 | `npm run seed:check` | macOS local, Node project toolchain | PASS | 46 definitions; 41 active; 100 SQL definitions; 16 allied classes; 7 enemy roles; 4 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
 | `npm run typecheck` | local | PASS | TypeScript 6.0.3. |
 | `npm run lint` | local | PASS | ESLint 10.8.1. |
-| `npm test` | local | PASS | Vitest 4.1.10; 65 files / 499 tests. |
+| `npm test` | local | PASS | Vitest 4.1.10; 66 files / 500 tests. |
 | `npm run build` | local development config | PASS | Worker 1,401.56 kB; client JS 867.98 kB; CSS 162.14 kB; Wrangler emitted only its known sandboxed debug-log warning. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
-| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0016 applied. |
+| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0017 applied; all seven seeds replay twice across 122 tables with integrity/FK clean. |
 | Seven seeds, twice | same isolated D1 | PASS | Core, Phase 2, equipment, onboarding and three development fixtures replayed twice. |
 | SQLite integrity | isolated D1 database | PASS | `integrity_check=ok`; `foreign_key_check` empty. |
 | `npm run ci:verify:d1` | isolated local D1 | PASS | Sixteen migrations; seven seeds twice; stable table fingerprints/counts; 120 checked application tables. |

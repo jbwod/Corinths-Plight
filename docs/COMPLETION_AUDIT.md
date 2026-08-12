@@ -30,10 +30,10 @@ The audit began with only two unrelated untracked user paths, which were preserv
 | Seed/content validator | Pass | `npm run seed:check`: 46 definitions, 41 active, 100 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 4 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
 | TypeScript | Pass | `npm run typecheck`. |
 | ESLint | Pass | `npm run lint`. |
-| Unit/contract tests | Pass | `npm test`: 65 files, 499 tests, Vitest 4.1.10. |
+| Unit/contract tests | Pass | `npm test`: 66 files, 500 tests, Vitest 4.1.10. |
 | Worker/client build | Pass | `npm run build`; Worker 1,401.56 kB, client JS 867.98 kB, CSS 162.14 kB. Wrangler's sandboxed debug-log write warns but the build exits successfully. |
 | Production-mode build | Pass | `WRANGLER_WRITE_LOGS=false npm run build:production`. |
-| Empty D1 migration replay | Pass | All sixteen migrations through `0016_ship_identity_mutations.sql` applied in isolated Wrangler state. |
+| Empty D1 migration replay | Pass | All seventeen migrations through `0017_public_v1_economy.sql` applied in isolated Wrangler state; seven seeds replayed twice across 122 tables with integrity/FK clean. |
 | Repeat seed replay | Pass | All seven seeds applied twice. |
 | D1 integrity | Pass | SQLite `integrity_check=ok`; `foreign_key_check` empty; 16 migration records and 120 application tables. |
 | Application CI | Local baseline implemented; remote proof pending | The application workflow now runs locked install, advisory audit, seed validation, typecheck, lint, Vitest, empty-D1 replay, production build and Playwright, then retains bundle/browser evidence. It has not run on GitHub or been made a protected required check. See CP-001. |

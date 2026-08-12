@@ -29,17 +29,15 @@ export interface LoadoutChangeCommand {
 export interface PurchaseEquipmentCommand {
   commandId: string;
   definitionId: string;
-  developerOverride: boolean;
 }
 
 export function validatePurchaseEquipmentCommand(value: unknown): ValidationResult<PurchaseEquipmentCommand> {
-  if (!record(value) || !only(value, ["commandId", "definitionId", "developerOverride"]) ||
+  if (!record(value) || !only(value, ["commandId", "definitionId"]) ||
       typeof value.commandId !== "string" || !commandIdPattern.test(value.commandId) ||
-      typeof value.definitionId !== "string" || !idPattern.test(value.definitionId) ||
-      (value.developerOverride !== undefined && typeof value.developerOverride !== "boolean")) {
+      typeof value.definitionId !== "string" || !idPattern.test(value.definitionId)) {
     return { valid: false, code: "COMMAND_INVALID", message: "Equipment purchase requires commandId and definitionId only." };
   }
-  return { valid: true, value: { commandId: value.commandId, definitionId: value.definitionId, developerOverride: value.developerOverride === true } };
+  return { valid: true, value: { commandId: value.commandId, definitionId: value.definitionId } };
 }
 
 export function validateLoadoutChangeCommand(value: unknown): ValidationResult<LoadoutChangeCommand> {

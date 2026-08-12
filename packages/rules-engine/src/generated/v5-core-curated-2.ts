@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "5c3fdd282fe20348e7f5ee91195e5bb05b3befa225547567914c72ad7d7ec90e",
+  "contentHash": "2be4233931493a3cea0bafbef9e4ee2ad94c7be4166075ac89233a126eeff623",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -905,9 +905,9 @@ const snapshot = {
         "sourceIds": [
           "source-v5-core"
         ],
-        "disposition": "preserve every raw cost string; purchasing/refits are blocked. Do not treat blank as zero or strip dots without migration approval.",
-        "status": "BLOCKED",
-        "notes": "Canonical section: 6. Internal V5 ambiguities\nCanonical status: `BLOCKED`.\n\n\n- **Evidence:** `V5 > Req Value` defines cost/value and links to a spreadsheet. V5 has no starting budget/income. Most companion class cost cells are blank; some are `0`, `..1`, `....2`, or `......3`; Store gear is mainly cost 1–2, with Road Building Equipment blank.\n- **Disposition:** preserve every raw cost string; purchasing/refits are blocked. Do not treat blank as zero or strip dots without migration approval.\n- **Status:** `BLOCKED`."
+        "disposition": "preserve every raw source cost string. The owner-approved application profile `public-v1-economy@1` supplies a 20 Req opening grant/charter cost, 5 mission reward, 20 campaign-victory reward, and explicit prices for the thirteen canonical non-orbital classes (4/6/8/10/12/14 tiers). Executable Store equipment retains its literal published price; blank values remain unavailable. Loss is permanent with no refund/salvage, and replacement is a fresh purchase or explicit grant. These values are application balance policy, not reconstructed V5 numbers.",
+        "status": "RESOLVED-MVP",
+        "notes": "Canonical section: 6. Internal V5 ambiguities\nCanonical status: `RESOLVED-MVP`.\n\n\n- **Evidence:** `V5 > Req Value` defines cost/value and links to a spreadsheet. V5 has no starting budget/income. Most companion class cost cells are blank; some are `0`, `..1`, `....2`, or `......3`; Store gear is mainly cost 1–2, with Road Building Equipment blank.\n- **Disposition:** preserve every raw source cost string. The owner-approved application profile `public-v1-economy@1` supplies a 20 Req opening grant/charter cost, 5 mission reward, 20 campaign-victory reward, and explicit prices for the thirteen canonical non-orbital classes (4/6/8/10/12/14 tiers). Executable Store equipment retains its literal published price; blank values remain unavailable. Loss is permanent with no refund/salvage, and replacement is a fresh purchase or explicit grant. These values are application balance policy, not reconstructed V5 numbers.\n- **Status:** `RESOLVED-MVP`."
       },
       {
         "id": "RC-V5-017",
@@ -1100,7 +1100,7 @@ const snapshot = {
         "sourceId": "source-v5-core",
         "sourcePath": null,
         "sourceLocator": "V5 / Starting Unit Classes / Aerospace Bomber",
-        "notes": "V5 profile selected by RC-UNIT-011; target must lie on the flight path.",
+        "notes": "V5 profile selected by RC-UNIT-011; public-v1-economy@1 sets the application price.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -1115,8 +1115,8 @@ const snapshot = {
             "value": 2
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 12
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -1181,7 +1181,7 @@ const snapshot = {
         "sourceId": "source-v5-core",
         "sourcePath": null,
         "sourceLocator": "V5 / Starting Unit Classes / Aerospace Fighter",
-        "notes": "V5 profile selected by RC-UNIT-010; zero sensor range encodes the explicit cannot-spot-ground-units rule, not missing data.",
+        "notes": "V5 profile selected by RC-UNIT-010; public-v1-economy@1 sets the application price.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -1196,8 +1196,8 @@ const snapshot = {
             "value": 2
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 12
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -1272,7 +1272,7 @@ const snapshot = {
         "sourceId": "source-v5-core",
         "sourcePath": null,
         "sourceLocator": "V5 / Starting Unit Classes / Artillery",
-        "notes": "Barrage damage profile is experimental; control actions are canonical.",
+        "notes": "Barrage damage profile is experimental; control actions are canonical. public-v1-economy@1 sets the application price.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -1287,8 +1287,8 @@ const snapshot = {
             "value": 3
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 6
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -1353,7 +1353,7 @@ const snapshot = {
         "sourceId": "source-v5-core",
         "sourcePath": null,
         "sourceLocator": "V5 / Starting Unit Classes / Medics; Classes.html row 4 for non-conflicting Speed",
-        "notes": "V5 FS4/D6-capped heal/base contact/Medical Supply is selected by RC-UNIT-002 and RC-V5-009; companion fixed heal and MASH stay separate.",
+        "notes": "V5 FS4/D6-capped heal/base contact/Medical Supply is selected by RC-UNIT-002 and RC-V5-009; public-v1-economy@1 sets the application price.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -1368,8 +1368,8 @@ const snapshot = {
             "value": 4
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 4
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -1439,7 +1439,7 @@ const snapshot = {
         "sourceId": "source-v5-core",
         "sourcePath": null,
         "sourceLocator": "V5 / Starting Unit Classes / Engineers",
-        "notes": "Non-combat; V5 supply model active.",
+        "notes": "Non-combat; V5 supply model active. public-v1-economy@1 sets the application price.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -1454,8 +1454,8 @@ const snapshot = {
             "value": 4
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 4
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -1514,7 +1514,7 @@ const snapshot = {
         "sourceId": "source-v5-core",
         "sourcePath": null,
         "sourceLocator": "V5 / Starting Unit Classes / Heavy Air Transport",
-        "notes": "V5 Hits and five-slot conversion table selected by RC-UNIT-013; hazardous drops remain blocked by RC-V5-018.",
+        "notes": "V5 Hits and five-slot conversion table selected by RC-UNIT-013; public-v1-economy@1 sets the application price.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -1529,8 +1529,8 @@ const snapshot = {
             "value": 1
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 14
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -1596,7 +1596,7 @@ const snapshot = {
         "sourceId": "source-v5-core",
         "sourcePath": null,
         "sourceLocator": "V5 / Starting Unit Classes / Infantry Fighting Vehicle",
-        "notes": "V5 IFV remains distinct from companion Mechanized Infantry under RC-UNIT-007.",
+        "notes": "V5 IFV remains distinct from companion Mechanized Infantry under RC-UNIT-007; public-v1-economy@1 sets the application price.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -1611,8 +1611,8 @@ const snapshot = {
             "value": 3
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 8
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -1683,7 +1683,7 @@ const snapshot = {
         "sourceId": "source-v5-core",
         "sourcePath": null,
         "sourceLocator": "V5 / Starting Unit Classes / Infantry Squad",
-        "notes": "RC-001 selects V5 FS6.",
+        "notes": "RC-001 selects V5 FS6; public-v1-economy@1 sets the application price.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -1698,8 +1698,8 @@ const snapshot = {
             "value": 6
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 4
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -1830,7 +1830,7 @@ const snapshot = {
         "sourceId": "source-v5-core",
         "sourcePath": null,
         "sourceLocator": "V5 / Starting Unit Classes / Light Mech",
-        "notes": "V5 profile selected by RC-UNIT-009; companion slots/reload restriction remain catalogue-only.",
+        "notes": "V5 profile selected by RC-UNIT-009; public-v1-economy@1 sets the application price.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -1845,8 +1845,8 @@ const snapshot = {
             "value": 2
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 10
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -1916,7 +1916,7 @@ const snapshot = {
         "sourceId": "source-v5-core",
         "sourcePath": null,
         "sourceLocator": "V5 / Starting Unit Classes / Light Vehicle",
-        "notes": "",
+        "notes": "public-v1-economy@1 sets the application price.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -1931,8 +1931,8 @@ const snapshot = {
             "value": 2
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 8
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -1993,7 +1993,7 @@ const snapshot = {
         "sourceId": "source-v5-core",
         "sourcePath": null,
         "sourceLocator": "V5 / Starting Unit Classes / Logi Truck",
-        "notes": "V5 Crew/Hits and cargo-slot conversions selected by RC-UNIT-005. No canonical requisition price.",
+        "notes": "V5 Crew/Hits and cargo-slot conversions selected by RC-UNIT-005; public-v1-economy@1 sets the application price.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -2008,8 +2008,8 @@ const snapshot = {
             "value": 1
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 6
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -2074,7 +2074,7 @@ const snapshot = {
         "sourceId": "source-v5-core",
         "sourcePath": null,
         "sourceLocator": "V5 / Starting Unit Classes / Main Battle Tank",
-        "notes": "",
+        "notes": "public-v1-economy@1 sets the application price.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -2089,8 +2089,8 @@ const snapshot = {
             "value": 3
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 10
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -2279,7 +2279,7 @@ const snapshot = {
         "sourceId": "source-v5-core",
         "sourcePath": null,
         "sourceLocator": "V5 / Starting Unit Classes / VTOL",
-        "notes": "Generic V5 VTOL only; companion variants remain separate catalogue records under RC-UNIT-012. Cargo alternatives follow RC-V5-017.",
+        "notes": "Generic V5 VTOL only; public-v1-economy@1 sets the application price.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -2294,8 +2294,8 @@ const snapshot = {
             "value": 2
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 10
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -8725,15 +8725,16 @@ const snapshot = {
         "definitionKind": "UNIT",
         "definitionId": "unit-aerospace-bomber",
         "implementationStatus": "PARTIAL",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
         "executable": true,
-        "purchasable": false,
+        "purchasable": true,
         "handlerId": "foundation-generated-unit-class",
-        "reasonCode": "MISSING_CANONICAL_PRICE",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "economyPolicyId": "public-v1-economy@1",
           "implementedSubset": [
             "HITS",
             "ATTACK",
@@ -8755,12 +8756,12 @@ const snapshot = {
           "publicationCorrection": {
             "reason": "The V5 Bomber sortie executes its chassis, one-shot D6 ordnance, terrain-independent flight, route-bound fly-over attack, friendly-airfield landing/takeoff, Primary rearm, and no-ground-spotting rule.",
             "seedOverlay": {
-              "availabilityStatus": "DEV_ONLY",
+              "availabilityStatus": "AVAILABLE",
               "executable": false,
               "implementationStatus": "PARTIAL",
-              "purchasable": false,
-              "reasonCode": "MISSING_RESOLVER_HOOK",
-              "requisitionStatus": "BALANCE_REQUIRED"
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
             }
           }
         }
@@ -8769,15 +8770,16 @@ const snapshot = {
         "definitionKind": "UNIT",
         "definitionId": "unit-aerospace-fighter",
         "implementationStatus": "PARTIAL",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
         "executable": true,
-        "purchasable": false,
+        "purchasable": true,
         "handlerId": "foundation-generated-unit-class",
-        "reasonCode": "MISSING_CANONICAL_PRICE",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "economyPolicyId": "public-v1-economy@1",
           "implementedSubset": [
             "HITS",
             "ATTACK",
@@ -8802,12 +8804,12 @@ const snapshot = {
           "publicationCorrection": {
             "reason": "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc, friendly-airfield landing/takeoff, Primary rearm, Aerospace Interceptor target restriction, and no-ground-spotting rule.",
             "seedOverlay": {
-              "availabilityStatus": "DEV_ONLY",
+              "availabilityStatus": "AVAILABLE",
               "executable": false,
               "implementationStatus": "PARTIAL",
-              "purchasable": false,
-              "reasonCode": "MISSING_RESOLVER_HOOK",
-              "requisitionStatus": "BALANCE_REQUIRED"
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
             }
           }
         }
@@ -8816,15 +8818,16 @@ const snapshot = {
         "definitionKind": "UNIT",
         "definitionId": "unit-artillery",
         "implementationStatus": "PARTIAL",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
         "executable": true,
-        "purchasable": false,
+        "purchasable": true,
         "handlerId": "foundation-generated-unit-class",
-        "reasonCode": "EXPERIMENTAL_DAMAGE_PROFILE",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "economyPolicyId": "public-v1-economy@1",
           "implementedSubset": [
             "FS",
             "MOVEMENT",
@@ -8840,12 +8843,12 @@ const snapshot = {
           "publicationCorrection": {
             "reason": "Artillery can deploy/pack and use the V5 Bombardment defense-suppression action while Funnel remains deferred.",
             "seedOverlay": {
-              "availabilityStatus": "DEV_ONLY",
+              "availabilityStatus": "AVAILABLE",
               "executable": true,
               "implementationStatus": "PARTIAL",
-              "purchasable": false,
-              "reasonCode": "MISSING_CANONICAL_PRICE",
-              "requisitionStatus": "BALANCE_REQUIRED"
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
             }
           }
         }
@@ -8854,15 +8857,16 @@ const snapshot = {
         "definitionKind": "UNIT",
         "definitionId": "unit-combat-medic",
         "implementationStatus": "PARTIAL",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
         "executable": true,
-        "purchasable": false,
+        "purchasable": true,
         "handlerId": "foundation-generated-unit-class",
-        "reasonCode": "MISSING_CANONICAL_PRICE",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "economyPolicyId": "public-v1-economy@1",
           "implementedSubset": [
             "FIRST_AID",
             "MEDICAL_SUPPLY_RELOAD"
@@ -8876,15 +8880,16 @@ const snapshot = {
         "definitionKind": "UNIT",
         "definitionId": "unit-engineers",
         "implementationStatus": "PARTIAL",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
         "executable": true,
-        "purchasable": false,
+        "purchasable": true,
         "handlerId": "foundation-generated-unit-class",
-        "reasonCode": "MISSING_CANONICAL_PRICE",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "economyPolicyId": "public-v1-economy@1",
           "implementedSubset": [
             "FS",
             "MOVEMENT",
@@ -8900,12 +8905,12 @@ const snapshot = {
           "publicationCorrection": {
             "reason": "Engineer Repair, adjacent deployed-Artillery Dig In, and the source-complete V5 Sandbag, Razor Wire, and Tank Trap fieldworks execute end to end; Bridge remains gated.",
             "seedOverlay": {
-              "availabilityStatus": "DEV_ONLY",
+              "availabilityStatus": "AVAILABLE",
               "executable": true,
               "implementationStatus": "PARTIAL",
-              "purchasable": false,
-              "reasonCode": "MISSING_CANONICAL_PRICE",
-              "requisitionStatus": "BALANCE_REQUIRED"
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
             }
           }
         }
@@ -8914,15 +8919,16 @@ const snapshot = {
         "definitionKind": "UNIT",
         "definitionId": "unit-heavy-air-transport",
         "implementationStatus": "PARTIAL",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
         "executable": true,
-        "purchasable": false,
+        "purchasable": true,
         "handlerId": "foundation-generated-unit-class",
-        "reasonCode": "MISSING_CANONICAL_PRICE",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "economyPolicyId": "public-v1-economy@1",
           "handlers": [
             "LOAD",
             "UNLOAD",
@@ -8944,12 +8950,12 @@ const snapshot = {
           "publicationCorrection": {
             "reason": "The V5 Heavy Air Transport executes its chassis, five-slot conversion table, terrain-independent flight, loading, friendly-airfield landing state, and no-cost clear route-bound Infantry/Light Vehicle airdrop. Hazardous outcomes and coordinated Supply drops remain gated.",
             "seedOverlay": {
-              "availabilityStatus": "DEV_ONLY",
+              "availabilityStatus": "AVAILABLE",
               "executable": true,
               "implementationStatus": "IMPLEMENTED",
-              "purchasable": false,
-              "reasonCode": "VERTICAL_SLICE_TRANSPORT_HANDLER",
-              "requisitionStatus": "BALANCE_REQUIRED"
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
             }
           },
           "verticalSlice": "equipment-deployment"
@@ -8959,15 +8965,16 @@ const snapshot = {
         "definitionKind": "UNIT",
         "definitionId": "unit-infantry-fighting-vehicle",
         "implementationStatus": "PARTIAL",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
         "executable": true,
-        "purchasable": false,
+        "purchasable": true,
         "handlerId": "foundation-generated-unit-class",
-        "reasonCode": "MISSING_CANONICAL_PRICE",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "economyPolicyId": "public-v1-economy@1",
           "handlers": [
             "LOAD",
             "UNLOAD",
@@ -8987,12 +8994,12 @@ const snapshot = {
           "publicationCorrection": {
             "reason": "The generated tactical handler executes the V5 IFV chassis, Snub Auto-Cannon, subsystem failures, six-FS infantry compartment, and stationary Armor-exposed Crew Repair.",
             "seedOverlay": {
-              "availabilityStatus": "DEV_ONLY",
+              "availabilityStatus": "AVAILABLE",
               "executable": true,
               "implementationStatus": "IMPLEMENTED",
-              "purchasable": false,
-              "reasonCode": "VERTICAL_SLICE_TRANSPORT_HANDLER",
-              "requisitionStatus": "BALANCE_REQUIRED"
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
             }
           },
           "verticalSlice": "equipment-deployment"
@@ -9002,15 +9009,16 @@ const snapshot = {
         "definitionKind": "UNIT",
         "definitionId": "unit-infantry-squad",
         "implementationStatus": "PARTIAL",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
         "executable": true,
-        "purchasable": false,
+        "purchasable": true,
         "handlerId": "foundation-generated-unit-class",
-        "reasonCode": "MISSING_CANONICAL_PRICE",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "economyPolicyId": "public-v1-economy@1",
           "implementedSubset": [
             "FS",
             "ATTACK",
@@ -9026,12 +9034,12 @@ const snapshot = {
           "publicationCorrection": {
             "reason": "V5 Dig In and Sandbag-to-Trench upgrade execute, including preserving Dig In along connected Trench hexes.",
             "seedOverlay": {
-              "availabilityStatus": "DEV_ONLY",
+              "availabilityStatus": "AVAILABLE",
               "executable": true,
               "implementationStatus": "PARTIAL",
-              "purchasable": false,
-              "reasonCode": "MISSING_CANONICAL_PRICE",
-              "requisitionStatus": "BALANCE_REQUIRED"
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
             }
           }
         }
@@ -9058,15 +9066,16 @@ const snapshot = {
         "definitionKind": "UNIT",
         "definitionId": "unit-light-mech",
         "implementationStatus": "PARTIAL",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
         "executable": true,
-        "purchasable": false,
+        "purchasable": true,
         "handlerId": "foundation-generated-unit-class",
-        "reasonCode": "MISSING_CANONICAL_PRICE",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "economyPolicyId": "public-v1-economy@1",
           "implementedSubset": [
             "HITS",
             "ARMOUR",
@@ -9085,12 +9094,12 @@ const snapshot = {
           "publicationCorrection": {
             "reason": "The V5 Light Mech chassis, Light Laser Cannon, hostile-ground passage, subsystem failures, and Evasive movement execute through the generated tactical handler.",
             "seedOverlay": {
-              "availabilityStatus": "DEV_ONLY",
+              "availabilityStatus": "AVAILABLE",
               "executable": false,
               "implementationStatus": "PARTIAL",
-              "purchasable": false,
-              "reasonCode": "MISSING_RESOLVER_HOOK",
-              "requisitionStatus": "BALANCE_REQUIRED"
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
             }
           }
         }
@@ -9099,15 +9108,16 @@ const snapshot = {
         "definitionKind": "UNIT",
         "definitionId": "unit-light-vehicle",
         "implementationStatus": "PARTIAL",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
         "executable": true,
-        "purchasable": false,
+        "purchasable": true,
         "handlerId": "foundation-generated-unit-class",
-        "reasonCode": "MISSING_CANONICAL_PRICE",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "economyPolicyId": "public-v1-economy@1",
           "implementedSubset": [
             "HITS",
             "ATTACK",
@@ -9121,12 +9131,12 @@ const snapshot = {
           "publicationCorrection": {
             "reason": "Subsystem malfunctions and Evasive movement now resolve through the generated tactical handler.",
             "seedOverlay": {
-              "availabilityStatus": "DEV_ONLY",
+              "availabilityStatus": "AVAILABLE",
               "executable": true,
               "implementationStatus": "PARTIAL",
-              "purchasable": false,
-              "reasonCode": "MISSING_CANONICAL_PRICE",
-              "requisitionStatus": "BALANCE_REQUIRED"
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
             }
           }
         }
@@ -9135,15 +9145,16 @@ const snapshot = {
         "definitionKind": "UNIT",
         "definitionId": "unit-logi-truck",
         "implementationStatus": "PARTIAL",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
         "executable": true,
-        "purchasable": false,
+        "purchasable": true,
         "handlerId": "foundation-generated-unit-class",
-        "reasonCode": "MISSING_CANONICAL_PRICE",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "economyPolicyId": "public-v1-economy@1",
           "handlers": [
             "LOAD",
             "UNLOAD",
@@ -9164,12 +9175,12 @@ const snapshot = {
           "publicationCorrection": {
             "reason": "The generated tactical handler executes the V5 Logi chassis, capacity-counted Small Supply and unit cargo, packed Artillery towing, and the narrow one-crate Artillery reload path; wider logistics remain gated.",
             "seedOverlay": {
-              "availabilityStatus": "DEV_ONLY",
+              "availabilityStatus": "AVAILABLE",
               "executable": true,
               "implementationStatus": "IMPLEMENTED",
-              "purchasable": false,
-              "reasonCode": "VERTICAL_SLICE_TRANSPORT_HANDLER",
-              "requisitionStatus": "BALANCE_REQUIRED"
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
             }
           },
           "verticalSlice": "equipment-deployment"
@@ -9179,15 +9190,16 @@ const snapshot = {
         "definitionKind": "UNIT",
         "definitionId": "unit-main-battle-tank",
         "implementationStatus": "PARTIAL",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
         "executable": true,
-        "purchasable": false,
+        "purchasable": true,
         "handlerId": "foundation-generated-unit-class",
-        "reasonCode": "MISSING_CANONICAL_PRICE",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "economyPolicyId": "public-v1-economy@1",
           "implementedSubset": [
             "HITS",
             "ARMOUR",
@@ -9201,12 +9213,12 @@ const snapshot = {
           "publicationCorrection": {
             "reason": "The V5 natural-5/6 subsystem malfunction rule persists and gates later use; stationary crews can repair one subsystem while forfeiting Armor for the round.",
             "seedOverlay": {
-              "availabilityStatus": "DEV_ONLY",
+              "availabilityStatus": "AVAILABLE",
               "executable": true,
               "implementationStatus": "PARTIAL",
-              "purchasable": false,
-              "reasonCode": "MISSING_CANONICAL_PRICE",
-              "requisitionStatus": "BALANCE_REQUIRED"
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
             }
           }
         }
@@ -9251,15 +9263,16 @@ const snapshot = {
         "definitionKind": "UNIT",
         "definitionId": "unit-vtol",
         "implementationStatus": "PARTIAL",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
         "executable": true,
-        "purchasable": false,
+        "purchasable": true,
         "handlerId": "foundation-generated-unit-class",
-        "reasonCode": "MISSING_CANONICAL_PRICE",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "economyPolicyId": "public-v1-economy@1",
           "handlers": [
             "LOAD",
             "UNLOAD",
@@ -9281,12 +9294,12 @@ const snapshot = {
           "publicationCorrection": {
             "reason": "The generic V5 VTOL executes its chassis, nose gun, terrain-independent flight, hostile-ground passage, no-ground-spotting rule, and mutually exclusive infantry/Supply cargo; HAT and fixed-wing mechanics remain separate.",
             "seedOverlay": {
-              "availabilityStatus": "DEV_ONLY",
+              "availabilityStatus": "AVAILABLE",
               "executable": true,
               "implementationStatus": "IMPLEMENTED",
-              "purchasable": false,
-              "reasonCode": "VERTICAL_SLICE_TRANSPORT_HANDLER",
-              "requisitionStatus": "BALANCE_REQUIRED"
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
             }
           },
           "verticalSlice": "equipment-deployment"
@@ -14609,5 +14622,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "5c3fdd282fe20348e7f5ee91195e5bb05b3befa225547567914c72ad7d7ec90e" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "2be4233931493a3cea0bafbef9e4ee2ad94c7be4166075ac89233a126eeff623" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

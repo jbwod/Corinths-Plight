@@ -112,7 +112,6 @@ export interface ForceCatalogueView {
   availabilityStatus: AvailabilityStatus;
   availabilityReason?: string;
   requisitionCost: number | null;
-  developerOverrideAllowed: boolean;
   initialEquipment: ForceEquipmentView[];
 }
 
@@ -365,7 +364,6 @@ function catalogueItem(input: CatalogueInput): ForceCatalogueView {
     availabilityStatus: input.availabilityStatus ?? "DEV_ONLY",
     availabilityReason: input.availabilityReason ?? "Local showcase definitions cannot be persistently requisitioned.",
     requisitionCost: null,
-    developerOverrideAllowed: false,
     initialEquipment: [],
   };
 }

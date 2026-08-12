@@ -142,7 +142,8 @@ Migration 0007 adds the server-authoritative post-verification onboarding aggreg
 
 | Table | Implemented fields and constraints |
 |---|---|
-| `onboarding_economy_policies` | Positive one-time charter grant, positive Battalion creation cost, creator charter limit, revision, and update time. The production policy is 100 Req grant / 100 Req cost / one charter. |
+| `onboarding_economy_policies` | Positive one-time opening grant, positive Battalion creation cost, creator charter limit, revision, and update time. The active public-v1 policy is 20 Req grant / 20 Req cost / one charter. |
+| `economy_policies`, `economy_unit_prices` | Versioned application balance policy and explicit per-class prices. `public-v1-economy@1` records the approved opening/charter/reward/loss decisions and the thirteen 4–14 Req class values. |
 | `onboarding_progress` | One row per User with `BATTALION`, `UNIT`, `TOUR`, or `COMPLETE` step, lifecycle, completion time, and revision. Complete rows must carry a completion time. |
 | `onboarding_command_receipts` | Actor-scoped command ID, operation, canonical request hash, object response JSON, and creation time. Migration `0012` adds active switching; `0013` adds self-departure and authorized member removal. Changed-payload reuse conflicts. |
 | `battalion_administration_receipts` | Migration `0014` records actor-scoped rank create/update/delete and member-rank assignment results. Migration `0015` adds command transfer, with Battalion and membership transfer tokens coupling the creator, role/rank handoff, audience event, and stored response to one guarded exact-once transaction. |
@@ -200,7 +201,7 @@ The development seed uses `strategic-map-corinth`, CSV Resolute, the Resolute Ta
 |---|---|
 | `campaign_results` | One immutable terminal row per campaign: round, pinned scenario ID/version, victory/defeat reason, objective snapshot, reward disposition, unique resolution/effect IDs, and resolution time. Authored campaign terminal effects insert this row, close `campaigns`, project the result to a linked strategic operation when present, and record the same idempotency key in `campaign_effect_receipts` before the DO enters `COMPLETE`. |
 
-The reward JSON intentionally records service history and a `BALANCE_REQUIRED` Req amount of `null`; migration `0010` does not invent an economy value while RC-V5-016 remains unresolved.
+New reward JSON records service history plus the published `public-v1-economy@1` breakdown. Terminal mission results grant 5 Req and victories add 20 Req through one ledger idempotency key per Allied commander. Historical pre-policy results retain their original `BALANCE_REQUIRED` projection and are not rewritten as if a reward had been paid.
 
 ## 4. Current Campaign Durable Object records
 

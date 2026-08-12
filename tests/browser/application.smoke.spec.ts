@@ -391,7 +391,7 @@ test("public landing exposes the signed-out authentication shell", async ({ page
   const response = await sessionResponse;
   expect(response.status()).toBe(200);
   await expect(response.json()).resolves.toMatchObject({ signedIn: false, authAvailable: true });
-  await expect(page.getByRole("heading", { name: "Every unit has a name. Every order has a cost." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Corinth is not lost. Not yet." })).toBeVisible();
   await expect(page.getByRole("link", { name: "Corinth's Plight home" })).toBeVisible();
 
   await page.getByRole("button", { name: "SIGN IN", exact: true }).click();
@@ -400,7 +400,7 @@ test("public landing exposes the signed-out authentication shell", async ({ page
   await expect(page.getByRole("button", { name: "EMAIL SECURE LINK" })).toBeEnabled();
 
   await page.getByRole("button", { name: "NEW COMMANDER? ENLIST" }).click();
-  await expect(page.getByRole("heading", { name: "Join the expedition" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Join the expedition", exact: true })).toBeVisible();
   await expect(page.getByLabel("DISPLAY NAME")).toBeVisible();
   await expect(page.getByLabel("USERNAME")).toBeVisible();
 });
@@ -731,7 +731,7 @@ test("Battalion creator transfers command authority and the new commander can ha
     headers: headersFor("demo-user"),
     data: transferCommand,
   });
-  expect(replay.status()).toBe(200);
+  expect(replay.status()).toBe(201);
   await expect(replay.json()).resolves.toMatchObject({
     operation: "TRANSFER_BATTALION_COMMAND",
     previousCommanderUserId: "demo-user",
@@ -955,6 +955,50 @@ test("campaign staging directory joins and safely leaves before deployment", asy
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await expectNoDocumentOverflow(page);
+});
+
+test("quartermaster purchases a published unit once and debits the Req ledger", async ({ page }) => {
+  const openingResponse = await page.request.get("/api/requisition", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(openingResponse.status()).toBe(200);
+  const opening = await openingResponse.json() as { balance: number };
+
+  await page.goto("/?view=forces");
+  await expect(page.getByText("REGISTRY LIVE", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "REQUISITION UNIT" }).click();
+  const dialog = page.getByRole("dialog", { name: "Requisition unit" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: /Infantry Squad/ }).click();
+  await expect(dialog.getByText("4 RP", { exact: true })).toBeVisible();
+  await dialog.getByLabel("UNIT NAME").fill("Economy Line Squad");
+  await dialog.getByLabel("CALLSIGN").fill("ECON-1");
+  const purchaseRequest = page.waitForRequest((request) =>
+    request.url().endsWith("/api/requisition/purchases") && request.method() === "POST");
+  await dialog.getByRole("button", { name: "PURCHASE UNIT" }).click();
+  const committedRequest = await purchaseRequest;
+  await expect(page.getByText(/ECON-1 added to your persistent force/i)).toBeVisible();
+  await expect(page.locator(".grouped-roster").getByRole("button", { name: /ECON-1/ }).first()).toBeVisible();
+
+  const afterResponse = await page.request.get("/api/requisition", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(afterResponse.status()).toBe(200);
+  const after = await afterResponse.json() as { balance: number };
+  expect(after.balance).toBe(opening.balance - 4);
+
+  const command = committedRequest.postDataJSON() as Record<string, unknown>;
+  const replay = await page.request.post("/api/requisition/purchases", {
+    headers: { "content-type": "application/json", "x-demo-user": "demo-user", origin: "http://127.0.0.1:4173" },
+    data: command,
+  });
+  expect(replay.status()).toBe(201);
+  await expect(replay.json()).resolves.toMatchObject({ callsign: "ECON-1", requisitionSpent: 4 });
+  const conflict = await page.request.post("/api/requisition/purchases", {
+    headers: { "content-type": "application/json", "x-demo-user": "demo-user", origin: "http://127.0.0.1:4173" },
+    data: { ...command, desiredName: "Forged Replay" },
+  });
+  expect(conflict.status()).toBe(409);
 });
 
 test("quartermaster previews and persists equipment into a Reserve unit", async ({ page }) => {
@@ -1346,6 +1390,11 @@ test("Heavy Air Transport composer exposes a manifested clear-route drop", async
 test("tactical composer exposes every currently executable action and no catalogue-only controls", async ({ page }) => {
   await page.goto("/?view=campaigns");
   await ensurePlayableK17(page, true);
+  const openingRequisitionResponse = await page.request.get("/api/requisition", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(openingRequisitionResponse.status()).toBe(200);
+  const openingRequisition = await openingRequisitionResponse.json() as { balance: number };
   await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
   const composer = page.locator(".right-panel");
 
@@ -1629,9 +1678,17 @@ test("tactical composer exposes every currently executable action and no catalog
   }).toEqual({
     status: "COMPLETE",
     result: "VICTORY",
-    rewardStatus: "BALANCE_REQUIRED",
-    rewardAmount: null,
+    rewardStatus: "PUBLISHED",
+    rewardAmount: 25,
   });
+
+  await expect.poll(async () => {
+    const response = await page.request.get("/api/requisition", {
+      headers: { "x-demo-user": "demo-user" },
+    });
+    if (!response.ok()) return undefined;
+    return ((await response.json()) as { balance: number }).balance;
+  }).toBe(openingRequisition.balance + 25);
 
   await page.reload();
   await expect(page.getByText("MISSION ACCOMPLISHED", { exact: true })).toBeVisible();
@@ -1640,8 +1697,8 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(page.getByText("MISSION ACCOMPLISHED", { exact: true })).toBeVisible();
   const rewards = page.getByRole("region", { name: "Campaign rewards" });
   await expect(rewards.getByText("RECORDED", { exact: true })).toBeVisible();
-  await expect(rewards.getByText("BALANCE REQUIRED", { exact: true })).toBeVisible();
-  await expect(rewards).toContainText("RC-V5-016");
+  await expect(rewards.getByText("+25 RP", { exact: true })).toBeVisible();
+  await expect(rewards).toContainText("public-v1-economy@1");
   const replay = page.getByRole("region", { name: "Round 4 event playback" });
   await expect(replay).toBeVisible();
   await expect(replay.getByRole("img", { name: "Round 4 tactical reconstruction" })).toBeVisible();

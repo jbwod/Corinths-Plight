@@ -74,13 +74,13 @@ describe("server rules hydration", () => {
 
     expect(result.authority.sourcedNumbers).toEqual({
       sensorRange: { status: "SCENARIO_DEFINED", value: null },
-      requisitionCost: { status: "BALANCE_REQUIRED", value: null },
+      requisitionCost: { status: "PUBLISHED", value: 4 },
     });
     expect(result.authority.legacyD1).toMatchObject({ sensorRange: 4, requisitionCost: null });
     expect(result.authority.status).toMatchObject({
       implementationStatus: "PARTIAL",
-      requisitionStatus: "BALANCE_REQUIRED",
-      availabilityStatus: "DEV_ONLY",
+      requisitionStatus: "PUBLISHED",
+      availabilityStatus: "AVAILABLE",
       executable: true,
       handlerId: "foundation-generated-unit-class",
     });
@@ -274,7 +274,7 @@ describe("server rules hydration", () => {
     });
   });
 
-  test("executes production-owned foundation units while preserving DEV_ONLY availability", () => {
+  test("executes production-owned foundation units through the published economy profile", () => {
     const development = resolveUnitRulesAuthority(unitInput(), "development");
     expect(development.ok).toBe(true);
     if (!development.ok) return;
@@ -282,8 +282,8 @@ describe("server rules hydration", () => {
     expect(resolveUnitRulesAuthority(unitInput(), "production")).toMatchObject({
       ok: true,
       authority: {
-        status: { availabilityStatus: "DEV_ONLY", executable: true },
-        decision: { available: false, executable: true },
+        status: { availabilityStatus: "AVAILABLE", executable: true },
+        decision: { available: true, executable: true },
       },
     });
   });

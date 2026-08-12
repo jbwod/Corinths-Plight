@@ -11,6 +11,10 @@ import type {
   ViewerContext,
 } from "../packages/domain/src";
 import {
+  PUBLIC_V1_ECONOMY_POLICY_ID,
+  publicV1CampaignReward,
+} from "../packages/domain/src";
+import {
   createDemoCampaignState,
   canTarget,
   createScenarioCampaignState,
@@ -529,6 +533,17 @@ export class CampaignDurableObject extends DurableObject<Env> {
         ) {
           throw new Error("CAMPAIGN_RESULT_EFFECT_INVALID");
         }
+        const requisitionReward = (rewards as Record<string, unknown>).requisition;
+        const expectedReward = publicV1CampaignReward(result);
+        if (
+          !requisitionReward || typeof requisitionReward !== "object" || Array.isArray(requisitionReward) ||
+          (requisitionReward as Record<string, unknown>).status !== "PUBLISHED" ||
+          (requisitionReward as Record<string, unknown>).policyId !== PUBLIC_V1_ECONOMY_POLICY_ID ||
+          (requisitionReward as Record<string, unknown>).rulesDecisionId !== "RC-V5-016" ||
+          (requisitionReward as Record<string, unknown>).amount !== expectedReward.total
+        ) {
+          throw new Error("CAMPAIGN_REWARD_EFFECT_INVALID");
+        }
         const campaignStatus = result === "VICTORY" ? "COMPLETE" : "FAILED";
         const strategicStatus = result === "VICTORY" ? "RESOLVED" : "FAILED";
         const linkedOperation = await this.env.DB.prepare(`SELECT operations.id,operations.map_id,operations.node_id,
@@ -713,6 +728,23 @@ export class CampaignDurableObject extends DurableObject<Env> {
             idempotency_key,campaign_id,round_number,effect_type,player_unit_id,payload_json
           ) VALUES (?1,?2,?3,?4,NULL,?5)`)
             .bind(effect.idempotencyKey, campaignId, round, effect.type, JSON.stringify(effect.payload)),
+          this.env.DB.prepare(`INSERT INTO requisition_transactions (
+              id,user_id,amount,reason_code,description,
+              related_entity_type,related_entity_id,idempotency_key
+            )
+            SELECT 'req:campaign-result:' || ?1 || ':' || memberships.user_id,
+                   memberships.user_id,?2,
+                   CASE WHEN ?3='VICTORY' THEN 'CAMPAIGN_VICTORY_REWARD' ELSE 'MISSION_COMPLETION_REWARD' END,
+                   CASE WHEN ?3='VICTORY'
+                     THEN 'Mission and campaign victory reward under public-v1-economy@1.'
+                     ELSE 'Mission completion reward under public-v1-economy@1.' END,
+                   'CAMPAIGN',?1,
+                   'campaign-result:' || ?1 || ':' || memberships.user_id
+              FROM campaign_memberships AS memberships
+             WHERE memberships.campaign_id=?1 AND memberships.side='ALLIED'
+               AND memberships.role IN ('PLAYER','BATTALION_COMMAND')
+            ON CONFLICT(idempotency_key) DO NOTHING`)
+            .bind(campaignId, expectedReward.total, result),
           ...recoveryStatements,
           ...strategicStatements,
         ]);

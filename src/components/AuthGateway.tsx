@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import type { AuthLinkRequestedDto, AuthSessionDto } from "../../packages/domain/src";
 import brandMark from "../../app/static/img/brand-icon.gif";
-import background from "../../app/static/img/background.png";
+import background from "../../app/static/img/background-corinth-orbit.webp";
+import campaignScreen from "../assets/home-gameplay/campaign-operations.webp";
+import forcesScreen from "../assets/home-gameplay/forces-registry.webp";
+import galacticScreen from "../assets/home-gameplay/galactic-operations.webp";
 import { GuidedOnboarding } from "./GuidedOnboarding";
 
 type AuthMode = "HOME" | "LOGIN" | "REGISTER" | "CHECK_EMAIL" | "VERIFY";
+type ShowcaseMode = "STRATEGIC" | "TACTICAL" | "PERSISTENCE";
 
 async function responseError(response: Response): Promise<string> {
   try {
@@ -22,8 +26,47 @@ function localDemoHeaders(): HeadersInit | undefined {
     : undefined;
 }
 
+const showcaseModes: { id: ShowcaseMode; label: string; detail: string }[] = [
+  { id: "STRATEGIC", label: "GALACTIC", detail: "The live theatre screen for formations, routes, supply and operations." },
+  { id: "TACTICAL", label: "CAMPAIGN", detail: "The live battlefield for simultaneous routes, facing and tactical actions." },
+  { id: "PERSISTENCE", label: "FORCES", detail: "The live registry for named veterans, equipment, damage and service history." },
+];
+
+function TheatreBrief() {
+  return (
+    <aside className="home-theatre-brief home-reveal" data-home-reveal aria-label="Current Corinth theatre briefing">
+      <header><span>THEATRE SIGNAL</span><b>LIVE</b></header>
+      <div className="home-brief-location">
+        <small>HELION SYSTEM // CORINTH</small>
+        <strong>THE LINE IS HOLDING.</strong>
+        <p>For now.</p>
+      </div>
+      <dl>
+        <div><dt>CONTROL</dt><dd className="contested">CONTESTED</dd></div>
+        <div><dt>ENEMY PRESSURE</dt><dd className="danger">HIGH</dd></div>
+        <div><dt>STRATEGIC ROUND</dt><dd>028</dd></div>
+      </dl>
+      <footer>
+        <span><i /> CSV RESOLUTE</span>
+        <small>CORINTH HIGH ORBIT</small>
+      </footer>
+    </aside>
+  );
+}
+
+function GameplayShowcase({ mode }: { mode: ShowcaseMode }) {
+  const screen = mode === "TACTICAL" ? campaignScreen : mode === "PERSISTENCE" ? forcesScreen : galacticScreen;
+  const label = mode === "TACTICAL"
+    ? "Campaign Operations tactical battlefield screen"
+    : mode === "PERSISTENCE"
+      ? "Persistent Force Registry screen"
+      : "Galactic Operations strategic theatre screen";
+  return <figure className="home-live-screen" key={mode}><img src={screen} alt={label} loading="lazy" decoding="async" /></figure>;
+}
+
 function SignedOutHome({ authAvailable, initialMode }: { authAvailable: boolean; initialMode: AuthMode }) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
+  const [showcaseMode, setShowcaseMode] = useState<ShowcaseMode>("STRATEGIC");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -31,6 +74,32 @@ function SignedOutHome({ authAvailable, initialMode }: { authAvailable: boolean;
   const [error, setError] = useState<string>();
   const [developmentUrl, setDevelopmentUrl] = useState<string>();
   const authCard = useRef<HTMLElement>(null);
+  const publicShell = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const root = publicShell.current;
+    if (!root) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const revealElements = Array.from(root.querySelectorAll<HTMLElement>("[data-home-reveal]"));
+    const motionSections = Array.from(root.querySelectorAll<HTMLElement>("[data-motion-section]"));
+    if (reducedMotion || !("IntersectionObserver" in window)) {
+      revealElements.forEach((element) => element.classList.add("is-visible"));
+      motionSections.forEach((element) => element.classList.add("is-motion-active"));
+      return;
+    }
+    root.classList.add("home-motion-ready");
+    const revealObserver = new IntersectionObserver((entries) => entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      (entry.target as HTMLElement).classList.add("is-visible");
+      revealObserver.unobserve(entry.target);
+    }), { threshold: 0.14 });
+    const motionObserver = new IntersectionObserver((entries) => entries.forEach((entry) => {
+      entry.target.classList.toggle("is-motion-active", entry.isIntersecting);
+    }), { threshold: 0.05 });
+    revealElements.forEach((element) => revealObserver.observe(element));
+    motionSections.forEach((element) => motionObserver.observe(element));
+    return () => { revealObserver.disconnect(); motionObserver.disconnect(); };
+  }, []);
 
   useEffect(() => {
     if (mode === "HOME" || !window.matchMedia("(max-width: 900px)").matches) return;
@@ -76,7 +145,7 @@ function SignedOutHome({ authAvailable, initialMode }: { authAvailable: boolean;
   }
 
   return (
-    <main className="public-shell" style={{ "--public-background": `url(${background})` } as CSSProperties}>
+    <main ref={publicShell} className="public-shell" style={{ "--public-background": `url(${background})` } as CSSProperties}>
       <header className="public-header">
         <a className="public-brand" href="/" aria-label="Corinth's Plight home">
           <img src={brandMark} alt="" />
@@ -88,23 +157,23 @@ function SignedOutHome({ authAvailable, initialMode }: { authAvailable: boolean;
         </div>
       </header>
 
-      <section className="public-hero">
-        <div className="public-hero-copy">
-          <span className="eyebrow">THE WAR FOR CORINTH PERSISTS</span>
-          <h1>Every unit has a name.<br />Every order has a cost.</h1>
-          <p>Build a force with other commanders, carry its scars between operations, and fight a living cooperative campaign from orbit to the battlefield.</p>
+      <section className="public-hero" data-motion-section>
+        <div className="public-hero-copy home-reveal" data-home-reveal>
+          <span className="eyebrow">FIELD TRANSMISSION // CORINTH HIGH ORBIT</span>
+          <h1>Corinth is not lost.<br />Not yet.</h1>
+          <p>The fleet holds above a contested world. Below, Battalions fight for airfields, supply roads and cities—one simultaneous round at a time. Your orders become part of that history.</p>
           <div className="public-hero-actions">
-            <button className="primary" onClick={() => setMode("REGISTER")}>JOIN THE EXPEDITION</button>
-            <button onClick={() => setMode("LOGIN")}>RETURN TO COMMAND</button>
+            <button className="primary" onClick={() => setMode("REGISTER")}>ENLIST FOR CORINTH</button>
+            <a className="home-text-link" href="#gameplay">SEE THE WAR ROOM <span aria-hidden="true">↓</span></a>
           </div>
           <dl className="public-signal-grid">
-            <div><dt>PERSISTENT</dt><dd>Veteran units, equipment, damage and history survive the battle.</dd></div>
-            <div><dt>COOPERATIVE</dt><dd>Organise Battalions, Battlegroups and Task Forces with real players.</dd></div>
-            <div><dt>ASYNCHRONOUS</dt><dd>Plan together, lock intentions, then resolve deterministic rounds.</dd></div>
+            <div><dt>YOUR FORCE</dt><dd>Raise named units. Equip them. Carry their damage and victories forward.</dd></div>
+            <div><dt>YOUR BATTALION</dt><dd>Coordinate players, ships, Battlegroups and scarce supply.</dd></div>
+            <div><dt>YOUR ORDERS</dt><dd>Plan together. Lock intentions. Resolve the whole battlefield at once.</dd></div>
           </dl>
         </div>
 
-        {mode !== "HOME" && (
+        {mode === "HOME" ? <TheatreBrief /> : (
           <aside ref={authCard} className="auth-card" aria-labelledby="auth-title">
             {mode === "VERIFY" ? (
               <div className="auth-confirmation">
@@ -152,10 +221,39 @@ function SignedOutHome({ authAvailable, initialMode }: { authAvailable: boolean;
         )}
       </section>
 
-      <section className="public-proof" aria-label="Game layers">
-        <article><span>01</span><h2>Command the war</h2><p>Read the strategic map, assign formations and support active operations.</p></article>
-        <article><span>02</span><h2>Prepare the force</h2><p>Own named units, fit equipment, organise lift and commit deployment plans.</p></article>
-        <article><span>03</span><h2>Fight the round</h2><p>Submit simultaneous intentions into a transparent, deterministic rules engine.</p></article>
+      <section className="home-transmission" data-motion-section aria-label="Current theatre transmission">
+        <div><span>STRATEGIC ROUND 028</span><b>CSV RESOLUTE // CORINTH HIGH ORBIT</b><span>BUG PRESSURE: HIGH</span><b>OPERATION IRON RAIN // MUSTERING</b><span>KESTREL RIDGE: CONTESTED</span></div>
+      </section>
+
+      <section id="gameplay" className="home-gameplay" data-motion-section>
+        <header className="home-section-heading home-reveal" data-home-reveal>
+          <div><span className="eyebrow">THE COMMAND EXPERIENCE</span><h2>The war is bigger than one battle.</h2></div>
+          <p>Move across the theatre, commit a persistent force, then issue precise orders on the ground. These views mirror the systems already playable in the current build.</p>
+        </header>
+        <div className="home-showcase-controls home-reveal" data-home-reveal aria-label="Gameplay example views">
+          {showcaseModes.map((item, index) => <button key={item.id} type="button" aria-pressed={showcaseMode === item.id} className={showcaseMode === item.id ? "active" : ""} onClick={() => setShowcaseMode(item.id)}><span>0{index + 1}</span><b>{item.label}</b><small>{item.detail}</small></button>)}
+        </div>
+        <div className="home-gameplay-frame home-reveal" data-home-reveal>
+          <header><span>CURRENT BUILD CAPTURE</span><b>{showcaseMode} VIEW</b><small>ACTUAL GAME SCREEN</small></header>
+          <GameplayShowcase mode={showcaseMode} />
+        </div>
+      </section>
+
+      <section className="home-campaign-loop" data-motion-section>
+        <header className="home-section-heading home-reveal" data-home-reveal><div><span className="eyebrow">A LIVING CAMPAIGN</span><h2>What survives changes what comes next.</h2></div></header>
+        <div className="home-loop-grid">
+          <article className="home-reveal" data-home-reveal><span>01 // MUSTER</span><h3>Join the expedition.</h3><p>Enter a player Battalion, crew its ship and build a persistent combined-arms force.</p><small>CORINTH HIGH ORBIT</small></article>
+          <article className="home-reveal" data-home-reveal><span>02 // COMMIT</span><h3>Choose where to bleed.</h3><p>Strategic control, logistics and operation outcomes decide which roads and fronts open.</p><small>THE CORINTH EXPEDITION</small></article>
+          <article className="home-reveal" data-home-reveal><span>03 // COMMAND</span><h3>Make intentions visible.</h3><p>Allies coordinate routes, facing, targets and support before the simultaneous lock.</p><small>TACTICAL ROUND</small></article>
+          <article className="home-reveal" data-home-reveal><span>04 // ENDURE</span><h3>Bring home who remains.</h3><p>Veterans retain service history, equipment, ammunition and damage. The dead stay named.</p><small>PERSISTENT FORCE REGISTRY</small></article>
+        </div>
+      </section>
+
+      <section className="home-final-call home-reveal" data-home-reveal>
+        <span className="eyebrow">THE 33RD IS STILL TAKING NAMES</span>
+        <h2>There is another round to plan.</h2>
+        <p>Corinth does not need a hero. It needs a commander who will still be here when the consequences arrive.</p>
+        <div><button className="primary" onClick={() => setMode("REGISTER")}>JOIN THE EXPEDITION</button><button onClick={() => setMode("LOGIN")}>RETURN TO COMMAND</button></div>
       </section>
     </main>
   );
