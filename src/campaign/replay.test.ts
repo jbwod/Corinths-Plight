@@ -39,17 +39,19 @@ describe("campaign report replay", () => {
       event(1, "UNIT_MOVED", actor.id, { from: actor.position, to: destination, route: [actor.position, destination] }),
       event(2, "DAMAGE_APPLIED", target.id, { before: target.currentHealth, after: 1, loss: target.currentHealth - 1 }),
       event(3, "UNIT_HEALED", actor.id, { targetId: target.id, before: 1, after: 2, amount: 1 }),
-      event(4, "OBJECTIVE_CAPTURED", undefined, { objectiveId: objective.id, owner: "ALLIED" }),
-      event(5, "UNIT_DESTROYED", target.id, {}),
+      event(4, "LIGHT_AT_EXPENDED", actor.id, { targetId: target.id, chargesSpent: 2, ammunitionAfter: 1 }),
+      event(5, "OBJECTIVE_CAPTURED", undefined, { objectiveId: objective.id, owner: "ALLIED" }),
+      event(6, "UNIT_DESTROYED", target.id, {}),
     ]);
 
-    expect(frames).toHaveLength(6);
+    expect(frames).toHaveLength(7);
     expect(frames[0]!.deployments.find((unit) => unit.id === actor.id)?.position).toEqual(actor.position);
     expect(frames[1]!.deployments.find((unit) => unit.id === actor.id)?.position).toEqual(destination);
     expect(frames[2]!.deployments.find((unit) => unit.id === target.id)?.currentHealth).toBe(1);
     expect(frames[3]!.deployments.find((unit) => unit.id === target.id)?.currentHealth).toBe(2);
-    expect(frames[4]!.objectives.find((item) => item.id === objective.id)?.owner).toBe("ALLIED");
-    expect(frames[5]!.deployments.find((unit) => unit.id === target.id)).toMatchObject({
+    expect(frames[4]!.deployments.find((unit) => unit.id === actor.id)?.ammunition["weapon-light-at"]).toBe(1);
+    expect(frames[5]!.objectives.find((item) => item.id === objective.id)?.owner).toBe("ALLIED");
+    expect(frames[6]!.deployments.find((unit) => unit.id === target.id)).toMatchObject({
       currentHealth: 0,
       status: "DESTROYED",
     });

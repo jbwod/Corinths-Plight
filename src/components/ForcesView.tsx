@@ -43,6 +43,18 @@ import { UnitPortrait } from "./UnitVisual";
 const DEMO_USER = "demo-user";
 const DEMO_HEADERS = import.meta.env.DEV ? { "x-demo-user": DEMO_USER } : undefined;
 const JSON_HEADERS = { "content-type": "application/json", ...(DEMO_HEADERS ?? {}) };
+
+function weaponProfileSummary(
+  weapon: Pick<WeaponProfile, "id" | "name" | "range" | "armorPiercing" | "ammoCapacity"> & Partial<Pick<WeaponProfile, "damage">>,
+  ammunition?: number,
+): string {
+  if (weapon.id === "weapon-light-at") {
+    const remaining = ammunition ?? weapon.ammoCapacity ?? 0;
+    return `ATTACK MODIFIER · RANGE 1 · +1 AP PER CHARGE · ${remaining}/${weapon.ammoCapacity ?? 3} CHARGES`;
+  }
+  const damage = weapon.damage ? `${weapon.damage.count > 1 ? `${weapon.damage.count}×` : ""}D${weapon.damage.sides} · ` : "";
+  return `${damage}AP${weapon.armorPiercing} · RNG ${weapon.range}${weapon.ammoCapacity === undefined ? "" : ` · ${ammunition ?? weapon.ammoCapacity}/${weapon.ammoCapacity} AMMO`}`;
+}
 const STATUS_FILTERS: ForceStatusFilter[] = ["ALL", "READY", "DEPLOYED", "DAMAGED", "LOST"];
 
 interface ForcesViewProps {
@@ -616,7 +628,7 @@ function LoadoutCombatPreview({
         const delta = value - before;
         return <span key={key}><small>{label}</small><strong>{value}</strong>{delta !== 0 && <i className={delta > 0 ? "positive" : "negative"}>{delta > 0 ? `+${delta}` : delta}</i>}</span>;
       })}</div>
-      <div className="loadout-preview-list"><small>WEAPONS</small>{effective.weapons.map((weapon) => <span key={weapon.id}><b>{weapon.name}</b><i>R{weapon.range} · AP {weapon.armorPiercing}{weapon.ammoCapacity === undefined ? "" : ` · ${weapon.ammoCapacity} AMMO`}</i></span>)}</div>
+      <div className="loadout-preview-list"><small>WEAPONS & ATTACK MODIFIERS</small>{effective.weapons.map((weapon) => <span key={weapon.id}><b>{weapon.name}</b><i>{weaponProfileSummary(weapon)}</i></span>)}</div>
       <div className="loadout-preview-list"><small>AVAILABLE ACTIONS</small><p>{effective.allowedActions.join(" · ") || "No actions"}</p></div>
       {effective.abilities.length > 0 && <div className="loadout-preview-list"><small>ABILITIES</small><p>{effective.abilities.map((ability) => readableId(ability.abilityId)).join(" · ")}</p></div>}
     </> : <p className="loadout-preview-empty">Select owned equipment to calculate the authoritative combat package.</p>}
@@ -1012,7 +1024,7 @@ function RequisitionDialog({
                 <section className="catalogue-section">
                   <span className="eyebrow">WEAPONS & ABILITIES</span>
                   <div className="compact-specs">
-                    {selected.weapons.map((weapon) => <span key={weapon.id}><b>{weapon.name}</b><small>D{weapon.damage.sides} · AP{weapon.armorPiercing} · RNG {weapon.range}{weapon.ammoCapacity ? ` · ${weapon.ammoCapacity} AMMO` : ""}</small></span>)}
+                    {selected.weapons.map((weapon) => <span key={weapon.id}><b>{weapon.name}</b><small>{weaponProfileSummary(weapon)}</small></span>)}
                     {!selected.weapons.length && selected.weaponIds.map((weaponId) => <span key={weaponId}><b>{readableId(weaponId)}</b><small>Profile resolved from the active ruleset when mounted.</small></span>)}
                     {selected.abilities.map((ability) => <span key={ability.id}><b>{ability.name}</b><small>{ability.description}</small></span>)}
                     {!selected.weapons.length && !selected.weaponIds.length && !selected.abilities.length && <p>No executable weapon or ability is published for this definition.</p>}
@@ -1256,11 +1268,13 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
 
                 <div className="inspection-grid">
                   <section className="inspection-section weapons-section">
-                    <header><div><span className="eyebrow">COMBAT PROFILE</span><h3>Weapons</h3></div><b>{selectedUnit.weapons.length}</b></header>
+                    <header><div><span className="eyebrow">COMBAT PROFILE</span><h3>Weapons & modifiers</h3></div><b>{selectedUnit.weapons.length}</b></header>
                     {selectedUnit.weapons.length ? selectedUnit.weapons.map((weapon) => (
                       <article className="weapon-card" key={weapon.id}>
                         <div><strong>{weapon.name}</strong><small>{weapon.tags.join(" · ") || "STANDARD WEAPON"}</small></div>
-                        <dl><span><dt>DAMAGE</dt><dd>{weapon.damage.count > 1 ? `${weapon.damage.count}×` : ""}D{weapon.damage.sides}</dd></span><span><dt>AP</dt><dd>{weapon.armorPiercing}</dd></span><span><dt>RANGE</dt><dd>{weapon.range}</dd></span>{weapon.ammoCapacity !== undefined && <span><dt>AMMO</dt><dd>{selectedUnit.ammunition[weapon.id] ?? weapon.ammoCapacity}/{weapon.ammoCapacity}</dd></span>}</dl>
+                        {weapon.id === "weapon-light-at"
+                          ? <dl><span><dt>EFFECT</dt><dd>+1 AP / charge</dd></span><span><dt>RANGE</dt><dd>1</dd></span><span><dt>CHARGES</dt><dd>{selectedUnit.ammunition[weapon.id] ?? weapon.ammoCapacity}/{weapon.ammoCapacity}</dd></span></dl>
+                          : <dl><span><dt>DAMAGE</dt><dd>{weapon.damage.count > 1 ? `${weapon.damage.count}×` : ""}D{weapon.damage.sides}</dd></span><span><dt>AP</dt><dd>{weapon.armorPiercing}</dd></span><span><dt>RANGE</dt><dd>{weapon.range}</dd></span>{weapon.ammoCapacity !== undefined && <span><dt>AMMO</dt><dd>{selectedUnit.ammunition[weapon.id] ?? weapon.ammoCapacity}/{weapon.ammoCapacity}</dd></span>}</dl>}
                       </article>
                     )) : <p className="section-empty">This unit has no active weapon profile.</p>}
                   </section>

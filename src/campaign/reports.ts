@@ -22,7 +22,7 @@ export const CAMPAIGN_REPORT_GROUPS: CampaignReportGroup[] = [
 ];
 
 const movementEvents = new Set(["UNIT_MOVED", "UNIT_BLOCKED", "UNIT_GARRISONED", "UNIT_LEFT_GARRISON", "UNIT_DUG_IN", "UNIT_DUG_OUT", "EVASIVE_MANEUVER"]);
-const combatEvents = new Set(["DICE_ROLLED", "UNIT_ATTACKED", "WEAPON_SKIPPED", "SUBSYSTEM_MALFUNCTIONED", "DAMAGE_APPLIED", "UNIT_DESTROYED"]);
+const combatEvents = new Set(["DICE_ROLLED", "UNIT_ATTACKED", "LIGHT_AT_EXPENDED", "WEAPON_SKIPPED", "SUBSYSTEM_MALFUNCTIONED", "DAMAGE_APPLIED", "UNIT_DESTROYED"]);
 const supportEvents = new Set([
   "CARGO_LOADED",
   "CARGO_UNLOADED",
@@ -175,7 +175,9 @@ export function describeCampaignReportEvent(
       return `${actor} rolled ${raw}${modified !== raw ? `, modified to ${modified}` : ""}.`;
     }
     case "UNIT_ATTACKED":
-      return `${actor} attacked ${target}: ${numberValue(payload.healthLoss)} damage${payload.highGroundModifier === 1 ? ", high ground added +1" : ""}${payload.evasiveAttackModifier === -2 ? ", Evasive fire applied −2" : ""}${payload.coverArmor === 1 ? ", cover added +1 Armor" : ""}${payload.digInDefense === 2 ? ", Dig In added +2 Defense" : ""}${payload.evasiveDefenseModifier === 3 ? ", target Evasive added +3 Defense" : ""}${payload.rapidFireMultiplier === 2 ? ", Rapid Fire doubled the damage result" : ""}${payload.penetrated === true ? ", armour penetrated" : ""}.`;
+      return `${actor} attacked ${target}: ${numberValue(payload.healthLoss)} damage${numberValue(payload.armorPiercingBonus) > 0 ? `, Light AT added +${numberValue(payload.armorPiercingBonus)} AP` : ""}${payload.highGroundModifier === 1 ? ", high ground added +1" : ""}${payload.evasiveAttackModifier === -2 ? ", Evasive fire applied −2" : ""}${payload.coverArmor === 1 ? ", cover added +1 Armor" : ""}${payload.digInDefense === 2 ? ", Dig In added +2 Defense" : ""}${payload.evasiveDefenseModifier === 3 ? ", target Evasive added +3 Defense" : ""}${payload.rapidFireMultiplier === 2 ? ", Rapid Fire doubled the damage result" : ""}${payload.penetrated === true ? ", armour penetrated" : ""}.`;
+    case "LIGHT_AT_EXPENDED":
+      return `${actor} spent ${numberValue(payload.chargesSpent)} Light AT charge${numberValue(payload.chargesSpent) === 1 ? "" : "s"} for +${numberValue(payload.armorPiercingBonus)} AP against ${target} (${numberValue(payload.ammunitionAfter)} remaining).`;
     case "WEAPON_SKIPPED":
       return `${actor}'s ${String(payload.weaponId ?? "weapon")} did not fire at ${target}: ${String(payload.reason ?? "not eligible")}`;
     case "SUBSYSTEM_MALFUNCTIONED": {

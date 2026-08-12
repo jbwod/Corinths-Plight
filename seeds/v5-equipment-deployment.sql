@@ -4,7 +4,7 @@ UPDATE equipment_definitions
 SET definition_status = 'active',
     notes = CASE id
       WHEN 'equipment-flak-vests' THEN 'Executable conditional armour effect in the equipment/deployment vertical slice.'
-      WHEN 'equipment-light-at' THEN 'Executable finite-ammunition weapon grant in the equipment/deployment vertical slice.'
+      WHEN 'equipment-light-at' THEN 'Executable Range-1 AP-charge modifier for the Infantry Squad base attack; three fitted charges may be spent one at a time or together.'
       WHEN 'equipment-vehicle-optics' THEN 'Executable Scan action grant in the equipment/deployment vertical slice.'
       ELSE notes END
 WHERE ruleset_id = 'ruleset-v5-core-curated-1'
@@ -19,7 +19,7 @@ INSERT INTO weapon_definitions (
   1, 6, 0, 1, 1, 3, NULL, 0,
   'active', 'The Store row 10',
   'V5 defines a +1 AP disposable infantry weapon with three uses. Damage remains the infantry FS attack die.',
-  '{"tags":["ANTI_ARMOUR","EQUIPMENT","FS_CAPPED"],"sourceEquipmentId":"equipment-light-at"}'
+  '{"tags":["ANTI_ARMOUR","ATTACK_MODIFIER","CHARGE_STORE","EQUIPMENT","FS_CAPPED"],"sourceEquipmentId":"equipment-light-at"}'
 )
 ON CONFLICT(id, ruleset_id) DO UPDATE SET
   name = excluded.name,

@@ -75,6 +75,7 @@ const eventTypes = new Set([
   "UNIT_DUG_OUT",
   "EVASIVE_MANEUVER",
   "UNIT_ATTACKED",
+  "LIGHT_AT_EXPENDED",
   "WEAPON_SKIPPED",
   "SUBSYSTEM_MALFUNCTIONED",
   "CARGO_LOADED",
@@ -118,6 +119,7 @@ export interface CampaignActionIntent {
   targetHex?: { q: number; r: number };
   structureDefinitionId?: string;
   weaponId?: string;
+  lightAtCharges?: number;
   equipmentIds?: string[];
   payload?: {
     cargoDeploymentId?: string;
@@ -254,7 +256,7 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     LAND: [],
     TAKE_OFF: [],
     REARM_AEROSPACE: [],
-    ATTACK: ["targetDeploymentId", "targetHex", "weaponId"],
+    ATTACK: ["targetDeploymentId", "targetHex", "weaponId", "lightAtCharges"],
     ASSAULT: ["targetDeploymentId", "targetHex", "weaponId"],
     DIG_IN: [],
     ARTILLERY_DIG_IN: ["targetDeploymentId"],
@@ -302,6 +304,12 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     parsed.structureDefinitionId = identifier(value.structureDefinitionId, `${path}.structureDefinitionId`);
   }
   if (value.weaponId !== undefined) parsed.weaponId = identifier(value.weaponId, `${path}.weaponId`);
+  if (value.lightAtCharges !== undefined) {
+    if (type !== "ATTACK" || typeof value.lightAtCharges !== "number" || !Number.isSafeInteger(value.lightAtCharges) || value.lightAtCharges < 1 || value.lightAtCharges > 3) {
+      requestFail(`${path}.lightAtCharges`, "Light AT charge use must be an integer from one to three on an Attack.");
+    }
+    parsed.lightAtCharges = value.lightAtCharges as number;
+  }
   if (value.equipmentIds !== undefined) {
     if (!Array.isArray(value.equipmentIds) || value.equipmentIds.length > 8) {
       requestFail(`${path}.equipmentIds`, "Expected at most eight equipment identifiers.");
@@ -697,6 +705,10 @@ function validateStoredAction(value: unknown, path: string): string {
     if (new Set(weaponIds).size !== weaponIds.length) stateFail(`${path}.weaponIds`, "duplicate weapon identifier");
   }
   if (action.ammoRequested !== undefined) stateInteger(action.ammoRequested, `${path}.ammoRequested`, 1);
+  if (action.lightAtCharges !== undefined) {
+    const charges = stateInteger(action.lightAtCharges, `${path}.lightAtCharges`, 1);
+    if (charges > 3) stateFail(`${path}.lightAtCharges`, "expected at most three charges");
+  }
   if (action.payload !== undefined) stateRecord(action.payload, `${path}.payload`);
   return id;
 }

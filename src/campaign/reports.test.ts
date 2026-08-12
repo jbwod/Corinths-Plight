@@ -51,6 +51,19 @@ describe("campaign reports", () => {
     expect(campaignReportGroup(event("ORDER_REJECTED"))).toBe("COMMAND");
     expect(campaignReportGroup(event("ENEMY_REINFORCEMENTS_ARRIVED"))).toBe("OBJECTIVES");
     expect(campaignReportGroup(event("ENEMY_INTENTION_DECLARED"))).toBe("COMMAND");
+    expect(campaignReportGroup(event("LIGHT_AT_EXPENDED"))).toBe("COMBAT");
+  });
+
+  it("describes Light AT charge expenditure and its AP modifier", () => {
+    expect(describeCampaignReportEvent(event("LIGHT_AT_EXPENDED", {
+      targetId: "dep-target",
+      chargesSpent: 2,
+      armorPiercingBonus: 2,
+      ammunitionAfter: 1,
+    }, "dep-attacker"), new Map([
+      ["dep-attacker", "ROOK-7"],
+      ["dep-target", "IRON-1"],
+    ]))).toBe("ROOK-7 spent 2 Light AT charges for +2 AP against IRON-1 (1 remaining).");
   });
 
   it("describes a projected enemy intention without inferring hidden formations", () => {

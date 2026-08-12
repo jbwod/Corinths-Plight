@@ -807,6 +807,8 @@ export interface StructuredAction {
   weaponIds?: string[];
   equipmentIds: string[];
   ammoRequested?: number;
+  /** Server-validated Lightweight Anti-armour charges applied to the unit's base Attack. */
+  lightAtCharges?: number;
   payload?: Record<string, unknown>;
 }
 
@@ -882,6 +884,7 @@ export type CampaignEventType =
   | "UNIT_DUG_OUT"
   | "EVASIVE_MANEUVER"
   | "UNIT_ATTACKED"
+  | "LIGHT_AT_EXPENDED"
   | "WEAPON_SKIPPED"
   | "SUBSYSTEM_MALFUNCTIONED"
   | "CARGO_LOADED"

@@ -891,10 +891,10 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["FS", "ATTACK", "MOVEMENT", "FACING", "DIG_IN", "TRENCH_UPGRADE", "GARRISON"],
-      missing: ["ACTIVE_EQUIPMENT"],
+      implementedSubset: ["FS", "ATTACK", "MOVEMENT", "FACING", "DIG_IN", "TRENCH_UPGRADE", "GARRISON", "FLAK_VESTS", "LIGHT_AT"],
+      missing: [],
     },
-    explanation: "V5 Dig In, Sandbag-to-Trench upgrade, and movement-derived building garrison execute. Authored buildings cost eligible Infantry 0.25 Speed to enter and grant the selected non-stacking +1 Cover Armor against outside fire.",
+    explanation: "V5 Dig In, Sandbag-to-Trench upgrade, movement-derived building garrison, Flak Vests, and Lightweight Anti-armour execute. Light AT spends one to three fitted charges at Range 1 to add the same amount of AP to the Infantry rifle's single attack die.",
   },
   "UNIT:unit-engineers": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
@@ -1022,9 +1022,9 @@ function buildHandlers(): RuleEngineHandlerV1[] {
       id: "equipment-effect-light-at",
       kind: "EQUIPMENT",
       evidence: {
-        sourcePath: "packages/rules-engine/src/equipment.ts",
+        sourcePath: "packages/rules-engine/src/light-at.ts",
         definitionId: "equipment-light-at",
-        effectTypes: ["WEAPON_GRANT", "AMMO_GRANT"],
+        effectTypes: ["ATTACK_AP_MODIFIER", "AMMO_GRANT"],
       },
     },
   ];

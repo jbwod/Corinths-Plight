@@ -24,6 +24,7 @@ import {
   getTacticalCargoProfile,
   getTacticalOrderRule,
   hexDistance,
+  isLightAtChargeStore,
   isConstructibleFieldworkId,
   projectCampaignState,
   resolveRound,
@@ -33,6 +34,7 @@ import {
   validateBomberAttack,
   validateHatClearAirDrop,
   validateLimitedForwardArc,
+  validateLightAtAttack,
   validateOrder,
 } from "../packages/rules-engine/src";
 import {
@@ -1360,6 +1362,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
         // legacy client may still send weaponId, but it cannot narrow or forge
         // the authoritative activation.
         weaponId: candidate.type === "ATTACK" ? undefined : candidate.weaponId,
+        lightAtCharges: candidate.type === "ATTACK" ? candidate.lightAtCharges : undefined,
         equipmentIds: candidate.equipmentIds ?? [],
         payload: candidate.payload ? { ...candidate.payload } : undefined,
       };
@@ -1804,7 +1807,8 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (!arc.legal) {
         return errorResponse(422, "TARGET_OUTSIDE_FIRING_ARC", arc.reason ?? "Target is outside the unit's firing arc.");
       }
-      const bombingFailure = deployment.weapons
+      const attackWeapons = deployment.weapons.filter((weapon) => !isLightAtChargeStore(weapon));
+      const bombingFailure = attackWeapons
         .map((weapon) => validateBomberAttack(
           execution.legacyDefinition.tags,
           weapon,
@@ -1816,7 +1820,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (bombingFailure) {
         return errorResponse(422, "BOMBER_ATTACK_ILLEGAL", bombingFailure.reason ?? "The Bomber cannot attack along that route.");
       }
-      const checks = [...deployment.weapons]
+      const checks = [...attackWeapons]
         .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
         .map((weapon) => {
           const bombing = validateBomberAttack(
@@ -1847,6 +1851,10 @@ export class CampaignDurableObject extends DurableObject<Env> {
       }
       action.targetHex = { ...target.position };
       action.weaponIds = participating.map((weapon) => weapon.id);
+      const lightAt = validateLightAtAttack(intendedAttacker, target.position, action.lightAtCharges);
+      if (!lightAt.legal) {
+        return errorResponse(422, "LIGHT_AT_ILLEGAL", lightAt.reason ?? "Light AT use is not legal.");
+      }
     }
     const existingIndex = state.orders.findIndex(
       (candidate) => candidate.unitId === deployment.id && candidate.round === round,
@@ -1879,11 +1887,14 @@ export class CampaignDurableObject extends DurableObject<Env> {
       equipmentUsed: [...new Set(actions.flatMap((action) => action.equipmentIds))],
       ammoUsed: Object.fromEntries(
         actions.flatMap((action) => action.type === "ATTACK"
-          ? (action.weaponIds ?? []).flatMap((weaponId) =>
-              deployment.weapons.find((weapon) => weapon.id === weaponId)?.ammoCapacity === undefined
-                ? []
-                : [[weaponId, 1] as const]
-            )
+          ? [
+              ...(action.weaponIds ?? []).flatMap((weaponId) =>
+                deployment.weapons.find((weapon) => weapon.id === weaponId)?.ammoCapacity === undefined
+                  ? []
+                  : [[weaponId, 1] as const]
+              ),
+              ...(action.lightAtCharges ? [["weapon-light-at", action.lightAtCharges] as const] : []),
+            ]
           : []),
       ),
       incidentalActions,

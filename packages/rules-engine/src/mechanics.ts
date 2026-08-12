@@ -40,6 +40,7 @@ export interface AttackCalculation {
   evasiveAttackModifier: 0 | -2;
   evasiveDefenseModifier: 0 | 3;
   crewRepairArmorExposed: boolean;
+  armorPiercingBonus: number;
   ammoAfter?: number;
   cooldownAfter?: number;
 }
@@ -122,7 +123,7 @@ export function resolveAttackRoll(
   hexes: BattlefieldHex[],
   random: SeededRandom,
   spotters: CampaignDeployment[] = [],
-  modifiers: { attackerEvasive?: boolean; targetEvasive?: boolean; targetCrewRepairing?: boolean } = {},
+  modifiers: { attackerEvasive?: boolean; targetEvasive?: boolean; targetCrewRepairing?: boolean; armorPiercingBonus?: number } = {},
 ): AttackCalculation {
   const targetCheck = canTarget(attacker, target, weapon, hexes, spotters);
   const rearGeometry = isRearAttack(attacker.position, target.position, target.facing);
@@ -139,7 +140,8 @@ export function resolveAttackRoll(
   const crewRepairArmorExposed = modifiers.targetCrewRepairing === true;
   const targetArmor = crewRepairArmorExposed ? 0 : target.stats.armor;
   const cover = resolveTacticalCover(attacker, target, hexes);
-  const effectiveArmor = groundVehicleRear ? 0 : Math.max(0, targetArmor + cover.armor - weapon.armorPiercing);
+  const armorPiercingBonus = Math.max(0, modifiers.armorPiercingBonus ?? 0);
+  const effectiveArmor = groundVehicleRear ? 0 : Math.max(0, targetArmor + cover.armor - weapon.armorPiercing - armorPiercingBonus);
   const digInDefense: 0 | 2 = groundTarget && !groundInfantryRear && (targetTags.has("INFANTRY") || targetTags.has("PERSONNEL")) && target.statuses.includes("DUG_IN") ? 2 : 0;
   const evasiveAttackModifier: 0 | -2 = modifiers.attackerEvasive ? -2 : 0;
   const evasiveDefenseModifier: 0 | 3 = modifiers.targetEvasive ? 3 : 0;
@@ -166,6 +168,7 @@ export function resolveAttackRoll(
       evasiveAttackModifier,
       evasiveDefenseModifier,
       crewRepairArmorExposed,
+      armorPiercingBonus,
     };
   }
 
@@ -203,6 +206,7 @@ export function resolveAttackRoll(
     evasiveAttackModifier,
     evasiveDefenseModifier,
     crewRepairArmorExposed,
+    armorPiercingBonus,
     ammoAfter:
       weapon.ammoCapacity === undefined
         ? undefined

@@ -107,6 +107,37 @@ describe("campaign order request contracts", () => {
     });
   });
 
+  it("accepts only one to three Light AT charges on an Attack", () => {
+    expect(parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-allied-infantry",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{ type: "ATTACK", targetDeploymentId: "deployment-enemy-warrior", lightAtCharges: 3 }],
+    }).actions).toEqual([{
+      type: "ATTACK",
+      targetDeploymentId: "deployment-enemy-warrior",
+      lightAtCharges: 3,
+    }]);
+
+    for (const lightAtCharges of [0, 4, 1.5]) {
+      expect(() => parseCampaignOrderIntent({
+        ...ORDER_COMMAND,
+        unitId: "deployment-allied-infantry",
+        orderType: "HOLD",
+        facing: 2,
+        actions: [{ type: "ATTACK", targetDeploymentId: "deployment-enemy-warrior", lightAtCharges }],
+      })).toThrow(CampaignRequestContractError);
+    }
+    expect(() => parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-allied-infantry",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{ type: "SCAN", targetHex: { q: 1, r: 0 }, lightAtCharges: 1 }],
+    })).toThrow(CampaignRequestContractError);
+  });
+
   it("accepts weaponless Reload intent for server-authorized resource reload handlers", () => {
     expect(parseCampaignOrderIntent({
       ...ORDER_COMMAND,

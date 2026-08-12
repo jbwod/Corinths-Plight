@@ -43,6 +43,7 @@ import {
 } from "./specialists";
 import { createSeededRandom, hashSeed } from "./rng";
 import { getTacticalActionRule, getTacticalOrderRule } from "./tactical-grammar";
+import { isLightAtChargeStore, validateLightAtAttack } from "./light-at";
 import { isGarrisonEligible, isInfantryGarrisonBuilding } from "./cover";
 import { getTacticalSubsystemRules, getTacticalUnitClass } from "./tactical-unit-catalogue";
 import { applyScenarioReinforcements, evaluateScenarioRoundEnd } from "./scenario";
@@ -316,6 +317,12 @@ export function validateOrder(
   }
   if (order.actions.filter((action) => action.type === "ATTACK").length > 1) {
     reasons.push("A unit receives one attack activation per round.");
+  }
+  for (const action of order.actions.filter((candidate) => candidate.type === "ATTACK" && candidate.lightAtCharges)) {
+    const target = input.previousState.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+    if (!target) continue;
+    const lightAt = validateLightAtAttack({ ...deployment, position: { ...order.endHex } }, target.position, action.lightAtCharges);
+    if (!lightAt.legal) reasons.push(lightAt.reason ?? "Light AT use is not legal.");
   }
   const deployActions = order.actions.filter((action) => action.type === "DEPLOY");
   const packActions = order.actions.filter((action) => action.type === "PACK_UP");
@@ -1481,7 +1488,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         });
         continue;
       }
-      const bombingFailure = attacker.weapons
+      const bombingFailure = attacker.weapons.filter((weapon) => !isLightAtChargeStore(weapon))
         .map((weapon) => validateBomberAttack(
           deploymentTags(attacker),
           weapon,
@@ -1500,7 +1507,18 @@ export function resolveRound(input: RoundInput): RoundOutput {
         continue;
       }
       let weaponsFired = 0;
-      for (const weapon of [...attacker.weapons].sort((left, right) =>
+      const lightAt = validateLightAtAttack(attacker, target.position, action.lightAtCharges);
+      if (!lightAt.legal) {
+        event("ORDER_REJECTED", attacker.id, {
+          orderId: order.id,
+          actionId: action.id,
+          targetId: target.id,
+          reasons: [lightAt.reason],
+        });
+        continue;
+      }
+      let lightAtSpent = false;
+      for (const weapon of attacker.weapons.filter((candidate) => !isLightAtChargeStore(candidate)).sort((left, right) =>
         left.id < right.id ? -1 : left.id > right.id ? 1 : 0
       )) {
         const bombing = validateBomberAttack(
@@ -1525,6 +1543,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
           attackerEvasive: evasiveUnits.has(attacker.id),
           targetEvasive: evasiveUnits.has(target.id),
           targetCrewRepairing: crewRepairingUnits.has(target.id),
+          armorPiercingBonus: weapon.id === "weapon-infantry-rifle" ? lightAt.armorPiercingBonus : 0,
         });
         if (!result.legal || !result.roll) {
           event("WEAPON_SKIPPED", attacker.id, {
@@ -1537,6 +1556,19 @@ export function resolveRound(input: RoundInput): RoundOutput {
           continue;
         }
         weaponsFired += 1;
+        if (weapon.id === "weapon-infantry-rifle" && lightAt.charges > 0 && !lightAtSpent) {
+          attacker.ammunition["weapon-light-at"] = lightAt.ammunitionAfter;
+          lightAtSpent = true;
+          event("LIGHT_AT_EXPENDED", attacker.id, {
+            actionId: action.id,
+            targetId: target.id,
+            chargesSpent: lightAt.charges,
+            armorPiercingBonus: lightAt.armorPiercingBonus,
+            ammunitionBefore: lightAt.available,
+            ammunitionAfter: lightAt.ammunitionAfter,
+            sourceEquipmentId: "equipment-light-at",
+          });
+        }
         if (result.ammoAfter !== undefined) attacker.ammunition[weapon.id] = result.ammoAfter;
         if (result.cooldownAfter) attacker.cooldowns[weapon.id] = result.cooldownAfter;
         event("DICE_ROLLED", attacker.id, {
@@ -1551,6 +1583,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
           damageResult: result.damageResult,
           highGroundModifier: result.highGroundModifier,
           evasiveAttackModifier: result.evasiveAttackModifier,
+          armorPiercingBonus: result.armorPiercingBonus,
         });
         const rushMultiplier = rushingUnits.has(target.id) ? 2 : 1;
         const healthLoss = result.healthLoss * rushMultiplier;
@@ -1575,6 +1608,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
           evasiveAttackModifier: result.evasiveAttackModifier,
           evasiveDefenseModifier: result.evasiveDefenseModifier,
           crewRepairArmorExposed: result.crewRepairArmorExposed,
+          armorPiercingBonus: result.armorPiercingBonus,
         });
         const subsystemRules = weapon.damage.count === 1
           ? getTacticalSubsystemRules(target.definitionId)

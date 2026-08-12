@@ -75,6 +75,11 @@ function applyEvent(
     case "UNIT_REPAIRED":
       if (target && typeof payload.after === "number") target.currentHealth = payload.after;
       break;
+    case "LIGHT_AT_EXPENDED":
+      if (actor && typeof payload.ammunitionAfter === "number") {
+        actor.ammunition["weapon-light-at"] = payload.ammunitionAfter;
+      }
+      break;
     case "UNIT_DUG_IN":
       if (target ?? actor) (target ?? actor)!.statuses = [...new Set([...(target ?? actor)!.statuses, "DUG_IN"])];
       break;

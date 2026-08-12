@@ -607,7 +607,7 @@ INSERT INTO ruleset_implementation_overlays (
   requisition_status, availability_status, executable, purchasable,
   reason_code, source_path, source_locator, overlay_json
 ) VALUES
-  ('UNIT', 'unit-infantry-squad', 'ruleset-v5-core-curated-1', 'PARTIAL', 'BALANCE_REQUIRED', 'DEV_ONLY', 1, 0, 'MISSING_CANONICAL_PRICE', 'phase2-forces.md', 'Persistent force catalogue', '{"implementedSubset":["FS","ATTACK","MOVEMENT","FACING","DIG_IN","TRENCH_UPGRADE","GARRISON"],"missing":["ACTIVE_EQUIPMENT"]}'),
+  ('UNIT', 'unit-infantry-squad', 'ruleset-v5-core-curated-1', 'PARTIAL', 'BALANCE_REQUIRED', 'DEV_ONLY', 1, 0, 'MISSING_CANONICAL_PRICE', 'phase2-forces.md', 'Persistent force catalogue', '{"implementedSubset":["FS","ATTACK","MOVEMENT","FACING","DIG_IN","TRENCH_UPGRADE","GARRISON","FLAK_VESTS","LIGHT_AT"],"missing":[]}'),
   ('UNIT', 'unit-power-armoured-infantry', 'ruleset-v5-core-curated-1', 'CATALOGUE_ONLY', 'BALANCE_REQUIRED', 'DEV_ONLY', 0, 0, 'RC_UNIT_015', 'phase2-forces.md', 'Persistent force catalogue', '{"conflictIds":["RC-UNIT-015"]}'),
   ('UNIT', 'unit-combat-medic', 'ruleset-v5-core-curated-1', 'PARTIAL', 'BALANCE_REQUIRED', 'DEV_ONLY', 1, 0, 'MISSING_CANONICAL_PRICE', 'phase2-forces.md', 'Persistent force catalogue', '{"implementedSubset":["FIRST_AID","MEDICAL_SUPPLY_RELOAD"],"missing":["MASH"]}'),
   ('UNIT', 'unit-irregular', 'ruleset-v5-core-curated-1', 'CATALOGUE_ONLY', 'BALANCE_REQUIRED', 'DEV_ONLY', 0, 0, 'RC_UNIT_015', 'phase2-forces.md', 'Persistent force catalogue', '{"conflictIds":["RC-UNIT-015"]}'),

@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "7708cd9b09c477803b4c886bf7421b862cecad1e6dc4a7369ec058199780bacd",
+  "contentHash": "09efd564562b519052ce7bee22eb9ab6a134280abab0281c6e0ce6edfc2b10e3",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -3686,6 +3686,8 @@ const snapshot = {
             "sourceEquipmentId": "equipment-light-at",
             "tags": [
               "ANTI_ARMOUR",
+              "ATTACK_MODIFIER",
+              "CHARGE_STORE",
               "EQUIPMENT",
               "FS_CAPPED"
             ]
@@ -5474,7 +5476,7 @@ const snapshot = {
         "sourceId": "source-store",
         "sourcePath": null,
         "sourceLocator": "The Store row 10",
-        "notes": "Executable finite-ammunition weapon grant in the equipment/deployment vertical slice.",
+        "notes": "Executable Range-1 AP-charge modifier for the Infantry Squad base attack; three fitted charges may be spent one at a time or together.",
         "sourcedNumbers": {
           "requisitionCost": {
             "status": "PUBLISHED",
@@ -11636,10 +11638,10 @@ const snapshot = {
         "evidence": {
           "definitionId": "equipment-light-at",
           "effectTypes": [
-            "WEAPON_GRANT",
+            "ATTACK_AP_MODIFIER",
             "AMMO_GRANT"
           ],
-          "sourcePath": "packages/rules-engine/src/equipment.ts"
+          "sourcePath": "packages/rules-engine/src/light-at.ts"
         }
       }
     ],
@@ -14268,13 +14270,13 @@ const snapshot = {
             "FACING",
             "DIG_IN",
             "TRENCH_UPGRADE",
-            "GARRISON"
+            "GARRISON",
+            "FLAK_VESTS",
+            "LIGHT_AT"
           ],
-          "missing": [
-            "ACTIVE_EQUIPMENT"
-          ],
+          "missing": [],
           "publicationCorrection": {
-            "reason": "V5 Dig In, Sandbag-to-Trench upgrade, and movement-derived building garrison execute. Authored buildings cost eligible Infantry 0.25 Speed to enter and grant the selected non-stacking +1 Cover Armor against outside fire.",
+            "reason": "V5 Dig In, Sandbag-to-Trench upgrade, movement-derived building garrison, Flak Vests, and Lightweight Anti-armour execute. Light AT spends one to three fitted charges at Range 1 to add the same amount of AP to the Infantry rifle's single attack die.",
             "seedOverlay": {
               "availabilityStatus": "AVAILABLE",
               "executable": true,
@@ -25760,5 +25762,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "7708cd9b09c477803b4c886bf7421b862cecad1e6dc4a7369ec058199780bacd" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "09efd564562b519052ce7bee22eb9ab6a134280abab0281c6e0ce6edfc2b10e3" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

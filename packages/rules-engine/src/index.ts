@@ -10,6 +10,7 @@ export * from "./fieldworks";
 export * from "./forces";
 export * from "./hex";
 export * from "./logistics";
+export * from "./light-at";
 export * from "./mechanics";
 export * from "./movement";
 export * from "./resolver";

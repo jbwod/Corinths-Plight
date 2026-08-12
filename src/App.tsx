@@ -23,6 +23,7 @@ import {
   getUnitClass,
   hexDistance,
   INFANTRY_GARRISON_BUILDING,
+  isLightAtChargeStore,
   projectCampaignState,
   resolveTacticalCover,
   shortestPath,
@@ -30,6 +31,7 @@ import {
   validateCargoManifest,
   validateBomberAttack,
   validateLimitedForwardArc,
+  validateLightAtAttack,
   type ConstructibleFieldworkId,
 } from "../packages/rules-engine/src";
 import brandMark from "../app/static/img/brand-icon.gif";
@@ -157,6 +159,7 @@ function formatEvent(event: CampaignEvent): string {
     ? `${event.actor ?? "Unit"} completed an Evasive maneuver for +3 Defense and −2 outgoing attacks.`
     : `${event.actor ?? "Unit"} was stopped before completing its Evasive maneuver.`;
   if (event.type === "UNIT_ATTACKED") return `${event.actor ?? "Unit"} engaged ${String(payload.targetId ?? "a hostile")}${payload.evasiveAttackModifier === -2 ? "; Evasive fire applied −2" : ""}${payload.coverArmor === 1 ? "; cover added +1 Armor" : ""}${payload.digInDefense === 2 ? "; Dig In added +2 Defense" : ""}${payload.evasiveDefenseModifier === 3 ? "; target Evasive added +3 Defense" : ""}${payload.crewRepairArmorExposed === true ? "; exposed crew received no Armor benefit" : ""}.`;
+  if (event.type === "LIGHT_AT_EXPENDED") return `${event.actor ?? "Infantry"} spent ${String(payload.chargesSpent ?? "?")} Light AT charge${payload.chargesSpent === 1 ? "" : "s"} for +${String(payload.armorPiercingBonus ?? "?")} AP; ${String(payload.ammunitionAfter ?? "?")} remain.`;
   if (event.type === "WEAPON_SKIPPED") return `${event.actor ?? "Unit"}'s ${String(payload.weaponId ?? "weapon")} did not fire: ${String(payload.reason ?? "not eligible")}.`;
   if (event.type === "DAMAGE_APPLIED") return `${event.actor ?? "Unit"} lost ${String(payload.loss ?? "?")} strength.`;
   if (event.type === "UNIT_HEALED") return `${event.actor ?? "Medic"} restored ${String(payload.amount ?? "?")} strength to ${String(payload.targetId ?? "an allied unit")}.`;
@@ -248,6 +251,7 @@ function GameApp() {
   const [constructionTargetHex, setConstructionTargetHex] = useState<AxialCoord>();
   const [constructionDefinitionId, setConstructionDefinitionId] = useState<ConstructibleFieldworkId>("structure-sandbag-line");
   const [selectedWeaponId, setSelectedWeaponId] = useState<string>();
+  const [lightAtCharges, setLightAtCharges] = useState(0);
   const [scheduledRound, setScheduledRound] = useState(18);
   const [hovered, setHovered] = useState<{ coord?: AxialCoord; unit?: CampaignDeployment }>({});
   const [notice, setNotice] = useState<Notice>();
@@ -452,7 +456,7 @@ function GameApp() {
   const intendedAttacker = selectedUnit
     ? { ...selectedUnit, position: draftedRoute.at(-1) ?? selectedUnit.position }
     : undefined;
-  const attackWeaponChecks = selectedUnit?.weapons.map((weapon) => {
+  const attackWeaponChecks = selectedUnit?.weapons.filter((weapon) => !isLightAtChargeStore(weapon)).map((weapon) => {
     if (!intendedAttacker || !targetUnit) return { weapon, legal: false, reason: "Choose a target." };
     const targeting = canTarget(intendedAttacker, targetUnit, weapon, campaign.map, campaign.deployments);
     const bombing = validateBomberAttack(
@@ -476,6 +480,12 @@ function GameApp() {
     };
   }) ?? [];
   const participatingWeapons = attackWeaponChecks.filter((check) => check.legal).map((check) => check.weapon);
+  const lightAtAvailable = selectedUnit?.weapons.some((weapon) => weapon.id === "weapon-light-at")
+    ? selectedUnit.ammunition["weapon-light-at"] ?? 0
+    : 0;
+  const lightAtPreview = selectedUnit && targetUnit
+    ? validateLightAtAttack({ ...selectedUnit, position: draftedRoute.at(-1) ?? selectedUnit.position }, targetUnit.position, lightAtCharges)
+    : undefined;
   const rapidFireReady = participatingWeapons.some((weapon) => weapon.tags.includes("RAPID_FIRE"));
   const attackerHex = selectedUnit ? campaign.map.find((hex) => coordinatesEqual(hex.coord, draftedRoute.at(-1) ?? selectedUnit.position)) : undefined;
   const targetHex = targetUnit ? campaign.map.find((hex) => coordinatesEqual(hex.coord, targetUnit.position)) : undefined;
@@ -698,7 +708,7 @@ function GameApp() {
   const noEligibleAttackWeapon = actionMode === "ATTACK" && Boolean(targetUnit) && participatingWeapons.length === 0;
   const actionReady =
     actionMode === "NONE" ||
-    (actionMode === "ATTACK" && Boolean(targetUnit && participatingWeapons.length > 0 && orderType !== "RUSH" && !weaponSystemsDisabled)) ||
+    (actionMode === "ATTACK" && Boolean(targetUnit && participatingWeapons.length > 0 && orderType !== "RUSH" && !weaponSystemsDisabled && lightAtPreview?.legal !== false)) ||
     (actionMode === "RELOAD" && Boolean(
       (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0 &&
       (isMedicalUnit
@@ -749,7 +759,7 @@ function GameApp() {
       actionReady,
   );
   const actionSummary = actionMode === "ATTACK" && targetUnit && participatingWeapons.length > 0
-    ? `engage ${targetUnit.callsign} with ${participatingWeapons.map((weapon) => weapon.name).join(" + ")}`
+    ? `engage ${targetUnit.callsign} with ${participatingWeapons.map((weapon) => weapon.name).join(" + ")}${lightAtCharges > 0 ? ` using ${lightAtCharges} Light AT charge${lightAtCharges === 1 ? "" : "s"} (+${lightAtCharges} AP)` : ""}`
     : actionMode === "RELOAD" && isMedicalUnit
       ? "restore Medical Supply using one Small Supply"
       : actionMode === "RELOAD" && selectedWeapon
@@ -828,6 +838,7 @@ function GameApp() {
       setConstructionDefinitionId(storedAction.structureDefinitionId as ConstructibleFieldworkId);
     }
     setSelectedWeaponId(storedAction?.weaponId ?? selectedUnit.weapons[0]?.id);
+    setLightAtCharges(storedAction?.type === "ATTACK" ? storedAction.lightAtCharges ?? 0 : 0);
   }, [campaign.orders, scheduledRound, selectedUnit]);
 
   useEffect(() => {
@@ -1020,6 +1031,7 @@ function GameApp() {
         targetDeploymentId: targetUnit.id,
         targetHex: targetUnit.position,
         equipmentIds: [],
+        lightAtCharges: lightAtCharges > 0 ? lightAtCharges : undefined,
       });
     } else if (actionMode === "RELOAD" && isMedicalUnit) {
       actions.push({ type: "RELOAD", equipmentIds: [] });
@@ -1773,6 +1785,28 @@ function GameApp() {
                         </p>
                       ))}
                     </div>
+                    {lightAtAvailable > 0 && (
+                      <>
+                        <label className="field-label" htmlFor="light-at-charges">LIGHT AT CHARGES</label>
+                        <select
+                          id="light-at-charges"
+                          value={lightAtCharges}
+                          onChange={(event) => setLightAtCharges(Number(event.target.value))}
+                        >
+                          <option value={0}>Do not use · {lightAtAvailable}/3 remaining</option>
+                          {Array.from({ length: Math.min(3, lightAtAvailable) }, (_, index) => index + 1).map((charges) => (
+                            <option value={charges} key={charges}>
+                              Spend {charges} · +{charges} AP · {lightAtAvailable - charges} remaining
+                            </option>
+                          ))}
+                        </select>
+                        <p className={`validation ${lightAtPreview?.legal === false ? "danger" : ""}`}>
+                          {lightAtPreview?.legal === false
+                            ? lightAtPreview.reason
+                            : "Optional Range-1 disposable launchers modify the Infantry Squad's single D6 attack; they do not add another damage roll."}
+                        </p>
+                      </>
+                    )}
                     <div className={`target-card ${targetUnit ? "acquired" : ""}`}>
                       <Glyph name="target" size={18} />
                       {targetUnit ? <div><strong>{targetUnit.callsign}</strong><small>{definitionLabel(targetUnit)} · RANGE {targetRange}</small></div> : <div><strong>NO TARGET</strong><small>Click a visible hostile on the map</small></div>}
