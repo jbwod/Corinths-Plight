@@ -821,13 +821,6 @@ export async function getEligibleEquipment(
                    WHERE slots.unit_definition_id = pu.definition_id
                      AND slots.ruleset_id = pu.ruleset_id
                      AND slots.slot_count > 0
-                     AND (
-                       SELECT COUNT(*)
-                         FROM player_unit_equipment AS occupied
-                        WHERE occupied.player_unit_id = pu.id
-                          AND occupied.lost_at IS NULL
-                          AND UPPER(occupied.slot_type) = UPPER(slots.slot_type)
-                     ) < slots.slot_count
                 )
                 AND (
                   eligibility.maximum_equipped IS NULL

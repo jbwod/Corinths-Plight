@@ -266,6 +266,7 @@ function normalizeSummary(value: unknown, catalogue: Map<string, ForceCatalogueV
 type LoadoutPayload = {
   unitId: string;
   unitVersion: number;
+  requisitionBalance: number;
   loadout: { id: string; revision: number; status: string; lockedAt: number | null; items: Array<{ inventoryId: string; definitionId: string; name: string; slotType: string; slotIndex: number }> };
   effectiveUnit: LoadoutEffectiveUnit | null;
   slots: Record<string, number>;
@@ -398,7 +399,52 @@ function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClos
     dialog?.showModal();
     return () => dialog?.close();
   }, []);
-  const refresh = useCallback(() => {
+  const requestPreview = useCallback(async (
+    base: LoadoutPayload,
+    nextItems: LoadoutPayload["loadout"]["items"],
+    sequence: number,
+  ) => {
+    const response = await fetch(`/api/forces/${encodeURIComponent(unit.unitId)}/loadout-preview`, {
+      method: "POST",
+      headers: JSON_HEADERS,
+      body: JSON.stringify({
+        commandId: crypto.randomUUID(),
+        expectedVersion: base.unitVersion,
+        expectedLoadoutRevision: base.loadout.revision,
+        context: "PRE_CAMPAIGN_MUSTER",
+        items: nextItems.map(({ inventoryId, slotType, slotIndex }) => ({ inventoryId, slotType, slotIndex })),
+      }),
+    });
+    if (!response.ok) throw new Error(errorMessage(response.status));
+    const nextPreview = await response.json() as LoadoutPreviewPayload;
+    if (sequence === previewSequence.current) setPreview(nextPreview);
+  }, [unit.unitId]);
+  const placeInLoadout = useCallback((
+    base: LoadoutPayload,
+    current: LoadoutPayload["loadout"]["items"],
+    equipment: LoadoutPayload["ownedEquipment"][number],
+  ): LoadoutPayload["loadout"]["items"] | undefined => {
+    const allowed = equipment.allowedSlots.map((slot) => slot.toUpperCase());
+    for (const slotType of allowed) {
+      const capacity = base.slots[slotType] ?? 0;
+      for (let slotIndex = 0; slotIndex < capacity; slotIndex += 1) {
+        if (!current.some((item) => item.slotType === slotType && item.slotIndex === slotIndex)) {
+          return [...current, { inventoryId: equipment.inventoryId, definitionId: equipment.definitionId, name: equipment.name, slotType, slotIndex }];
+        }
+      }
+    }
+    for (const slotType of allowed) {
+      if ((base.slots[slotType] ?? 0) > 0) {
+        const slotIndex = 0;
+        return [
+          ...current.filter((item) => item.slotType !== slotType || item.slotIndex !== slotIndex),
+          { inventoryId: equipment.inventoryId, definitionId: equipment.definitionId, name: equipment.name, slotType, slotIndex },
+        ];
+      }
+    }
+    return undefined;
+  }, []);
+  const refresh = useCallback((autoSelectInventoryId?: string) => {
     let cancelled = false;
     void Promise.all([
       fetch(`/api/forces/${encodeURIComponent(unit.unitId)}/loadout`, { headers: DEMO_HEADERS }),
@@ -410,10 +456,36 @@ function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClos
         const eligiblePayload = eligibleResponse.ok ? await eligibleResponse.json() as { equipment?: typeof eligible } : {};
         return { next, nextEligible: eligiblePayload.equipment ?? [] };
       })
-      .then(({ next, nextEligible }) => { if (!cancelled) { setPayload(next); setItems(next.loadout.items); setPreview({ effectiveUnit: next.effectiveUnit, validation: next.validation }); setEligible(nextEligible); } })
+      .then(({ next, nextEligible }) => {
+        if (cancelled) return;
+        setPayload(next);
+        setEligible(nextEligible);
+        const purchased = autoSelectInventoryId
+          ? next.ownedEquipment.find((equipment) => equipment.inventoryId === autoSelectInventoryId)
+          : undefined;
+        const nextItems = purchased ? placeInLoadout(next, next.loadout.items, purchased) : next.loadout.items;
+        if (!nextItems) {
+          setItems(next.loadout.items);
+          setPreview({ effectiveUnit: next.effectiveUnit, validation: next.validation });
+          setError(`${purchased?.name ?? "Purchased equipment"} has no compatible unit slot.`);
+          return;
+        }
+        setItems(nextItems);
+        if (purchased) {
+          const sequence = ++previewSequence.current;
+          setPreviewing(true);
+          void requestPreview(next, nextItems, sequence)
+            .catch((reason) => {
+              if (sequence === previewSequence.current) setError(reason instanceof Error ? reason.message : "Loadout preview failed.");
+            })
+            .finally(() => { if (sequence === previewSequence.current) setPreviewing(false); });
+        } else {
+          setPreview({ effectiveUnit: next.effectiveUnit, validation: next.validation });
+        }
+      })
       .catch((reason) => { if (!cancelled) setError(reason instanceof Error ? reason.message : "Loadout unavailable."); });
     return () => { cancelled = true; };
-  }, [unit.unitId]);
+  }, [placeInLoadout, requestPreview, unit.unitId]);
   useEffect(() => refresh(), [refresh]);
   async function previewItems(nextItems: LoadoutPayload["loadout"]["items"]) {
     if (!payload) return;
@@ -421,20 +493,7 @@ function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClos
     setPreviewing(true);
     setError(undefined);
     try {
-      const response = await fetch(`/api/forces/${encodeURIComponent(unit.unitId)}/loadout-preview`, {
-        method: "POST",
-        headers: JSON_HEADERS,
-        body: JSON.stringify({
-          commandId: crypto.randomUUID(),
-          expectedVersion: payload.unitVersion,
-          expectedLoadoutRevision: payload.loadout.revision,
-          context: "PRE_CAMPAIGN_MUSTER",
-          items: nextItems.map(({ inventoryId, slotType, slotIndex }) => ({ inventoryId, slotType, slotIndex })),
-        }),
-      });
-      if (!response.ok) throw new Error(errorMessage(response.status));
-      const nextPreview = await response.json() as LoadoutPreviewPayload;
-      if (sequence === previewSequence.current) setPreview(nextPreview);
+      await requestPreview(payload, nextItems, sequence);
     } catch (reason) {
       if (sequence === previewSequence.current) {
         setPreview(undefined);
@@ -452,19 +511,11 @@ function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClos
       void previewItems(nextItems);
       return;
     }
-    const allowed = equipment.allowedSlots.map((slot) => slot.toUpperCase());
-    for (const slotType of allowed) {
-      const capacity = payload?.slots[slotType] ?? 0;
-      for (let slotIndex = 0; slotIndex < capacity; slotIndex += 1) {
-        if (!items.some((item) => item.slotType === slotType && item.slotIndex === slotIndex)) {
-          const nextItems = [...items, { inventoryId: equipment.inventoryId, definitionId: equipment.definitionId, name: equipment.name, slotType, slotIndex }];
-          setItems(nextItems);
-          void previewItems(nextItems);
-          return;
-        }
-      }
-    }
-    setError(`${equipment.name} has no compatible free slot.`);
+    if (!payload) return;
+    const nextItems = placeInLoadout(payload, items, equipment);
+    if (!nextItems) return setError(`${equipment.name} has no compatible unit slot.`);
+    setItems(nextItems);
+    void previewItems(nextItems);
   }
   async function save() {
     if (!payload || busy) return;
@@ -492,17 +543,19 @@ function LoadoutDialog({ unit, onClose, onSaved }: { unit: ForceUnitView; onClos
         body: JSON.stringify({ commandId: crypto.randomUUID(), definitionId }),
       });
       if (!response.ok) throw new Error(errorMessage(response.status));
-      refresh();
+      const result = await response.json() as { inventoryId?: string };
+      if (!result.inventoryId) throw new Error("The quartermaster returned no inventory record.");
+      refresh(result.inventoryId);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Equipment requisition failed."); }
     finally { setBusy(false); }
   }
   return <dialog ref={ref} className="loadout-dialog" aria-labelledby="loadout-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
     <header><div><span className="eyebrow">AUTHORITATIVE QUARTERMASTER</span><h2 id="loadout-title">{unit.callsign} loadout</h2></div><button aria-label="Close loadout" onClick={onClose}>×</button></header>
-    <div className="loadout-state"><span>UNIT VERSION <b>{payload?.unitVersion ?? "—"}</b></span><span>LOADOUT REVISION <b>{payload?.loadout.revision ?? "—"}</b></span><span>STATE <b>{payload?.loadout.lockedAt ? "LOCKED" : payload?.loadout.status ?? "LOADING"}</b></span></div>
+    <div className="loadout-state"><span>UNIT VERSION <b>{payload?.unitVersion ?? "—"}</b></span><span>LOADOUT REVISION <b>{payload?.loadout.revision ?? "—"}</b></span><span>REQ <b>{payload?.requisitionBalance ?? "—"}</b></span><span>STATE <b>{payload?.loadout.lockedAt ? "LOCKED" : payload?.loadout.status ?? "LOADING"}</b></span></div>
     <section><div className="slot-board">{Object.entries(payload?.slots ?? {}).map(([type, count]) => <article key={type}><strong>{type}</strong>{Array.from({ length: count }, (_, index) => { const item = items.find((candidate) => candidate.slotType === type && candidate.slotIndex === index); return <span className={item ? "occupied" : ""} key={index}><b>{index + 1}</b>{item ? <EquipmentIcon definitionId={item.definitionId} label={item.name} className="loadout-slot-icon" /> : <i className="loadout-slot-empty">—</i>}<em>{item?.name ?? "EMPTY"}</em></span>; })}</article>)}
       <LoadoutCombatPreview current={payload?.effectiveUnit ?? null} preview={preview} busy={previewing} />
     </div>
-      <div className="owned-equipment"><span className="eyebrow">OWNED EQUIPMENT</span>{payload?.ownedEquipment.map((equipment) => { const selected = items.some((item) => item.inventoryId === equipment.inventoryId); return <button key={equipment.inventoryId} className={selected ? "selected" : ""} aria-label={`${selected ? "−" : "+"} ${equipment.name} ${equipment.allowedSlots.join(" / ")} ${equipment.implementationStatus.replaceAll("_", " ")} ${equipment.availabilityStatus.replaceAll("_", " ")}`} aria-pressed={selected} title={equipment.availabilityReason?.replaceAll("_", " ")} disabled={!equipment.executable || (Boolean(equipment.assignedUnitId) && equipment.assignedUnitId !== unit.unitId)} onClick={() => toggle(equipment)}><EquipmentIcon definitionId={equipment.definitionId} label={equipment.name} className="loadout-equipment-icon" /><span><strong>{equipment.name}</strong><small>{equipment.allowedSlots.join(" / ")} · {equipment.implementationStatus.replaceAll("_", " ")} · {equipment.availabilityStatus.replaceAll("_", " ")}{selected ? " · INSTALLED" : ""}</small></span></button>; })}<span className="eyebrow requisition-heading">ELIGIBLE REQUISITION</span>{eligible.map((equipment) => <button key={equipment.id} aria-label={`+ ${equipment.name} requisition`} title={equipment.reason_code?.replaceAll("_", " ")} disabled={busy || !equipment.executable || !equipment.purchasable || equipment.requisition_status !== "PUBLISHED" || equipment.requisition_cost === null} onClick={() => void requisition(equipment.id)}><EquipmentIcon definitionId={equipment.id} label={equipment.name} className="loadout-equipment-icon" /><span><strong>{equipment.name}</strong><small>{equipment.implementation_status.replaceAll("_", " ")} · {equipment.availability_status.replaceAll("_", " ")} · {equipment.requisition_cost === null ? "BALANCE REQUIRED" : `${equipment.requisition_cost} RP`}</small></span></button>)}</div>
+      <div className="owned-equipment"><span className="eyebrow">OWNED EQUIPMENT</span>{payload?.ownedEquipment.map((equipment) => { const selected = items.some((item) => item.inventoryId === equipment.inventoryId); return <button key={equipment.inventoryId} className={selected ? "selected" : ""} aria-label={`${selected ? "−" : "+"} ${equipment.name} ${equipment.allowedSlots.join(" / ")} ${equipment.implementationStatus.replaceAll("_", " ")} ${equipment.availabilityStatus.replaceAll("_", " ")}`} aria-pressed={selected} title={equipment.availabilityReason?.replaceAll("_", " ")} disabled={!equipment.executable || (Boolean(equipment.assignedUnitId) && equipment.assignedUnitId !== unit.unitId)} onClick={() => toggle(equipment)}><EquipmentIcon definitionId={equipment.definitionId} label={equipment.name} className="loadout-equipment-icon" /><span><strong>{equipment.name}</strong><small>{equipment.allowedSlots.join(" / ")} · {equipment.implementationStatus.replaceAll("_", " ")} · {equipment.availabilityStatus.replaceAll("_", " ")}{selected ? " · INSTALLED" : ""}</small></span></button>; })}<span className="eyebrow requisition-heading">ELIGIBLE REQUISITION</span>{eligible.map((equipment) => { const affordable = equipment.requisition_cost !== null && (payload?.requisitionBalance ?? -1) >= equipment.requisition_cost; return <button key={equipment.id} aria-label={`+ ${equipment.name} requisition`} title={equipment.reason_code?.replaceAll("_", " ")} disabled={busy || !equipment.executable || !equipment.purchasable || equipment.requisition_status !== "PUBLISHED" || !affordable} onClick={() => void requisition(equipment.id)}><EquipmentIcon definitionId={equipment.id} label={equipment.name} className="loadout-equipment-icon" /><span><strong>{equipment.name}</strong><small>{equipment.implementation_status.replaceAll("_", " ")} · {equipment.availability_status.replaceAll("_", " ")} · {equipment.requisition_cost === null ? "BALANCE REQUIRED" : `${equipment.requisition_cost} RP`}{!affordable && equipment.requisition_cost !== null ? " · INSUFFICIENT REQ" : " · REQUISITION & PREVIEW"}</small></span></button>; })}</div>
     </section>
     <footer><div>{error && <p role="alert">{error}</p>}<small>Server rebuilds effective stats, weapons, ammo, actions and eligibility before committing.</small></div><button onClick={onClose}>CANCEL</button><button className="primary" disabled={!payload || busy || previewing || !preview?.validation.valid || Boolean(payload.loadout.lockedAt)} onClick={() => void save()}>{busy ? "VALIDATING…" : previewing ? "PREVIEWING…" : "COMMIT LOADOUT"}</button></footer>
   </dialog>;
@@ -822,7 +875,6 @@ function RequisitionDialog({
   const [selectedId, setSelectedId] = useState(initialSelection?.id ?? "");
   const [name, setName] = useState("");
   const [callsign, setCallsign] = useState("");
-  const [equipmentIds, setEquipmentIds] = useState<string[]>(() => initialSelection?.initialEquipment.map((item) => item.id) ?? []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const selected = catalogue.find((item) => item.id === selectedId);
@@ -895,7 +947,7 @@ function RequisitionDialog({
             <span className="eyebrow">01 // SELECT UNIT CLASS</span>
             <div className="catalogue-list">
               {catalogue.filter((item) => item.availabilityStatus !== "HIDDEN").map((item) => (
-                <button className={item.id === selectedId ? "selected" : ""} key={item.id} onClick={() => { setSelectedId(item.id); setEquipmentIds(item.initialEquipment.map((equipment) => equipment.id)); setError(undefined); }}>
+                <button className={item.id === selectedId ? "selected" : ""} key={item.id} onClick={() => { setSelectedId(item.id); setError(undefined); }}>
                   <UnitPortrait definitionId={item.id} tags={item.tags} label={item.name} className={`force-marker role-${item.role.toLowerCase()}`} />
                   <span><strong>{item.name}</strong><small>{item.role} · {item.movementLabel}</small></span>
                   <i className={`availability-dot ${item.availabilityStatus.toLowerCase()}`} title={item.availabilityStatus} />
@@ -949,14 +1001,8 @@ function RequisitionDialog({
                   <input id="unit-callsign" value={callsign} maxLength={7} onChange={(event) => setCallsign(event.target.value.toUpperCase())} placeholder="BELLATR" autoComplete="off" />
                 </section>
                 <section className="catalogue-section">
-                  <span className="eyebrow">03 // INITIAL EQUIPMENT</span>
-                  {selected.initialEquipment.length ? (
-                    <div className="initial-equipment-list">
-                      {selected.initialEquipment.map((equipment) => (
-                        <label key={equipment.id}><input type="checkbox" checked={equipmentIds.includes(equipment.id)} onChange={(event) => setEquipmentIds((current) => event.target.checked ? [...current, equipment.id] : current.filter((id) => id !== equipment.id))} /><EquipmentIcon definitionId={equipment.definitionId ?? equipment.id} label={equipment.name} className="initial-equipment-icon" /><span><b>{equipment.name}</b><small>{equipment.slot} · {equipment.description}</small></span></label>
-                      ))}
-                    </div>
-                  ) : <p className="catalogue-note">No initial equipment package is published for this class. Eligible loadout options are derived by the server after requisition.</p>}
+                  <span className="eyebrow">03 // QUARTERMASTER HANDOFF</span>
+                  <p className="catalogue-note">The unit is issued with its canonical class weapons and resources. After requisition, its live loadout opens so owned Store equipment can be purchased, previewed and installed into authoritative slots.</p>
                 </section>
               </>
             ) : <div className="forces-empty">No catalogue definition selected.</div>}
@@ -1254,7 +1300,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
         </section>
       </aside>
 
-      {drawerOpen && <RequisitionDialog catalogue={catalogue} live={mode === "LIVE"} requisitionBalance={requisitionBalance} onClose={() => setDrawerOpen(false)} onPurchased={(unit) => { setUnits((current) => [unit, ...current]); setSelectedUnitId(unit.unitId); setDrawerOpen(false); onNotice({ tone: "success", message: `${unit.callsign} added to your persistent force.` }); void loadForces(true); }} />}
+      {drawerOpen && <RequisitionDialog catalogue={catalogue} live={mode === "LIVE"} requisitionBalance={requisitionBalance} onClose={() => setDrawerOpen(false)} onPurchased={(unit) => { setUnits((current) => [unit, ...current]); setSelectedUnitId(unit.unitId); setDrawerOpen(false); setLoadoutOpen(true); onNotice({ tone: "success", message: `${unit.callsign} added. Quartermaster loadout opened.` }); void loadForces(true); }} />}
       {identityOpen && selectedUnit && <IdentityDialog unit={selectedUnit} onClose={() => setIdentityOpen(false)} onSaved={identitySaved} onConflict={async () => { await inspect(selectedUnit); }} />}
       {loadoutOpen && selectedUnit && <LoadoutDialog unit={selectedUnit} onClose={() => setLoadoutOpen(false)} onSaved={() => { onNotice({ tone: "success", message: `${selectedUnit.callsign} effective loadout committed.` }); void inspect(selectedUnit); }} />}
       {battlegroupOpen && <BattlegroupDialog units={units} selectedUnit={selectedUnit} onClose={() => setBattlegroupOpen(false)} onChanged={(message) => { onNotice({ tone: "success", message }); void loadForces(true); }} />}

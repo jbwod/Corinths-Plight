@@ -172,7 +172,7 @@ No external state was changed during this Phase-0 assessment.
 |---|---:|---:|---:|---:|---:|---:|
 | Landing/auth | Playwright smoke | unknown | Playwright overflow canary | partial | unverified | missing |
 | Guided onboarding | manual foundation only | unknown | manual foundation only | unverified | unverified | missing |
-| Forces/loadout | live browser journeys: owner edits an active unit's persistent identity/history; Reserve unit opens quartermaster, previews Armor delta, commits owned Flak Vests and reads persisted effective unit | responsive dialog rules present | focused Chromium pass | unverified | unverified | broader matrix pending |
+| Forces/loadout | live browser journeys: owner edits persistent identity/history; unit purchase opens quartermaster; Reserve unit purchases Lightweight Anti-armour, sees the three-ammo weapon in the authoritative preview, commits it and reads owned inventory/effective state/Req balance back | responsive dialog rules present | focused Chromium pass | unverified | unverified | broader matrix pending |
 | Battalion/ship/strategic reads | prior visual inspection only | unknown | prior visual inspection only | partial | unverified | missing |
 | Tactical map/order | Playwright live-read/forged-field canary | unknown | Playwright overflow canary | **core route/target unavailable** | **no equivalent workflow** | missing |
 | Reports/replay | local interactive reconstruction proven in the four-round browser journey | unknown | responsive map/ledger controls; mobile overflow passes | semantic round/detail/playback controls and synchronized formation ledger | screen-reader audit missing | partial |

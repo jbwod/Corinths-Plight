@@ -340,10 +340,14 @@ export async function buildStoredEffectiveUnit(
 }
 
 export async function getUnitLoadout(env: Env, ownerId: string, unitId: string): Promise<unknown> {
-  const hydrated = await buildStoredEffectiveUnit(env, ownerId, unitId);
+  const [hydrated, requisitionBalance] = await Promise.all([
+    buildStoredEffectiveUnit(env, ownerId, unitId),
+    getRequisitionBalance(env.DB, ownerId),
+  ]);
   return {
     unitId,
     unitVersion: hydrated.context.unit_version,
+    requisitionBalance,
     loadout: {
       id: hydrated.context.loadout_id,
       revision: hydrated.context.loadout_revision,

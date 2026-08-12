@@ -977,7 +977,10 @@ test("quartermaster purchases a published unit once and debits the Req ledger", 
     request.url().endsWith("/api/requisition/purchases") && request.method() === "POST");
   await dialog.getByRole("button", { name: "PURCHASE UNIT" }).click();
   const committedRequest = await purchaseRequest;
-  await expect(page.getByText(/ECON-1 added to your persistent force/i)).toBeVisible();
+  await expect(page.getByText(/ECON-1 added\. Quartermaster loadout opened/i)).toBeVisible();
+  const loadout = page.getByRole("dialog", { name: /ECON-1 loadout/i });
+  await expect(loadout).toBeVisible();
+  await loadout.getByRole("button", { name: "Close loadout" }).click();
   await expect(page.locator(".grouped-roster").getByRole("button", { name: /ECON-1/ }).first()).toBeVisible();
 
   const afterResponse = await page.request.get("/api/requisition", {
@@ -1014,9 +1017,15 @@ test("quartermaster previews and persists equipment into a Reserve unit", async 
   await expect(dialog.getByText(/AVAILABLE ACTIONS/)).toBeVisible();
   await expect(dialog.getByText(/ATTACK/)).toBeVisible();
 
-  await expect(dialog.locator(".loadout-stat-grid").getByText("0", { exact: true }).first()).toBeVisible();
-  await dialog.getByRole("button", { name: /^\+ Flak Vests/ }).nth(1).click();
-  await expect(dialog.locator(".loadout-stat-grid").getByText("+1", { exact: true })).toBeVisible();
+  const openingBalance = Number(await dialog.locator(".loadout-state span").filter({ hasText: "REQ" }).locator("b").innerText());
+  const purchaseResponse = page.waitForResponse((response) =>
+    response.url().endsWith("/api/requisition/equipment-purchases") && response.request().method() === "POST");
+  await dialog.getByRole("button", { name: /^\+ Lightweight Anti-armour Weapon requisition/ }).click();
+  const purchase = await purchaseResponse;
+  expect(purchase.status()).toBe(201);
+  const purchased = await purchase.json() as { inventoryId: string };
+  await expect(dialog.getByText("Lightweight Anti-armour Weapon", { exact: true }).first()).toBeVisible();
+  await expect(dialog.getByText(/3 AMMO/)).toBeVisible();
   await expect(dialog.getByText("VALID", { exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "COMMIT LOADOUT" }).click();
   await expect(page.getByText(/POLAR-1 effective loadout committed/i)).toBeVisible();
@@ -1027,9 +1036,10 @@ test("quartermaster previews and persists equipment into a Reserve unit", async 
   expect(response.status()).toBe(200);
   await expect(response.json()).resolves.toMatchObject({
     effectiveUnit: {
-      stats: { armor: 1 },
-      equipmentInstanceIds: expect.arrayContaining(["inventory:spearhead:flak-spare"]),
+      weapons: expect.arrayContaining([expect.objectContaining({ id: "weapon-light-at", ammoCapacity: 3 })]),
+      equipmentInstanceIds: expect.arrayContaining([purchased.inventoryId]),
     },
+    requisitionBalance: openingBalance - 1,
     validation: { valid: true },
   });
 });
