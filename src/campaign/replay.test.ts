@@ -28,7 +28,7 @@ describe("campaign report replay", () => {
     }, 1);
     const actor = view.deployments.find((unit) => unit.side === "ALLIED")!;
     const target = view.deployments.find((unit) => unit.side === "ENEMY")!;
-    actor.subsystems = [{ subsystemId: "MOBILITY", state: "DISABLED" }];
+    actor.subsystems = [{ subsystemId: "MOBILITY", state: "OPERATIONAL" }];
     const objective = view.objectives[0]!;
     const destination = { q: actor.position.q + 1, r: actor.position.r };
     const frames = buildCampaignReplayFrames({
@@ -43,7 +43,11 @@ describe("campaign report replay", () => {
       event(4, "LIGHT_AT_EXPENDED", actor.id, { targetId: target.id, chargesSpent: 2, ammunitionAfter: 1 }),
       event(5, "OBJECTIVE_CAPTURED", undefined, { objectiveId: objective.id, owner: "ALLIED" }),
       event(6, "UNIT_DESTROYED", target.id, {}),
-      event(7, "UNIT_REPAIRED", actor.id, {
+      event(7, "SUBSYSTEM_MALFUNCTIONED", target.id, {
+        targetId: actor.id,
+        affectedSubsystemIds: ["MOBILITY"],
+      }),
+      event(8, "UNIT_REPAIRED", actor.id, {
         targetId: actor.id,
         repairKind: "SUBSYSTEM",
         repairMethod: "CREW",
@@ -51,9 +55,18 @@ describe("campaign report replay", () => {
         before: actor.currentHealth,
         after: actor.currentHealth,
       }),
+      event(9, "DICE_ROLLED", actor.id, {
+        weaponId: "weapon-fighter-snub-hmg",
+        ammunitionBefore: 1,
+        ammunitionAfter: 0,
+      }),
+      event(10, "AEROSPACE_REARMED", actor.id, {
+        ammunitionBefore: { "weapon-fighter-snub-hmg": 0 },
+        ammunitionAfter: { "weapon-fighter-snub-hmg": 1 },
+      }),
     ]);
 
-    expect(frames).toHaveLength(8);
+    expect(frames).toHaveLength(11);
     expect(frames[0]!.deployments.find((unit) => unit.id === actor.id)?.position).toEqual(actor.position);
     expect(frames[1]!.deployments.find((unit) => unit.id === actor.id)?.position).toEqual(destination);
     expect(frames[2]!.deployments.find((unit) => unit.id === target.id)?.currentHealth).toBe(1);
@@ -65,7 +78,12 @@ describe("campaign report replay", () => {
       status: "DESTROYED",
     });
     expect(frames[7]!.deployments.find((unit) => unit.id === actor.id)?.subsystems).toEqual([
+      { subsystemId: "MOBILITY", state: "DISABLED" },
+    ]);
+    expect(frames[8]!.deployments.find((unit) => unit.id === actor.id)?.subsystems).toEqual([
       { subsystemId: "MOBILITY", state: "OPERATIONAL" },
     ]);
+    expect(frames[9]!.deployments.find((unit) => unit.id === actor.id)?.ammunition["weapon-fighter-snub-hmg"]).toBe(0);
+    expect(frames[10]!.deployments.find((unit) => unit.id === actor.id)?.ammunition["weapon-fighter-snub-hmg"]).toBe(1);
   });
 });

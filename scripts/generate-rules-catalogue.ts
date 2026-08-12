@@ -526,7 +526,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
   },
   "unit-main-battle-tank": {
     capacity: 1,
-    tags: ["GROUND", "VEHICLE", "SUB_SYSTEM", "REAR_WEAK_SPOT"],
+    tags: ["GROUND", "VEHICLE", "ARMOURED", "HEAVY", "SUBSYSTEMS", "REAR_WEAK_SPOT", "ARMOUR_TARGET_PRIORITY"],
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
     allowedActions: ["ATTACK", "CREW_REPAIR"],
   },
@@ -861,8 +861,8 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     explanation: "The V5 Heavy Air Transport executes its chassis, five-slot conversion table, terrain-independent flight, loading, friendly-airfield landing state, and no-cost clear route-bound Infantry/Light Vehicle airdrop. Hazardous outcomes and coordinated Supply drops remain gated.",
   },
   "UNIT:unit-aerospace-bomber": {
-    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
-    reasonCode: "MISSING_CANONICAL_PRICE",
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
     parameters: {
       implementedSubset: ["HITS", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "FLY_OVER_TARGETING", "ORDNANCE_AMMO_ONE", "LAND_TAKEOFF_STATE", "REARM_FACILITY", "NO_GROUND_SPOTTING"],
       missing: [],
@@ -870,8 +870,8 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     explanation: "The V5 Bomber sortie executes its chassis, one-shot D6 ordnance, terrain-independent flight, route-bound fly-over attack, friendly-airfield landing/takeoff, Primary rearm, and no-ground-spotting rule.",
   },
   "UNIT:unit-aerospace-fighter": {
-    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
-    reasonCode: "MISSING_CANONICAL_PRICE",
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
     parameters: {
       implementedSubset: ["HITS", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "RAPID_FIRE", "EVASIVE", "FORWARD_180_ARC", "MAIN_AMMO_ONE", "LAND_TAKEOFF_STATE", "REARM_FACILITY", "INTERCEPTOR", "NO_GROUND_SPOTTING"],
       missing: [],
@@ -888,8 +888,8 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     explanation: "Artillery can deploy/pack and use the V5 Bombardment defense-suppression action while Funnel remains deferred.",
   },
   "UNIT:unit-infantry-squad": {
-    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
-    reasonCode: "MISSING_CANONICAL_PRICE",
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
     parameters: {
       implementedSubset: ["FS", "ATTACK", "MOVEMENT", "FACING", "DIG_IN", "TRENCH_UPGRADE", "GARRISON", "FLAK_VESTS", "LIGHT_AT"],
       missing: [],
@@ -933,8 +933,8 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     explanation: "The V5 Light Vehicle is playable end to end: acquisition, deployment, Rapid Fire, Evasive movement, governed cargo, subsystem consequences, persistence, replay, reports, AI response and visual presentation are active; rejected companion slots remain catalogue provenance only.",
   },
   "UNIT:unit-light-mech": {
-    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
-    reasonCode: "MISSING_CANONICAL_PRICE",
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
     parameters: {
       implementedSubset: ["HITS", "ARMOUR", "ATTACK", "MOVEMENT", "HOSTILE_PASSAGE", "SUBSYSTEMS", "EVASIVE"],
       missing: [],
@@ -942,20 +942,20 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     explanation: "The V5 Light Mech chassis, Light Laser Cannon, hostile-ground passage, subsystem failures, and Evasive movement execute through the generated tactical handler.",
   },
   "UNIT:unit-main-battle-tank": {
-    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
-    reasonCode: "MISSING_CANONICAL_PRICE",
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
     parameters: {
       implementedSubset: ["HITS", "ARMOUR", "AP", "FACING", "REAR_ATTACK", "SUBSYSTEMS", "CREW_REPAIR"],
       missing: [],
     },
-    explanation: "The V5 natural-5/6 subsystem malfunction rule persists and gates later use; stationary crews can repair one subsystem while forfeiting Armor for the round.",
+    explanation: "The V5 Main Battle Tank is playable end to end: acquisition, deployment, facing and rear-arc armour loss, D6 AP-3 cannon combat, anti-armour target priority, subsystem consequences, stationary Armor-exposed Crew Repair, persistence, replay, reports, AI response and visual presentation are active.",
   },
   "UNIT:unit-vtol": {
-    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
-    reasonCode: "MISSING_CANONICAL_PRICE",
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
     parameters: {
       implementedSubset: ["HITS", "ARMOUR", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "LAND_TAKEOFF_STATE", "NO_GROUND_SPOTTING", "ALTERNATIVE_CARGO"],
-      missing: ["HAT_AIRDROP"],
+      missing: [],
     },
     explanation: "The generic V5 VTOL executes its chassis, nose gun, terrain-independent flight, hostile-ground passage, no-ground-spotting rule, and mutually exclusive infantry/Supply cargo; HAT and fixed-wing mechanics remain separate.",
   },

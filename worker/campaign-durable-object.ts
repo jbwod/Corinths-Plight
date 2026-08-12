@@ -843,6 +843,17 @@ export class CampaignDurableObject extends DurableObject<Env> {
           version = version + 1, updated_at = unixepoch() WHERE id = ?5`)
           .bind(JSON.stringify(ammunition), locationState, campaignId,
             Number.isFinite(currentHealth) ? currentHealth : -1, effect.unitId));
+        const position = effect.payload.position && typeof effect.payload.position === "object"
+          ? effect.payload.position as Record<string, unknown> : undefined;
+        const facing = Number(effect.payload.facing);
+        const statuses = Array.isArray(effect.payload.statuses)
+          ? effect.payload.statuses.filter((status): status is string => typeof status === "string") : [];
+        if (Number.isInteger(position?.q) && Number.isInteger(position?.r) && Number.isInteger(facing)) {
+          statements.push(this.env.DB.prepare(`UPDATE deployments SET snapshot_json=json_set(
+            snapshot_json,'$.position.q',?1,'$.position.r',?2,'$.facing',?3,'$.statuses',json(?4)
+          ) WHERE campaign_id=?5 AND player_unit_id=?6 AND status IN ('READY','ACTIVE','IMMOBILISED')`)
+            .bind(position!.q, position!.r, facing, JSON.stringify(statuses), campaignId, effect.unitId));
+        }
         for (const [weaponId, amount] of Object.entries(ammunition)) {
           statements.push(this.env.DB.prepare(`UPDATE player_unit_weapon_mounts SET current_ammo = ?1,
             cooldown_remaining = ?2, updated_at = unixepoch()
@@ -1509,8 +1520,14 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (!endpointFriendly || !endpointHex?.environment.includes("REARM_AEROSPACE")) {
         return errorResponse(422, "AEROSPACE_REARM_FACILITY_REQUIRED", "Aerospace rearm requires a friendly rearm facility.");
       }
-      if (!deployment.weapons.some((weapon) => weapon.ammoCapacity !== undefined)) {
+      const rearmableWeapons = deployment.weapons.filter((weapon) => weapon.ammoCapacity !== undefined);
+      if (rearmableWeapons.length === 0) {
         return errorResponse(422, "AEROSPACE_REARM_UNAVAILABLE", "This aerospace unit has no ammunition store to rearm.");
+      }
+      if (rearmableWeapons.every((weapon) =>
+        (deployment.ammunition[weapon.id] ?? 0) >= weapon.ammoCapacity!
+      )) {
+        return errorResponse(409, "AEROSPACE_AMMUNITION_FULL", "Aerospace ammunition is already full.");
       }
     }
     const digInActions = actions.filter((action) => action.type === "DIG_IN");
@@ -1815,6 +1832,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
           route,
           target.position,
           deployment.ammunition[weapon.id] ?? 0,
+          { orderType: intent.orderType as UnitOrder["orderType"], targetTags: target.tags ?? [] },
         ))
         .find((validation) => validation.applies && !validation.legal);
       if (bombingFailure) {
@@ -1829,6 +1847,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
             route,
             target.position,
             deployment.ammunition[weapon.id] ?? 0,
+            { orderType: intent.orderType as UnitOrder["orderType"], targetTags: target.tags ?? [] },
           );
           const attackOrigin = bombing.applies ? { ...intendedAttacker, position: { ...target.position } } : intendedAttacker;
           const targeting = canTarget(attackOrigin, target, weapon, state.map, state.deployments);

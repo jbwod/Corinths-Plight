@@ -1,4 +1,5 @@
 import type {
+  AxialCoord,
   CampaignDeployment,
   CampaignEvent,
   ArtilleryProfile,
@@ -88,6 +89,28 @@ function deploymentTags(deployment: CampaignDeployment): string[] {
   }
 }
 
+function activeOnMap(deployment: CampaignDeployment): boolean {
+  return deployment.status !== "DESTROYED" &&
+    deployment.status !== "WITHDRAWN" &&
+    (deployment.locationState ?? "ON_MAP") === "ON_MAP";
+}
+
+function deploymentAllowsAction(
+  deployment: CampaignDeployment,
+  actionType: StructuredAction["type"],
+): boolean {
+  try {
+    return getTacticalUnitClass(deployment.definitionId).allowedActions.includes(actionType);
+  } catch {
+    return false;
+  }
+}
+
+function isTrenchHex(state: RoundOutput["state"], position: CampaignDeployment["position"]): boolean {
+  return state.map.find((hex) => sameCoord(hex.coord, position))?.structureIds
+    .some((id) => id === "structure-trench" || id.startsWith("structure-trench:")) ?? false;
+}
+
 function isAerospaceDeployment(deployment: CampaignDeployment): boolean {
   const tags = deploymentTags(deployment);
   return tags.includes("ATMO_FLIGHT") || tags.includes("VTOL");
@@ -117,16 +140,18 @@ function canAttackInterceptor(
   order: UnitOrder,
   interceptor: CampaignDeployment,
   state: RoundOutput["state"],
+  route: readonly AxialCoord[] = order.route,
 ): boolean {
-  const arc = validateLimitedForwardArc(deploymentTags(attacker), order.route, attacker.facing, interceptor.position);
+  const arc = validateLimitedForwardArc(deploymentTags(attacker), route, attacker.facing, interceptor.position);
   if (!arc.legal) return false;
   return attacker.weapons.some((weapon) => {
     const bombing = validateBomberAttack(
       deploymentTags(attacker),
       weapon,
-      order.route,
+      route,
       interceptor.position,
       attacker.ammunition[weapon.id] ?? 0,
+      { orderType: order.orderType, targetTags: deploymentTags(interceptor) },
     );
     if (!bombing.legal) return false;
     const origin = bombing.applies ? { ...attacker, position: { ...interceptor.position } } : attacker;
@@ -244,8 +269,13 @@ export function validateOrder(
     if (!facilitySupports(input.previousState, deployment, order.endHex, "REARM_AEROSPACE")) {
       reasons.push("Aerospace rearm requires a friendly rearm facility.");
     }
-    if (!deployment.weapons.some((weapon) => weapon.ammoCapacity !== undefined)) {
+    const rearmableWeapons = deployment.weapons.filter((weapon) => weapon.ammoCapacity !== undefined);
+    if (rearmableWeapons.length === 0) {
       reasons.push("This aerospace unit has no ammunition store to rearm.");
+    } else if (rearmableWeapons.every((weapon) =>
+      (deployment.ammunition[weapon.id] ?? 0) >= weapon.ammoCapacity!
+    )) {
+      reasons.push("Aerospace ammunition is already full.");
     }
   }
   const artillery = isArtilleryDeployment(deployment);
@@ -260,6 +290,9 @@ export function validateOrder(
   if (order.campaignId !== input.previousState.campaignId) reasons.push("Order belongs to another campaign.");
   if (order.round !== input.previousState.round) reasons.push("Order targets another round.");
   if (order.unitId !== deployment.id) reasons.push("Order unit does not match deployment.");
+  if (!Number.isInteger(order.facing) || order.facing < 0 || order.facing > 5) {
+    reasons.push("Facing must be an integer from 0 through 5.");
+  }
   if (!sameCoord(order.startHex, deployment.position)) reasons.push("Order start does not match authoritative unit position.");
   if (order.route.length === 0 || !sameCoord(order.route[0], order.startHex)) reasons.push("Route must begin at startHex.");
   if (!sameCoord(order.route.at(-1) ?? order.startHex, order.endHex)) reasons.push("Route must end at endHex.");
@@ -302,6 +335,21 @@ export function validateOrder(
     if (action.economy !== definition.economy || action.speedCost !== definition.speedCost) {
       reasons.push(`${action.type.replaceAll("_", " ")} economy or speed cost does not match the pinned ruleset.`);
     }
+    if (action.type === "DIG_IN" && !deploymentAllowsAction(deployment, "DIG_IN")) {
+      reasons.push("This unit class cannot Dig In.");
+    }
+    if (action.type === "TRENCH_UPGRADE" && deployment.definitionId !== "unit-infantry-squad") {
+      reasons.push("Trench Upgrade requires an Infantry Squad.");
+    }
+    if (action.type === "CONSTRUCT" && !deploymentAllowsAction(deployment, "CONSTRUCT")) {
+      reasons.push("Construction requires an Engineer unit.");
+    }
+    if (action.type === "REPAIR" && !deploymentAllowsAction(deployment, "REPAIR")) {
+      reasons.push("Engineer Repair requires an Engineer unit.");
+    }
+    if (action.type === "RELOAD" && action.weaponId === "weapon-light-at") {
+      reasons.push("Light AT charges have no active field reload rule.");
+    }
   }
   const attackActivations = [...order.actions, ...order.incidentalActions]
     .filter((action) => {
@@ -334,13 +382,13 @@ export function validateOrder(
   for (const action of artilleryDigInActions) {
     const target = input.previousState.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
     const targetOrder = [...input.playerOrders, ...input.enemyOrders].find((candidate) => candidate.unitId === target?.id);
-    if (!deploymentTags(deployment).includes("ENGINEER")) {
+    if (!deploymentAllowsAction(deployment, "ARTILLERY_DIG_IN")) {
       reasons.push("Dig In Artillery requires an Engineer unit.");
     } else if (
       !target ||
       target.side !== deployment.side ||
       target.status === "DESTROYED" ||
-      !deploymentTags(target).includes("ARTILLERY")
+      !isArtilleryDeployment(target)
     ) {
       reasons.push("Dig In Artillery requires a friendly operational Artillery unit.");
     } else if (artilleryState(target) !== "DEPLOYED") {
@@ -525,12 +573,16 @@ export function resolveRound(input: RoundInput): RoundOutput {
     const deployment = state.deployments.find((candidate) => candidate.id === order.unitId)!;
     deployment.facing = order.facing;
   }
+  const resolvedRoutes = new Map(
+    [...validOrders.values()].map((order) => [order.id, order.route.map((coord) => ({ ...coord }))]),
+  );
   const movementOutcomes = resolveSimultaneousMovement(
     [...validOrders.values()].filter((order) => order.route.length > 1),
     state.deployments,
     state.map,
   );
   for (const outcome of movementOutcomes) {
+    resolvedRoutes.set(outcome.orderId, outcome.traversedRoute.map((coord) => ({ ...coord })));
     const deployment = state.deployments.find((candidate) => candidate.id === outcome.unitId)!;
     const moved = outcome.traversedRoute.length > 1;
     const startedGarrisoned = deployment.statuses.includes("GARRISONED") || (
@@ -596,6 +648,63 @@ export function resolveRound(input: RoundInput): RoundOutput {
         distanceIncrement: outcome.block.distanceIncrement,
       });
     }
+  }
+
+  for (const deployment of [...state.deployments].sort((left, right) => left.id.localeCompare(right.id))) {
+    if (!activeOnMap(deployment) || !isGarrisonEligible(deployment)) continue;
+    const insideBuilding = isInfantryGarrisonBuilding(
+      state.map.find((hex) => sameCoord(hex.coord, deployment.position)),
+    );
+    const recordedGarrison = deployment.statuses.includes("GARRISONED");
+    if (insideBuilding && !recordedGarrison) {
+      deployment.statuses = [...deployment.statuses, "GARRISONED"];
+      event("UNIT_GARRISONED", deployment.id, {
+        position: deployment.position,
+        movementCost: 0,
+        coverArmor: 1,
+        reason: "DERIVED_OCCUPANCY",
+        conflictId: "RC-COVER-001",
+      });
+    } else if (!insideBuilding && recordedGarrison) {
+      deployment.statuses = deployment.statuses.filter((status) => status !== "GARRISONED");
+      event("UNIT_LEFT_GARRISON", deployment.id, {
+        from: deployment.position,
+        reason: "STALE_OCCUPANCY",
+        conflictId: "RC-COVER-001",
+      });
+    }
+  }
+
+  const trenchIntruders = new Map<string, Set<string>>();
+  for (const outcome of movementOutcomes) {
+    const intruder = state.deployments.find((deployment) => deployment.id === outcome.unitId);
+    if (!intruder || !activeOnMap(intruder)) continue;
+    for (const position of outcome.traversedRoute.slice(1)) {
+      if (!isTrenchHex(state, position)) continue;
+      for (const defender of state.deployments) {
+        if (
+          defender.id === intruder.id ||
+          defender.side === intruder.side ||
+          !activeOnMap(defender) ||
+          !defender.statuses.includes("DUG_IN") ||
+          !sameCoord(defender.position, position)
+        ) continue;
+        const intruders = trenchIntruders.get(defender.id) ?? new Set<string>();
+        intruders.add(intruder.id);
+        trenchIntruders.set(defender.id, intruders);
+      }
+    }
+  }
+  for (const [defenderId, intruderIds] of [...trenchIntruders].sort(([left], [right]) => left.localeCompare(right))) {
+    const defender = state.deployments.find((deployment) => deployment.id === defenderId);
+    if (!defender?.statuses.includes("DUG_IN")) continue;
+    defender.statuses = defender.statuses.filter((status) => status !== "DUG_IN");
+    event("UNIT_DUG_OUT", defender.id, {
+      from: defender.position,
+      reason: "HOSTILE_ENTERED_TRENCH",
+      hostileUnitIds: [...intruderIds].sort((left, right) => left.localeCompare(right)),
+      conflictId: "RC-V5-019",
+    });
   }
   synchronizeEmbarkedCargo(state.deployments);
 
@@ -665,6 +774,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
           weaponIds.push(weapon.id);
         }
         actor.ammunition = ammunitionAfter;
+        actor.statuses = actor.statuses.filter((status) => status !== "REARM_REQUIRED");
         event("AEROSPACE_REARMED", actor.id, {
           actionId: action.id,
           weaponIds,
@@ -675,11 +785,15 @@ export function resolveRound(input: RoundInput): RoundOutput {
         }, actorVisibility);
       }
       if (action.type === "DIG_IN") {
-        if (actor.statuses.includes("DUG_IN")) {
+        if (!deploymentAllowsAction(actor, "DIG_IN") || actor.statuses.includes("DUG_IN")) {
           event("ORDER_REJECTED", actor.id, {
             orderId: order.id,
             actionId: action.id,
-            reasons: ["The unit is already dug in."],
+            reasons: [
+              !deploymentAllowsAction(actor, "DIG_IN")
+                ? "This unit class cannot Dig In."
+                : "The unit is already dug in.",
+            ],
           }, actorVisibility);
           continue;
         }
@@ -698,11 +812,11 @@ export function resolveRound(input: RoundInput): RoundOutput {
           targetOrder.route.length === 1 && !targetOrder.actions.some((candidate) => candidate.type === "PACK_UP")
         );
         if (
-          !deploymentTags(actor).includes("ENGINEER") ||
+          !deploymentAllowsAction(actor, "ARTILLERY_DIG_IN") ||
           !target ||
           target.side !== actor.side ||
           target.status === "DESTROYED" ||
-          !deploymentTags(target).includes("ARTILLERY") ||
+          !isArtilleryDeployment(target) ||
           artilleryState(target) !== "DEPLOYED" ||
           target.statuses.includes("DUG_IN") ||
           hexDistance(actor.position, target.position) > 1 ||
@@ -712,9 +826,9 @@ export function resolveRound(input: RoundInput): RoundOutput {
             orderId: order.id,
             actionId: action.id,
             reasons: [
-              !deploymentTags(actor).includes("ENGINEER")
+              !deploymentAllowsAction(actor, "ARTILLERY_DIG_IN")
                 ? "Dig In Artillery requires an Engineer unit."
-                : !target || target.side !== actor.side || !deploymentTags(target).includes("ARTILLERY")
+                : !target || target.side !== actor.side || !isArtilleryDeployment(target)
                   ? "Dig In Artillery requires a friendly operational Artillery unit."
                   : artilleryState(target) !== "DEPLOYED"
                     ? "The Artillery unit must already be deployed."
@@ -749,7 +863,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
           ? targetMapHex?.structureIds.some((id) => structureInstanceMatches(id, fieldwork.id)) ?? false
           : false;
         if (
-          !(actor.tags ?? []).includes("ENGINEER") ||
+          !deploymentAllowsAction(actor, "CONSTRUCT") ||
           !fieldwork ||
           !targetHex ||
           !targetMapHex ||
@@ -761,7 +875,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
             orderId: order.id,
             actionId: action.id,
             reasons: [
-              !(actor.tags ?? []).includes("ENGINEER")
+              !deploymentAllowsAction(actor, "CONSTRUCT")
                 ? "Construction requires an Engineer unit."
                 : !fieldwork
                   ? "That fieldwork is not executable."
@@ -794,7 +908,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
           id === "structure-sandbag-line" || id.startsWith("structure-sandbag-line:")
         ) ?? -1;
         if (
-          !(actor.tags ?? []).includes("INFANTRY") ||
+          actor.definitionId !== "unit-infantry-squad" ||
           !targetHex ||
           !sameCoord(actor.position, targetHex) ||
           !targetMapHex ||
@@ -804,9 +918,9 @@ export function resolveRound(input: RoundInput): RoundOutput {
             orderId: order.id,
             actionId: action.id,
             reasons: [
-              !(actor.tags ?? []).includes("INFANTRY")
-                ? "Trench Upgrade requires an Infantry unit."
-                : "Trench Upgrade requires the Infantry unit to occupy a Sandbag Line.",
+              actor.definitionId !== "unit-infantry-squad"
+                ? "Trench Upgrade requires an Infantry Squad."
+                : "Trench Upgrade requires the Infantry Squad to occupy a Sandbag Line.",
             ],
           }, actorVisibility);
           continue;
@@ -968,6 +1082,24 @@ export function resolveRound(input: RoundInput): RoundOutput {
         }, actorVisibility);
       }
       if (action.type === "AIRDROP") {
+        const cargoManifestItemId = typeof action.payload?.cargoManifestItemId === "string"
+          ? action.payload.cargoManifestItemId
+          : undefined;
+        const manifestedSupply = cargoManifestItemId
+          ? actor.cargo?.find((candidate) => candidate.id === cargoManifestItemId && candidate.kind === "SUPPLY")
+          : undefined;
+        if (manifestedSupply) {
+          event("AIR_DROP_FAILED", actor.id, {
+            actionId: action.id,
+            cargoManifestItemId: manifestedSupply.id,
+            supplyType: manifestedSupply.supplyType,
+            quantity: manifestedSupply.quantity,
+            targetHex: action.targetHex,
+            reason: "Coordinated Supply Drop is not yet governed; Supply remains aboard.",
+            hazardous: false,
+          }, actorVisibility);
+          continue;
+        }
         const cargoId = typeof action.payload?.cargoDeploymentId === "string"
           ? action.payload.cargoDeploymentId
           : action.targetDeploymentId;
@@ -1075,6 +1207,14 @@ export function resolveRound(input: RoundInput): RoundOutput {
         }, actorVisibility);
       }
       if (action.type === "RELOAD") {
+        if (action.weaponId === "weapon-light-at") {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: ["Light AT charges have no active field reload rule."],
+          }, actorVisibility);
+          continue;
+        }
         const medicalUnit = (() => {
           try {
             return getTacticalUnitClass(actor.definitionId).tags.includes("MEDICAL");
@@ -1138,15 +1278,22 @@ export function resolveRound(input: RoundInput): RoundOutput {
         event("WEAPON_RELOADED", actor.id, { actionId: action.id, weaponId: weapon.id, ammunitionAfter: reloaded.ammunitionAfter, supplySpent: reloaded.supplySpent }, actorVisibility);
       }
       if (action.type === "HEAL") {
-        const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
-        let targetIsInfantry = false;
-        if (target) {
+        const actorIsMedic = (() => {
           try {
-            targetIsInfantry = getTacticalUnitClass(target.definitionId).tags.includes("INFANTRY");
+            return getTacticalUnitClass(actor.definitionId).tags.includes("MEDICAL");
           } catch {
-            targetIsInfantry = false;
+            return false;
           }
-        }
+        })();
+        const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+        const targetIsInfantry = (() => {
+          if (!target) return false;
+          try {
+            return getTacticalUnitClass(target.definitionId).tags.includes("INFANTRY");
+          } catch {
+            return false;
+          }
+        })();
         const profile: HealingProfile = {
           id: "v5-first-aid",
           targetHealthModels: ["FORCE_STRENGTH"],
@@ -1159,7 +1306,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
           amountCap: "HEALER_CURRENT_HEALTH" as const,
           handlerId: "foundation-action-handler",
         };
-        const healingInput = target && targetIsInfantry ? {
+        const healingInput = actorIsMedic && target && targetIsInfantry ? {
           profile,
           healer: {
             id: actor.id,
@@ -1179,11 +1326,17 @@ export function resolveRound(input: RoundInput): RoundOutput {
           supplyAvailable: actor.supplies?.MEDICAL_SUPPLY ?? 0,
         } : undefined;
         const preflight = healingInput ? resolveHealing({ ...healingInput, rolledAmount: 1 }) : undefined;
-        if (!target || !targetIsInfantry || !preflight?.legal || !healingInput) {
+        if (!actorIsMedic || !target || !targetIsInfantry || !preflight?.legal || !healingInput) {
           event("ORDER_REJECTED", actor.id, {
             orderId: order.id,
             actionId: action.id,
-            reasons: [!targetIsInfantry ? "First Aid requires a friendly Infantry target." : preflight?.reason ?? "First Aid is illegal."],
+            reasons: [
+              !actorIsMedic
+                ? "First Aid requires a Combat Medic."
+                : !targetIsInfantry
+                  ? "First Aid requires a friendly Infantry target."
+                  : preflight?.reason ?? "First Aid is illegal.",
+            ],
           }, actorVisibility);
           continue;
         }
@@ -1191,6 +1344,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         const healed = resolveHealing({ ...healingInput, rolledAmount });
         if (!healed.legal) throw new Error(`First Aid preflight diverged: ${healed.reason ?? "unknown reason"}`);
         const before = target.currentHealth;
+        const medicalSupplyBefore = actor.supplies?.MEDICAL_SUPPLY ?? 0;
         target.currentHealth = healed.targetHealthAfter;
         actor.supplies = { ...(actor.supplies ?? {}), MEDICAL_SUPPLY: healed.supplyAfter };
         event("DICE_ROLLED", actor.id, {
@@ -1209,6 +1363,8 @@ export function resolveRound(input: RoundInput): RoundOutput {
           amount: healed.amount,
           after: target.currentHealth,
           medicalSupplySpent: healed.supplySpent,
+          medicalSupplyBefore,
+          medicalSupplyAfter: healed.supplyAfter,
         }, actorVisibility);
       }
       if (action.type === "CREW_REPAIR") {
@@ -1262,6 +1418,9 @@ export function resolveRound(input: RoundInput): RoundOutput {
           : repairKind === "SUBSYSTEM" && typeof subsystemId === "string"
             ? { kind: "SUBSYSTEM", subsystemId }
             : undefined;
+        const targetRequiresLandingForRepair = target !== undefined &&
+          deploymentTags(target).includes("ATMO_FLIGHT") &&
+          !target.statuses.includes("LANDED");
         const profile: EngineerRepairProfile = {
           id: "v5-engineer-field-repair",
           maximumRange: 0,
@@ -1272,7 +1431,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
           supplyCost: 1,
           handlerId: "foundation-action-handler",
         };
-        const repaired = target && actorIsEngineer && choice ? resolveEngineerRepair({
+        const repaired = target && actorIsEngineer && choice && !targetRequiresLandingForRepair ? resolveEngineerRepair({
           profile,
           engineer: { id: actor.id, side: actor.side },
           target: {
@@ -1294,6 +1453,8 @@ export function resolveRound(input: RoundInput): RoundOutput {
             reasons: [
               !actorIsEngineer
                 ? "Engineer Repair requires an Engineer unit."
+                : targetRequiresLandingForRepair
+                  ? "Fixed-wing aerospace must land at a friendly airfield before it can be repaired."
                 : repaired?.reason ?? "Engineer Repair target or repair choice is invalid.",
             ],
           }, actorVisibility);
@@ -1415,7 +1576,13 @@ export function resolveRound(input: RoundInput): RoundOutput {
       if (
         !intercepted ||
         !deploymentTags(intercepted).includes("AEROSPACE") ||
-        !canAttackInterceptor(interceptor, interceptorOrder, intercepted, state)
+        !canAttackInterceptor(
+          interceptor,
+          interceptorOrder,
+          intercepted,
+          state,
+          resolvedRoutes.get(interceptorOrder.id),
+        )
       ) continue;
       const existing = interceptorsByTarget.get(intercepted.id) ?? [];
       if (!existing.some((candidate) => candidate.id === interceptor.id)) existing.push(interceptor);
@@ -1430,6 +1597,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
   }
   for (const order of validOrders.values()) {
     const attacker = state.deployments.find((candidate) => candidate.id === order.unitId)!;
+    const resolvedRoute = resolvedRoutes.get(order.id) ?? order.route;
     for (const action of order.actions.filter((candidate) => candidate.type === "ATTACK")) {
       if (isArtilleryDeployment(attacker) && !attacker.statuses.includes("DEPLOYED")) {
         event("ORDER_REJECTED", attacker.id, {
@@ -1443,7 +1611,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
       const declaredInterceptors = interceptorsByTarget.get(attacker.id) ?? [];
       if (declaredInterceptors.length > 0) {
         const legalInterceptors = declaredInterceptors.filter((candidate) =>
-          canAttackInterceptor(attacker, order, candidate, state)
+          canAttackInterceptor(attacker, order, candidate, state, resolvedRoute)
         );
         if (legalInterceptors.length === 0) {
           event("ORDER_REJECTED", attacker.id, {
@@ -1478,7 +1646,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         });
         continue;
       }
-      const arc = validateLimitedForwardArc(deploymentTags(attacker), order.route, attacker.facing, target.position);
+      const arc = validateLimitedForwardArc(deploymentTags(attacker), resolvedRoute, attacker.facing, target.position);
       if (!arc.legal) {
         event("ORDER_REJECTED", attacker.id, {
           orderId: order.id,
@@ -1493,9 +1661,10 @@ export function resolveRound(input: RoundInput): RoundOutput {
         .map((weapon) => validateBomberAttack(
           deploymentTags(attacker),
           weapon,
-          order.route,
+          resolvedRoute,
           target.position,
           attacker.ammunition[weapon.id] ?? 0,
+          { orderType: order.orderType, targetTags: deploymentTags(target) },
         ))
         .find((validation) => validation.applies && !validation.legal);
       if (bombingFailure) {
@@ -1522,12 +1691,16 @@ export function resolveRound(input: RoundInput): RoundOutput {
       for (const weapon of attacker.weapons.filter((candidate) => !isLightAtChargeStore(candidate)).sort((left, right) =>
         left.id < right.id ? -1 : left.id > right.id ? 1 : 0
       )) {
+        const ammunitionBefore = weapon.ammoCapacity === undefined
+          ? undefined
+          : attacker.ammunition[weapon.id] ?? 0;
         const bombing = validateBomberAttack(
           deploymentTags(attacker),
           weapon,
-          order.route,
+          resolvedRoute,
           target.position,
           attacker.ammunition[weapon.id] ?? 0,
+          { orderType: order.orderType, targetTags: deploymentTags(target) },
         );
         if (!bombing.legal) {
           event("WEAPON_SKIPPED", attacker.id, {
@@ -1570,7 +1743,12 @@ export function resolveRound(input: RoundInput): RoundOutput {
             sourceEquipmentId: "equipment-light-at",
           });
         }
-        if (result.ammoAfter !== undefined) attacker.ammunition[weapon.id] = result.ammoAfter;
+        if (result.ammoAfter !== undefined) {
+          attacker.ammunition[weapon.id] = result.ammoAfter;
+          if (result.ammoAfter === 0 && isAerospaceDeployment(attacker)) {
+            attacker.statuses = [...new Set([...attacker.statuses, "REARM_REQUIRED"])];
+          }
+        }
         if (result.cooldownAfter) attacker.cooldowns[weapon.id] = result.cooldownAfter;
         event("DICE_ROLLED", attacker.id, {
           actionId: action.id,
@@ -1585,6 +1763,8 @@ export function resolveRound(input: RoundInput): RoundOutput {
           highGroundModifier: result.highGroundModifier,
           evasiveAttackModifier: result.evasiveAttackModifier,
           armorPiercingBonus: result.armorPiercingBonus,
+          ammunitionBefore,
+          ammunitionAfter: result.ammoAfter,
         });
         const rushMultiplier = rushingUnits.has(target.id) ? 2 : 1;
         const healthLoss = result.healthLoss * rushMultiplier;
@@ -1744,6 +1924,10 @@ export function resolveRound(input: RoundInput): RoundOutput {
         supplies: deployment.supplies ?? {},
         currentHealth: deployment.currentHealth,
         maximumHealth: deployment.stats.maxHealth,
+        position: { ...deployment.position },
+        facing: deployment.facing,
+        statuses: [...deployment.statuses],
+        equipmentIds: [...deployment.equipmentIds],
         subsystems: deployment.subsystems ?? [],
         cargo: (deployment.cargo ?? []).map((item) => ({
           ...item,

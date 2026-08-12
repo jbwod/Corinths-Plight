@@ -132,6 +132,15 @@ describe("rules catalogue bootstrap", () => {
     expect(content.movementProfiles.every((profile) => profile.definitionStatus === "unspecified")).toBe(true);
 
     const overlays = new Map(content.overlays.map((overlay) => [`${overlay.definitionKind}:${overlay.definitionId}`, overlay]));
+    expect(overlays.get("UNIT:unit-infantry-squad")).toMatchObject({
+      implementationStatus: "IMPLEMENTED",
+      executable: true,
+      requisitionStatus: "PUBLISHED",
+      availabilityStatus: "AVAILABLE",
+      purchasable: true,
+      reasonCode: null,
+      parameters: { missing: [] },
+    });
     expect(overlays.get("UNIT:unit-heavy-air-transport")).toMatchObject({
       implementationStatus: "PARTIAL",
       executable: true,
@@ -151,14 +160,25 @@ describe("rules catalogue bootstrap", () => {
       reasonCode: null,
       parameters: { missing: [] },
     });
-    expect(overlays.get("UNIT:unit-vtol")).toMatchObject({
-      implementationStatus: "PARTIAL",
+    expect(overlays.get("UNIT:unit-main-battle-tank")).toMatchObject({
+      implementationStatus: "IMPLEMENTED",
       executable: true,
       handlerId: "foundation-generated-unit-class",
       requisitionStatus: "PUBLISHED",
       availabilityStatus: "AVAILABLE",
       purchasable: true,
       reasonCode: null,
+      parameters: { missing: [] },
+    });
+    expect(overlays.get("UNIT:unit-vtol")).toMatchObject({
+      implementationStatus: "IMPLEMENTED",
+      executable: true,
+      handlerId: "foundation-generated-unit-class",
+      requisitionStatus: "PUBLISHED",
+      availabilityStatus: "AVAILABLE",
+      purchasable: true,
+      reasonCode: null,
+      parameters: { missing: [] },
     });
     expect(overlays.get("UNIT:unit-logi-truck")).toMatchObject({
       implementationStatus: "PARTIAL",
@@ -170,14 +190,27 @@ describe("rules catalogue bootstrap", () => {
       reasonCode: null,
     });
     expect(overlays.get("UNIT:unit-light-mech")).toMatchObject({
-      implementationStatus: "PARTIAL",
+      implementationStatus: "IMPLEMENTED",
       executable: true,
       handlerId: "foundation-generated-unit-class",
       requisitionStatus: "PUBLISHED",
       availabilityStatus: "AVAILABLE",
       purchasable: true,
       reasonCode: null,
+      parameters: { missing: [] },
     });
+    for (const aerospaceId of ["unit-aerospace-fighter", "unit-aerospace-bomber"]) {
+      expect(overlays.get(`UNIT:${aerospaceId}`)).toMatchObject({
+        implementationStatus: "IMPLEMENTED",
+        executable: true,
+        handlerId: "foundation-generated-unit-class",
+        requisitionStatus: "PUBLISHED",
+        availabilityStatus: "AVAILABLE",
+        purchasable: true,
+        reasonCode: null,
+        parameters: { missing: [] },
+      });
+    }
     for (const equipmentId of ["equipment-drone-operator", "equipment-vehicle-optics"]) {
       expect(overlays.get(`EQUIPMENT:${equipmentId}`)).toMatchObject({
         implementationStatus: "PARTIAL",

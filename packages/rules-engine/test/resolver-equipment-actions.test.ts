@@ -133,7 +133,94 @@ describe("equipment and transport actions", () => {
     }));
   });
 
-  it("forces an intercepted NPC aerospace attack onto the legal Fighter", () => {
+  it("lands, rearms, persists, and takes off an Aerospace Bomber at a compatible airfield", () => {
+    const bomberSource = createDemoCampaignState(1_000).deployments
+      .find((deployment) => deployment.definitionId === "unit-aerospace-bomber")!;
+    const landingState = createScenarioCampaignState({
+      mapSourceKey: "fixture/operation-iron-rain",
+      campaignId: "iron-rain-bomber-ops",
+      campaignName: "Operation Iron Rain",
+      planetName: "Corinth",
+      now: 1_000,
+      durationMs: 300_000,
+      alliedDeployments: [{
+        ...structuredClone(bomberSource),
+        id: "iron-rain-bomber",
+        campaignId: "iron-rain-bomber-ops",
+        position: { q: 0, r: 0 },
+        ammunition: { "weapon-bomber-ordnance": 0 },
+        statuses: ["REARM_REQUIRED"],
+      }],
+    });
+    const bomber = landingState.deployments.find((deployment) => deployment.id === "iron-rain-bomber")!;
+    const landAndRearm = order(landingState, bomber, [
+      action("bomber-land", "LAND"),
+      action("bomber-rearm", "REARM_AEROSPACE"),
+    ]);
+    landingState.orders = [landAndRearm];
+
+    const landed = resolveRound({
+      previousState: landingState,
+      rulesetVersion: landingState.rulesetVersion,
+      playerOrders: [landAndRearm],
+      enemyOrders: [],
+      seed: "bomber-flight-ops",
+      resolutionTime: 2_000,
+    });
+    expect(landed.state.deployments.find((deployment) => deployment.id === bomber.id)).toMatchObject({
+      statuses: ["LANDED"],
+      ammunition: { "weapon-bomber-ordnance": 1 },
+    });
+    expect(landed.state.deployments.find((deployment) => deployment.id === bomber.id)?.statuses)
+      .not.toContain("REARM_REQUIRED");
+    expect(landed.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "AEROSPACE_LANDED", actor: bomber.id }),
+      expect.objectContaining({
+        type: "AEROSPACE_REARMED",
+        actor: bomber.id,
+        payload: expect.objectContaining({
+          ammunitionBefore: { "weapon-bomber-ordnance": 0 },
+          ammunitionAfter: { "weapon-bomber-ordnance": 1 },
+          rulesDecisionId: "RC-V5-023",
+        }),
+      }),
+    ]));
+    expect(landed.persistentEffects).toContainEqual(expect.objectContaining({
+      type: "UNIT_STATE_UPDATED",
+      unitId: bomber.persistentUnitId,
+      payload: expect.objectContaining({ ammunition: { "weapon-bomber-ordnance": 1 } }),
+    }));
+
+    const takeOffState = structuredClone(landed.state);
+    takeOffState.phase = "PLANNING";
+    takeOffState.outcome = undefined;
+    takeOffState.orders = [];
+    const landedBomber = takeOffState.deployments.find((deployment) => deployment.id === bomber.id)!;
+    const takeOff = order(takeOffState, landedBomber, [action("bomber-takeoff", "TAKE_OFF")]);
+    takeOff.orderType = "ADVANCE";
+    takeOff.route = [{ q: 0, r: 0 }, { q: 1, r: 0 }];
+    takeOff.endHex = { q: 1, r: 0 };
+    takeOffState.orders = [takeOff];
+
+    const airborne = resolveRound({
+      previousState: takeOffState,
+      rulesetVersion: takeOffState.rulesetVersion,
+      playerOrders: [takeOff],
+      enemyOrders: [],
+      seed: "bomber-flight-ops-takeoff",
+      resolutionTime: 4_000,
+    });
+    expect(airborne.state.deployments.find((deployment) => deployment.id === bomber.id)).toMatchObject({
+      statuses: [],
+      position: { q: 1, r: 0 },
+    });
+    expect(airborne.events).toContainEqual(expect.objectContaining({
+      type: "AEROSPACE_TOOK_OFF",
+      actor: bomber.id,
+    }));
+  });
+
+  it("makes an intercepted Bomber lose its ground-only ordnance attack when it has no legal Fighter target", () => {
     const state = createDemoCampaignState(1_000);
     const fighter = state.deployments.find((deployment) => deployment.id === "dep-vulture-1")!;
     const bomber = state.deployments.find((deployment) => deployment.id === "dep-havoc-2")!;
@@ -171,15 +258,18 @@ describe("equipment and transport actions", () => {
       actor: bomber.id,
       payload: expect.objectContaining({ interceptorId: fighter.id, rulesDecisionId: "RC-V5-028" }),
     }));
-    expect(output.events).toContainEqual(expect.objectContaining({
-      type: "DICE_ROLLED",
-      actor: bomber.id,
-      payload: expect.objectContaining({ targetId: fighter.id }),
-    }));
     expect(output.events).not.toContainEqual(expect.objectContaining({
       type: "DICE_ROLLED",
       actor: bomber.id,
-      payload: expect.objectContaining({ targetId: infantry.id }),
+    }));
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "ORDER_REJECTED",
+      actor: bomber.id,
+      payload: expect.objectContaining({
+        targetId: infantry.id,
+        rulesDecisionId: "RC-V5-028",
+        reasons: [expect.stringMatching(/no legal interceptor target/i)],
+      }),
     }));
   });
 
@@ -327,6 +417,92 @@ describe("equipment and transport actions", () => {
     expect(bombed.state.deployments.find((deployment) => deployment.id === bomber.id)?.position).toEqual({ q: 1, r: -3 });
     expect(bombed.state.deployments.find((deployment) => deployment.id === bomber.id)?.ammunition)
       .toEqual({ "weapon-bomber-ordnance": 0 });
+    expect(bombed.state.deployments.find((deployment) => deployment.id === bomber.id)?.statuses)
+      .toContain("REARM_REQUIRED");
+  });
+
+  it("rejects a stationary Bomber attack and an aerospace ordnance target without spending ammunition", () => {
+    const stationaryState = createDemoCampaignState(1_000);
+    const stationaryBomber = stationaryState.deployments.find((deployment) => deployment.id === "dep-havoc-2")!;
+    const groundTarget = stationaryState.deployments.find((deployment) => deployment.id === "bug-drone-1")!;
+    groundTarget.position = { ...stationaryBomber.position };
+    const stationaryOrder = order(stationaryState, stationaryBomber, [action("bomber-stationary-run", "ATTACK", {
+      targetDeploymentId: groundTarget.id,
+    })]);
+    stationaryState.orders = [stationaryOrder];
+
+    const stationary = resolveRound({ ...input([stationaryOrder]), previousState: stationaryState });
+    expect(stationary.events).toContainEqual(expect.objectContaining({
+      type: "ORDER_REJECTED",
+      actor: stationaryBomber.id,
+      payload: expect.objectContaining({ reasons: [expect.stringMatching(/advance/i)] }),
+    }));
+    expect(stationary.state.deployments.find((deployment) => deployment.id === stationaryBomber.id)?.ammunition)
+      .toEqual({ "weapon-bomber-ordnance": 1 });
+
+    const airTargetState = createDemoCampaignState(1_000);
+    const bomber = airTargetState.deployments.find((deployment) => deployment.id === "dep-havoc-2")!;
+    const fighter = airTargetState.deployments.find((deployment) => deployment.id === "dep-vulture-1")!;
+    fighter.position = { q: 0, r: -3 };
+    const airTargetOrder = order(airTargetState, bomber, [action("bomber-air-target", "ATTACK", {
+      targetDeploymentId: fighter.id,
+    })]);
+    airTargetOrder.orderType = "ADVANCE";
+    airTargetOrder.route = [{ q: -1, r: -3 }, { q: 0, r: -3 }, { q: 1, r: -3 }];
+    airTargetOrder.endHex = { q: 1, r: -3 };
+    airTargetState.orders = [airTargetOrder];
+
+    const airTarget = resolveRound({ ...input([airTargetOrder]), previousState: airTargetState });
+    expect(airTarget.events).toContainEqual(expect.objectContaining({
+      type: "ORDER_REJECTED",
+      actor: bomber.id,
+      payload: expect.objectContaining({ reasons: [expect.stringMatching(/ground unit/i)] }),
+    }));
+    expect(airTarget.state.deployments.find((deployment) => deployment.id === bomber.id)?.ammunition)
+      .toEqual({ "weapon-bomber-ordnance": 1 });
+  });
+
+  it("uses the Bomber's actually traversed path when final-hex capacity stops the sortie", () => {
+    const state = createDemoCampaignState(1_000);
+    const bomber = state.deployments.find((deployment) => deployment.id === "dep-havoc-2")!;
+    const target = state.deployments.find((deployment) => deployment.id === "bug-drone-1")!;
+    const targetPosition = { q: 1, r: -3 };
+    target.position = targetPosition;
+    const targetCapacity = state.map.find((hex) =>
+      hex.coord.q === targetPosition.q && hex.coord.r === targetPosition.r
+    )!.capacity;
+    const blockers = state.deployments
+      .filter((deployment) => deployment.id !== bomber.id && deployment.id !== target.id)
+      .slice(0, targetCapacity - 1);
+    for (const blocker of blockers) blocker.position = targetPosition;
+
+    const bombingOrder = order(state, bomber, [action("bomber-capacity-blocked-run", "ATTACK", {
+      targetDeploymentId: target.id,
+    })]);
+    bombingOrder.orderType = "ADVANCE";
+    bombingOrder.route = [{ q: -1, r: -3 }, { q: 0, r: -3 }, targetPosition];
+    bombingOrder.endHex = targetPosition;
+    state.orders = [bombingOrder];
+
+    const output = resolveRound({ ...input([bombingOrder]), previousState: state });
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "UNIT_BLOCKED",
+      actor: bomber.id,
+      payload: expect.objectContaining({ reason: "HEX_CAPACITY" }),
+    }));
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "ORDER_REJECTED",
+      actor: bomber.id,
+      payload: expect.objectContaining({ reasons: [expect.stringMatching(/flight path/i)] }),
+    }));
+    expect(output.events).not.toContainEqual(expect.objectContaining({
+      type: "DICE_ROLLED",
+      actor: bomber.id,
+    }));
+    expect(output.state.deployments.find((deployment) => deployment.id === bomber.id)).toMatchObject({
+      position: { q: 0, r: -3 },
+      ammunition: { "weapon-bomber-ordnance": 1 },
+    });
   });
 
 

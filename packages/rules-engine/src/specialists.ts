@@ -10,6 +10,7 @@ import type {
   Facing,
   FactionSide,
   FighterProfile,
+  OrderType,
   SpotterProfile,
   StealthProfile,
   TargetDomain,
@@ -423,15 +424,37 @@ export interface BomberAttackValidation extends BomberFlyOverResult {
   applies: boolean;
 }
 
+export interface BomberAttackContext {
+  orderType: OrderType;
+  targetTags: readonly string[];
+}
+
 export function validateBomberAttack(
   attackerTags: readonly string[],
   weapon: WeaponProfile,
   route: readonly AxialCoord[],
   target: AxialCoord,
   currentAmmo: number,
+  context: BomberAttackContext,
 ): BomberAttackValidation {
   const applies = attackerTags.includes("BOMBER") && weapon.tags.includes("FLY_OVER");
   if (!applies) return { applies: false, legal: true, ammunitionAfter: currentAmmo };
+  if (context.orderType !== "ADVANCE") {
+    return {
+      applies: true,
+      legal: false,
+      reason: "Bomber ordnance requires an Advance order and a flight path through the target.",
+      ammunitionAfter: currentAmmo,
+    };
+  }
+  if (!context.targetTags.includes("GROUND")) {
+    return {
+      applies: true,
+      legal: false,
+      reason: "Bomber ordnance may target only a ground unit.",
+      ammunitionAfter: currentAmmo,
+    };
+  }
   const result = validateBomberFlyOver({
     id: `bomber-attack:${weapon.id}`,
     requiresTargetFlyOver: true,
@@ -455,7 +478,7 @@ export function validateBomberFlyOver(
     return { legal: false, reason: "Bomber has no ordnance.", ammunitionAfter: currentAmmo };
   }
   if (route.length === 0) return { legal: false, reason: "Bomber route is empty.", ammunitionAfter: currentAmmo };
-  const pathIndex = route.findIndex((coord) => sameCoord(coord, target));
+  const pathIndex = route.findIndex((coord, index) => index > 0 && sameCoord(coord, target));
   if (profile.requiresTargetFlyOver && pathIndex < 0) {
     return { legal: false, reason: "Bomber flight path does not pass over the target.", ammunitionAfter: currentAmmo };
   }
@@ -501,7 +524,11 @@ export function validateAirDrop(input: AirDropInput): AirDropValidation {
   const terrainBlocked = input.profile.blockedTerrainIds.includes(input.destination.terrainId);
   const environmentBlocked = input.destination.environment.some((tag) => input.profile.blockedEnvironmentTags.includes(tag));
   const structureBlocked = !input.profile.allowStructuresAtDestination && input.destination.structureIds.length > 0;
-  const capacityBlocked = !Number.isInteger(input.currentOccupancy) || input.currentOccupancy < 0 || input.currentOccupancy >= input.destination.capacity;
+  const capacityBlocked =
+    !Number.isInteger(input.currentOccupancy) ||
+    input.currentOccupancy < 0 ||
+    input.destination.capacity < 1 ||
+    input.currentOccupancy > 0;
   const hazardous = terrainBlocked || environmentBlocked || structureBlocked || capacityBlocked;
   if (input.profile.requiresClearDestination && hazardous && input.profile.hazardousDestinationPolicy === "REJECT") {
     reasons.push("Drop destination is not clear and open.");

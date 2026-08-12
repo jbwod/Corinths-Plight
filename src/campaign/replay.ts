@@ -84,6 +84,16 @@ function applyEvent(
         );
       }
       break;
+    case "SUBSYSTEM_MALFUNCTIONED":
+      if (target && Array.isArray(payload.affectedSubsystemIds)) {
+        const affected = new Set(payload.affectedSubsystemIds.filter((id): id is string => typeof id === "string"));
+        target.subsystems = target.subsystems?.map((subsystem) =>
+          affected.has(subsystem.subsystemId)
+            ? { subsystemId: subsystem.subsystemId, state: "DISABLED" }
+            : subsystem
+        );
+      }
+      break;
     case "LIGHT_AT_EXPENDED":
       if (actor && typeof payload.ammunitionAfter === "number") {
         actor.ammunition["weapon-light-at"] = payload.ammunitionAfter;
@@ -131,6 +141,21 @@ function applyEvent(
       break;
     case "AEROSPACE_TOOK_OFF":
       if (actor) actor.statuses = actor.statuses.filter((status) => status !== "LANDED");
+      break;
+    case "AEROSPACE_REARMED":
+      if (actor && payload.ammunitionAfter && typeof payload.ammunitionAfter === "object" && !Array.isArray(payload.ammunitionAfter)) {
+        actor.ammunition = Object.fromEntries(Object.entries(payload.ammunitionAfter)
+          .filter((entry): entry is [string, number] => typeof entry[1] === "number"));
+        actor.statuses = actor.statuses.filter((status) => status !== "REARM_REQUIRED");
+      }
+      break;
+    case "DICE_ROLLED":
+      if (actor && typeof payload.weaponId === "string" && typeof payload.ammunitionAfter === "number") {
+        actor.ammunition[payload.weaponId] = payload.ammunitionAfter;
+        if (payload.ammunitionAfter === 0 && actor.tags?.includes("AEROSPACE")) {
+          actor.statuses = [...new Set([...actor.statuses, "REARM_REQUIRED"])];
+        }
+      }
       break;
     case "OBJECTIVE_CAPTURED": {
       const objectiveId = typeof payload.objectiveId === "string" ? payload.objectiveId : undefined;

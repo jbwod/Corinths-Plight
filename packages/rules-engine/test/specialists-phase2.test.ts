@@ -253,12 +253,44 @@ describe("aerospace attack paths, ammunition, and drops", () => {
       tags: ["AEROSPACE_WEAPON", "ORDNANCE", "FLY_OVER"],
     };
     const route = [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }];
-    expect(validateBomberAttack(["AEROSPACE", "BOMBER"], weapon, route, { q: 1, r: 0 }, 1))
+    expect(validateBomberAttack(["AEROSPACE", "BOMBER"], weapon, route, { q: 1, r: 0 }, 1, {
+      orderType: "ADVANCE",
+      targetTags: ["GROUND", "PERSONNEL"],
+    }))
       .toEqual({ applies: true, legal: true, pathIndex: 1, ammunitionAfter: 0 });
-    expect(validateBomberAttack(["AEROSPACE", "BOMBER"], weapon, route, { q: 1, r: 1 }, 1))
+    expect(validateBomberAttack(["AEROSPACE", "BOMBER"], weapon, route, { q: 1, r: 1 }, 1, {
+      orderType: "ADVANCE",
+      targetTags: ["GROUND", "PERSONNEL"],
+    }))
       .toMatchObject({ applies: true, legal: false, reason: expect.stringMatching(/flight path/i), ammunitionAfter: 1 });
-    expect(validateBomberAttack(["AEROSPACE"], weapon, route, { q: 1, r: 1 }, 1))
+    expect(validateBomberAttack(["AEROSPACE", "BOMBER"], weapon, route, { q: 1, r: 0 }, 1, {
+      orderType: "HOLD",
+      targetTags: ["GROUND", "PERSONNEL"],
+    }))
+      .toMatchObject({ applies: true, legal: false, reason: expect.stringMatching(/advance/i), ammunitionAfter: 1 });
+    expect(validateBomberAttack(["AEROSPACE", "BOMBER"], weapon, route, { q: 1, r: 0 }, 1, {
+      orderType: "ADVANCE",
+      targetTags: ["AEROSPACE", "VEHICLE"],
+    }))
+      .toMatchObject({ applies: true, legal: false, reason: expect.stringMatching(/ground unit/i), ammunitionAfter: 1 });
+    expect(validateBomberAttack(["AEROSPACE"], weapon, route, { q: 1, r: 1 }, 1, {
+      orderType: "HOLD",
+      targetTags: ["AEROSPACE"],
+    }))
       .toEqual({ applies: false, legal: true, ammunitionAfter: 1 });
+  });
+
+  it("does not count the Bomber's starting hex as a fly-over", () => {
+    expect(validateBomberFlyOver(
+      bomber,
+      [{ q: 0, r: 0 }, { q: 1, r: 0 }],
+      { q: 0, r: 0 },
+      1,
+    )).toMatchObject({
+      legal: false,
+      reason: expect.stringMatching(/does not pass over/i),
+      ammunitionAfter: 1,
+    });
   });
 
   it("accepts only eligible cargo on a straight HAT path into a clear destination", () => {

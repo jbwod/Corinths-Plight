@@ -21,7 +21,7 @@ export const CAMPAIGN_REPORT_GROUPS: CampaignReportGroup[] = [
   "COMMAND",
 ];
 
-const movementEvents = new Set(["UNIT_MOVED", "UNIT_BLOCKED", "UNIT_GARRISONED", "UNIT_LEFT_GARRISON", "UNIT_DUG_IN", "UNIT_DUG_OUT", "EVASIVE_MANEUVER"]);
+const movementEvents = new Set(["UNIT_MOVED", "UNIT_BLOCKED", "UNIT_GARRISONED", "UNIT_LEFT_GARRISON", "UNIT_DUG_IN", "UNIT_DUG_OUT", "EVASIVE_MANEUVER", "AEROSPACE_LANDED", "AEROSPACE_TOOK_OFF"]);
 const combatEvents = new Set(["DICE_ROLLED", "UNIT_ATTACKED", "LIGHT_AT_EXPENDED", "WEAPON_SKIPPED", "SUBSYSTEM_MALFUNCTIONED", "DAMAGE_APPLIED", "UNIT_DESTROYED"]);
 const supportEvents = new Set([
   "CARGO_LOADED",
@@ -43,6 +43,8 @@ const supportEvents = new Set([
   "STRUCTURE_COMPLETED",
   "STRUCTURE_UPGRADED",
   "SUPPLY_TRANSFERRED",
+  "AEROSPACE_REARMED",
+  "AEROSPACE_INTERCEPTED",
 ]);
 const objectiveEvents = new Set([
   "OBJECTIVE_CAPTURED",
@@ -170,13 +172,21 @@ export function describeCampaignReportEvent(
       return payload.active === true
         ? `${actor} completed an Evasive maneuver: +3 Defense and −2 to outgoing attacks this round.`
         : `${actor} was stopped before completing the minimum Evasive displacement and gained no modifier.`;
+    case "AEROSPACE_LANDED":
+      return `${actor} landed at a friendly compatible airfield.`;
+    case "AEROSPACE_TOOK_OFF":
+      return `${actor} took off and resumed its flight state.`;
+    case "AEROSPACE_REARMED":
+      return `${actor} rearmed while landed at a friendly facility (${String(payload.rulesDecisionId ?? "RC-V5-023")}).`;
+    case "AEROSPACE_INTERCEPTED":
+      return `${actor} was intercepted by ${deploymentNames.get(String(payload.interceptorId)) ?? String(payload.interceptorId ?? "an allied Fighter")} (${String(payload.rulesDecisionId ?? "RC-V5-028")}).`;
     case "DICE_ROLLED": {
       const raw = numberValue(payload.raw);
       const modified = numberValue(payload.modified);
       return `${actor} rolled ${raw}${modified !== raw ? `, modified to ${modified}` : ""}.`;
     }
     case "UNIT_ATTACKED":
-      return `${actor} attacked ${target}: ${numberValue(payload.healthLoss)} damage${numberValue(payload.armorPiercingBonus) > 0 ? `, Light AT added +${numberValue(payload.armorPiercingBonus)} AP` : ""}${payload.highGroundModifier === 1 ? ", high ground added +1" : ""}${payload.evasiveAttackModifier === -2 ? ", Evasive fire applied −2" : ""}${payload.coverArmor === 1 ? ", cover added +1 Armor" : ""}${payload.digInDefense === 2 ? ", Dig In added +2 Defense" : ""}${payload.evasiveDefenseModifier === 3 ? ", target Evasive added +3 Defense" : ""}${payload.rapidFireMultiplier === 2 ? ", Rapid Fire doubled the damage result" : ""}${payload.penetrated === true ? ", armour penetrated" : ""}.`;
+      return `${actor} attacked ${target}: ${numberValue(payload.healthLoss)} damage${payload.rearAttack === true ? ", direct rear attack ignored vehicle Armor" : ""}${numberValue(payload.armorPiercingBonus) > 0 ? `, Light AT added +${numberValue(payload.armorPiercingBonus)} AP` : ""}${payload.highGroundModifier === 1 ? ", high ground added +1" : ""}${payload.evasiveAttackModifier === -2 ? ", Evasive fire applied −2" : ""}${payload.coverArmor === 1 ? ", cover added +1 Armor" : ""}${payload.digInDefense === 2 ? ", Dig In added +2 Defense" : ""}${payload.evasiveDefenseModifier === 3 ? ", target Evasive added +3 Defense" : ""}${payload.rapidFireMultiplier === 2 ? ", Rapid Fire doubled the damage result" : ""}${payload.penetrated === true ? ", armour penetrated" : ""}.`;
     case "LIGHT_AT_EXPENDED":
       return `${actor} spent ${numberValue(payload.chargesSpent)} Light AT charge${numberValue(payload.chargesSpent) === 1 ? "" : "s"} for +${numberValue(payload.armorPiercingBonus)} AP against ${target} (${numberValue(payload.ammunitionAfter)} remaining).`;
     case "WEAPON_SKIPPED":

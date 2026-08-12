@@ -22,6 +22,7 @@ import {
   getTacticalOrderRule,
   getUnitClass,
   hexDistance,
+  isRearAttack,
   INFANTRY_GARRISON_BUILDING,
   isLightAtChargeStore,
   projectCampaignState,
@@ -469,6 +470,7 @@ function GameApp() {
       draftedRoute,
       targetUnit.position,
       selectedUnit.ammunition[weapon.id] ?? 0,
+      { orderType, targetTags: targetUnit.tags ?? [] },
     );
     const geometryTargeting = bombing.applies
       ? canTarget({ ...intendedAttacker, position: { ...targetUnit.position } }, targetUnit, weapon, campaign.map, campaign.deployments)
@@ -496,6 +498,7 @@ function GameApp() {
   const attackerIsGround = selectedUnit ? !selectedUnit.tags?.some((tag) => tag === "AEROSPACE" || tag === "VTOL" || tag === "ORBITAL") : false;
   const targetIsGround = targetUnit ? !targetUnit.tags?.some((tag) => tag === "AEROSPACE" || tag === "VTOL" || tag === "ORBITAL") : false;
   const highGroundAdvantage = Boolean(attackerIsGround && targetIsGround && attackerHex && targetHex && attackerHex.elevation > targetHex.elevation);
+  const directRearAttack = Boolean(intendedAttacker && targetUnit && targetIsGround && targetUnit.tags?.includes("VEHICLE") && isRearAttack(intendedAttacker.position, targetUnit.position, targetUnit.facing));
   const targetCover = selectedUnit && targetUnit
     ? resolveTacticalCover(
         { ...selectedUnit, position: draftedRoute.at(-1) ?? selectedUnit.position },
@@ -1821,6 +1824,7 @@ function GameApp() {
                     )}
                     {noEligibleAttackWeapon && <p className="validation danger">No fitted weapon can engage this target from the planned position.</p>}
                     {highGroundAdvantage && <p className="validation">HIGH GROUND: this attack gains +1 to its damage result before mitigation.</p>}
+                    {directRearAttack && <p className="validation">DIRECT REAR ATTACK: this ground vehicle receives no Armor benefit.</p>}
                     {targetCover.armor === 1 && <p className="validation">TARGET IN COVER: +1 Armor applies from {targetCover.sources.map((source) => source.replaceAll("-", " ")).join(" + ")}.</p>}
                     {rapidFireReady && targetIsHorde && <p className="validation">RAPID FIRE: modified damage doubles against this Horde target before mitigation.</p>}
                     {orderType === "EVASIVE" && <p className="validation">EVASIVE FIRE: each outgoing damage result receives −2.</p>}

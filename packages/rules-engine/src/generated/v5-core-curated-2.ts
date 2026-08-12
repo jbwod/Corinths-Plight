@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "ed411b15f806459d6185dadbc0f7c6b2deef419e4db6e65a39d488ed3f0e0ead",
+  "contentHash": "13578835f58b074a039ff8fb2363865faf948620b5a2dc6c6e19038449e00ba6",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -2495,8 +2495,11 @@ const snapshot = {
             "tags": [
               "GROUND",
               "VEHICLE",
-              "SUB_SYSTEM",
-              "REAR_WEAK_SPOT"
+              "ARMOURED",
+              "HEAVY",
+              "SUBSYSTEMS",
+              "REAR_WEAK_SPOT",
+              "ARMOUR_TARGET_PRIORITY"
             ]
           },
           "healthModel": "HITS",
@@ -13892,7 +13895,7 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-aerospace-bomber",
-        "implementationStatus": "PARTIAL",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
         "availabilityStatus": "AVAILABLE",
         "executable": true,
@@ -13914,19 +13917,13 @@ const snapshot = {
             "REARM_FACILITY",
             "NO_GROUND_SPOTTING"
           ],
-          "minimumMechanics": [
-            "FLIGHT_PATH",
-            "FLY_OVER_ATTACK",
-            "AMMUNITION",
-            "LAND_REARM"
-          ],
           "missing": [],
           "publicationCorrection": {
             "reason": "The V5 Bomber sortie executes its chassis, one-shot D6 ordnance, terrain-independent flight, route-bound fly-over attack, friendly-airfield landing/takeoff, Primary rearm, and no-ground-spotting rule.",
             "seedOverlay": {
               "availabilityStatus": "AVAILABLE",
-              "executable": false,
-              "implementationStatus": "PARTIAL",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
               "purchasable": true,
               "reasonCode": null,
               "requisitionStatus": "PUBLISHED"
@@ -13937,7 +13934,7 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-aerospace-fighter",
-        "implementationStatus": "PARTIAL",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
         "availabilityStatus": "AVAILABLE",
         "executable": true,
@@ -13962,19 +13959,13 @@ const snapshot = {
             "INTERCEPTOR",
             "NO_GROUND_SPOTTING"
           ],
-          "minimumMechanics": [
-            "FLIGHT_PATH",
-            "FORWARD_ARC",
-            "AMMUNITION",
-            "LAND_REARM"
-          ],
           "missing": [],
           "publicationCorrection": {
             "reason": "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc, friendly-airfield landing/takeoff, Primary rearm, Aerospace Interceptor target restriction, and no-ground-spotting rule.",
             "seedOverlay": {
               "availabilityStatus": "AVAILABLE",
-              "executable": false,
-              "implementationStatus": "PARTIAL",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
               "purchasable": true,
               "reasonCode": null,
               "requisitionStatus": "PUBLISHED"
@@ -14251,7 +14242,7 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-infantry-squad",
-        "implementationStatus": "PARTIAL",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
         "availabilityStatus": "AVAILABLE",
         "executable": true,
@@ -14279,7 +14270,7 @@ const snapshot = {
             "seedOverlay": {
               "availabilityStatus": "AVAILABLE",
               "executable": true,
-              "implementationStatus": "PARTIAL",
+              "implementationStatus": "IMPLEMENTED",
               "purchasable": true,
               "reasonCode": null,
               "requisitionStatus": "PUBLISHED"
@@ -14358,7 +14349,7 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-light-mech",
-        "implementationStatus": "PARTIAL",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
         "availabilityStatus": "AVAILABLE",
         "executable": true,
@@ -14378,18 +14369,13 @@ const snapshot = {
             "SUBSYSTEMS",
             "EVASIVE"
           ],
-          "minimumMechanics": [
-            "MECH_MOVEMENT",
-            "EVASIVE",
-            "SUBSYSTEMS"
-          ],
           "missing": [],
           "publicationCorrection": {
             "reason": "The V5 Light Mech chassis, Light Laser Cannon, hostile-ground passage, subsystem failures, and Evasive movement execute through the generated tactical handler.",
             "seedOverlay": {
               "availabilityStatus": "AVAILABLE",
-              "executable": false,
-              "implementationStatus": "PARTIAL",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
               "purchasable": true,
               "reasonCode": null,
               "requisitionStatus": "PUBLISHED"
@@ -14482,7 +14468,7 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-main-battle-tank",
-        "implementationStatus": "PARTIAL",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
         "availabilityStatus": "AVAILABLE",
         "executable": true,
@@ -14504,11 +14490,11 @@ const snapshot = {
           ],
           "missing": [],
           "publicationCorrection": {
-            "reason": "The V5 natural-5/6 subsystem malfunction rule persists and gates later use; stationary crews can repair one subsystem while forfeiting Armor for the round.",
+            "reason": "The V5 Main Battle Tank is playable end to end: acquisition, deployment, facing and rear-arc armour loss, D6 AP-3 cannon combat, anti-armour target priority, subsystem consequences, stationary Armor-exposed Crew Repair, persistence, replay, reports, AI response and visual presentation are active.",
             "seedOverlay": {
               "availabilityStatus": "AVAILABLE",
               "executable": true,
-              "implementationStatus": "PARTIAL",
+              "implementationStatus": "IMPLEMENTED",
               "purchasable": true,
               "reasonCode": null,
               "requisitionStatus": "PUBLISHED"
@@ -14681,7 +14667,7 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-vtol",
-        "implementationStatus": "PARTIAL",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
         "availabilityStatus": "AVAILABLE",
         "executable": true,
@@ -14707,9 +14693,7 @@ const snapshot = {
             "NO_GROUND_SPOTTING",
             "ALTERNATIVE_CARGO"
           ],
-          "missing": [
-            "HAT_AIRDROP"
-          ],
+          "missing": [],
           "publicationCorrection": {
             "reason": "The generic V5 VTOL executes its chassis, nose gun, terrain-independent flight, hostile-ground passage, no-ground-spotting rule, and mutually exclusive infantry/Supply cargo; HAT and fixed-wing mechanics remain separate.",
             "seedOverlay": {
@@ -25739,5 +25723,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "ed411b15f806459d6185dadbc0f7c6b2deef419e4db6e65a39d488ed3f0e0ead" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "13578835f58b074a039ff8fb2363865faf948620b5a2dc6c6e19038449e00ba6" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

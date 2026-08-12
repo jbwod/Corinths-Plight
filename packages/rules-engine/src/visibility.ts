@@ -1,10 +1,26 @@
 import type {
+  CampaignDeployment,
   CampaignEvent,
   CampaignRuntimeState,
   CampaignView,
   ViewerContext,
 } from "../../domain/src";
 import { coordKey, visibleHexes } from "./hex";
+import { getTacticalUnitClass } from "./tactical-unit-catalogue";
+
+function deploymentTags(deployment: CampaignDeployment): string[] {
+  if (deployment.tags) return deployment.tags;
+  try {
+    return getTacticalUnitClass(deployment.definitionId).tags;
+  } catch {
+    return [];
+  }
+}
+
+function isGroundDeployment(deployment: CampaignDeployment): boolean {
+  const tags = deploymentTags(deployment);
+  return !tags.some((tag) => tag === "AEROSPACE" || tag === "ATMO_FLIGHT" || tag === "VTOL");
+}
 
 export function projectEvents(events: CampaignEvent[], viewer: ViewerContext): CampaignEvent[] {
   return events.filter((event) => {
@@ -28,12 +44,19 @@ export function projectCampaignState(
       (deployment.locationState ?? "ON_MAP") === "ON_MAP",
   );
   const visible = viewer.role === "ADMIN" ? new Set(state.map.map((hex) => coordKey(hex.coord))) : visibleHexes(observers, state.map);
+  const groundVisible = viewer.role === "ADMIN"
+    ? visible
+    : visibleHexes(
+        observers.filter((deployment) => !deploymentTags(deployment).includes("CANNOT_SPOT_GROUND")),
+        state.map,
+      );
   const deployments = state.deployments.filter(
     (deployment) => {
       const location = deployment.locationState ?? "ON_MAP";
       if (location === "RESERVE") return false;
       if (deployment.side === viewer.side) return true;
-      return location === "ON_MAP" && visible.has(coordKey(deployment.position));
+      const domainVisibility = isGroundDeployment(deployment) ? groundVisible : visible;
+      return location === "ON_MAP" && domainVisibility.has(coordKey(deployment.position));
     },
   );
   const map = state.map.map((hex) => ({

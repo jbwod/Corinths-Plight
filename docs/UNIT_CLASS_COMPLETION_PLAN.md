@@ -6,7 +6,7 @@ Move every player unit class from `PARTIAL` or `CATALOGUE_ONLY` to an honest, te
 
 The current catalogue contains 29 player classes:
 
-- 13 V5 canonical classes. Light Vehicle and Infantry Fighting Vehicle are now `IMPLEMENTED`; the other 11 remain `PARTIAL` while their listed shared or class-specific gates are completed.
+- 13 V5 canonical classes. Infantry Squad, Light Vehicle, Infantry Fighting Vehicle, Main Battle Tank, Light Mech, Aerospace Fighter, Aerospace Bomber, and VTOL are now `IMPLEMENTED`; the other five remain `PARTIAL` while their listed shared or class-specific gates are completed.
 - 16 companion classes from `Classes.html`. They are visible but deliberately blocked by `RC-UNIT-015` because their durability, attacks, prices, or signature mechanics do not cleanly map to V5.
 
 Enemy Bug roles and Orbital Crew/hulls are adjacent programs, not part of this 29-class promotion. They need their own completion plans because they use different AI and strategic/orbital systems.
@@ -35,21 +35,21 @@ A class may only be promoted when every gate below passes for the active, versio
 
 | Class | Existing executable slice | Work still required | Recommended next state |
 |---|---|---|---|
-| Infantry Squad | FS, attack, movement, facing, Dig In, trench upgrade | Garrison; active equipment audit; equipment/ammunition edge cases | Complete after shared garrison and equipment gates |
+| Infantry Squad | FS, attack, movement, facing, Dig In, trench upgrade | **IMPLEMENTED** — garrison edge cases, hostile trench passage, active Flak/Light AT authority, finite ammunition, persistence and reporting are live | Complete |
 | Combat Medic | First Aid; medical-supply reload | Deploy/pack/use/destroy MASH; facility persistence and campaign interaction | Remain partial until MASH is real |
 | Engineers | Movement, repair, artillery dig-in, sandbags, razor wire, tank traps | Bridge construction/damage/repair; full structure durability policy | Remain partial until structure decisions land |
 | Artillery | Movement, deploy/pack, bombardment, towing, experimental attack | Funnel; anti-orbital attack; verify spotting, ammo, area and packed-state edge cases | Remain partial; depends on LOS and orbital work |
 | Logistics Truck | Cargo, towing, artillery ammunition transfer | General resupply across ammunition/supply types; coordinated airdrop; carrier-loss rules | Remain partial until common logistics primitive is complete |
 | Light Vehicle | Hits, attack, movement, subsystems, Rapid Fire, Evasive, governed passenger/Small Supply cargo, persistence/replay/report/AI/scenario proof | **IMPLEMENTED** — generated authority and D1 agree; rejected companion slots are provenance-only; RC-V5-030 freezes cargo and emits adjudication without inventing casualties | Complete |
 | Infantry Fighting Vehicle | Hits, armour/AP, attack, movement, subsystems, governed infantry cargo, crew repair, persistence/replay/report/AI/scenario proof | **IMPLEMENTED** — 8 Req acquisition, generated authority, cargo/destruction rules and `RC-V5-024` Armor-exposed Crew Repair are live and proven end to end | Complete |
-| Main Battle Tank | Hits, armour/AP, facing/rear attack, subsystems, crew repair | Catalogue says no missing mechanics; audit arcs, subsystem outcomes, equipment, replay and scenario proof | Promotion candidate |
-| Light Mech | Hits, armour, attack, movement, hostile passage, subsystems, Evasive | Catalogue says no missing mechanics; audit passage legality, subsystem outcomes, replay and scenario proof | Promotion candidate |
-| Aerospace Fighter | Flight path, hostile passage, forward arc, ammo, landing/takeoff, rearm, intercept, no ground spotting | Catalogue says no missing mechanics; audit interception timing, facilities, reports and scenario proof | Promotion candidate after aerospace decision audit |
-| Aerospace Bomber | Flight path, hostile passage, fly-over attack, ordnance, landing/takeoff, rearm, no ground spotting | Catalogue says no missing mechanics; audit path-crossing targets, blast/ordnance outcomes, facilities and scenario proof | Promotion candidate after aerospace decision audit |
-| VTOL | Hits, armour, attack, flight, landing/takeoff, alternate cargo | Catalogue incorrectly lists `HAT_AIRDROP`; first correct class taxonomy, then audit cargo, rearm and hostile-passage behavior | Data correction, then promotion audit |
+| Main Battle Tank | Hits, armour/AP, facing/rear attack, subsystems, crew repair | **IMPLEMENTED** — 10 Req acquisition, rear-arc Armor loss, subsystem persistence, Crew Repair, reports/replay and K-17 proof are live | Complete |
+| Light Mech | Hits, armour, attack, movement, hostile passage, subsystems, Evasive | **IMPLEMENTED** — governed V5 profile, hostile passage, Evasive and subsystem/repair lifecycle are live and proven in K-17 | Complete |
+| Aerospace Fighter | Flight path, hostile passage, forward arc, ammo, landing/takeoff, rearm, intercept, no ground spotting | **IMPLEMENTED** — 12 Req acquisition, legal interception, finite ammo, airfield cycle, persistence and reporting are live | Complete |
+| Aerospace Bomber | Flight path, hostile passage, fly-over attack, ordnance, landing/takeoff, rearm, no ground spotting | **IMPLEMENTED** — 12 Req acquisition, Advance-route ground-only bombing, finite ordnance and airfield cycle are live without inventing blast radius | Complete |
+| VTOL | Hits, armour, attack, flight, landing/takeoff, alternate cargo | **IMPLEMENTED** — HAT taxonomy drift removed; hostile passage, VTOL landing and mutually-exclusive Infantry/Small Supply cargo are live | Complete |
 | Heavy Air Transport | Flight, five-slot cargo, clear-route airdrop, landing/takeoff, no ground spotting | Hazardous drop results; coordinated supply drop; cargo-loss and route edge cases | Remain partial until drop rules land |
 
-Four more classes currently look like promotion work rather than major feature work: MBT, Light Mech, Fighter, and Bomber. They must still pass the full definition-of-done matrix; an empty `missing` array alone is not sufficient evidence.
+The remaining canonical work is now concentrated in shared systems rather than these completed chassis: MASH, Bridges, Funnel/anti-orbital fire, general logistics, and hazardous/coordinated drops.
 
 ### Completed class evidence
 
@@ -163,7 +163,7 @@ Deliver UC-000 first. Establish the completion manifest, eliminate status drift,
 
 ### Wave 1 — Prove and promote the near-complete canonical classes
 
-Light Vehicle and IFV have passed this wave. Audit MBT, Light Mech, Fighter, and Bomber against the full done contract, filling only uncovered edge cases, persistence, UI/report, scenarios, and tests.
+Light Vehicle, IFV, MBT, Light Mech, Fighter, and Bomber have passed this wave. Their focused mechanic suites feed one shared combined-arms browser journey so the expensive seeded scenario is not rebuilt and rerun after every individual engine edit.
 
 **Exit gate:** each promoted class has no missing mechanics and passes acquisition → deployment → tactical action → persistence/reload → report/replay browser coverage.
 
@@ -183,7 +183,7 @@ Finish, in dependency order:
 4. Engineers — Bridge and full structure lifecycle.
 5. Heavy Air Transport — hazardous and coordinated supply drops.
 6. Artillery — Funnel and anti-orbital integration.
-7. Generic VTOL — promote after taxonomy and aerospace/cargo audit.
+7. Generic VTOL — **complete** after taxonomy correction and aerospace/cargo audit; it does not inherit HAT airdrop mechanics.
 
 **Exit gate:** all 13 V5 canonical classes are honestly `IMPLEMENTED` and covered by the combined-arms scenario.
 

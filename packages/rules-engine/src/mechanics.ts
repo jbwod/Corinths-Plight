@@ -11,7 +11,7 @@ import type {
   WeaponProfile,
 } from "../../domain/src";
 import { hasLineOfSight, hexDistance, isRearAttack } from "./hex";
-import { resolveTacticalCover } from "./cover";
+import { isInfantryGarrisonBuilding, resolveTacticalCover } from "./cover";
 import type { SeededRandom } from "./rng";
 
 export interface AttackRoll {
@@ -137,12 +137,14 @@ export function resolveAttackRoll(
   const groundVehicleRear = rearGeometry && groundTarget && targetTags.has("VEHICLE");
   const groundInfantryRear = rearGeometry && groundTarget && (targetTags.has("INFANTRY") || targetTags.has("PERSONNEL"));
   const rearAttack = groundVehicleRear || groundInfantryRear;
+  const targetHex = hexes.find((hex) => hex.coord.q === target.position.q && hex.coord.r === target.position.r);
+  const rearIgnoresDigIn = groundInfantryRear && !isInfantryGarrisonBuilding(targetHex);
   const crewRepairArmorExposed = modifiers.targetCrewRepairing === true;
   const targetArmor = crewRepairArmorExposed ? 0 : target.stats.armor;
   const cover = resolveTacticalCover(attacker, target, hexes);
   const armorPiercingBonus = Math.max(0, modifiers.armorPiercingBonus ?? 0);
   const effectiveArmor = groundVehicleRear ? 0 : Math.max(0, targetArmor + cover.armor - weapon.armorPiercing - armorPiercingBonus);
-  const digInDefense: 0 | 2 = groundTarget && !groundInfantryRear && (targetTags.has("INFANTRY") || targetTags.has("PERSONNEL")) && target.statuses.includes("DUG_IN") ? 2 : 0;
+  const digInDefense: 0 | 2 = groundTarget && !rearIgnoresDigIn && (targetTags.has("INFANTRY") || targetTags.has("PERSONNEL")) && target.statuses.includes("DUG_IN") ? 2 : 0;
   const evasiveAttackModifier: 0 | -2 = modifiers.attackerEvasive ? -2 : 0;
   const evasiveDefenseModifier: 0 | 3 = modifiers.targetEvasive ? 3 : 0;
   const baseDefense = target.stats.defense + digInDefense + evasiveDefenseModifier;

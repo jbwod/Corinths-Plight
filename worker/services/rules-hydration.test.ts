@@ -78,7 +78,7 @@ describe("server rules hydration", () => {
     });
     expect(result.authority.legacyD1).toMatchObject({ sensorRange: 4, requisitionCost: null });
     expect(result.authority.status).toMatchObject({
-      implementationStatus: "PARTIAL",
+      implementationStatus: "IMPLEMENTED",
       requisitionStatus: "PUBLISHED",
       availabilityStatus: "AVAILABLE",
       executable: true,

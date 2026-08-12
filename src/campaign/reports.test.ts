@@ -90,6 +90,22 @@ describe("campaign reports", () => {
     expect(description).toBe("ROOK-7 attacked SKITTER-1: 2 damage, armour penetrated.");
   });
 
+  it("explains when a direct rear attack removes vehicle Armor", () => {
+    expect(describeCampaignReportEvent(
+      event("UNIT_ATTACKED", {
+        targetId: "dep-target",
+        healthLoss: 4,
+        rearAttack: true,
+        effectiveArmor: 0,
+        penetrated: true,
+      }, "dep-attacker"),
+      new Map([
+        ["dep-attacker", "BELLATR"],
+        ["dep-target", "IRON-1"],
+      ]),
+    )).toBe("BELLATR attacked IRON-1: 4 damage, direct rear attack ignored vehicle Armor, armour penetrated.");
+  });
+
   it("explains when Rapid Fire doubled the damage result", () => {
     expect(describeCampaignReportEvent(
       event("UNIT_ATTACKED", {
@@ -156,6 +172,21 @@ describe("campaign reports", () => {
       distanceIncrement: 1.5,
     }, "dep-attacker"), new Map([["dep-attacker", "ROOK-7"]])))
       .toBe("ROOK-7 met an opposing ground formation at 0,0 after 1.5 distance; both stopped before entering.");
+  });
+
+  it("describes aerospace landing, rearm, and interception from authoritative events", () => {
+    const names = new Map([["dep-fighter", "VULT-1"]]);
+    expect(campaignReportGroup(event("AEROSPACE_LANDED"))).toBe("MOVEMENT");
+    expect(describeCampaignReportEvent(event("AEROSPACE_LANDED", {}, "dep-fighter"), names))
+      .toBe("VULT-1 landed at a friendly compatible airfield.");
+    expect(campaignReportGroup(event("AEROSPACE_REARMED"))).toBe("SUPPORT");
+    expect(describeCampaignReportEvent(event("AEROSPACE_REARMED", { rulesDecisionId: "RC-V5-023" }, "dep-fighter"), names))
+      .toBe("VULT-1 rearmed while landed at a friendly facility (RC-V5-023).");
+    expect(describeCampaignReportEvent(event("AEROSPACE_INTERCEPTED", {
+      interceptorId: "dep-fighter",
+      rulesDecisionId: "RC-V5-028",
+    }, "dep-bomber"), new Map([["dep-fighter", "VULT-1"], ["dep-bomber", "HAVOC-2"]])))
+      .toBe("HAVOC-2 was intercepted by VULT-1 (RC-V5-028).");
   });
 
   it("names an arriving enemy wave from its public event payload", () => {

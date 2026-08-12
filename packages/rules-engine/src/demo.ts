@@ -45,6 +45,8 @@ function makeHex(q: number, r: number): BattlefieldHex {
     environment: [
       ...(pattern % 9 === 0 ? ["ASH_STORM_EXPOSED"] : []),
       ...(q === 0 && r === 0 ? [INFANTRY_COVER_ARMOR_1, INFANTRY_GARRISON_BUILDING] : []),
+      ...(q === -2 && r === -3 ? ["LAND_AEROSPACE", "REARM_AEROSPACE"] : []),
+      ...(q === -3 && r === -2 ? ["LAND_VTOL"] : []),
     ],
     visibility: q <= 1 ? "OBSERVED" : "UNKNOWN",
   };
@@ -93,7 +95,7 @@ function deployment(
     ),
     cooldowns: {},
     statuses: definitionId === "unit-artillery" ? ["PACKED"] : [],
-    subsystems: definition.tags.includes("SUBSYSTEMS")
+    subsystems: definition.tags.includes("SUBSYSTEMS") || definition.tags.includes("SUB_SYSTEM")
       ? [
           { subsystemId: "WEAPONS", state: "OPERATIONAL" },
           { subsystemId: "MOBILITY", state: "OPERATIONAL" },

@@ -143,6 +143,54 @@ describe("campaign-state redaction", () => {
     expect(view.serverTime).toBe(9_999);
   });
 
+  it("does not let an aerospace observer reveal ground units when it cannot spot ground", () => {
+    const fighter = makeDeployment("allied-fighter", { q: 0, r: 0 }, "ALLIED", {
+      stats: { sensors: 1 },
+      tags: ["AEROSPACE", "ATMO_FLIGHT", "CANNOT_SPOT_GROUND"],
+    });
+    const groundEnemy = makeDeployment("ground-enemy", { q: 1, r: 0 }, "ENEMY", {
+      tags: ["GROUND", "PERSONNEL"],
+    });
+    const aerospaceEnemy = makeDeployment("aerospace-enemy", { q: 1, r: 0 }, "ENEMY", {
+      tags: ["AEROSPACE", "ATMO_FLIGHT"],
+    });
+    const state = makeState(
+      [fighter, groundEnemy, aerospaceEnemy],
+      [makeHex(0, 0), makeHex(1, 0)],
+      [],
+      [],
+    );
+
+    const view = projectCampaignState(state, alliedViewer, 9_999);
+
+    expect(view.deployments.map((deployment) => deployment.id)).toContain(aerospaceEnemy.id);
+    expect(view.deployments.map((deployment) => deployment.id)).not.toContain(groundEnemy.id);
+  });
+
+  it("still reveals ground units when a legal ground observer shares the fighter's view", () => {
+    const fighter = makeDeployment("allied-fighter", { q: 0, r: 0 }, "ALLIED", {
+      stats: { sensors: 1 },
+      tags: ["AEROSPACE", "ATMO_FLIGHT", "CANNOT_SPOT_GROUND"],
+    });
+    const infantry = makeDeployment("allied-infantry", { q: 0, r: 0 }, "ALLIED", {
+      stats: { sensors: 1 },
+      tags: ["GROUND", "PERSONNEL"],
+    });
+    const groundEnemy = makeDeployment("ground-enemy", { q: 1, r: 0 }, "ENEMY", {
+      tags: ["GROUND", "PERSONNEL"],
+    });
+    const state = makeState(
+      [fighter, infantry, groundEnemy],
+      [makeHex(0, 0), makeHex(1, 0)],
+      [],
+      [],
+    );
+
+    const view = projectCampaignState(state, alliedViewer, 9_999);
+
+    expect(view.deployments.map((deployment) => deployment.id)).toContain(groundEnemy.id);
+  });
+
   it("removes resolution seeds/journals and pending persistent effects from every campaign view", () => {
     const { state } = visibilityFixture();
     const view = projectCampaignState(state, alliedViewer, 9_999);

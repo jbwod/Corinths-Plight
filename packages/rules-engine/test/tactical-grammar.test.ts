@@ -60,10 +60,17 @@ describe("generated tactical grammar", () => {
     expect(infantry.weapons).toEqual([
       expect.objectContaining({ id: "weapon-infantry-rifle", range: 1, armorPiercing: 0 }),
     ]);
-    expect(getTacticalUnitClass("unit-main-battle-tank")).toMatchObject({
+    const mainBattleTank = getTacticalUnitClass("unit-main-battle-tank");
+    expect(mainBattleTank).toMatchObject({
+      category: "ARMOUR",
+      tags: expect.arrayContaining(["ARMOURED", "HEAVY", "SUBSYSTEMS", "REAR_WEAK_SPOT", "ARMOUR_TARGET_PRIORITY"]),
       stats: { maxHealth: 3, armor: 3, speed: 2 },
+      allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
       allowedActions: ["ATTACK", "CREW_REPAIR"],
+      weapons: [expect.objectContaining({ id: "weapon-mbt-cannon", range: 2, armorPiercing: 3 })],
     });
+    expect(mainBattleTank.slots).toEqual({});
+    expect(getTacticalUnitClass("unit-light-vehicle").slots).toEqual({});
     expect(getTacticalUnitClass("unit-combat-medic")).toMatchObject({
       category: "SUPPORT",
       stats: { maxHealth: 4, speed: 1, capacity: 1 },

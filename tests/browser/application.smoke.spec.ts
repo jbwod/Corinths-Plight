@@ -184,6 +184,8 @@ async function submitRelayDefenceOrder(page: Page): Promise<void> {
     const relay = state.objectives.find((objective) => objective.id === "objective-outpost");
     expect(defender).toBeDefined();
     expect(relay).toBeDefined();
+    const existingOrder = state.orders.find((order) => order.unitId === defender!.id && order.round === state.round);
+    if (existingOrder?.lifecycle === "SUBMITTED") continue;
     const evasive = callsign === "NOMAD";
     const route = affordableRoute(
       shortestPath(defender!.position, relay!.coord, state.map),
@@ -192,7 +194,7 @@ async function submitRelayDefenceOrder(page: Page): Promise<void> {
       !evasive,
     );
     expect(route.length).toBeGreaterThan(1);
-    const orderRevision = state.orders.find((order) => order.unitId === defender!.id && order.round === state.round)?.revision ?? 0;
+    const orderRevision = existingOrder?.revision ?? 0;
     const status = await page.evaluate(async ({ command }) => {
       const result = await fetch("/api/campaigns/campaign-k17-relay/orders", {
         method: "POST",
@@ -1011,7 +1013,7 @@ test("campaign staging directory joins and safely leaves before deployment", asy
   await expectNoDocumentOverflow(page);
 });
 
-test("quartermaster purchases a published IFV once and debits the Req ledger", async ({ page }) => {
+test("quartermaster purchases published combined-arms units exactly once", async ({ page }) => {
   const openingResponse = await page.request.get("/api/requisition", {
     headers: { "x-demo-user": "demo-user" },
   });
@@ -1059,6 +1061,38 @@ test("quartermaster purchases a published IFV once and debits the Req ledger", a
     data: { ...command, desiredName: "Forged Replay" },
   });
   expect(conflict.status()).toBe(409);
+
+  await page.getByRole("button", { name: "REQUISITION UNIT" }).click();
+  const tankDialog = page.getByRole("dialog", { name: "Requisition unit" });
+  await tankDialog.getByRole("button", { name: /Main Battle Tank/ }).click();
+  await expect(tankDialog.getByText("10 RP", { exact: true })).toBeVisible();
+  await tankDialog.getByLabel("UNIT NAME").fill("Economy Armoured Platoon");
+  await tankDialog.getByLabel("CALLSIGN").fill("MBT-NEW");
+  const tankPurchaseRequest = page.waitForRequest((request) =>
+    request.url().endsWith("/api/requisition/purchases") && request.method() === "POST");
+  await tankDialog.getByRole("button", { name: "PURCHASE UNIT" }).click();
+  const committedTankRequest = await tankPurchaseRequest;
+  const tankLoadout = page.getByRole("dialog", { name: /MBT-NEW loadout/i });
+  await expect(tankLoadout).toBeVisible();
+  await tankLoadout.getByRole("button", { name: "Close loadout" }).click();
+  await expect(page.locator(".grouped-roster").getByRole("button", { name: /MBT-NEW/ }).first()).toBeVisible();
+
+  const finalBalanceResponse = await page.request.get("/api/requisition", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(finalBalanceResponse.status()).toBe(200);
+  await expect(finalBalanceResponse.json()).resolves.toMatchObject({ balance: opening.balance - 18 });
+  const tankCommand = committedTankRequest.postDataJSON() as Record<string, unknown>;
+  const tankReplay = await page.request.post("/api/requisition/purchases", {
+    headers: { "content-type": "application/json", "x-demo-user": "demo-user", origin: "http://127.0.0.1:4173" },
+    data: tankCommand,
+  });
+  expect(tankReplay.status()).toBe(201);
+  await expect(tankReplay.json()).resolves.toMatchObject({
+    definitionId: "unit-main-battle-tank",
+    callsign: "MBT-NEW",
+    requisitionSpent: 10,
+  });
 });
 
 test("quartermaster previews and persists equipment into a Reserve unit", async ({ page }) => {
@@ -1375,16 +1409,17 @@ test("tactical API exposes Light Mech, VTOL, Fighter, Bomber, and HAT verticals 
     headers: { "x-demo-user": "demo-user" },
   });
   expect(afterMechRound.status()).toBe(200);
-  await expect(afterMechRound.json()).resolves.toMatchObject({
-    deployments: expect.arrayContaining([
-      expect.objectContaining({ id: strider.id, position: { q: 2, r: -1 } }),
-    ]),
+  const aerospaceState = await afterMechRound.json() as CampaignView;
+  expect(aerospaceState).toMatchObject({
     events: expect.arrayContaining([
       expect.objectContaining({
         type: "EVASIVE_MANEUVER",
         actor: strider.id,
         payload: expect.objectContaining({ active: true, actualDisplacement: 3 }),
       }),
+    ]),
+    deployments: expect.arrayContaining([
+      expect.objectContaining({ id: strider.id, position: { q: 2, r: -1 } }),
     ]),
   });
 
@@ -1471,6 +1506,8 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(composer.getByText(/full stationary round/)).toBeVisible();
   await expect(composer.getByText(/receives no Armor benefit/)).toBeVisible();
   await expect(composer.getByLabel("DAMAGED SUBSYSTEM")).toContainText("MOBILITY");
+  await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
+  await expect(page.getByText(/BELLATR order submitted to campaign command/)).toBeVisible();
 
   await page.locator(".unit-roster").getByRole("button", { name: /CARR-6/ }).click();
   await expect(composer.getByRole("button", { name: "CREW REPAIR", exact: true })).toBeVisible();
@@ -1581,6 +1618,7 @@ test("tactical composer exposes every currently executable action and no catalog
     const medic = state.deployments?.find((deployment) => deployment.callsign === "DOC-7");
     const artillery = state.deployments?.find((deployment) => deployment.callsign === "LONGBOW");
     const carrier = state.deployments?.find((deployment) => deployment.callsign === "CARR-6");
+    const tank = state.deployments?.find((deployment) => deployment.callsign === "BELLATR");
     const razorWireBuilt = state.map?.some((hex) =>
       hex.structureIds.some((id) => id.startsWith("structure-razor-wire:"))
     );
@@ -1590,7 +1628,9 @@ test("tactical composer exposes every currently executable action and no catalog
       state.events?.some((event) => event.type === "EVASIVE_MANEUVER" && event.actor?.includes("force-nomad") && event.payload?.active === true) === true &&
       state.events?.some((event) => event.type === "UNIT_HEALED") === true &&
       carrier?.subsystems?.some((subsystem) => subsystem.subsystemId === "MOBILITY" && subsystem.state === "OPERATIONAL") === true &&
+      tank?.subsystems?.some((subsystem) => subsystem.subsystemId === "MOBILITY" && subsystem.state === "OPERATIONAL") === true &&
       state.events.some((event) => event.type === "UNIT_REPAIRED" && event.actor?.includes("force-carrier-6") && event.payload.conflictId === "RC-V5-024") === true &&
+      state.events.some((event) => event.type === "UNIT_REPAIRED" && event.actor?.includes("force-bellator") && event.payload.conflictId === "RC-V5-024") === true &&
       state.events.some((event) => event.type === "ARTILLERY_DEPLOYED") === true &&
       state.events.some((event) => event.type === "STRUCTURE_COMPLETED" && event.payload.structureDefinitionId === "structure-razor-wire") === true;
   }).toBe(true);
@@ -1604,6 +1644,15 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(persistedCarrier.json()).resolves.toMatchObject({
     definitionId: "unit-infantry-fighting-vehicle",
     callsign: "CARR-6",
+    subsystems: expect.arrayContaining([{ subsystemId: "MOBILITY", state: "OPERATIONAL" }]),
+  });
+  const persistedTank = await page.request.get("/api/forces/force-bellator", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(persistedTank.status()).toBe(200);
+  await expect(persistedTank.json()).resolves.toMatchObject({
+    definitionId: "unit-main-battle-tank",
+    callsign: "BELLATR",
     subsystems: expect.arrayContaining([{ subsystemId: "MOBILITY", state: "OPERATIONAL" }]),
   });
   await page.locator(".unit-roster").getByRole("button", { name: /DOC-7/ }).click();

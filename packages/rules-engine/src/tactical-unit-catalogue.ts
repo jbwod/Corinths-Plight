@@ -20,6 +20,13 @@ interface FoundationExecutionProjection {
   allowedActions: ActionType[];
 }
 
+const classesWithRejectedCompanionSlots = new Set([
+  "unit-infantry-fighting-vehicle",
+  "unit-light-mech",
+  "unit-light-vehicle",
+  "unit-main-battle-tank",
+]);
+
 export interface TacticalSubsystemRules {
   profile: SubsystemDamageProfile;
   definitions: SubsystemDefinition[];
@@ -136,7 +143,12 @@ export function getTacticalUnitClass(
     .map((relation) => relation.to!.definitionId);
   const slots = Object.fromEntries(tacticalRulesCatalogueRuntime
     .relationsFrom({ definitionKind: "UNIT", definitionId: id })
-    .filter((relation) => relation.kind === "UNIT_EQUIPMENT_SLOT")
+    .filter((relation) => {
+      if (relation.kind !== "UNIT_EQUIPMENT_SLOT") return false;
+      const eligibility = record(relation.parameters, `${relation.id}:parameters`).eligibility;
+      if (eligibility === undefined || !classesWithRejectedCompanionSlots.has(id)) return true;
+      return record(eligibility, `${relation.id}:eligibility`).canonicalActivation !== "CATALOGUED";
+    })
     .map((relation) => {
       const slotType = record(relation.parameters, `${relation.id}:parameters`).slotType;
       if (typeof slotType !== "string") throw new Error(`TACTICAL_UNIT_CATALOGUE_INVALID:${relation.id}:slotType`);

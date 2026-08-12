@@ -510,6 +510,79 @@ describe("CampaignDurableObject campaign contracts", () => {
     });
   });
 
+  it("requires a Bomber bombing run to Advance over a ground target", async () => {
+    const stationary = campaignObject();
+    expect((await stationary.campaign.fetch(request("/state"))).status).toBe(200);
+    const stationaryState = parseCampaignStoredState(
+      stationary.storage.values.get("state/current"),
+      CAMPAIGN_ID,
+    ).state;
+    stationaryState.deployments.find((deployment) => deployment.id === "bug-drone-1")!.position = { q: -1, r: -3 };
+    stationary.storage.values.set("state/current", encodeCampaignStoredState(stationaryState));
+
+    const stationaryResponse = await stationary.campaign.fetch(request("/orders", {
+      method: "POST",
+      body: orderBody({
+        commandId: "command-bomber-stationary-run",
+        unitId: "dep-havoc-2",
+        actions: [{ type: "ATTACK", targetDeploymentId: "bug-drone-1" }],
+      }),
+    }));
+    expect(stationaryResponse.status).toBe(422);
+    expect(await stationaryResponse.json()).toMatchObject({ error: { code: "BOMBER_ATTACK_ILLEGAL" } });
+
+    const airTarget = campaignObject();
+    expect((await airTarget.campaign.fetch(request("/state"))).status).toBe(200);
+    const airTargetState = parseCampaignStoredState(
+      airTarget.storage.values.get("state/current"),
+      CAMPAIGN_ID,
+    ).state;
+    airTargetState.deployments.find((deployment) => deployment.id === "dep-vulture-1")!.position = { q: 0, r: -3 };
+    airTarget.storage.values.set("state/current", encodeCampaignStoredState(airTargetState));
+
+    const airTargetResponse = await airTarget.campaign.fetch(request("/orders", {
+      method: "POST",
+      body: orderBody({
+        commandId: "command-bomber-air-target",
+        unitId: "dep-havoc-2",
+        orderType: "ADVANCE",
+        route: [{ q: -1, r: -3 }, { q: 0, r: -3 }, { q: 1, r: -3 }],
+        actions: [{ type: "ATTACK", targetDeploymentId: "dep-vulture-1" }],
+      }),
+    }));
+    expect(airTargetResponse.status).toBe(422);
+    expect(await airTargetResponse.json()).toMatchObject({ error: { code: "BOMBER_ATTACK_ILLEGAL" } });
+  });
+
+  it("rejects redundant full-ammunition aerospace rearm before storing the order", async () => {
+    const { campaign, storage } = campaignObject();
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    const bomber = seeded.deployments.find((deployment) => deployment.id === "dep-havoc-2")!;
+    const airfield = seeded.map.find((hex) => hex.coord.q === 0 && hex.coord.r === 0)!;
+    airfield.control = "ALLIED";
+    airfield.environment = [...new Set([...airfield.environment, "LAND_AEROSPACE", "REARM_AEROSPACE"])];
+    bomber.position = { ...airfield.coord };
+    bomber.statuses = ["LANDED"];
+    bomber.ammunition = { "weapon-bomber-ordnance": 1 };
+    storage.values.set("state/current", encodeCampaignStoredState(seeded));
+
+    const response = await campaign.fetch(request("/orders", {
+      method: "POST",
+      body: orderBody({
+        commandId: "command-bomber-rearm-full",
+        unitId: "dep-havoc-2",
+        actions: [{ type: "REARM_AEROSPACE" }],
+      }),
+    }));
+
+    const payload = await response.json();
+    expect(response.status, JSON.stringify(payload)).toBe(409);
+    expect(payload).toMatchObject({ error: { code: "AEROSPACE_AMMUNITION_FULL" } });
+    const unchanged = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    expect(unchanged.orders.some((candidate) => candidate.unitId === bomber.id)).toBe(false);
+  });
+
   it("accepts only a clear route-bound Heavy Air Transport drop", async () => {
     const legal = campaignObject();
     expect((await legal.campaign.fetch(request("/state"))).status).toBe(200);
