@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "09efd564562b519052ce7bee22eb9ab6a134280abab0281c6e0ce6edfc2b10e3",
+  "contentHash": "226cdc08e4f60c48ba24cb59c5761f34bc7627622100688b983e49c7fe5c59c8",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -7326,11 +7326,11 @@ const snapshot = {
         "id": "equipment-vehicle-optics",
         "kind": "EQUIPMENT",
         "name": "Vehicle Optics",
-        "definitionStatus": "active",
+        "definitionStatus": "experimental",
         "sourceId": "source-store",
         "sourcePath": null,
         "sourceLocator": "The Store row 43",
-        "notes": "Executable Scan action grant in the equipment/deployment vertical slice.",
+        "notes": "Catalogue-only until Scan applies a governed visibility-state effect; no passive sensor bonus is sourced.",
         "sourcedNumbers": {
           "requisitionCost": {
             "status": "PUBLISHED",
@@ -7358,9 +7358,6 @@ const snapshot = {
               "unit-light-vehicle",
               "unit-main-battle-tank"
             ],
-            "statModifiers": {
-              "sensors": 1
-            },
             "storeCatalogue": {
               "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
               "rulesText": "Can Action: Optics reveal a hex at edge of LOS",
@@ -12381,14 +12378,15 @@ const snapshot = {
         "sourcePath": "rules/The Store - Equipment List.html",
         "sourceLocator": "row 23",
         "parameters": {
+          "executionBlocked": true,
           "publicationCorrection": {
             "reason": "Deploy Drone currently emits an event/cooldown but does not apply its advertised visibility effect.",
             "seedOverlay": {
-              "availabilityStatus": "AVAILABLE",
-              "executable": true,
-              "implementationStatus": "IMPLEMENTED",
-              "purchasable": true,
-              "reasonCode": null,
+              "availabilityStatus": "BLOCKED",
+              "executable": false,
+              "implementationStatus": "PARTIAL",
+              "purchasable": false,
+              "reasonCode": "MISSING_VISIBILITY_STATE_EFFECT",
               "requisitionStatus": "PUBLISHED"
             }
           },
@@ -13361,14 +13359,15 @@ const snapshot = {
         "sourcePath": "rules/The Store - Equipment List.html",
         "sourceLocator": "row 43",
         "parameters": {
+          "executionBlocked": true,
           "publicationCorrection": {
             "reason": "The passive sensor modifier is not source-authorised and Scan does not apply its advertised visibility effect.",
             "seedOverlay": {
-              "availabilityStatus": "AVAILABLE",
-              "executable": true,
-              "implementationStatus": "IMPLEMENTED",
-              "purchasable": true,
-              "reasonCode": null,
+              "availabilityStatus": "BLOCKED",
+              "executable": false,
+              "implementationStatus": "PARTIAL",
+              "purchasable": false,
+              "reasonCode": "UNAUTHORISED_SENSOR_MODIFIER_AND_MISSING_VISIBILITY_STATE_EFFECT",
               "requisitionStatus": "PUBLISHED"
             }
           },
@@ -14401,7 +14400,7 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-light-vehicle",
-        "implementationStatus": "PARTIAL",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
         "availabilityStatus": "AVAILABLE",
         "executable": true,
@@ -14423,11 +14422,11 @@ const snapshot = {
           ],
           "missing": [],
           "publicationCorrection": {
-            "reason": "Subsystem malfunctions and Evasive movement now resolve through the generated tactical handler.",
+            "reason": "The V5 Light Vehicle is playable end to end: acquisition, deployment, Rapid Fire, Evasive movement, governed cargo, subsystem consequences, persistence, replay, reports, AI response and visual presentation are active; rejected companion slots remain catalogue provenance only.",
             "seedOverlay": {
               "availabilityStatus": "AVAILABLE",
               "executable": true,
-              "implementationStatus": "PARTIAL",
+              "implementationStatus": "IMPLEMENTED",
               "purchasable": true,
               "reasonCode": null,
               "requisitionStatus": "PUBLISHED"
@@ -25137,33 +25136,11 @@ const snapshot = {
             "definitionKind": "EQUIPMENT",
             "definitionId": "equipment-vehicle-optics"
           },
-          "to": null,
-          "ordinal": 0,
-          "sourceId": "source-store",
-          "sourcePath": null,
-          "sourceLocator": "Optics / row 43",
-          "sourcedNumbers": {},
-          "parameters": {
-            "effect": {
-              "amount": 1,
-              "stat": "sensors",
-              "type": "STAT_ADD"
-            },
-            "effectType": "STAT_ADD"
-          }
-        },
-        {
-          "id": "equipment-effect:equipment-vehicle-optics:1",
-          "kind": "EQUIPMENT_EFFECT",
-          "from": {
-            "definitionKind": "EQUIPMENT",
-            "definitionId": "equipment-vehicle-optics"
-          },
           "to": {
             "definitionKind": "ACTION",
             "definitionId": "action-scan"
           },
-          "ordinal": 1,
+          "ordinal": 0,
           "sourceId": "source-store",
           "sourcePath": null,
           "sourceLocator": "Optics / row 43",
@@ -25762,5 +25739,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "09efd564562b519052ce7bee22eb9ab6a134280abab0281c6e0ce6edfc2b10e3" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "226cdc08e4f60c48ba24cb59c5761f34bc7627622100688b983e49c7fe5c59c8" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

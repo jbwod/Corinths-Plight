@@ -93,10 +93,12 @@ for (const definition of allDefinitions) {
     failures.push(`D1 seed is missing ${definition.id}.`);
     continue;
   }
-  const promotedEquipment = new Set(["equipment-flak-vests", "equipment-light-at", "equipment-vehicle-optics"]);
+  const promotedEquipment = new Set(["equipment-flak-vests", "equipment-light-at"]);
   const promotedByVerticalSlice = promotedEquipment.has(definition.id) && definition.status === "active" &&
-    equipmentSeedSql.includes(`id IN ('equipment-flak-vests','equipment-light-at','equipment-vehicle-optics')`);
-  if (!tuple.includes(`'${definition.status}'`) && !promotedByVerticalSlice) {
+    equipmentSeedSql.includes(`id IN ('equipment-flak-vests','equipment-light-at')`);
+  const blockedOpticsByVerticalSlice = definition.id === "equipment-vehicle-optics" && definition.status === "experimental" &&
+    equipmentSeedSql.includes(`id = 'equipment-vehicle-optics'`);
+  if (!tuple.includes(`'${definition.status}'`) && !promotedByVerticalSlice && !blockedOpticsByVerticalSlice) {
     failures.push(
       `D1 seed status mismatch for ${definition.id}: runtime catalogue is ${definition.status}.`,
     );

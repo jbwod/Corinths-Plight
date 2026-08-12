@@ -5,10 +5,16 @@ SET definition_status = 'active',
     notes = CASE id
       WHEN 'equipment-flak-vests' THEN 'Executable conditional armour effect in the equipment/deployment vertical slice.'
       WHEN 'equipment-light-at' THEN 'Executable Range-1 AP-charge modifier for the Infantry Squad base attack; three fitted charges may be spent one at a time or together.'
-      WHEN 'equipment-vehicle-optics' THEN 'Executable Scan action grant in the equipment/deployment vertical slice.'
       ELSE notes END
 WHERE ruleset_id = 'ruleset-v5-core-curated-1'
-  AND id IN ('equipment-flak-vests','equipment-light-at','equipment-vehicle-optics');
+  AND id IN ('equipment-flak-vests','equipment-light-at');
+
+UPDATE equipment_definitions
+SET definition_status = 'experimental',
+    notes = 'Catalogue-only until Scan applies a governed visibility-state effect; no passive sensor bonus is sourced.',
+    definition_json = json_remove(definition_json, '$.statModifiers')
+WHERE ruleset_id = 'ruleset-v5-core-curated-1'
+  AND id = 'equipment-vehicle-optics';
 
 INSERT INTO weapon_definitions (
   id, ruleset_id, name, damage_dice_count, damage_die_sides, damage_modifier,
@@ -90,6 +96,10 @@ ON CONFLICT(id, ruleset_id) DO UPDATE SET
   notes = excluded.notes,
   definition_json = excluded.definition_json;
 
+DELETE FROM equipment_effect_definitions
+WHERE equipment_definition_id = 'equipment-vehicle-optics'
+  AND ruleset_id = 'ruleset-v5-core-curated-1';
+
 INSERT INTO equipment_effect_definitions (
   equipment_definition_id, ruleset_id, effect_index, effect_type, effect_json,
   source_path, source_locator
@@ -97,8 +107,7 @@ INSERT INTO equipment_effect_definitions (
   ('equipment-flak-vests', 'ruleset-v5-core-curated-1', 0, 'STAT_SET_IF', '{"type":"STAT_SET_IF","stat":"armor","whenEquals":0,"value":1}', 'rules/The Store - Equipment List.html', 'Flack Vests / row 4'),
   ('equipment-light-at', 'ruleset-v5-core-curated-1', 0, 'WEAPON_GRANT', '{"type":"WEAPON_GRANT","weaponId":"weapon-light-at"}', 'rules/The Store - Equipment List.html', 'Lightweight Anti-armor Weapon / row 10'),
   ('equipment-light-at', 'ruleset-v5-core-curated-1', 1, 'AMMO_GRANT', '{"type":"AMMO_GRANT","weaponId":"weapon-light-at","capacity":3}', 'rules/The Store - Equipment List.html', 'Lightweight Anti-armor Weapon / row 10'),
-  ('equipment-vehicle-optics', 'ruleset-v5-core-curated-1', 0, 'STAT_ADD', '{"type":"STAT_ADD","stat":"sensors","amount":1}', 'rules/The Store - Equipment List.html', 'Optics / row 43'),
-  ('equipment-vehicle-optics', 'ruleset-v5-core-curated-1', 1, 'ACTION_GRANT', '{"type":"ACTION_GRANT","action":"SCAN"}', 'rules/The Store - Equipment List.html', 'Optics / row 43'),
+  ('equipment-vehicle-optics', 'ruleset-v5-core-curated-1', 0, 'ACTION_GRANT', '{"type":"ACTION_GRANT","action":"SCAN"}', 'rules/The Store - Equipment List.html', 'Optics / row 43'),
   ('equipment-drone-operator', 'ruleset-v5-core-curated-1', 0, 'ACTION_GRANT', '{"type":"ACTION_GRANT","action":"DEPLOY_DRONE"}', 'rules/The Store - Equipment List.html', 'Drone Operator / row 23'),
   ('equipment-drone-operator', 'ruleset-v5-core-curated-1', 1, 'ABILITY_GRANT', '{"type":"ABILITY_GRANT","abilityId":"ability-deploy-drone","handlerId":"DEPLOY_DRONE","parameters":{"range":5,"cooldownRounds":6}}', 'rules/The Store - Equipment List.html', 'Drone Operator / row 23'),
   ('equipment-orbital-drop-training', 'ruleset-v5-core-curated-1', 0, 'STAT_ADD', '{"type":"STAT_ADD","stat":"maxHealth","amount":-1}', 'rules/The Store - Equipment List.html', 'Orbital Drop Training / row 3'),
@@ -147,8 +156,8 @@ INSERT INTO ruleset_implementation_overlays (
 ) VALUES
   ('EQUIPMENT', 'equipment-flak-vests', 'ruleset-v5-core-curated-1', 'IMPLEMENTED', 'PUBLISHED', 'AVAILABLE', 1, 1, NULL, 'rules/The Store - Equipment List.html', 'row 4', '{"verticalSlice":"equipment-deployment"}'),
   ('EQUIPMENT', 'equipment-light-at', 'ruleset-v5-core-curated-1', 'IMPLEMENTED', 'PUBLISHED', 'AVAILABLE', 1, 1, NULL, 'rules/The Store - Equipment List.html', 'row 10', '{"verticalSlice":"equipment-deployment"}'),
-  ('EQUIPMENT', 'equipment-vehicle-optics', 'ruleset-v5-core-curated-1', 'IMPLEMENTED', 'PUBLISHED', 'AVAILABLE', 1, 1, NULL, 'rules/The Store - Equipment List.html', 'row 43', '{"verticalSlice":"equipment-deployment"}'),
-  ('EQUIPMENT', 'equipment-drone-operator', 'ruleset-v5-core-curated-1', 'IMPLEMENTED', 'PUBLISHED', 'AVAILABLE', 1, 1, NULL, 'rules/The Store - Equipment List.html', 'row 23', '{"verticalSlice":"equipment-deployment"}'),
+  ('EQUIPMENT', 'equipment-vehicle-optics', 'ruleset-v5-core-curated-1', 'PARTIAL', 'PUBLISHED', 'BLOCKED', 0, 0, 'UNAUTHORISED_SENSOR_MODIFIER_AND_MISSING_VISIBILITY_STATE_EFFECT', 'rules/The Store - Equipment List.html', 'row 43', '{"verticalSlice":"equipment-deployment","executionBlocked":true}'),
+  ('EQUIPMENT', 'equipment-drone-operator', 'ruleset-v5-core-curated-1', 'PARTIAL', 'PUBLISHED', 'BLOCKED', 0, 0, 'MISSING_VISIBILITY_STATE_EFFECT', 'rules/The Store - Equipment List.html', 'row 23', '{"verticalSlice":"equipment-deployment","executionBlocked":true}'),
   ('EQUIPMENT', 'equipment-orbital-drop-training', 'ruleset-v5-core-curated-1', 'PARTIAL', 'PUBLISHED', 'AVAILABLE', 0, 1, 'ORBITAL_DEPLOYMENT_COORDINATOR_DEFERRED', 'rules/The Store - Equipment List.html', 'row 3', '{"effectiveUnitMutation":true,"deploymentExecution":false}')
 ON CONFLICT(definition_kind, definition_id, ruleset_id) DO UPDATE SET
   implementation_status = excluded.implementation_status,

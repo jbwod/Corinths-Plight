@@ -1682,6 +1682,24 @@ export function resolveRound(input: RoundInput): RoundOutput {
         persistentUnitId: target.persistentUnitId,
         equipmentLost: target.equipmentIds,
       });
+      if ((target.cargo?.length ?? 0) > 0) {
+        const frozenCargo = target.cargo!.map((item) => ({
+          cargoId: item.id,
+          cargoDeploymentId: item.unitId,
+          kind: item.kind,
+          quantity: item.quantity,
+          supplyType: item.supplyType,
+          transportMode: item.transportMode,
+        }));
+        event("CARGO_DESTRUCTION_REQUIRES_ADJUDICATION", target.id, {
+          conflictId: "RC-V5-030",
+          carrierPersistentUnitId: target.persistentUnitId,
+          frozenAt: { ...target.position },
+          cargo: frozenCargo,
+          requiresAdjudication: frozenCargo.some((item) => item.kind !== "SUPPLY"),
+          resolution: "FROZEN_WITH_DESTROYED_CARRIER",
+        }, target.side === "ENEMY" ? "ENEMY" : "ALLIED");
+      }
       if (target.persistentUnitId) {
         effects.push({
           idempotencyKey: `${state.campaignId}:${state.round}:destroy:${target.persistentUnitId}`,

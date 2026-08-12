@@ -176,7 +176,10 @@ export async function listInventoryEffects(db: D1Database, ownerId: string): Pro
 
 export async function listUnitSlots(db: D1Database, definitionId: string, rulesetId: string): Promise<UnitSlotRow[]> {
   const result = await db.prepare(`SELECT UPPER(slot_type) AS slot_type, slot_count
-      FROM unit_equipment_slot_definitions WHERE unit_definition_id = ?1 AND ruleset_id = ?2 ORDER BY slot_type`)
+      FROM unit_equipment_slot_definitions
+      WHERE unit_definition_id = ?1 AND ruleset_id = ?2
+        AND COALESCE(json_extract(eligibility_json, '$.canonicalActivation'), 'ACTIVE') <> 'CATALOGUED'
+      ORDER BY slot_type`)
     .bind(definitionId, rulesetId).all<UnitSlotRow>();
   return result.results;
 }

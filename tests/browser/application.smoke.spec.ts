@@ -131,11 +131,12 @@ async function submitRelayDefenceOrder(page: Page): Promise<void> {
     const relay = state.objectives.find((objective) => objective.id === "objective-outpost");
     expect(defender).toBeDefined();
     expect(relay).toBeDefined();
+    const evasive = callsign === "NOMAD";
     const route = affordableRoute(
       shortestPath(defender!.position, relay!.coord, state.map),
       state.map,
       defender!.stats.speed,
-      true,
+      !evasive,
     );
     expect(route.length).toBeGreaterThan(1);
     const orderRevision = state.orders.find((order) => order.unitId === defender!.id && order.round === state.round)?.revision ?? 0;
@@ -153,7 +154,7 @@ async function submitRelayDefenceOrder(page: Page): Promise<void> {
         expectedOrderRevision: orderRevision,
         unitId: defender!.id,
         round: state.round,
-        orderType: "RUSH",
+        orderType: evasive ? "EVASIVE" : "RUSH",
         lifecycle: "SUBMITTED",
         route,
         facing: defender!.facing,
@@ -1522,6 +1523,7 @@ test("tactical composer exposes every currently executable action and no catalog
     return medic?.supplies?.MEDICAL_SUPPLY === 3 &&
       artillery?.statuses?.includes("DEPLOYED") === true &&
       razorWireBuilt === true &&
+      state.events?.some((event) => event.type === "EVASIVE_MANEUVER" && event.actor?.includes("force-nomad") && event.payload?.active === true) === true &&
       state.events?.some((event) => event.type === "UNIT_HEALED") === true &&
       state.events.some((event) => event.type === "ARTILLERY_DEPLOYED") === true &&
       state.events.some((event) => event.type === "STRUCTURE_COMPLETED" && event.payload.structureDefinitionId === "structure-razor-wire") === true;
@@ -1709,6 +1711,7 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(rewards.getByText("RECORDED", { exact: true })).toBeVisible();
   await expect(rewards.getByText("+25 RP", { exact: true })).toBeVisible();
   await expect(rewards).toContainText("public-v1-economy@1");
+  await expect(page.getByText(/NOMAD attacked .*Rapid Fire doubled the damage result/).first()).toBeVisible();
   const replay = page.getByRole("region", { name: "Round 4 event playback" });
   await expect(replay).toBeVisible();
   await expect(replay.getByRole("img", { name: "Round 4 tactical reconstruction" })).toBeVisible();

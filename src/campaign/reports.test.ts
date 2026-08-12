@@ -105,6 +105,20 @@ describe("campaign reports", () => {
     )).toBe("LANTERN attacked SKITTER-9: 4 damage, Rapid Fire doubled the damage result, armour penetrated.");
   });
 
+  it("reports frozen cargo without inventing a carrier-loss outcome", () => {
+    expect(describeCampaignReportEvent(
+      event("CARGO_DESTRUCTION_REQUIRES_ADJUDICATION", {
+        conflictId: "RC-V5-030",
+        frozenAt: { q: 2, r: -1 },
+        cargo: [
+          { cargoDeploymentId: "dep-passenger", kind: "PERSONNEL" },
+          { cargoId: "cargo-supply", kind: "SUPPLY", quantity: 1 },
+        ],
+      }, "dep-carrier"),
+      new Map([["dep-carrier", "NOMAD"]]),
+    )).toBe("NOMAD's 2 carried loads are frozen at hex 2.-1; 1 unit load requires GM adjudication (RC-V5-030).");
+  });
+
   it("explains the high-ground damage modifier", () => {
     expect(describeCampaignReportEvent(
       event("UNIT_ATTACKED", {

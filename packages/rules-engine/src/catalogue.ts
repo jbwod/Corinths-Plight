@@ -269,14 +269,15 @@ export const equipment: EquipmentDefinition[] = [
     allowedClasses: ["unit-light-vehicle", "unit-main-battle-tank"],
     requiredEquipment: [],
     incompatibleEquipment: [],
-    statModifiers: { sensors: 1 },
+    statModifiers: {},
     abilityGrants: ["SCAN"],
     consumable: false,
     rulesText: "Action: Optics — reveal a hex at edge of LOS.",
     tags: ["SENSOR"],
     rulesetVersion: RULESET_VERSION,
     source: "The Store - Equipment List.html row 43",
-    status: "active",
+    status: "experimental",
+    notes: "Catalogue-only until Scan applies a governed visibility-state effect; no passive sensor bonus is sourced.",
   },
 ];
 

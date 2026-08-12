@@ -1,0 +1,258 @@
+# Unit Class Completion Plan
+
+## Objective
+
+Move every player unit class from `PARTIAL` or `CATALOGUE_ONLY` to an honest, test-backed `IMPLEMENTED` state without inventing rules that the source material does not define.
+
+The current catalogue contains 29 player classes:
+
+- 13 V5 canonical classes. Light Vehicle is now `IMPLEMENTED`; the other 12 remain `PARTIAL` while their listed shared or class-specific gates are completed.
+- 16 companion classes from `Classes.html`. They are visible but deliberately blocked by `RC-UNIT-015` because their durability, attacks, prices, or signature mechanics do not cleanly map to V5.
+
+Enemy Bug roles and Orbital Crew/hulls are adjacent programs, not part of this 29-class promotion. They need their own completion plans because they use different AI and strategic/orbital systems.
+
+## What `IMPLEMENTED` must mean
+
+A class may only be promoted when every gate below passes for the active, versioned rules profile.
+
+1. **Rules authority** — health, armour, speed, sensors, attacks, slots, price, restrictions, and each advertised ability have a cited source or an approved application rule decision.
+2. **Generated catalogue** — one authoritative generated definition declares the class, its actions/orders, handler, economy policy, availability, and no unresolved `missing` mechanics.
+3. **Runtime execution** — every advertised action is validated and resolved on the server; no UI-only or descriptive ability is counted as implemented.
+4. **Persistent state** — damage, ammunition, supplies, cargo, stance, facing, projects, facilities, statuses, equipment, and campaign consequences survive save/reload as applicable.
+5. **Economy and ownership** — the class has a published requisition cost, can be acquired exactly once per command, appears in the force roster, and obeys equipment slots and restrictions.
+6. **Deployment and transport** — deployment eligibility, capacity conversion, embark/disembark, towing, drops, destruction, and recovery rules are enforced where applicable.
+7. **Player UI** — force catalogue, unit detail, deployment planner, tactical composer, legal-target previews, disabled-state reasons, event log, replay, and report surfaces all use live rules data.
+8. **Scenario and AI interaction** — at least one authored scenario exercises the class's signature mechanic and enemy behavior responds legally to it.
+9. **Visual and accessibility coverage** — art, tactical glyph, short code, alt/accessible label, damaged/destroyed presentation, and responsive layouts are present.
+10. **Automated proof** — unit, resolver, persistence, route/contract, generated-catalogue, and browser journey tests cover happy paths plus illegal and edge cases.
+11. **Release evidence** — generated files and D1 seeds agree; catalogue checks, seed checks, typecheck, tests, and the relevant browser suite pass.
+
+`IMPLEMENTED` is therefore a release claim, not a synonym for “has stats” or “can appear on the map.”
+
+## Current state
+
+### Canonical V5 classes
+
+| Class | Existing executable slice | Work still required | Recommended next state |
+|---|---|---|---|
+| Infantry Squad | FS, attack, movement, facing, Dig In, trench upgrade | Garrison; active equipment audit; equipment/ammunition edge cases | Complete after shared garrison and equipment gates |
+| Combat Medic | First Aid; medical-supply reload | Deploy/pack/use/destroy MASH; facility persistence and campaign interaction | Remain partial until MASH is real |
+| Engineers | Movement, repair, artillery dig-in, sandbags, razor wire, tank traps | Bridge construction/damage/repair; full structure durability policy | Remain partial until structure decisions land |
+| Artillery | Movement, deploy/pack, bombardment, towing, experimental attack | Funnel; anti-orbital attack; verify spotting, ammo, area and packed-state edge cases | Remain partial; depends on LOS and orbital work |
+| Logistics Truck | Cargo, towing, artillery ammunition transfer | General resupply across ammunition/supply types; coordinated airdrop; carrier-loss rules | Remain partial until common logistics primitive is complete |
+| Light Vehicle | Hits, attack, movement, subsystems, Rapid Fire, Evasive, governed passenger/Small Supply cargo, persistence/replay/report/AI/scenario proof | **IMPLEMENTED** — generated authority and D1 agree; rejected companion slots are provenance-only; RC-V5-030 freezes cargo and emits adjudication without inventing casualties | Complete |
+| Infantry Fighting Vehicle | Hits, armour/AP, attack, movement, subsystems, infantry cargo, crew repair | Catalogue says no missing mechanics; audit cargo destruction, repairs, equipment, replay and scenario proof | Promotion candidate |
+| Main Battle Tank | Hits, armour/AP, facing/rear attack, subsystems, crew repair | Catalogue says no missing mechanics; audit arcs, subsystem outcomes, equipment, replay and scenario proof | Promotion candidate |
+| Light Mech | Hits, armour, attack, movement, hostile passage, subsystems, Evasive | Catalogue says no missing mechanics; audit passage legality, subsystem outcomes, replay and scenario proof | Promotion candidate |
+| Aerospace Fighter | Flight path, hostile passage, forward arc, ammo, landing/takeoff, rearm, intercept, no ground spotting | Catalogue says no missing mechanics; audit interception timing, facilities, reports and scenario proof | Promotion candidate after aerospace decision audit |
+| Aerospace Bomber | Flight path, hostile passage, fly-over attack, ordnance, landing/takeoff, rearm, no ground spotting | Catalogue says no missing mechanics; audit path-crossing targets, blast/ordnance outcomes, facilities and scenario proof | Promotion candidate after aerospace decision audit |
+| VTOL | Hits, armour, attack, flight, landing/takeoff, alternate cargo | Catalogue incorrectly lists `HAT_AIRDROP`; first correct class taxonomy, then audit cargo, rearm and hostile-passage behavior | Data correction, then promotion audit |
+| Heavy Air Transport | Flight, five-slot cargo, clear-route airdrop, landing/takeoff, no ground spotting | Hazardous drop results; coordinated supply drop; cargo-loss and route edge cases | Remain partial until drop rules land |
+
+Five more classes currently look like promotion work rather than major feature work: IFV, MBT, Light Mech, Fighter, and Bomber. They must still pass the full definition-of-done matrix; an empty `missing` array alone is not sufficient evidence.
+
+### Completed class evidence
+
+#### Light Vehicle — `IMPLEMENTED`
+
+- [x] V5 Hits/Speed/HMG/Range/Rapid Fire/Subsystems/Evasive/cargo profile selected by `RC-UNIT-006`; companion Stealth and equipment slots are excluded from executable capacity.
+- [x] `public-v1-economy@1` publishes 8 Req; exact-once acquisition and starter ownership are live.
+- [x] Generated `v5-core-curated@2` authority binds the generated unit handler, executable orders/actions and an empty `missing` list.
+- [x] Rapid Fire, Evasive, subsystem damage, passenger-or-Small-Supply cargo, movement, attacks and destruction execute server-side.
+- [x] Health, subsystem, cargo, supply, ammunition, location and destruction consequences persist through the campaign effect journal.
+- [x] `RC-V5-030` carrier loss freezes carried records and emits an adjudication event; it does not invent passenger casualties or unload them.
+- [x] Force catalogue, loadout/readiness, deployment planner, tactical composer, map glyph, event feed, replay and report use live state; blocked Optics/Scan is not advertised as executable.
+- [x] K-17 exercises NOMAD's Evasive movement and Rapid Fire against legal enemy AI, with deterministic resolver/report proof and the existing accessible unit artwork.
+- [x] Catalogue, class, Store, seed, typecheck, unit/integration and browser promotion gates pass at the promotion commit.
+
+There is also catalogue/seed drift to remove. For example, the Heavy Air Transport's generated top-level status is `PARTIAL`, while its nested seed correction says `IMPLEMENTED`. Status must be computed from one source and checked for parity.
+
+The validation toolchain also spans two ruleset identifiers: `catalogue:check` currently validates `v5-core-curated@2`, while `seed:check` reports `v5-core-curated@1`. Both commands can pass without proving that the generated runtime catalogue and seeded D1 authority are the same profile. Wave 0 must align the identifiers or add an explicit, tested migration/binding between them.
+
+### Companion classes
+
+All 16 are `CATALOGUE_ONLY`, not executable, not purchasable, and priced `BALANCE_REQUIRED` under `RC-UNIT-015`.
+
+| Family | Classes | Main blockers before activation |
+|---|---|---|
+| Personnel | Power Armoured Infantry, Irregular, Special Forces, Sappers | Formalize class progression/training, stealth/reveal, sabotage/delayed charges, mines, build supply, allowed structures, mounting/drop rules, attacks, equipment access, and prices |
+| Armour | Light Battle Tank, Heavy Battle Tank, Super Heavy Tank | Decide V5 Hits conversion instead of legacy FS; publish weapon dice/AP/range; dual attacks; tank/air/heavy transport policy; slots and prices |
+| Mechanized infantry | Mechanized Infantry | Mixed personnel/vehicle durability, forward-line control, mixed equipment, transport/cargo behavior, attacks and price |
+| Artillery | Light Artillery, Heavy Artillery, Self-Propelled Artillery | Fixed damage vs V5 dice, two/three attacks and split fire, whole-hex damage, minimum range, finite AP ammunition, abandon-guns transformation, campaign replacement, vehicle durability and prices |
+| Mechs | Medium Mech, Heavy Mech | V5 Hits conversion, multiweapon/refit model, leg-height LOS, crouch/cover, subsystem outcomes, dotted requisition notation, equipment slots and prices |
+| VTOL transports | Troop Airlift, Multi-Purpose Airlift, Heavy Lift | V5 Hits conversion, combined cargo capacities, rappelling/garrison, external heavy lift, objective cargo, rearm, carrier-loss rules and prices |
+
+The existing recommendation in `DEC-021` is the right sequencing constraint: activate source-compatible personnel classes first, beginning with Sappers and Special Forces, while vehicle, mech, artillery, and aerospace companion classes remain blocked until an explicit V5 conversion profile is approved.
+
+## Cross-class foundations
+
+These should be built once and reused instead of implementing bespoke class code.
+
+### UC-000 — Status truth and catalogue parity
+
+- Define a machine-checkable completion manifest for every class and signature mechanic.
+- Make generated catalogue data the only class-status authority; remove or derive duplicated status copy in `src/forces/model.ts` and nested publication corrections.
+- Reject `IMPLEMENTED` when a class has missing mechanics, null executable actions, balance-required price, missing handler, missing UI capability metadata, or missing test/scenario evidence.
+- Add generated JSON ↔ generated TypeScript ↔ D1 seed parity tests.
+- Make catalogue and seed checks fail if they validate different active ruleset versions without an explicit compatibility binding.
+- Correct the generic VTOL/HAT missing-mechanic classification.
+- Retire or strictly fence the legacy static class definitions in `packages/rules-engine/src/catalogue.ts`.
+
+### UC-010 — Common combat grammar
+
+- Finish directional cover, terrain/high-ground/LOS, remembered intelligence, legal spotting, split fire, area-hex attacks, minimum range, multiple attacks, attack arcs, and melee timing.
+- Define reusable ammunition profiles and rearm rules.
+- Persist every combat status and emit deterministic events suitable for replay and reports.
+- Resolve `DEC-007`, `DEC-022`, and `DEC-023` before dependent classes are promoted.
+
+### UC-020 — Structures, facilities, and fieldwork
+
+- Resolve `DEC-006`: cost, build time, health, armour, footprint, facing, prerequisites, damage, destruction, repair, and abandonment.
+- Implement Bridge, MASH, mines, stealth construction, and the sappers' allowed structure list on the same project/facility model.
+- Make field projects targetable and persistent, with scenario ownership and campaign-end consequences.
+
+### UC-030 — Logistics, cargo, and recovery
+
+- Implement typed supply transfer, compatible ammunition reload, medical/build supply, capacity conversion, partial transfers, and clear failure reasons.
+- Complete carrier destruction, excess FS-linked supply, cargo loss/survival, towing, external lift, objective cargo, and transformation/abandonment rules.
+- Implement coordinated supply drops and hazardous airdrop results.
+- Resolve `DEC-008`, `DEC-009`, and `DEC-019`.
+
+### UC-040 — Equipment and refit
+
+- Resolve price/mutation timing, slot budgets, class access, optics/drone behavior, and campaign refit facilities.
+- Derive unit ability presentation from the equipped, executable rules profile; stop presenting stale hard-coded ability status.
+- Cover purchase, assignment, removal, ammunition, damage, replacement, and save/reload.
+- Resolve `DEC-003`, `DEC-017`, and `DEC-018`.
+
+### UC-050 — Companion conversion profile
+
+- Create a new versioned profile, such as `v5-companion@1`; do not mutate the curated V5 source profile in place.
+- For each companion class, publish an approved conversion sheet containing Hits/FS model, attacks, AP, range, speed, sensors, armour, slots, tags, cargo, abilities, restrictions, requisition cost, and source/decision references.
+- Add handler/action/order links only after the profile is complete.
+- Keep incomplete classes discoverable but fail closed for purchase, deployment, and tactical commands.
+
+### UC-060 — UI, reports, and scenario proof
+
+- Replace showcase/mock status with hydrated catalogue and campaign state on every real screen.
+- Give each class a legal-action preview and a visible reason when an action is unavailable.
+- Ensure event log, replay, battle report, veteran history, memorial, and requisition ledger describe class-specific outcomes.
+- Add one compact signature scenario per mechanic family, then one combined-arms regression scenario.
+- Use the existing distinct art/glyph mappings for all 29 classes; add state variants and accessibility proof rather than commissioning a new base set.
+
+## Delivery waves
+
+### Wave 0 — Make status honest
+
+Deliver UC-000 first. Establish the completion manifest, eliminate status drift, fix the VTOL classification, and record a red/green gate for each of the 29 classes. No class is promoted during this wave unless all evidence already exists.
+
+**Exit gate:** one command reports exactly why every class is `PARTIAL`, `CATALOGUE_ONLY`, or `IMPLEMENTED`, and generated/D1/runtime/UI status cannot disagree.
+
+### Wave 1 — Prove and promote the near-complete canonical classes
+
+Audit Light Vehicle, IFV, MBT, Light Mech, Fighter, and Bomber against the full done contract. Fill only the uncovered edge cases, persistence, UI/report, scenarios, and tests.
+
+**Exit gate:** each promoted class has no missing mechanics and passes acquisition → deployment → tactical action → persistence/reload → report/replay browser coverage.
+
+### Wave 2 — Finish shared canonical mechanics
+
+Build common garrison, equipment, structure/facility, logistics, cargo-loss, hazardous-drop, area/spotting, and orbital-target integration primitives. This wave resolves the blockers rather than adding one-off class branches.
+
+**Exit gate:** the shared mechanic suites pass independently of a named class, including illegal commands and destruction/recovery cases.
+
+### Wave 3 — Complete the remaining canonical classes
+
+Finish, in dependency order:
+
+1. Infantry Squad — Garrison and active equipment.
+2. Logistics Truck — general resupply and coordinated drops.
+3. Combat Medic — persistent MASH.
+4. Engineers — Bridge and full structure lifecycle.
+5. Heavy Air Transport — hazardous and coordinated supply drops.
+6. Artillery — Funnel and anti-orbital integration.
+7. Generic VTOL — promote after taxonomy and aerospace/cargo audit.
+
+**Exit gate:** all 13 V5 canonical classes are honestly `IMPLEMENTED` and covered by the combined-arms scenario.
+
+### Wave 4 — Activate companion personnel
+
+Create the companion profile and implement:
+
+1. Special Forces — stealth/reveal, sabotage, delayed charges.
+2. Sappers — mines, build supply, stealth construction, structure list.
+3. Irregular — training/class evolution and campaign persistence.
+4. Power Armoured Infantry — mounting/drop/mech interactions after transport/orbital dependencies are available.
+
+**Exit gate:** each class has approved attacks and price, equipment rules, persistent signature mechanics, AI reactions, and an authored scenario.
+
+### Wave 5 — Activate companion chassis families
+
+Implement shared conversion profiles before individual classes:
+
+1. Armour conversion → Light, Heavy, and Super Heavy Battle Tanks.
+2. Artillery grammar → Light, Heavy, and Self-Propelled Artillery.
+3. Mech conversion → Medium and Heavy Mechs.
+4. VTOL transport conversion → Troop, Multi-Purpose, and Heavy Lift variants.
+5. Mixed formation model → Mechanized Infantry.
+
+Within each family, implement the simplest chassis first and reuse its durability, movement, subsystem, loadout, reporting, and AI integrations.
+
+**Exit gate:** all 16 companion classes are executable and purchasable only under the versioned companion profile, with no implicit V5 overrides.
+
+### Wave 6 — Balance and public-release hardening
+
+- Run automated matchup matrices and campaign economy simulations using the published requisition costs.
+- Playtest combined-arms rosters, transport loops, artillery saturation, stealth objectives, aerospace dominance, and replacement/rearm pressure.
+- Validate migration from existing saves and reject incompatible profile changes clearly.
+- Finish production scenarios/world authority under `DEC-020`.
+- Run accessibility, responsive browser, latency/concurrency, replay determinism, and production D1 verification.
+
+**Exit gate:** all 29 classes pass the release matrix in a production-like environment and no class depends on showcase/mock data.
+
+## Per-class implementation checklist
+
+Use this checklist as the issue template for every class:
+
+- [ ] Source profile and decisions approved
+- [ ] Health/armour/speed/sensors/price published
+- [ ] Attacks, equipment slots, restrictions, cargo and signature abilities specified
+- [ ] Generated definition and handler/action/order links present
+- [ ] Purchase, ownership, veteran history and replacement behavior implemented
+- [ ] Deployment, embark/drop/tow rules implemented where applicable
+- [ ] Resolver validates and executes every advertised action
+- [ ] Damage, ammo, supplies, cargo, statuses and projects persist through reload
+- [ ] Legal actions and failure reasons appear on real tactical/force screens
+- [ ] Deterministic events feed replay, battle reports and campaign history
+- [ ] Enemy AI handles the class and its signature effects legally
+- [ ] Unit, property/edge, persistence, API/contract and browser tests pass
+- [ ] Signature scenario passes from a clean database
+- [ ] Art/glyph/accessibility/state presentation verified
+- [ ] Catalogue, generated TypeScript and D1 seed parity pass
+- [ ] `missing` is empty and completion manifest permits `IMPLEMENTED`
+
+## Required verification commands
+
+The exact suite may grow as the work lands, but a promotion should at minimum run:
+
+```sh
+npm run catalogue:check
+npm run classes:check
+npm run store:check
+npm run seed:check
+npm run typecheck
+npm test
+npm run test:browser
+```
+
+Family-specific resolver, persistence, route, and scenario tests should be runnable separately during development; the complete suite is the release gate.
+
+## Immediate backlog
+
+1. Implement UC-000 and generate the first 29-row completion report.
+2. Audit and either promote or produce precise failing gates for the five remaining near-complete canonical classes.
+3. Resolve the VTOL/HAT taxonomy error and Heavy Air Transport seed/status mismatch.
+4. Replace the hard-coded ability-status catalogue in `src/forces/model.ts` with generated/hydrated capability status.
+5. Approve the shared decision order: structures/LOS → logistics/cargo/drop → equipment/refit → companion conversion.
+6. Turn each Wave 2 foundation and each class row into a tracked issue using the per-class checklist.
+
+The shortest credible route is: make status trustworthy, promote what is already complete, finish shared canonical mechanics, complete all 13 canonical classes, then activate the 16 companions under a separate rules profile. Promoting catalogue rows before those gates would make the game look more complete without making it more playable.

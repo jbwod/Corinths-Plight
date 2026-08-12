@@ -240,6 +240,54 @@ describe("simultaneous combat and capacity resolution", () => {
       .toEqual(["DESTROYED", "DESTROYED"]);
   });
 
+  it("freezes carried units and emits RC-V5-030 adjudication when a transport is destroyed", () => {
+    const attacker = makeDeployment("attacker", { q: 0, r: 0 }, "ALLIED", {
+      weapons: [{ ...baseWeapon, damage: { count: 1, sides: 2, modifier: 2 } }],
+    });
+    const carrier = makeDeployment("carrier", { q: 1, r: 0 }, "ENEMY", {
+      stats: { healthModel: "HITS", maxHealth: 1 },
+      currentHealth: 1,
+      cargo: [{
+        id: "cargo-passenger",
+        kind: "PERSONNEL",
+        quantity: 4,
+        tags: ["INFANTRY"],
+        transportMode: "EMBARKED",
+        unitId: "passenger",
+      }],
+    });
+    const passenger = makeDeployment("passenger", { q: 1, r: 0 }, "ENEMY", {
+      locationState: "EMBARKED",
+    });
+    const order = attackOrder(attacker, carrier);
+    const state = makeState([attacker, carrier, passenger], [makeHex(0, 0), makeHex(1, 0)], [order]);
+
+    const output = resolveRound(makeRoundInput(state, [order], [], { seed: "carrier-loss" }));
+
+    expect(output.state.deployments.find((deployment) => deployment.id === carrier.id)).toMatchObject({
+      status: "DESTROYED",
+      locationState: "DESTROYED",
+      cargo: [expect.objectContaining({ unitId: passenger.id, transportMode: "EMBARKED" })],
+    });
+    expect(output.state.deployments.find((deployment) => deployment.id === passenger.id)).toMatchObject({
+      status: "ACTIVE",
+      locationState: "EMBARKED",
+      position: carrier.position,
+    });
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "CARGO_DESTRUCTION_REQUIRES_ADJUDICATION",
+      actor: carrier.id,
+      visibility: "ENEMY",
+      payload: expect.objectContaining({
+        conflictId: "RC-V5-030",
+        frozenAt: carrier.position,
+        requiresAdjudication: true,
+        resolution: "FROZEN_WITH_DESTROYED_CARRIER",
+        cargo: [expect.objectContaining({ cargoDeploymentId: passenger.id, kind: "PERSONNEL" })],
+      }),
+    }));
+  });
+
   it("blocks movement into an already full destination hex", () => {
     const mover = makeDeployment("mover", { q: -1, r: 0 });
     const occupant = makeDeployment("occupant", { q: 0, r: 0 });

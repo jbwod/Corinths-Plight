@@ -924,13 +924,13 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     explanation: "The generated tactical handler executes the V5 Logi chassis, capacity-counted Small Supply and unit cargo, packed Artillery towing, and the narrow one-crate Artillery reload path; wider logistics remain gated.",
   },
   "UNIT:unit-light-vehicle": {
-    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
-    reasonCode: "MISSING_CANONICAL_PRICE",
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
     parameters: {
       implementedSubset: ["HITS", "ATTACK", "MOVEMENT", "SUBSYSTEMS", "RAPID_FIRE", "EVASIVE", "PASSENGER_OR_SUPPLY_CARGO"],
       missing: [],
     },
-    explanation: "Subsystem malfunctions and Evasive movement now resolve through the generated tactical handler.",
+    explanation: "The V5 Light Vehicle is playable end to end: acquisition, deployment, Rapid Fire, Evasive movement, governed cargo, subsystem consequences, persistence, replay, reports, AI response and visual presentation are active; rejected companion slots remain catalogue provenance only.",
   },
   "UNIT:unit-light-mech": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",

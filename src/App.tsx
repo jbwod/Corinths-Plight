@@ -186,6 +186,10 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "AEROSPACE_INTERCEPTED") return `${event.actor ?? "Aerospace unit"} was intercepted by ${String(payload.interceptorId ?? "a Fighter")}.`;
   if (event.type === "MEDICAL_SUPPLY_RELOADED") return `${event.actor ?? "Medic"} restored Medical Supply to ${String(payload.medicalSupplyAfter ?? "?")}.`;
   if (event.type === "UNIT_DESTROYED") return `${event.actor ?? "Unit"} was destroyed.`;
+  if (event.type === "CARGO_DESTRUCTION_REQUIRES_ADJUDICATION") {
+    const cargo = Array.isArray(payload.cargo) ? payload.cargo : [];
+    return `${event.actor ?? "Transport"}'s ${cargo.length} carried load${cargo.length === 1 ? " is" : "s are"} frozen pending command adjudication (${String(payload.conflictId ?? "RC-V5-030")}).`;
+  }
   if (event.type === "ROUND_FINISHED") return `Round ${event.round} resolved and archived.`;
   return event.type.replaceAll("_", " ").toLowerCase();
 }

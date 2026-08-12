@@ -736,6 +736,7 @@ export async function listCatalogueSlots(db: Env["DB"]): Promise<CatalogueSlotRo
                JOIN rulesets
                  ON rulesets.id = slots.ruleset_id
                 AND rulesets.status = 'ACTIVE'
+              WHERE COALESCE(json_extract(slots.eligibility_json, '$.canonicalActivation'), 'ACTIVE') <> 'CATALOGUED'
               ORDER BY slots.unit_definition_id, slots.slot_type`)
     .all<CatalogueSlotRow>();
   return result.results;
@@ -817,6 +818,7 @@ export async function getEligibleEquipment(
                    WHERE slots.unit_definition_id = pu.definition_id
                      AND slots.ruleset_id = pu.ruleset_id
                      AND slots.slot_count > 0
+                     AND COALESCE(json_extract(slots.eligibility_json, '$.canonicalActivation'), 'ACTIVE') <> 'CATALOGUED'
                 )
                 AND (
                   eligibility.maximum_equipped IS NULL

@@ -26,6 +26,7 @@ const combatEvents = new Set(["DICE_ROLLED", "UNIT_ATTACKED", "LIGHT_AT_EXPENDED
 const supportEvents = new Set([
   "CARGO_LOADED",
   "CARGO_UNLOADED",
+  "CARGO_DESTRUCTION_REQUIRES_ADJUDICATION",
   "AIR_DROP_COMPLETED",
   "AIR_DROP_FAILED",
   "WEAPON_RELOADED",
@@ -190,6 +191,11 @@ export function describeCampaignReportEvent(
       return `${actor} lost ${numberValue(payload.loss)} strength (${numberValue(payload.before)} → ${numberValue(payload.after)}).`;
     case "UNIT_DESTROYED":
       return `${actor} was destroyed.`;
+    case "CARGO_DESTRUCTION_REQUIRES_ADJUDICATION": {
+      const cargo = Array.isArray(payload.cargo) ? payload.cargo : [];
+      const unitCargo = cargo.filter((item) => item && typeof item === "object" && (item as Record<string, unknown>).kind !== "SUPPLY").length;
+      return `${actor}'s ${cargo.length} carried load${cargo.length === 1 ? "" : "s"} ${cargo.length === 1 ? "is" : "are"} frozen at hex ${coordLabel(payload.frozenAt) ?? "unknown"}${unitCargo > 0 ? `; ${unitCargo} unit load${unitCargo === 1 ? " requires" : "s require"} GM adjudication` : ""} (${String(payload.conflictId ?? "RC-V5-030")}).`;
+    }
     case "CARGO_LOADED":
       return payload.transportMode === "TOWED"
         ? `${actor} hitched ${String(payload.cargoDeploymentId ?? "artillery")} for towing.`
