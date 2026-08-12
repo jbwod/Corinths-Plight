@@ -101,7 +101,7 @@ Force and equipment purchase, loadout mutation, deployment commit, and the narro
 | `battalion_memberships` | `battalion_id`, `user_id`, `rank_id`, `status`, `command_role`, `joined_at`; composite PK. Status: `INVITED`, `ACTIVE`, `SUSPENDED`, `LEFT`, `REMOVED`; command role: `PLAYER`, `BATTALION_COMMAND`, `ADMIN`. |
 | `battlegroups` | `id`, `battalion_id`, `name`, `objective`, nullable `leader_user_id`, boolean `persistent`, `created_at`; unique name within Battalion. |
 | `battlegroup_units` | `battlegroup_id`, `player_unit_id`, boolean `delegated_command`; composite PK. |
-| `ships` | `id`, `battalion_id`, `ruleset_id`, `class_definition_id`, `name`, `status`, `current_health`, planet/destination/travel fields, `state_json`, timestamps; unique name within Battalion; composite class FK. |
+| `ships` | `id`, `battalion_id`, `ruleset_id`, `class_definition_id`, `name`, `registry`, `status`, `current_health`, location/travel fields, revision and last identity-mutation token, `state_json`, timestamps; unique name within Battalion and case-insensitive unique registry; composite class FK. |
 | `ship_equipment` | `ship_id`, `equipment_definition_id`, `ruleset_id`, `slot_type`, `slot_index`, `state_json`; PK by ship/slot and composite definition FK. |
 | `ship_cargo` | `id`, `ship_id`, `resource_type`, `quantity`, `location_slot`, `source`, `state_json`; unique `(ship_id, resource_type, location_slot)`. |
 
@@ -146,6 +146,7 @@ Migration 0007 adds the server-authoritative post-verification onboarding aggreg
 | `onboarding_progress` | One row per User with `BATTALION`, `UNIT`, `TOUR`, or `COMPLETE` step, lifecycle, completion time, and revision. Complete rows must carry a completion time. |
 | `onboarding_command_receipts` | Actor-scoped command ID, operation, canonical request hash, object response JSON, and creation time. Migration `0012` adds active switching; `0013` adds self-departure and authorized member removal. Changed-payload reuse conflicts. |
 | `battalion_administration_receipts` | Migration `0014` records actor-scoped rank create/update/delete and member-rank assignment results. Migration `0015` adds command transfer, with Battalion and membership transfer tokens coupling the creator, role/rank handoff, audience event, and stored response to one guarded exact-once transaction. |
+| `ship_mutation_receipts` | Migration `0016` stores actor-scoped primary-ship identity mutation responses and request hashes. The ship's identity-mutation token couples the versioned name/registry update, Battalion event, and receipt guard in one batch. |
 | `battalion_recruitment_settings` | NPC/player kind, public/private policy, join gate, required public engagement summary, same-Battalion recruitment rank, hashed general invite code, capacity, creation cost, and revision. |
 | `battalion_creation_charters` | One charter per creator, one Battalion per charter, exact Req cost, and immutable ledger transaction reference. |
 | `battalion_email_invites` | Unregistered-email invitation, same-Battalion rank, single-use token hash, seven-day lifecycle, inviter-scoped command, Resend delivery state/ID, and revision. One pending invite per Battalion/email. |

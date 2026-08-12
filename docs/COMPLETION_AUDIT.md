@@ -2,7 +2,7 @@
 
 **Audited:** 2026-08-10
 
-**Commit:** `307af23` (`codex/phase0-release-baseline`) plus the local K-17/report foundation described below
+**Commit:** `61b2de2` (`codex/phase0-release-baseline`) plus the local CP-300 primary-ship identity slice described below
 
 **Authority:** `docs/GAME_COMPLETION_GOAL.md`
 
@@ -30,14 +30,14 @@ The audit began with only two unrelated untracked user paths, which were preserv
 | Seed/content validator | Pass | `npm run seed:check`: 46 definitions, 41 active, 100 SQL definitions, 16 Phase-2 allied classes, 7 enemy roles, 4 Phase-3 operations, 9 equipment effects, 6 deployment methods, 8 source hashes. |
 | TypeScript | Pass | `npm run typecheck`. |
 | ESLint | Pass | `npm run lint`. |
-| Unit/contract tests | Pass | `npm test`: 60 files, 484 tests, Vitest 4.1.10. |
-| Worker/client build | Pass | `npm run build`; Worker 1,254.61 kB, client JS 777.40 kB, CSS 136.50 kB. Wrangler's sandboxed debug-log write warns but the build exits successfully. |
+| Unit/contract tests | Pass | `npm test`: 65 files, 499 tests, Vitest 4.1.10. |
+| Worker/client build | Pass | `npm run build`; Worker 1,401.56 kB, client JS 867.98 kB, CSS 162.14 kB. Wrangler's sandboxed debug-log write warns but the build exits successfully. |
 | Production-mode build | Pass | `WRANGLER_WRITE_LOGS=false npm run build:production`. |
-| Empty D1 migration replay | Pass | All eight migrations applied in isolated Wrangler state. |
+| Empty D1 migration replay | Pass | All sixteen migrations through `0016_ship_identity_mutations.sql` applied in isolated Wrangler state. |
 | Repeat seed replay | Pass | All seven seeds applied twice. |
-| D1 integrity | Pass | SQLite `integrity_check=ok`; `foreign_key_check` empty; 15 migration records and 119 application tables. |
+| D1 integrity | Pass | SQLite `integrity_check=ok`; `foreign_key_check` empty; 16 migration records and 120 application tables. |
 | Application CI | Local baseline implemented; remote proof pending | The application workflow now runs locked install, advisory audit, seed validation, typecheck, lint, Vitest, empty-D1 replay, production build and Playwright, then retains bundle/browser evidence. It has not run on GitHub or been made a protected required check. See CP-001. |
-| Browser/a11y/performance tests | Browser baseline partial | `npm run test:browser`: 17/17 pass for the signed-out auth/enlist shell, authenticated live local strategic/tactical reads without showcase fallback, Battalion join/switch/leave/rank/command-transfer administration, campaign join/staging/withdrawal with exact replay protection, persistent unit identity/history editing, an authoritative Reserve loadout preview/commit, strategic Disembark, resolved Large-Supply logistics, strategic deployment authorization through tactical snapshot commit, forged tactical economy rejection, Heavy Air Transport composer, executable-action composer, four-round report playback, planning layers, and 390px document overflow. Full onboarding/game E2E, Axe/manual accessibility, performance and load remain CP-800/CP-702/CP-802. |
+| Browser/a11y/performance tests | Browser baseline partial | `npm run test:browser`: 18/18 pass for the signed-out auth/enlist shell, authenticated live local strategic/tactical reads without showcase fallback, Battalion join/switch/leave/rank/command-transfer administration, primary-ship identity mutation/replay/history, campaign join/staging/withdrawal with exact replay protection, persistent unit identity/history editing, an authoritative Reserve loadout preview/commit, strategic Disembark, resolved Large-Supply logistics, strategic deployment authorization through tactical snapshot commit, forged tactical economy rejection, Heavy Air Transport composer, executable-action composer, four-round report playback, planning layers, and 390px document overflow. Full onboarding/game E2E, Axe/manual accessibility, performance and load remain CP-800/CP-702/CP-802. |
 
 The passing unit suite proves the tested helpers and contracts only. It does not activate catalogue-only content, validate real D1/DO crash boundaries, or prove a production browser workflow.
 
@@ -53,10 +53,10 @@ The passing unit suite proves the tested helpers and contracts only. It does not
 | Deterministic enemy orders | partial/playable | High | `worker/enemy-ai.ts`; `packages/rules-engine/src/enemy-doctrine.ts` | Published @2 Drone/Warrior/Heavy doctrine now drives stable legal orders, target preference, AP vehicle priority, fire spreading and scenario-primary-objective movement, with projected intention events. Formation cohesion, retreat, supply awareness, difficulty profiles and the incomplete enemy roster remain CP-506. |
 | Tactical persistent effects | partial/gated | High | `worker/campaign-durable-object.ts` effect applier and round finaliser | Supported D1 consequences now acknowledge before the next round opens and retry safely; PREPARED/crypto/collision/attempt coverage remains CP-402. |
 | Tactical realtime/report API | partial/playable | High | Campaign DO report endpoint; `src/components/CampaignReports.tsx`; `src/components/CampaignReplay.tsx` | Round detail is visible and grouped. Each detail response now pairs its archived projected events with the audience-projected pre-resolution battlefield snapshot, and the UI reconstructs positions, routes, interactions, health, destruction, support state and objective control through keyboard-operable play/step/scrub controls plus an accessible formation ledger. Terminal reports also project acknowledged Battalion-visible strategic effects and return directly to the Galactic map. Socket invalidations are per-viewer and include bounded catch-up. Per-event knowledge evolution, declassification and export remain CP-403/CP-700. |
-| Strategic command/Battalion/ship/map/operation reads | implemented read model | High | `worker/routes/strategic.ts:114-138,162-170` | UI can fabricate showcase/default state; no mutations: CP-305. |
+| Strategic command/Battalion/ship/map/operation reads | implemented read model | High | `worker/routes/strategic.ts:114-138,162-170` | Primary-ship identity now has a separate live mutation route; remaining strategic surfaces can still fabricate showcase/default state: CP-305. |
 | Strategic order submission | implemented for supported intents | High | `worker/routes/strategic.ts`; `worker/services/strategic.ts`; Strategic Map DO | Strict validation, Battalion/formation authority, actor-scoped replay and server-derived route checks commit orders. `DEPLOY_TO_CAMPAIGN` now authorizes one co-located Battlegroup and pins its insertion method before tactical plan commit. Movement still fails closed on unresolved timing; tactical withdrawal and orbital combat remain deferred: CP-301–CP-303. |
 | Strategic resolution | implemented foundation | High | `worker/strategic-map-durable-object.ts`; `resolveStrategicMapRound` | Approval-gated resolution hydrates D1, runs the pure engine and atomically applies formation/supply/operation updates, events, receipts and the next round. PREPARED/crypto/alarm/failure-injection work remains: CP-302. |
-| Ship identity/modules/cargo/supply | partial/read-only | High | D1 schema and `GET /api/ships/primary`; `ShipView.tsx` | Acquisition/configuration/movement/transfers/combat deferred: CP-300/CP-301/CP-305. |
+| Ship identity/modules/cargo/supply | partial/playable identity | High | `GET /api/ships/primary`; `POST /api/ships/primary/identity`; `worker/services/ship-admin.ts`; `ShipView.tsx` | An authorized member can atomically rename the existing primary ship and change its unique registry with revision/replay/history guarantees. Hull acquisition, module mutation/economy, wider transfers and combat remain deferred: CP-300/CP-301/CP-305. |
 | Campaign discovery/join | implemented foundation | High | `GET /api/campaigns`, idempotent `POST /api/campaigns/:id/join`, and replay-safe `POST /api/campaigns/:id/withdraw` drive the authenticated recruiting/staging/deployment flow. Joined undeployed campaigns remain discoverable, may reopen the deployment planner, and may be left only by an ordinary PLAYER while recruiting and before any deployment; uncommitted plans are cancelled atomically. Tactical extraction, reinforcement administration and general authoring remain open. | CP-401/CP-405. |
 | Reports library/replay | partial/playable UI and API | High | Report index/detail DO endpoints; `src/components/CampaignReports.tsx`; `src/components/CampaignReplay.tsx`; `src/campaign/replay.ts` | The archive lists durable rounds, shows grouped detail/terminal results and acknowledged strategic consequences, and replays the audience-projected locked snapshot through every archived event with map and accessible-state views. Per-event knowledge evolution, declassification and export remain CP-403/CP-700. |
 | Multi-planet living war | partial/playable development vertical | High | The development theatre contains the three-operation Corinth chain plus independent Cold Horizon on Corinth II. Resolute can traverse the five-round route to Corinth II, then a co-located Raven must receive and resolve a strategic deployment order before its exact persistent snapshots may enter the five-round 127-hex tactical scenario. Assigned Battlegroups persist on the operation projection. A separate round trip proves Disembark → reserve-node persistence → Embark → primary-ship persistence. Production content, travel supply, branching outcomes and additional worlds remain open. | CP-302–CP-305/CP-600–CP-604. |
@@ -139,6 +139,7 @@ All routes are Worker same-origin routes. `Implemented` here means the route has
 | `GET /api/battalions/current/members` | Members | implemented read model |
 | `GET /api/battalions/current/activity` | Activity cursor | implemented read model |
 | `GET /api/ships/primary` | Primary ship projection | implemented read model |
+| `POST /api/ships/primary/identity` | Permission-scoped name/registry mutation with optimistic revision, exact replay receipt and Battalion event | implemented local slice |
 | `GET /api/operations` | Visible operations | implemented read model |
 | `GET /api/operations/:id` | Operation detail | implemented read model |
 | `GET /api/strategic/maps/:id` | Audience-filtered map projection | implemented read model |
@@ -233,7 +234,7 @@ All 13 non-orbital classes have null Req prices and remain non-purchasable unles
 
 ## D1 inventory and workflow coverage
 
-Fresh replay produced 117 application tables, excluding SQLite/Cloudflare internals and `d1_migrations`. The grouped names below are the reproducible schema inventory. Group status describes the strongest production workflow touching the family; individual gaps are called out afterward.
+Fresh replay produced 120 application tables, excluding SQLite/Cloudflare internals and `d1_migrations`. The grouped names below are the reproducible schema inventory. Group status describes the strongest production workflow touching the family; individual gaps are called out afterward.
 
 | Family | Tables | Strongest status |
 |---|---|---:|
@@ -245,7 +246,7 @@ Fresh replay produced 117 application tables, excluding SQLite/Cloudflare intern
 | Req/equipment/refit | `requisition_transactions`, `player_equipment_inventory`, `equipment_effect_definitions`, `refit_definitions`, `player_unit_refits` | purchases partial; economy/refits blocked |
 | Battalion/formation | `battalions`, `battalion_ranks`, `rank_permissions`, `battalion_permission_definitions`, `battalion_memberships`, `battalion_invites`, `battalion_email_invites`, `battalion_recruitment_settings`, `battalion_creation_charters`, `user_active_battalions`, `battlegroups`, `battlegroup_units`, `unit_order_delegations` | onboarding/read projections; lifecycle partial |
 | Onboarding | `onboarding_economy_policies`, `onboarding_progress`, `onboarding_command_receipts`, `onboarding_starter_unit_grants` | implemented product-policy flow |
-| Ships/capabilities | `ships`, `ship_equipment`, `ship_cargo`, `ship_capability_definitions`, `ship_module_capability_grants`, `ship_capability_overrides` | read-only/partial |
+| Ships/capabilities | `ships`, `ship_equipment`, `ship_cargo`, `ship_capability_definitions`, `ship_module_capability_grants`, `ship_capability_overrides`, `ship_mutation_receipts` | identity mutation live; modules/cargo/capability management partial |
 | Tactical world | `planets`, `campaigns`, `campaign_memberships`, `deployments`, `round_metadata`, `order_archive`, `campaign_event_archive`, `persistent_effects` | campaigns/deployments partial; four journal tables dormant |
 | Deployment/equipment state | `deployment_method_definitions`, `campaign_insertion_zones`, `deployment_plans`, `deployment_plan_units`, `deployment_transport_assignments`, `campaign_loadout_snapshots`, `campaign_weapon_states`, `campaign_ability_states`, `deployment_mutation_receipts`, `campaign_effect_receipts` | plan/commit partial; Campaign DO ignores weapon/ability states |
 | Strategic content/world | `strategic_content_sources`, `strategic_locations`, `strategic_maps`, `strategic_nodes`, `strategic_routes`, `strategic_operations`, `strategic_war_variables` | read fixtures; content/variables no live workflow |

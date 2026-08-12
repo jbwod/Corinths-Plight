@@ -18,7 +18,8 @@ INSERT INTO battalion_permission_definitions (permission, description, implement
   ('BATTLEGROUP_CREATE', 'Create a persistent Battlegroup.', 'ACTIVE'),
   ('BATTLEGROUP_EDIT', 'Edit a Battlegroup identity, objective, and leader.', 'ACTIVE'),
   ('BATTLEGROUP_ASSIGN', 'Assign eligible persistent units to a Battlegroup.', 'ACTIVE'),
-  ('SHIP_VIEW', 'View Battalion ship and module state.', 'ACTIVE')
+  ('SHIP_VIEW', 'View Battalion ship and module state.', 'ACTIVE'),
+  ('SHIP_CONFIGURE', 'Configure primary-ship identity and installed modules.', 'ACTIVE')
 ON CONFLICT(permission) DO UPDATE SET
   description = excluded.description,
   implementation_status = excluded.implementation_status;

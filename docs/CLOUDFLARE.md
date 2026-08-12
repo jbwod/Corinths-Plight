@@ -336,13 +336,13 @@ Related boundaries: [ARCHITECTURE.md](./ARCHITECTURE.md), [DATA_MODEL.md](./DATA
 
 ## 14. Current migration and seed order
 
-The repository migration head is `0008_auth_retention_and_invitation_abuse.sql`; the recorded production head remains `0007_guided_onboarding_and_battalions.sql`. The production-approved seed chain is core, Phase 2 combined arms, equipment/deployment, then onboarding foundation. `development-forces.sql`, `development-strategic-world.sql`, and `development-spearhead.sql` are local-only and must never be applied to production.
+The repository migration head is `0016_ship_identity_mutations.sql`; the recorded production head remains `0007_guided_onboarding_and_battalions.sql`. Migrations `0008`–`0016` contain the locally verified operations and gameplay slices and are not active on the recorded production release. The production-approved seed chain is core, Phase 2 combined arms, equipment/deployment, then onboarding foundation. `development-forces.sql`, `development-strategic-world.sql`, and `development-spearhead.sql` are local-only and must never be applied to production.
 
 Production release order is:
 
 1. export/backup the production D1 database;
 2. run a production Worker dry build;
-3. apply pending D1 migrations in order through the reviewed repository head (currently `0008`) before deploying code that depends on them;
+3. apply pending D1 migrations in order through the reviewed repository head (currently `0016`) before deploying code that depends on them;
 4. apply the four production-approved seed families in order; never apply a development fixture;
 5. deploy the Worker/client with the Phase 3 Strategic Map DO export;
 6. smoke-test health, anonymous authentication boundaries, the custom domain, and migration state.

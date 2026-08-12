@@ -67,7 +67,7 @@ battalion_ranks
 
 The Phase 3 permission vocabulary includes Battalion editing, membership, rank, Battlegroup, operation, ship, supply, deployment, and strategic-order permissions. `battalion_permission_definitions.implementation_status` distinguishes executable permissions from schema-only/deferred product surface.
 
-The permission vocabulary distinguishes active gameplay authority from schema-only or deferred product surface. The production-safe onboarding seed activates only permissions consumed by implemented workflows, including `BATTALION_EDIT`, `MEMBER_INVITE`, `MEMBER_REMOVE`, `RANK_MANAGE`, Battlegroup management and `SHIP_VIEW`. The public rank editor exposes only active definitions, so it cannot grant a deferred capability merely because the storage vocabulary contains it.
+The permission vocabulary distinguishes active gameplay authority from schema-only or deferred product surface. The production-safe onboarding seed activates only permissions consumed by implemented workflows, including `BATTALION_EDIT`, `MEMBER_INVITE`, `MEMBER_REMOVE`, `RANK_MANAGE`, Battlegroup management, `SHIP_VIEW`, and `SHIP_CONFIGURE`. `SHIP_CONFIGURE` currently authorizes the versioned primary-ship name/registry workflow; it does not activate deferred module or hull acquisition paths. The public rank editor exposes only active definitions, so it cannot grant a deferred capability merely because the storage vocabulary contains it.
 
 The 33rd Expeditionary fixture has configurable Commander, Operations Officer, and Trooper ranks. The Commander receives the full defined vocabulary for permission-check exercises; that fixture does not bypass implementation-status or environment gates.
 

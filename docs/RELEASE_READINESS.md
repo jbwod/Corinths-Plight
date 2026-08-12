@@ -2,7 +2,7 @@
 
 **Assessment date:** 2026-08-10 (Australia/Sydney)
 
-**Assessed commit:** `3d7e091` plus the local Phase-1 checkpoint changes
+**Assessed commit:** `61b2de2` plus the local CP-300 primary-ship identity slice
 
 **Target:** Honest public release
 
@@ -37,14 +37,14 @@ This is the live release checklist. A checked local build item is not permission
 | `npm run seed:check` | macOS local, Node project toolchain | PASS | 46 definitions; 41 active; 100 SQL definitions; 16 allied classes; 7 enemy roles; 4 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
 | `npm run typecheck` | local | PASS | TypeScript 6.0.3. |
 | `npm run lint` | local | PASS | ESLint 10.8.1. |
-| `npm test` | local | PASS | Vitest 4.1.10; 64 files / 497 tests. |
-| `npm run build` | local development config | PASS | Worker 1,254.61 kB; client JS 777.40 kB; CSS 136.50 kB; Wrangler emitted only its known sandboxed debug-log warning. |
+| `npm test` | local | PASS | Vitest 4.1.10; 65 files / 499 tests. |
+| `npm run build` | local development config | PASS | Worker 1,401.56 kB; client JS 867.98 kB; CSS 162.14 kB; Wrangler emitted only its known sandboxed debug-log warning. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
-| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0015 applied. |
+| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0016 applied. |
 | Seven seeds, twice | same isolated D1 | PASS | Core, Phase 2, equipment, onboarding and three development fixtures replayed twice. |
 | SQLite integrity | isolated D1 database | PASS | `integrity_check=ok`; `foreign_key_check` empty. |
-| `npm run ci:verify:d1` | isolated local D1 | PASS | Fifteen migrations; seven seeds twice; stable table fingerprints/counts; 119 checked application tables. |
-| `npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 17/17 journeys pass, including Battalion join/switch/leave, rank create/update/permission assignment/member assignment/delete, creator-command handoff/restoration and authorized removal; campaign staging/withdrawal; unit identity and Reserve equipment mutation; strategic Disembark, resupply and operation deployment; executable tactical actions; HAT drop composition; live planning views; and 390px overflow coverage. |
+| `npm run ci:verify:d1` | isolated local D1 | PASS | Sixteen migrations; seven seeds twice; stable table fingerprints/counts; 120 checked application tables. |
+| `npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 18/18 journeys pass, including Battalion join/switch/leave, rank create/update/permission assignment/member assignment/delete, creator-command handoff/restoration and authorized removal; primary-ship identity mutation, replay and Battalion history; campaign staging/withdrawal; unit identity and Reserve equipment mutation; strategic Disembark, resupply and operation deployment; executable tactical actions; HAT drop composition; live planning views; and 390px overflow coverage. |
 | `git diff --check` | local Phase-1 tree | PASS | No whitespace errors at final gate. |
 | `npm audit --audit-level=high` | npm advisory service | PASS | Zero known vulnerabilities at assessment time; the result is time-sensitive. |
 
@@ -156,7 +156,7 @@ No external state was changed during this Phase-0 assessment.
 | Obtain/purchase approved mixed force | blocked/partial | CP-200–CP-203; DEC-001–DEC-004 |
 | Equip/refit/readiness/history/icons | partial | CP-204/CP-205/DEC-017/DEC-018 |
 | Battalion/Battlegroup organise/delegate | partial/read-only | CP-206/CP-207 |
-| Own/configure/embark ship | read-only/blocked | CP-300/CP-301/DEC-010 |
+| Own/configure/embark ship | partial/playable local | An authorized Battalion member can edit an existing primary ship's name/registry with revision, receipt and history guarantees; acquisition/modules remain CP-300/DEC-010 and embark breadth remains CP-301. |
 | Submit/resolve strategic travel and operation deployment | local partial | Movement, Embark/Disembark, support and `DEPLOY_TO_CAMPAIGN` resolve through the map coordinator; production world publication and full crash-safe journal remain CP-302–CP-304/DEC-005. |
 | Choose operation and create scenario campaign | partial | K-17 and local Iron Rain are authored and deployable through the live campaign/planner surfaces; strategic order-to-deployment automation and a production content pack remain CP-601/DEC-020. |
 | Submit/edit/cancel/schedule tactical orders | partial | Current-round generated orders support submit, edit and two-step cancel through actor-scoped hashed receipts and optimistic campaign/order revisions. Cancellation emits an Allied event and supports replacement before lock. Future scheduling remains intentionally unavailable pending reliable semantics. |

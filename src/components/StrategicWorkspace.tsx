@@ -141,7 +141,7 @@ export function StrategicWorkspace({ view, onNavigate, onNotice }: StrategicWork
       <ModeBanner mode={mode} issues={issues} />
       {view === "Command" && <CommandView snapshot={snapshot} mode={mode} onNavigate={onNavigate} />}
       {view === "Battalion" && <BattalionView snapshot={snapshot} mode={mode} onNotice={onNotice} />}
-      {view === "Ship" && <ShipView snapshot={snapshot} mode={mode} onNotice={onNotice} />}
+      {view === "Ship" && <ShipView snapshot={snapshot} mode={mode} onNotice={onNotice} onShipChanged={refresh} />}
       {view === "Galactic" && (
         <GalacticOperationsView
           snapshot={snapshot}

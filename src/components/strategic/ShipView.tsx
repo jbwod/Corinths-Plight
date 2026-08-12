@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { ModuleView, StrategicDataMode, StrategicSnapshot } from "../../strategic/model";
 import { EquipmentIcon } from "../EquipmentVisual";
+
+const DEMO_HEADERS = import.meta.env.DEV ? { "x-demo-user": "demo-user" } : undefined;
+const JSON_HEADERS = { "content-type": "application/json", ...(DEMO_HEADERS ?? {}) };
 
 interface ShipViewProps {
   snapshot: StrategicSnapshot;
   mode: StrategicDataMode;
   onNotice: (notice: { tone: "info" | "success" | "danger"; message: string }) => void;
+  onShipChanged: () => Promise<void>;
 }
 
 type ShipTab = "BRIDGE" | "MODULES" | "LOGISTICS";
@@ -20,8 +24,84 @@ function supplyValue(value: boolean | null): string {
   return value ? "AVAILABLE" : "UNAVAILABLE";
 }
 
-export function ShipView({ snapshot, mode, onNotice }: ShipViewProps) {
+function ShipIdentityDialog({
+  ship,
+  onClose,
+  onSaved,
+}: {
+  ship: StrategicSnapshot["ship"];
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [name, setName] = useState(ship.name);
+  const [registry, setRegistry] = useState(ship.registry);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+
+  useEffect(() => {
+    const dialog = ref.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError(undefined);
+    try {
+      const response = await fetch("/api/ships/primary/identity", {
+        method: "POST",
+        headers: JSON_HEADERS,
+        body: JSON.stringify({
+          commandId: `ship-identity-${crypto.randomUUID()}`,
+          expectedVersion: ship.version,
+          name,
+          registry,
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({})) as { error?: { message?: string } };
+        throw new Error(payload.error?.message ?? `Ship identity update failed (${response.status}).`);
+      }
+      await onSaved();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Ship identity could not be saved.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const normalizedRegistry = registry.trim().toUpperCase();
+  const unchanged = name.trim() === ship.name && normalizedRegistry === ship.registry;
+  return (
+    <dialog ref={ref} className="identity-dialog ship-identity-dialog" aria-labelledby="ship-identity-title" onCancel={(event) => { event.preventDefault(); onClose(); }}>
+      <form onSubmit={(event) => void save(event)}>
+        <header>
+          <div><span className="eyebrow">PRIMARY SHIP RECORD</span><h2 id="ship-identity-title">Edit ship identity</h2></div>
+          <button type="button" aria-label="Close ship identity editor" onClick={onClose}>×</button>
+        </header>
+        <section>
+          <div className="ship-silhouette compact" aria-hidden="true"><i /><b>CSV</b></div>
+          <div className="identity-fields">
+            <label>SHIP NAME<input autoFocus required minLength={2} maxLength={80} value={name} onChange={(event) => setName(event.target.value)} /></label>
+            <label>REGISTRY<input required minLength={2} maxLength={24} pattern="[A-Z0-9][A-Z0-9-]{1,23}" value={registry} onChange={(event) => setRegistry(event.target.value.toUpperCase())} /></label>
+          </div>
+          <p>The hull, installed modules, supply, location and combat state are unchanged. This identity event remains visible in Battalion activity.</p>
+        </section>
+        <footer>
+          <div>{error && <p role="alert">{error}</p>}<small>SHIP STATE VERSION {ship.version}</small></div>
+          <button type="button" onClick={onClose}>CANCEL</button>
+          <button className="primary" type="submit" disabled={busy || unchanged}>{busy ? "SAVING…" : "SAVE IDENTITY"}</button>
+        </footer>
+      </form>
+    </dialog>
+  );
+}
+
+export function ShipView({ snapshot, mode, onNotice, onShipChanged }: ShipViewProps) {
   const [tab, setTab] = useState<ShipTab>("BRIDGE");
+  const [identityOpen, setIdentityOpen] = useState(false);
   const ship = snapshot.ship;
   const externalSlots = moduleSlots(ship.modules, "EXTERNAL", ship.externalSlots);
   const internalSlots = moduleSlots(ship.modules, "INTERNAL", ship.internalSlots);
@@ -29,6 +109,7 @@ export function ShipView({ snapshot, mode, onNotice }: ShipViewProps) {
   const supplyPercent = ship.supply.largeCurrent !== null && ship.supply.largeCapacity
     ? Math.max(0, Math.min(100, ship.supply.largeCurrent / ship.supply.largeCapacity * 100))
     : 0;
+  const canConfigure = mode === "LIVE" && snapshot.battalion.permissions.includes("SHIP_CONFIGURE");
 
   const explainDeferred = (area: string) => onNotice({
     tone: "info",
@@ -69,7 +150,8 @@ export function ShipView({ snapshot, mode, onNotice }: ShipViewProps) {
         {(["BRIDGE", "MODULES", "LOGISTICS"] as const).map((value) => (
           <button type="button" role="tab" aria-selected={tab === value} className={tab === value ? "active" : ""} key={value} onClick={() => setTab(value)}>{value}</button>
         ))}
-        <button type="button" className="deferred-action" onClick={() => explainDeferred("Ship configuration")}>CONFIGURE / UPGRADE · DEFERRED</button>
+        {canConfigure && <button type="button" onClick={() => setIdentityOpen(true)}>EDIT SHIP IDENTITY</button>}
+        <button type="button" className="deferred-action" onClick={() => explainDeferred("Ship module upgrades")}>MODULE UPGRADES · DEFERRED</button>
       </div>
 
       {tab === "BRIDGE" && (
@@ -200,6 +282,11 @@ export function ShipView({ snapshot, mode, onNotice }: ShipViewProps) {
           <p className="boundary-note"><strong>Supply boundary:</strong> Large, Medium, and Small Supply are never collapsed into one pool. Transfers and consumption are disabled until an idempotent server mutation validates location, source, capacity, and expected version.</p>
         </section>
       )}
+      {identityOpen && <ShipIdentityDialog ship={ship} onClose={() => setIdentityOpen(false)} onSaved={async () => {
+        setIdentityOpen(false);
+        onNotice({ tone: "success", message: "Primary ship identity saved to the persistent Battalion record." });
+        await onShipChanged();
+      }} />}
     </div>
   );
 }

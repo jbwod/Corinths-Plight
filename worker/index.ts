@@ -18,6 +18,7 @@ import { routeAuthRequest } from "./routes/auth";
 import { routeDeploymentRequest } from "./routes/deployment";
 import { routeCampaignDirectoryRequest } from "./routes/campaigns";
 import { routeOnboardingRequest } from "./routes/onboarding";
+import { routeShipAdminRequest } from "./routes/ship-admin";
 import { routeStrategicRequest } from "./routes/strategic";
 import { rulesCatalogueResponse } from "./rules-catalogue";
 import { scheduleSecurityMaintenance } from "./security-maintenance";
@@ -82,6 +83,9 @@ async function route(request: Request, env: Env, requestId: string, context: Exe
 
   const battalionAdminResponse = await routeBattalionAdminRequest(request, env);
   if (battalionAdminResponse) return battalionAdminResponse;
+
+  const shipAdminResponse = await routeShipAdminRequest(request, env);
+  if (shipAdminResponse) return shipAdminResponse;
 
   const deploymentResponse = await routeDeploymentRequest(request, env);
   if (deploymentResponse) return deploymentResponse;

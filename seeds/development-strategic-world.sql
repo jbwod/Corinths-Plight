@@ -42,7 +42,7 @@ INSERT INTO battalion_permission_definitions (
   ('OPERATION_CREATE', 'Create a strategic operation.', 'SCHEMA_ONLY'),
   ('OPERATION_COMMAND', 'Coordinate and command an operation.', 'ACTIVE'),
   ('SHIP_VIEW', 'View Battalion ship and module state.', 'ACTIVE'),
-  ('SHIP_CONFIGURE', 'Configure installed ship modules.', 'DEFERRED'),
+  ('SHIP_CONFIGURE', 'Configure primary-ship identity and installed modules.', 'ACTIVE'),
   ('SHIP_UPGRADE', 'Acquire ship hull or module upgrades.', 'DEFERRED'),
   ('SHIP_MOVE', 'Submit movement for a Battalion Task Force.', 'ACTIVE'),
   ('SUPPLY_VIEW', 'View Battalion strategic logistics.', 'ACTIVE'),

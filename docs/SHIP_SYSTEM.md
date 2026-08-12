@@ -1,6 +1,6 @@
 # Corinth's Plight Ship System
 
-**Status:** Phase 2 catalogue plus Phase 3 persistent ship/Task Force/logistics foundation (2026-08-10)
+**Status:** Phase 2 catalogue plus Phase 3 persistent ship/Task Force/logistics foundation; primary-ship identity mutation is live locally (2026-08-12)
 
 ## 1. The ship is home
 
@@ -27,7 +27,12 @@ These records remain `experimental` where the catalogue says so. Missing requisi
 
 - optional unique registry/callsign;
 - a structured semantic `current_location_id`;
-- optimistic revision.
+- optimistic revision;
+- a private last-identity-mutation token used to couple compare-and-set updates to their receipt and history event.
+
+An active Battalion member with the published `SHIP_CONFIGURE` permission can change the primary ship's display name and registry through `POST /api/ships/primary/identity`. The request carries an actor-scoped command ID and expected ship revision. The server derives the current Battalion and primary ship, normalizes the registry to uppercase, rejects destroyed ships and duplicate names/registries, and atomically advances the ship revision, appends a Battalion-audience `SHIP_IDENTITY_CHANGED` event, and stores the exact response in `ship_mutation_receipts`. Same-payload retries return that response; changed-payload command reuse conflicts. The Ship interface refreshes the authoritative projection after success and keeps module upgrades visibly deferred.
+
+This implements identity management for an existing primary ship. It does not grant or price a hull, create a ship for a Battalion without one, or authorize module installation.
 
 The Battalion's `primary_ship_id` selects the initial home ship but does not limit the data model to one ship. A trigger rejects a primary ship owned by another Battalion.
 
@@ -108,7 +113,7 @@ The fixture is deliberately local-only. Module implementation overlays still con
 
 ## 9. Concurrency and security
 
-Ship and supply mutations require authenticated active Battalion membership, the exact rank permission, actor-scoped command idempotency, and expected revision. The repository query must include the Battalion owner predicate.
+Ship and supply mutations require authenticated active Battalion membership, the exact rank permission, actor-scoped command idempotency, and expected revision. The repository query must include the Battalion owner predicate. Primary-ship identity changes currently satisfy this boundary through `SHIP_CONFIGURE`, `ship_mutation_receipts`, the ship mutation token, and one atomic D1 batch.
 
 The service must atomically prevent:
 

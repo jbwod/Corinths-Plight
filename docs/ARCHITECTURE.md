@@ -25,7 +25,7 @@ The current repository is a deployed identity/guided-enlistment foundation with 
 | Deliverable | Repository evidence | Status |
 |---|---|---|
 | Foundation and Phase 3 design/audit documents | Original seven documents plus `STRATEGIC_LAYER.md`, `BATTALION_MODEL.md`, `SHIP_SYSTEM.md`, and `STRATEGIC_RESOLUTION.md` | Implemented |
-| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0008_auth_retention_and_invitation_abuse.sql` | Eight additive schema artifacts in the repository; production is recorded only through `0007`, so `0008` is not active there |
+| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0016_ship_identity_mutations.sql` | Sixteen additive schema artifacts in the repository; production is recorded only through `0007`, so later gameplay and operations migrations are local until an explicitly authorized release |
 | Ruleset seed | `seeds/v5-core-curated.sql`; consistency check in `scripts/validate-seed.ts` | Idempotent SQL artifact exists, but its 12 obsolete conflict IDs and split compiled/D1 catalogue prevent a complete authority claim |
 | Domain contracts | `packages/domain/src/index.ts`, `worker/campaign-contracts.ts` | Shared TypeScript interfaces plus bounded tactical request contracts and a versioned, validated Campaign DO state/snapshot envelope; general public DTO/runtime schemas remain incomplete |
 | Pure rules engine | `packages/rules-engine/src/` and `packages/rules-engine/test/` | Implemented foundation subset |
@@ -91,6 +91,7 @@ There are no independently deployed microservices. The client, Worker entry poin
 | `worker/index.ts` | Public API composition, origin policy, authentication, D1 campaign authorization, named-DO forwarding, security headers | Browser never receives a DO stub |
 | `worker/auth.ts` | Demo/session authentication, D1 membership lookup, trusted viewer headers | Demo mode is development-only; no V1 credential compatibility |
 | `worker/services/security-operations.ts`, `worker/repositories/security-operations.ts`, `worker/services/invitation-delivery.ts` | Bounded retention maintenance, pseudonymized invitation throttling/audit, and a leased Resend delivery outbox | Immediate `waitUntil` attempts plus hourly recovery and migration `0008` exist locally; production remains on the pre-`0008` deployment |
+| `worker/routes/ship-admin.ts`, `worker/services/ship-admin.ts`, `worker/repositories/ship-admin.ts` | Primary-ship name/registry mutation, current-Battalion authorization, optimistic concurrency, audience history and exact replay receipts | Existing-ship identity only; hull acquisition and module mutation/economy remain blocked |
 | `worker/campaign-durable-object.ts` | K-17 campaign state, fixture-derived committed-snapshot initialization, orders, alarms, sockets, resolution, projections, and narrow receipt-idempotent D1 writeback | General scenario bootstrap, next-round acknowledgement gate, audience-safe realtime/reporting, and cryptographic effect journal remain open |
 | `worker/campaign-clock.ts` | Pure clock/schedule transitions | Schedule is currently embedded in `state/current`, not separate storage records |
 | `worker/strategic-*` | Strategic request policy/validation/clock and map coordination as landed | Must remain map-sharded and permission scoped; no global game object |
@@ -99,7 +100,7 @@ There are no independently deployed microservices. The client, Worker entry poin
 | `packages/domain/src/` | Shared TypeScript interfaces and constants | Compile-time contracts only; not a runtime schema package yet |
 | `packages/rules-engine/src/` | Pure compiled catalogue, hex, mechanics, visibility, RNG, enemy/demo fixtures, and resolver | No storage, network, wall-clock reads, or `Math.random()`; its five allied tactical definitions do not cover all D1 classes marked executable |
 | `packages/rules-engine/test/` | Pure engine fixtures and regression tests | No live Cloudflare integration |
-| `migrations/` | Eight ordered additive D1 SQL migrations | Production is recorded through `0007`; no new runtime uses the legacy Alembic files also retained in this directory |
+| `migrations/` | Sixteen ordered additive D1 SQL migrations | Production is recorded through `0007`; no new runtime uses the legacy Alembic files also retained in this directory |
 | `seeds/v5-core-curated.sql`, `seeds/v5-phase2-combined-arms.sql` | Versioned D1 rules/source/conflict catalogue | Definitions only; availability overlays distinguish executable/catalogue state |
 | `seeds/onboarding-foundation.sql` | Production-safe guided-enlistment policy and three NPC recruitment Battalions | Product fixture, not canonical V5 lore; no development User or campaign data |
 | `seeds/development-forces.sql`, `seeds/development-strategic-world.sql` | Explicit local-only Phase 2/3 fixtures | Never production data or automatically canonical lore |
@@ -278,7 +279,7 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 |---|---|---|
 | Package skeleton, TypeScript, lint, unit tests, local production build | Complete | Root package scripts |
 | Application browser smoke baseline | Partial/local | Playwright covers public auth, authenticated live navigation without showcase fallback, tactical rejection of client-authored economy, and 390px overflow (4 tests); remote CI evidence, broader browser matrix, accessibility, and performance gates remain open |
-| Migrations and idempotent seed artifacts | Local head `0008`; production head `0007` | Fresh empty D1 replay through all eight migrations and all seven seeds twice passes integrity/FK checks; production-approved and development seed families remain separated |
+| Migrations and idempotent seed artifacts | Local head `0016`; production head `0007` | Fresh empty D1 replay through all sixteen migrations and all seven seeds twice passes integrity/FK checks; production-approved and development seed families remain separated |
 | Deterministic resolver subset and regression coverage | Partial but tested | Narrow Hold/Advance/Rush/Attack/equipment paths have unit coverage; locale ordering, terrain defaults, category-scoped flanking, cargo ledger, and release journal defects remain |
 | K-17 state, alarms, clock, pause/resume, sockets | Partial | Unit coverage exists; crash/alarm/WebSocket integration coverage does not |
 | Viewer projection | Partial | Basic state/report redaction exists; event-time and socket-field leakage tests remain |
@@ -287,7 +288,7 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 | Separate persisted schedule records and reconnect catch-up | Partial | Schedule lives inside current state; sockets provide bounded projected cursor catch-up but no separate persisted feed |
 | Production passwordless identity/session issuance | Deployed foundation | Resend verified-email links, opaque sessions, logout, auth rate limits, and pseudonymized audit are deployed; `0008` retention schedule is local-only pending migration/deployment |
 | Guided enlistment and Battalion recruitment | Deployed foundation | Public/private/code/targeted joins, one-charter economy, starter grant, tour, recruitment settings, and Resend delivery are deployed; `0008` invitation throttling/expiry is local-only |
-| Helion/Corinth strategic schema and fixture | Complete as development data only | Fresh 0001–0008 replay and all seven seeds twice passed; production seeds still create no strategic world or campaigns |
+| Helion/Corinth strategic schema and fixture | Complete as development data only | Fresh 0001–0016 replay and all seven seeds twice passed; production seeds still create no strategic world or campaigns |
 | Strategic map sharding, pure resolver, permission-scoped reads, responsive UI | Partial/blocked | Unit tests cover the pure resolver and service shell; public order submission and DO resolution return `501`, route durations are `BALANCE_REQUIRED`, and the UI can use showcase state |
 | Strategic-to-tactical deployment/result reconciliation | Partial | Loadout/deployment commit and narrow tactical writeback exist; scenario bootstrap remains K-17-derived, and withdrawal plus the acknowledgement-gated protocol remain deferred |
 | Production D1 and custom-domain foundation | Complete | Production binding is migrated through `0007`; `corinthplight.qnetica.com.au` serves the current Worker/UI |

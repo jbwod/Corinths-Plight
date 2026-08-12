@@ -1728,6 +1728,22 @@ export interface ShipDto extends ShipSummaryDto {
   atmoFuelCapacity?: number | null;
 }
 
+export interface RenamePrimaryShipCommand {
+  commandId: string;
+  expectedVersion: number;
+  name: string;
+  registry: string;
+}
+
+export interface ShipIdentityMutationDto {
+  operation: "RENAME_PRIMARY_SHIP";
+  shipId: string;
+  battalionId: string;
+  name: string;
+  registry: string;
+  version: number;
+}
+
 export interface ShipModuleDto {
   id: string;
   shipId: string;

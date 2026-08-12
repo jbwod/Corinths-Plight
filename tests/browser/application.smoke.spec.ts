@@ -770,6 +770,86 @@ test("Battalion creator transfers command authority and the new commander can ha
   });
 });
 
+test("ship command changes the primary ship identity with exact replay and Battalion history", async ({ page }) => {
+  type ShipProjection = { ship: { id: string; name: string; registry: string; version: number } };
+  const origin = "http://127.0.0.1:4173";
+  const headers = { "x-demo-user": "demo-user", origin };
+  const readShip = async () => {
+    const response = await page.request.get("/api/ships/primary", { headers });
+    expect(response.status()).toBe(200);
+    return response.json() as Promise<ShipProjection>;
+  };
+  const initial = await readShip();
+  const nextName = "CSV Resolute Pathfinder";
+  const nextRegistry = "CSV-PATHFINDER";
+
+  const denied = await page.request.post("/api/ships/primary/identity", {
+    headers: { "x-demo-user": "demo-wing-user", origin },
+    data: {
+      commandId: `browser-ship-denied-${crypto.randomUUID()}`,
+      expectedVersion: initial.ship.version,
+      name: nextName,
+      registry: nextRegistry,
+    },
+  });
+  expect(denied.status()).toBe(403);
+  await expect(denied.json()).resolves.toMatchObject({ error: { code: "BATTALION_PERMISSION_REQUIRED" } });
+
+  await page.goto("/?view=ship");
+  await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();
+  await page.getByRole("button", { name: "EDIT SHIP IDENTITY" }).click();
+  const dialog = page.getByRole("dialog", { name: "Edit ship identity" });
+  await dialog.getByLabel("SHIP NAME").fill(nextName);
+  await dialog.getByLabel("REGISTRY").fill(nextRegistry);
+  const commandRequest = page.waitForRequest((request) =>
+    request.url().endsWith("/api/ships/primary/identity") && request.method() === "POST");
+  await dialog.getByRole("button", { name: "SAVE IDENTITY" }).click();
+  const command = (await commandRequest).postDataJSON() as {
+    commandId: string;
+    expectedVersion: number;
+    name: string;
+    registry: string;
+  };
+  await expect.poll(async () => (await readShip()).ship).toMatchObject({
+    name: nextName,
+    registry: nextRegistry,
+    version: initial.ship.version + 1,
+  });
+
+  const replay = await page.request.post("/api/ships/primary/identity", { headers, data: command });
+  expect(replay.status()).toBe(200);
+  await expect(replay.json()).resolves.toMatchObject({ operation: "RENAME_PRIMARY_SHIP", name: nextName, registry: nextRegistry });
+  const collision = await page.request.post("/api/ships/primary/identity", {
+    headers,
+    data: { ...command, registry: "CSV-COLLISION" },
+  });
+  expect(collision.status()).toBe(409);
+  await expect(collision.json()).resolves.toMatchObject({ error: { code: "IDEMPOTENCY_KEY_REUSED" } });
+
+  const activity = await page.request.get("/api/battalions/current/activity", { headers });
+  expect(activity.status()).toBe(200);
+  await expect(activity.json()).resolves.toMatchObject({
+    events: expect.arrayContaining([expect.objectContaining({ type: "SHIP_IDENTITY_CHANGED", subjectId: initial.ship.id })]),
+  });
+
+  const current = await readShip();
+  const restored = await page.request.post("/api/ships/primary/identity", {
+    headers,
+    data: {
+      commandId: `browser-ship-restore-${crypto.randomUUID()}`,
+      expectedVersion: current.ship.version,
+      name: initial.ship.name,
+      registry: initial.ship.registry,
+    },
+  });
+  expect(restored.status()).toBe(200);
+  await expect.poll(async () => (await readShip()).ship).toMatchObject({
+    name: initial.ship.name,
+    registry: initial.ship.registry,
+    version: initial.ship.version + 2,
+  });
+});
+
 test("Battalion command removes an eligible ordinary member and preserves history", async ({ page }) => {
   const origin = "http://127.0.0.1:4173";
   const denied = await page.request.post("/api/onboarding/battalions/members/remove", {

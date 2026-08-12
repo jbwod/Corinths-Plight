@@ -2563,6 +2563,8 @@ summary:focus-visible {
 .identity-dialog form > footer button { min-width: 118px; height: 39px; border: 1px solid rgba(112, 217, 207, .3); background: transparent; color: var(--muted); font: 600 7px/1 var(--mono); cursor: pointer; }
 .identity-dialog form > footer button.primary { background: rgba(42, 111, 105, .43); color: var(--teal-bright); }
 .identity-dialog form > footer button:disabled { cursor: not-allowed; filter: grayscale(.7); opacity: .35; }
+.ship-identity-dialog .ship-silhouette.compact { width: 136px; min-height: 76px; align-self: center; }
+.ship-identity-dialog .identity-fields { display: grid; gap: 10px; }
 
 .durability-panel {
   display: grid;
