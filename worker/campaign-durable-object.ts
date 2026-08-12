@@ -86,7 +86,6 @@ const allowedActionTypes = new Set([
   "CREW_REPAIR",
   "CONSTRUCT",
   "TRENCH_UPGRADE",
-  "GARRISON",
   "LOAD",
   "UNLOAD",
   "RESUPPLY",

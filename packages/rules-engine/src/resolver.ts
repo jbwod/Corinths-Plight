@@ -43,6 +43,7 @@ import {
 } from "./specialists";
 import { createSeededRandom, hashSeed } from "./rng";
 import { getTacticalActionRule, getTacticalOrderRule } from "./tactical-grammar";
+import { isGarrisonEligible, isInfantryGarrisonBuilding } from "./cover";
 import { getTacticalSubsystemRules, getTacticalUnitClass } from "./tactical-unit-catalogue";
 import { applyScenarioReinforcements, evaluateScenarioRoundEnd } from "./scenario";
 
@@ -525,7 +526,20 @@ export function resolveRound(input: RoundInput): RoundOutput {
   for (const outcome of movementOutcomes) {
     const deployment = state.deployments.find((candidate) => candidate.id === outcome.unitId)!;
     const moved = outcome.traversedRoute.length > 1;
+    const startedGarrisoned = deployment.statuses.includes("GARRISONED") || (
+      isGarrisonEligible(deployment) && isInfantryGarrisonBuilding(
+        state.map.find((hex) => sameCoord(hex.coord, outcome.from)),
+      )
+    );
     if (moved) deployment.position = { ...outcome.to };
+    const endsGarrisoned = moved && isGarrisonEligible(deployment) && isInfantryGarrisonBuilding(
+      state.map.find((hex) => sameCoord(hex.coord, outcome.to)),
+    );
+    if (moved) {
+      deployment.statuses = endsGarrisoned
+        ? [...new Set([...deployment.statuses, "GARRISONED"])]
+        : deployment.statuses.filter((status) => status !== "GARRISONED");
+    }
     if (deployment.statuses.includes("DUG_IN")) {
       const startedInTrench = state.map.find((hex) => sameCoord(hex.coord, outcome.from))?.structureIds
         .some((id) => id === "structure-trench" || id.startsWith("structure-trench:")) ?? false;
@@ -551,6 +565,21 @@ export function resolveRound(input: RoundInput): RoundOutput {
         orderType: order.orderType,
         digInPreserved: deployment.statuses.includes("DUG_IN"),
       });
+      if (!startedGarrisoned && endsGarrisoned) {
+        event("UNIT_GARRISONED", deployment.id, {
+          orderId: outcome.orderId,
+          position: outcome.to,
+          movementCost: 0.25,
+          coverArmor: 1,
+          conflictId: "RC-COVER-001",
+        });
+      } else if (startedGarrisoned && !endsGarrisoned) {
+        event("UNIT_LEFT_GARRISON", deployment.id, {
+          orderId: outcome.orderId,
+          from: outcome.from,
+          reason: "LEFT_BUILDING",
+        });
+      }
     }
     if (outcome.block) {
       event("UNIT_BLOCKED", deployment.id, {

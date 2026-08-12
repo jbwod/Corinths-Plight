@@ -22,6 +22,7 @@ import {
   getTacticalOrderRule,
   getUnitClass,
   hexDistance,
+  INFANTRY_GARRISON_BUILDING,
   projectCampaignState,
   resolveTacticalCover,
   shortestPath,
@@ -146,6 +147,8 @@ function formatEvent(event: CampaignEvent): string {
         ? `${event.actor ?? "Unit"} halted before a hostile formation${increment}.`
         : `${event.actor ?? "Unit"} was blocked${increment}.`;
   }
+  if (event.type === "UNIT_GARRISONED") return `${event.actor ?? "Infantry"} entered a building for +1 Cover Armor against outside fire.`;
+  if (event.type === "UNIT_LEFT_GARRISON") return `${event.actor ?? "Infantry"} left its building garrison.`;
   if (event.type === "UNIT_DUG_IN") return payload.method === "ENGINEER_ARTILLERY_POSITION"
     ? `${event.actor ?? "Engineer"} dug in ${String(payload.targetId ?? "Artillery")} for +2 Defense.`
     : `${event.actor ?? "Unit"} dug in for +2 Defense.`;
@@ -649,6 +652,9 @@ function GameApp() {
     rush: orderType === "RUSH",
     unitTags: selectedUnit?.tags,
   });
+  const plannedGarrisonHex = draftedRoute.length > 1 && selectedUnit?.tags?.includes("INFANTRY") && selectedUnit.tags.includes("PERSONNEL")
+    ? campaign.map.find((hex) => coordinatesEqual(hex.coord, draftedRoute.at(-1)!) && hex.environment.includes(INFANTRY_GARRISON_BUILDING))
+    : undefined;
   const targetRange =
     targetUnit && draftedRoute.length > 0 ? hexDistance(draftedRoute.at(-1)!, targetUnit.position) : undefined;
   const ordersForRound = campaign.orders.filter(
@@ -1693,6 +1699,7 @@ function GameApp() {
                 )}
                 {mobilityDisabled && draftedRoute.length > 1 && <p className="validation danger">Mobility subsystem offline. Repair this unit before moving.</p>}
                 {!routeResult.legal && <p className="validation danger">{routeResult.reason}</p>}
+                {plannedGarrisonHex && <p className="validation">GARRISON: entering this building costs 0.25 Speed and grants non-stacking +1 Cover Armor against attacks from outside the hex.</p>}
                 <div className="facing-control" aria-label="Final facing">
                   {FACING_LABELS.map((facing, index) => (
                     <button className={draftedFacing === index ? "active" : ""} key={facing} onClick={() => setDraftedFacing(index as Facing)}>{facing}</button>

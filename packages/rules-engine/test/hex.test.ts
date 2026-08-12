@@ -96,6 +96,7 @@ describe("routes, terrain, and pathing", () => {
           river: 1,
           road: true,
           fieldwork: 0,
+          garrisonEntry: 0,
           total: 2.75,
         },
       ],
@@ -129,6 +130,7 @@ describe("routes, terrain, and pathing", () => {
         river: 0,
         road: false,
         fieldwork: 0,
+        garrisonEntry: 0,
         total: 1,
       }],
     });
@@ -156,6 +158,41 @@ describe("routes, terrain, and pathing", () => {
       .toMatchObject({ total: 2, steps: [{ fieldwork: 1 }] });
     expect(calculateRouteCost([start.coord, traps.coord], [start, traps], { unitTags: ["INFANTRY"] }).total).toBe(1);
     expect(calculateRouteCost([start.coord, wire.coord], [start, wire], { rush: true, unitTags: ["INFANTRY"] }).total).toBe(1);
+  });
+
+  it("charges eligible infantry exactly 0.25 Speed to enter or cross between authored buildings", () => {
+    const start = makeHex(0, 0);
+    const firstRoom = makeHex(1, 0, { environment: ["INFANTRY_GARRISON_BUILDING"] });
+    const secondRoom = makeHex(2, 0, {
+      movementCost: 2,
+      elevation: 2,
+      environment: ["INFANTRY_GARRISON_BUILDING"],
+    });
+    const infantry = ["GROUND", "PERSONNEL", "INFANTRY"];
+
+    expect(calculateRouteCost([start.coord, firstRoom.coord], [start, firstRoom], { unitTags: infantry }))
+      .toMatchObject({ total: 0.25, steps: [{ garrisonEntry: 0.25, total: 0.25 }] });
+    expect(calculateRouteCost([firstRoom.coord, secondRoom.coord], [firstRoom, secondRoom], {
+      rush: true,
+      unitTags: infantry,
+    })).toMatchObject({ total: 0.25, steps: [{ garrisonEntry: 0.25, total: 0.25 }] });
+    expect(calculateRouteCost([firstRoom.coord, start.coord], [start, firstRoom], { unitTags: infantry }).total)
+      .toBe(1);
+  });
+
+  it("does not grant the infantry building rate to vehicles or non-infantry personnel", () => {
+    const start = makeHex(0, 0);
+    const building = makeHex(1, 0, {
+      movementCost: 2,
+      environment: ["INFANTRY_GARRISON_BUILDING"],
+    });
+
+    expect(calculateRouteCost([start.coord, building.coord], [start, building], {
+      unitTags: ["GROUND", "VEHICLE", "INFANTRY"],
+    }).total).toBe(2);
+    expect(calculateRouteCost([start.coord, building.coord], [start, building], {
+      unitTags: ["GROUND", "PERSONNEL", "MEDICAL"],
+    }).total).toBe(2);
   });
 
   it("finds a shortest-hop detour around blocked hexes", () => {

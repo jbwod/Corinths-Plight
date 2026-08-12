@@ -78,6 +78,12 @@ function applyEvent(
     case "UNIT_DUG_IN":
       if (target ?? actor) (target ?? actor)!.statuses = [...new Set([...(target ?? actor)!.statuses, "DUG_IN"])];
       break;
+    case "UNIT_GARRISONED":
+      if (actor) actor.statuses = [...new Set([...actor.statuses, "GARRISONED"])];
+      break;
+    case "UNIT_LEFT_GARRISON":
+      if (actor) actor.statuses = actor.statuses.filter((status) => status !== "GARRISONED");
+      break;
     case "UNIT_DUG_OUT":
       if (actor) actor.statuses = actor.statuses.filter((status) => status !== "DUG_IN");
       break;

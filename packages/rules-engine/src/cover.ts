@@ -2,6 +2,16 @@ import type { BattlefieldHex, CampaignDeployment } from "../../domain/src";
 import { V5_CORE_CURATED_2_CATALOGUE } from "./generated/v5-core-curated-2";
 
 export const INFANTRY_COVER_ARMOR_1 = "INFANTRY_COVER_ARMOR_1" as const;
+export const INFANTRY_GARRISON_BUILDING = "INFANTRY_GARRISON_BUILDING" as const;
+
+export function isInfantryGarrisonBuilding(hex: BattlefieldHex | undefined): boolean {
+  return Boolean(hex?.environment.includes(INFANTRY_GARRISON_BUILDING));
+}
+
+export function isGarrisonEligible(deployment: Pick<CampaignDeployment, "tags">): boolean {
+  const tags = new Set(deployment.tags ?? []);
+  return tags.has("INFANTRY") && tags.has("PERSONNEL") && !tags.has("VEHICLE");
+}
 
 export interface TacticalCoverResult {
   armor: 0 | 1;

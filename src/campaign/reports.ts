@@ -21,7 +21,7 @@ export const CAMPAIGN_REPORT_GROUPS: CampaignReportGroup[] = [
   "COMMAND",
 ];
 
-const movementEvents = new Set(["UNIT_MOVED", "UNIT_BLOCKED", "UNIT_DUG_IN", "UNIT_DUG_OUT", "EVASIVE_MANEUVER"]);
+const movementEvents = new Set(["UNIT_MOVED", "UNIT_BLOCKED", "UNIT_GARRISONED", "UNIT_LEFT_GARRISON", "UNIT_DUG_IN", "UNIT_DUG_OUT", "EVASIVE_MANEUVER"]);
 const combatEvents = new Set(["DICE_ROLLED", "UNIT_ATTACKED", "WEAPON_SKIPPED", "SUBSYSTEM_MALFUNCTIONED", "DAMAGE_APPLIED", "UNIT_DESTROYED"]);
 const supportEvents = new Set([
   "CARGO_LOADED",
@@ -155,6 +155,10 @@ export function describeCampaignReportEvent(
       if (payload.reason === "HOSTILE_FORMATION") return `${actor} halted before an occupied hostile position${where}${increment}.`;
       return `${actor} was blocked${where}${increment}.`;
     }
+    case "UNIT_GARRISONED":
+      return `${actor} entered a building at hex ${coordLabel(payload.position) ?? "unknown"} for 0.25 Speed and gains +1 Cover Armor against outside fire.`;
+    case "UNIT_LEFT_GARRISON":
+      return `${actor} left its building garrison and lost the building's Cover Armor.`;
     case "UNIT_DUG_IN":
       return payload.method === "ENGINEER_ARTILLERY_POSITION"
         ? `${actor} dug in ${target} at hex ${coordLabel(payload.position) ?? "unknown"} for +2 Defense (${String(payload.conflictId ?? "RC-V5-025")}).`

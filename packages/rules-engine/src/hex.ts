@@ -1,5 +1,6 @@
 import type { AxialCoord, BattlefieldHex, CampaignDeployment, Facing } from "../../domain/src";
 import { fieldworkMovementPenalty } from "./fieldworks";
+import { isInfantryGarrisonBuilding } from "./cover";
 
 export const FACING_LABELS = ["N", "NE", "SE", "S", "SW", "NW"] as const;
 export const HEX_DIRECTIONS: ReadonlyArray<AxialCoord> = [
@@ -107,6 +108,7 @@ export interface RouteCostResult {
     river: number;
     road: boolean;
     fieldwork: number;
+    garrisonEntry: number;
     total: number;
   }>;
   legal: boolean;
@@ -144,8 +146,14 @@ export function calculateRouteCost(
       from.edges.rivers.includes(direction) || to.edges.rivers.includes(rearFacing(direction));
     const river = airborne || options.ignoresRivers || !riverCrossing ? 0 : 1;
     const fieldwork = airborne ? 0 : fieldworkMovementPenalty(to, options.unitTags).total;
-    const stepTotal = Math.max(0.25, base + elevation + river) * (options.rush ? 0.5 : 1) + fieldwork;
-    steps.push({ from: fromCoord, to: toCoord, base, elevation, river, road, fieldwork, total: stepTotal });
+    const infantry = unitTags.has("INFANTRY") && unitTags.has("PERSONNEL") && !unitTags.has("VEHICLE");
+    const garrisonEntry = !airborne && infantry && isInfantryGarrisonBuilding(to)
+      ? 0.25
+      : 0;
+    const stepTotal = (garrisonEntry > 0
+      ? garrisonEntry
+      : Math.max(0.25, base + elevation + river) * (options.rush ? 0.5 : 1)) + fieldwork;
+    steps.push({ from: fromCoord, to: toCoord, base, elevation, river, road, fieldwork, garrisonEntry, total: stepTotal });
     total += stepTotal;
   }
 

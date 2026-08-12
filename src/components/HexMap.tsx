@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AxialCoord, CampaignDeployment, CampaignMarkerDto, CampaignView, UnitOrder } from "../../packages/domain/src";
-import { coordKey, FACING_LABELS } from "../../packages/rules-engine/src";
+import { coordKey, FACING_LABELS, INFANTRY_GARRISON_BUILDING } from "../../packages/rules-engine/src";
 import { resolveUnitVisual, TACTICAL_UNIT_GLYPH_PATHS } from "../unit-visuals";
 
 interface HexMapProps {
@@ -341,6 +341,25 @@ export function HexMap({
           ctx.fill();
           ctx.stroke();
         }
+        ctx.restore();
+      }
+      if (hex.visibility !== "UNKNOWN" && hex.environment.includes(INFANTRY_GARRISON_BUILDING)) {
+        ctx.save();
+        ctx.translate(point.x, point.y - 12);
+        ctx.fillStyle = "rgba(8, 22, 27, .88)";
+        ctx.strokeStyle = "rgba(230, 204, 137, .9)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.rect(-11, -7, 22, 15);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-14, -7);
+        ctx.lineTo(0, -15);
+        ctx.lineTo(14, -7);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(110, 214, 205, .9)";
+        ctx.fillRect(-3, 0, 6, 8);
         ctx.restore();
       }
       if (

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { INFANTRY_COVER_ARMOR_1, resolveTacticalCover } from "../src/cover";
+import {
+  INFANTRY_COVER_ARMOR_1,
+  INFANTRY_GARRISON_BUILDING,
+  isGarrisonEligible,
+  isInfantryGarrisonBuilding,
+  resolveTacticalCover,
+} from "../src/cover";
 import { makeDeployment, makeHex } from "./fixtures";
 
 describe("generated tactical cover", () => {
@@ -35,5 +41,17 @@ describe("generated tactical cover", () => {
     expect(resolveTacticalCover(attacker, vehicle, [forest]).armor).toBe(0);
     expect(resolveTacticalCover({ ...attacker, position: { q: 1, r: 0 } }, infantry, [forest]).armor).toBe(0);
     expect(resolveTacticalCover(attacker, infantry, [makeHex(1, 0)]).armor).toBe(0);
+  });
+
+  it("recognizes authored building occupancy only for infantry personnel", () => {
+    const building = makeHex(1, 0, { environment: [INFANTRY_GARRISON_BUILDING] });
+
+    expect(isInfantryGarrisonBuilding(building)).toBe(true);
+    expect(isGarrisonEligible(makeDeployment("squad", building.coord, "ALLIED", {
+      tags: ["GROUND", "PERSONNEL", "INFANTRY"],
+    }))).toBe(true);
+    expect(isGarrisonEligible(makeDeployment("ifv", building.coord, "ALLIED", {
+      tags: ["GROUND", "VEHICLE", "INFANTRY"],
+    }))).toBe(false);
   });
 });

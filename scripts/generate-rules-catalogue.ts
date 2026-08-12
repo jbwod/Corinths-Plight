@@ -891,10 +891,10 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
     reasonCode: "MISSING_CANONICAL_PRICE",
     parameters: {
-      implementedSubset: ["FS", "ATTACK", "MOVEMENT", "FACING", "DIG_IN", "TRENCH_UPGRADE"],
-      missing: ["GARRISON", "ACTIVE_EQUIPMENT"],
+      implementedSubset: ["FS", "ATTACK", "MOVEMENT", "FACING", "DIG_IN", "TRENCH_UPGRADE", "GARRISON"],
+      missing: ["ACTIVE_EQUIPMENT"],
     },
-    explanation: "V5 Dig In and Sandbag-to-Trench upgrade execute, including preserving Dig In along connected Trench hexes.",
+    explanation: "V5 Dig In, Sandbag-to-Trench upgrade, and movement-derived building garrison execute. Authored buildings cost eligible Infantry 0.25 Speed to enter and grant the selected non-stacking +1 Cover Armor against outside fire.",
   },
   "UNIT:unit-engineers": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",

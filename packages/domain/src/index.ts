@@ -876,6 +876,8 @@ export type CampaignEventType =
   | "ENEMY_INTENTION_DECLARED"
   | "UNIT_MOVED"
   | "UNIT_BLOCKED"
+  | "UNIT_GARRISONED"
+  | "UNIT_LEFT_GARRISON"
   | "UNIT_DUG_IN"
   | "UNIT_DUG_OUT"
   | "EVASIVE_MANEUVER"

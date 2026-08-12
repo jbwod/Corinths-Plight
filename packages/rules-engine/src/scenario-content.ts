@@ -8,7 +8,7 @@ import type {
 import { RULESET_VERSION } from "../../domain/src";
 import { getUnitClass } from "./catalogue";
 import { createOutpostMap } from "./demo";
-import { INFANTRY_COVER_ARMOR_1 } from "./cover";
+import { INFANTRY_COVER_ARMOR_1, INFANTRY_GARRISON_BUILDING } from "./cover";
 import { ENGINE_VERSION } from "./resolver";
 
 export const OUTPOST_K17_SCENARIO_ID = "scenario-outpost-k17-hold-relay" as const;
@@ -119,7 +119,7 @@ function ironRainHex(q: number, r: number): BattlefieldHex {
     objectiveId: ironRainObjectiveCoordinates.get(key),
     control: q < 0 ? "ALLIED" : q > 3 ? "ENEMY" : "NEUTRAL",
     environment: isAirfield
-      ? [INFANTRY_COVER_ARMOR_1, "ROUGH_AIRFIELD", "LAND_AEROSPACE", "LAND_VTOL", "REARM_AEROSPACE"]
+      ? [INFANTRY_COVER_ARMOR_1, INFANTRY_GARRISON_BUILDING, "ROUGH_AIRFIELD", "LAND_AEROSPACE", "LAND_VTOL", "REARM_AEROSPACE"]
       : [],
     visibility: q <= 1 ? "OBSERVED" : "UNKNOWN",
   };
@@ -173,7 +173,7 @@ function brokenRoadHex(q: number, r: number): BattlefieldHex {
         : [],
     objectiveId: brokenRoadObjectiveCoordinates.get(key),
     control: q < 1 ? "ALLIED" : q > 3 ? "ENEMY" : "NEUTRAL",
-    environment: isJunction ? [INFANTRY_COVER_ARMOR_1, "FORTIFIED_JUNCTION"] : isDepot ? ["SUPPLY_CACHE"] : [],
+    environment: isJunction ? [INFANTRY_COVER_ARMOR_1, INFANTRY_GARRISON_BUILDING, "FORTIFIED_JUNCTION"] : isDepot ? ["SUPPLY_CACHE"] : [],
     visibility: q <= 1 ? "OBSERVED" : "UNKNOWN",
   };
 }
@@ -223,7 +223,7 @@ function nightGlassHex(q: number, r: number): BattlefieldHex {
         : [],
     objectiveId: nightGlassObjectiveCoordinates.get(key),
     control: q < 0 ? "ALLIED" : q > 2 ? "ENEMY" : "NEUTRAL",
-    environment: isArray ? [INFANTRY_COVER_ARMOR_1, "NIGHT", "SENSOR_ARRAY"] : ["NIGHT"],
+    environment: isArray ? [INFANTRY_COVER_ARMOR_1, INFANTRY_GARRISON_BUILDING, "NIGHT", "SENSOR_ARRAY"] : ["NIGHT"],
     visibility: q <= 0 ? "OBSERVED" : "UNKNOWN",
   };
 }
@@ -276,7 +276,7 @@ function coldHorizonHex(q: number, r: number): BattlefieldHex {
     objectiveId: coldHorizonObjectiveCoordinates.get(key),
     control: q < 0 ? "ALLIED" : q > 2 ? "ENEMY" : "NEUTRAL",
     environment: isBeacon
-      ? [INFANTRY_COVER_ARMOR_1, "COLD", "COLONY_BEACON"]
+      ? [INFANTRY_COVER_ARMOR_1, INFANTRY_GARRISON_BUILDING, "COLD", "COLONY_BEACON"]
       : isLandingField
         ? ["COLD", "LAND_AEROSPACE", "LAND_VTOL", "REARM_AEROSPACE"]
         : ["COLD"],

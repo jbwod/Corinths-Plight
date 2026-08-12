@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "8292d363ba287d583afb80a1cb044e140832b33f1c85d5bdd66e41c5eb354ad6",
+  "contentHash": "7708cd9b09c477803b4c886bf7421b862cecad1e6dc4a7369ec058199780bacd",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -387,9 +387,9 @@ const snapshot = {
           "source-build",
           "source-v5-core"
         ],
-        "disposition": "V5 `+1 Armor` cover and `+2 Defense` Dig In are active. Legacy Entrenchment tiers are not aliases.",
+        "disposition": "V5 `+1 Armor` cover and `+2 Defense` Dig In are active. Eligible Infantry enter an authored building for the V5 fixed `0.25 Speed` and occupancy is derived from ending movement inside it. Legacy Entrenchment tiers and the legacy Garrison action are not aliases.",
         "status": "RESOLVED-MVP",
-        "notes": "Canonical section: 3. Action, map, and cover conflicts\nCanonical status: `RESOLVED-MVP`.\n\n\n- **V5 values:** `V5 > Structures / Cover and Forests`: building/woods protection `+1 Armor`; `Infantry Squad > Dig In`: `+2 Defense`; Change Log says Structure and Sandbag `+1 Defense` changed to `+1 Armor` and Dig In changed from `+3` to `+2 Defense`.\n- **Legacy values:** `Actions > Garrison Building`: “Entrenchment 2”/`+2 Armor`; `Build > Trenches`: Entrenched 1/`+1 Armor`; `Bunker Network`: Entrenched 2/`+2 Armor`.\n- **Disposition:** V5 `+1 Armor` cover and `+2 Defense` Dig In are active. Legacy Entrenchment tiers are not aliases.\n- **Status:** `RESOLVED-MVP`."
+        "notes": "Canonical section: 3. Action, map, and cover conflicts\nCanonical status: `RESOLVED-MVP`.\n\n\n- **V5 values:** `V5 > Structures / Cover and Forests`: building/woods protection `+1 Armor`; `Infantry Squad > Dig In`: `+2 Defense`; Change Log says Structure and Sandbag `+1 Defense` changed to `+1 Armor` and Dig In changed from `+3` to `+2 Defense`.\n- **Legacy values:** `Actions > Garrison Building`: “Entrenchment 2”/`+2 Armor`; `Build > Trenches`: Entrenched 1/`+1 Armor`; `Bunker Network`: Entrenched 2/`+2 Armor`.\n- **Disposition:** V5 `+1 Armor` cover and `+2 Defense` Dig In are active. Eligible Infantry enter an authored building for the V5 fixed `0.25 Speed` and occupancy is derived from ending movement inside it. Legacy Entrenchment tiers and the legacy Garrison action are not aliases.\n- **Status:** `RESOLVED-MVP`."
       },
       {
         "id": "RC-EQP-001",
@@ -14267,14 +14267,14 @@ const snapshot = {
             "MOVEMENT",
             "FACING",
             "DIG_IN",
-            "TRENCH_UPGRADE"
+            "TRENCH_UPGRADE",
+            "GARRISON"
           ],
           "missing": [
-            "GARRISON",
             "ACTIVE_EQUIPMENT"
           ],
           "publicationCorrection": {
-            "reason": "V5 Dig In and Sandbag-to-Trench upgrade execute, including preserving Dig In along connected Trench hexes.",
+            "reason": "V5 Dig In, Sandbag-to-Trench upgrade, and movement-derived building garrison execute. Authored buildings cost eligible Infantry 0.25 Speed to enter and grant the selected non-stacking +1 Cover Armor against outside fire.",
             "seedOverlay": {
               "availabilityStatus": "AVAILABLE",
               "executable": true,
@@ -25760,5 +25760,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "8292d363ba287d583afb80a1cb044e140832b33f1c85d5bdd66e41c5eb354ad6" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "7708cd9b09c477803b4c886bf7421b862cecad1e6dc4a7369ec058199780bacd" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;
