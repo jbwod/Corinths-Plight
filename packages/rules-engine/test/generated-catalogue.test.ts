@@ -141,6 +141,16 @@ describe("rules catalogue bootstrap", () => {
       purchasable: true,
       reasonCode: null,
     });
+    expect(overlays.get("UNIT:unit-infantry-fighting-vehicle")).toMatchObject({
+      implementationStatus: "IMPLEMENTED",
+      executable: true,
+      handlerId: "foundation-generated-unit-class",
+      requisitionStatus: "PUBLISHED",
+      availabilityStatus: "AVAILABLE",
+      purchasable: true,
+      reasonCode: null,
+      parameters: { missing: [] },
+    });
     expect(overlays.get("UNIT:unit-vtol")).toMatchObject({
       implementationStatus: "PARTIAL",
       executable: true,
@@ -151,15 +161,6 @@ describe("rules catalogue bootstrap", () => {
       reasonCode: null,
     });
     expect(overlays.get("UNIT:unit-logi-truck")).toMatchObject({
-      implementationStatus: "PARTIAL",
-      executable: true,
-      handlerId: "foundation-generated-unit-class",
-      requisitionStatus: "PUBLISHED",
-      availabilityStatus: "AVAILABLE",
-      purchasable: true,
-      reasonCode: null,
-    });
-    expect(overlays.get("UNIT:unit-infantry-fighting-vehicle")).toMatchObject({
       implementationStatus: "PARTIAL",
       executable: true,
       handlerId: "foundation-generated-unit-class",

@@ -1001,10 +1001,10 @@ describe("equipment and transport actions", () => {
 
   it("repairs one vehicle subsystem during a stationary Armor-exposed Crew Repair round", () => {
     const base = createDemoCampaignState(1_000);
-    const tank = base.deployments.find((unit) => unit.definitionId === "unit-main-battle-tank")!;
+    const carrier = base.deployments.find((unit) => unit.definitionId === "unit-infantry-fighting-vehicle")!;
     const hostile = base.deployments.find((unit) => unit.side === "ENEMY")!;
-    tank.position = { q: 0, r: 0 };
-    tank.subsystems = [{ subsystemId: "MOBILITY", state: "DISABLED", damageSourceId: hostile.id, damagedRound: 17 }];
+    carrier.position = { q: 0, r: 0 };
+    carrier.subsystems = [{ subsystemId: "MOBILITY", state: "DISABLED", damageSourceId: hostile.id, damagedRound: 17 }];
     hostile.position = { q: 1, r: 0 };
     hostile.weapons = [{
       id: "weapon-crew-exposure-probe",
@@ -1017,8 +1017,8 @@ describe("equipment and transport actions", () => {
     const crewRepair = action("crew-repair-mobility", "CREW_REPAIR", {
       payload: { subsystemId: "MOBILITY" },
     });
-    const crewOrder = order(base, tank, [crewRepair]);
-    const hostileAttack = action("attack-exposed-crew", "ATTACK", { targetDeploymentId: tank.id });
+    const crewOrder = order(base, carrier, [crewRepair]);
+    const hostileAttack = action("attack-exposed-crew", "ATTACK", { targetDeploymentId: carrier.id });
     const hostileOrder = order(base, hostile, [hostileAttack]);
     base.orders = [crewOrder, hostileOrder];
 
@@ -1030,31 +1030,32 @@ describe("equipment and transport actions", () => {
       seed: "crew-repair-exposure",
       resolutionTime: 2_000,
     });
-    const repaired = output.state.deployments.find((unit) => unit.id === tank.id)!;
+    const repaired = output.state.deployments.find((unit) => unit.id === carrier.id)!;
 
     expect(repaired.subsystems).toEqual([{ subsystemId: "MOBILITY", state: "OPERATIONAL" }]);
     expect(output.events).toContainEqual(expect.objectContaining({
       type: "UNIT_REPAIRED",
-      actor: tank.id,
+      actor: carrier.id,
       payload: expect.objectContaining({
-        targetId: tank.id,
+        targetId: carrier.id,
         repairMethod: "CREW",
         subsystemId: "MOBILITY",
         armorBenefitThisRound: false,
+        conflictId: "RC-V5-024",
       }),
     }));
     expect(output.events).toContainEqual(expect.objectContaining({
       type: "UNIT_ATTACKED",
       actor: hostile.id,
       payload: expect.objectContaining({
-        targetId: tank.id,
+        targetId: carrier.id,
         armor: 0,
         crewRepairArmorExposed: true,
       }),
     }));
     expect(output.persistentEffects).toContainEqual(expect.objectContaining({
       type: "UNIT_STATE_UPDATED",
-      unitId: tank.persistentUnitId,
+      unitId: carrier.persistentUnitId,
       payload: expect.objectContaining({
         subsystems: [{ subsystemId: "MOBILITY", state: "OPERATIONAL" }],
       }),

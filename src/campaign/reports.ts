@@ -216,7 +216,7 @@ export function describeCampaignReportEvent(
       return `${actor} restored ${numberValue(payload.amount)} strength to ${target}.`;
     case "UNIT_REPAIRED":
       if (payload.repairMethod === "CREW") {
-        return `${actor}'s exposed crew restored ${String(payload.subsystemId ?? "a subsystem")} without Armor benefit.`;
+        return `${actor}'s exposed crew restored ${String(payload.subsystemId ?? "a subsystem")} without Armor benefit (${String(payload.conflictId ?? "RC-V5-024")}).`;
       }
       return payload.repairKind === "SUBSYSTEM"
         ? `${actor} restored ${String(payload.subsystemId ?? "a subsystem")} on ${target}.`

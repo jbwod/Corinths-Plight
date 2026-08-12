@@ -1242,6 +1242,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
           after: actor.currentHealth,
           armorBenefitThisRound: false,
           smallSupplySpent: 0,
+          conflictId: "RC-V5-024",
         }, actorVisibility);
       }
       if (action.type === "REPAIR") {

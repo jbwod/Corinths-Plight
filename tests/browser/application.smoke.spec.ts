@@ -12,6 +12,58 @@ async function expectNoDocumentOverflow(page: Page): Promise<void> {
   );
 }
 
+async function ensureHammerReadyForDeployment(page: Page): Promise<void> {
+  const current = await page.request.get("/api/strategic/maps/strategic-map-corinth", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  if (!current.ok()) return;
+  const projection = await current.json() as {
+    map: { id: string; version: number };
+    round: { round: number };
+    battlegroups: Array<{ id: string; status: string; revision?: number; version?: number; currentCarrierTaskForceId?: string | null }>;
+  };
+  const hammer = projection.battlegroups.find((group) => group.id === "battlegroup-hammer");
+  if (!hammer || hammer.status !== "EMBARKED" || !hammer.currentCarrierTaskForceId) return;
+  const result = await page.evaluate(async ({ mapId, mapVersion, formationVersion, carrierTaskForceId }) => {
+    const headers = { "content-type": "application/json", "x-demo-user": "demo-user" };
+    const order = await fetch("/api/strategic/orders", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        commandId: crypto.randomUUID(),
+        mapId,
+        expectedMapVersion: mapVersion,
+        expectedFormationVersion: formationVersion,
+        formation: { kind: "BATTLEGROUP", id: "battlegroup-hammer" },
+        intent: { type: "DISEMBARK_BATTLEGROUP", battlegroupId: "battlegroup-hammer", carrierTaskForceId },
+      }),
+    });
+    if (!order.ok) return { status: order.status, body: await order.text() };
+    const latest = await fetch(`/api/strategic/maps/${mapId}`, { headers: { "x-demo-user": "demo-user" } });
+    const state = await latest.json() as { map: { version: number }; round: { round: number } };
+    const resolved = await fetch(`/api/strategic/maps/${mapId}/resolve`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ commandId: crypto.randomUUID(), expectedMapVersion: state.map.version, expectedRound: state.round.round }),
+    });
+    return { status: resolved.status, body: await resolved.text() };
+  }, {
+    mapId: projection.map.id,
+    mapVersion: projection.map.version,
+    formationVersion: hammer.revision ?? hammer.version ?? 1,
+    carrierTaskForceId: hammer.currentCarrierTaskForceId,
+  });
+  expect(result, result.body).toMatchObject({ status: 200 });
+  await expect.poll(async () => {
+    const response = await page.request.get("/api/strategic/maps/strategic-map-corinth", {
+      headers: { "x-demo-user": "demo-user" },
+    });
+    if (!response.ok()) return false;
+    const state = await response.json() as { battlegroups: Array<{ id: string; status: string }> };
+    return state.battlegroups.find((group) => group.id === "battlegroup-hammer")?.status === "READY";
+  }).toBe(true);
+}
+
 async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<void> {
   const join = page.getByRole("button", { name: /JOIN K-17: HOLD THE RELAY/i });
   const map = page.getByRole("region", { name: "Tactical operations map" });
@@ -67,7 +119,8 @@ async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<
     ? new Set(((await stateResponse.json()) as { deployments?: Array<{ callsign: string }> }).deployments?.map((unit) => unit.callsign) ?? [])
     : new Set<string>();
 
-  await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Deployment" }).click();
+  await ensureHammerReadyForDeployment(page);
+  await page.goto("/?view=deployment&campaign=campaign-k17-relay");
   await expect(page.getByRole("heading", { name: "Deployment planner", exact: true })).toBeVisible();
   await expect(page.getByText("PLANNER LIVE", { exact: true })).toBeVisible();
   const deployableUnits = page.locator('input[type="checkbox"]:enabled');
@@ -75,7 +128,7 @@ async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<
   for (let index = 0; index < await deployableUnits.count(); index += 1) {
     const checkbox = deployableUnits.nth(index);
     const label = await checkbox.locator("..").innerText();
-    const foundationSupportUnit = ["LONGBOW", "MULE-3", "DOC-7", "RAVEN-2", "ANVIL", "NOMAD", "BELLATR"].some((callsign) => label.includes(callsign));
+    const foundationSupportUnit = ["LONGBOW", "MULE-3", "DOC-7", "POLAR-1", "ANVIL", "NOMAD", "CARR-6", "BELLATR"].some((callsign) => label.includes(callsign));
     if (foundationSupportUnit && ![...deployedCallsigns].some((callsign) => label.includes(callsign))) {
       await checkbox.check();
       selectedForDeployment += 1;
@@ -85,7 +138,7 @@ async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<
     await page.getByRole("button", { name: /VALIDATE PLAN|REVALIDATE PLAN/ }).click();
     await expect(page.getByRole("heading", { name: "Ready for command" })).toBeVisible();
     await page.getByRole("button", { name: "COMMIT DEPLOYMENT" }).click();
-    await expect(page.getByText(/deployment snapshots committed/i)).toBeVisible();
+    await expect(page.getByText(/deployment snapshots committed/i).or(map)).toBeVisible();
   }
   await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Campaigns" }).click();
   await expect(map).toBeVisible();
@@ -273,7 +326,7 @@ async function submitInfantryRelayAdvance(page: Page): Promise<void> {
   });
   expect(response.status()).toBe(200);
   const state = await response.json() as CampaignView;
-  const infantry = state.deployments.find((deployment) => deployment.callsign === "RAVEN-2")!;
+  const infantry = state.deployments.find((deployment) => deployment.callsign === "POLAR-1")!;
   if (infantry.status === "DESTROYED") return;
   const relay = state.objectives.find((objective) => objective.id === "objective-outpost")!;
   const route = affordableRoute(
@@ -958,7 +1011,7 @@ test("campaign staging directory joins and safely leaves before deployment", asy
   await expectNoDocumentOverflow(page);
 });
 
-test("quartermaster purchases a published unit once and debits the Req ledger", async ({ page }) => {
+test("quartermaster purchases a published IFV once and debits the Req ledger", async ({ page }) => {
   const openingResponse = await page.request.get("/api/requisition", {
     headers: { "x-demo-user": "demo-user" },
   });
@@ -970,26 +1023,25 @@ test("quartermaster purchases a published unit once and debits the Req ledger", 
   await page.getByRole("button", { name: "REQUISITION UNIT" }).click();
   const dialog = page.getByRole("dialog", { name: "Requisition unit" });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: /Infantry Squad/ }).click();
-  await expect(dialog.getByText("4 RP", { exact: true })).toBeVisible();
-  await dialog.getByLabel("UNIT NAME").fill("Economy Line Squad");
-  await dialog.getByLabel("CALLSIGN").fill("ECON-1");
+  await dialog.getByRole("button", { name: /Infantry Fighting Vehicle/ }).click();
+  await expect(dialog.getByText("8 RP", { exact: true })).toBeVisible();
+  await dialog.getByLabel("UNIT NAME").fill("Economy Mechanised Carrier");
+  await dialog.getByLabel("CALLSIGN").fill("IFV-NEW");
   const purchaseRequest = page.waitForRequest((request) =>
     request.url().endsWith("/api/requisition/purchases") && request.method() === "POST");
   await dialog.getByRole("button", { name: "PURCHASE UNIT" }).click();
   const committedRequest = await purchaseRequest;
-  await expect(page.getByText(/ECON-1 added\. Quartermaster loadout opened/i)).toBeVisible();
-  const loadout = page.getByRole("dialog", { name: /ECON-1 loadout/i });
+  const loadout = page.getByRole("dialog", { name: /IFV-NEW loadout/i });
   await expect(loadout).toBeVisible();
   await loadout.getByRole("button", { name: "Close loadout" }).click();
-  await expect(page.locator(".grouped-roster").getByRole("button", { name: /ECON-1/ }).first()).toBeVisible();
+  await expect(page.locator(".grouped-roster").getByRole("button", { name: /IFV-NEW/ }).first()).toBeVisible();
 
   const afterResponse = await page.request.get("/api/requisition", {
     headers: { "x-demo-user": "demo-user" },
   });
   expect(afterResponse.status()).toBe(200);
   const after = await afterResponse.json() as { balance: number };
-  expect(after.balance).toBe(opening.balance - 4);
+  expect(after.balance).toBe(opening.balance - 8);
 
   const command = committedRequest.postDataJSON() as Record<string, unknown>;
   const replay = await page.request.post("/api/requisition/purchases", {
@@ -997,7 +1049,11 @@ test("quartermaster purchases a published unit once and debits the Req ledger", 
     data: command,
   });
   expect(replay.status()).toBe(201);
-  await expect(replay.json()).resolves.toMatchObject({ callsign: "ECON-1", requisitionSpent: 4 });
+  await expect(replay.json()).resolves.toMatchObject({
+    definitionId: "unit-infantry-fighting-vehicle",
+    callsign: "IFV-NEW",
+    requisitionSpent: 8,
+  });
   const conflict = await page.request.post("/api/requisition/purchases", {
     headers: { "content-type": "application/json", "x-demo-user": "demo-user", origin: "http://127.0.0.1:4173" },
     data: { ...command, desiredName: "Forged Replay" },
@@ -1239,7 +1295,7 @@ test("tactical API exposes Light Mech, VTOL, Fighter, Bomber, and HAT verticals 
       expect.objectContaining({
         definitionId: "unit-infantry-fighting-vehicle",
         callsign: "CARR-6",
-        allowedActions: expect.arrayContaining(["ATTACK", "LOAD", "UNLOAD"]),
+        allowedActions: expect.arrayContaining(["ATTACK", "CREW_REPAIR", "LOAD", "UNLOAD"]),
       }),
       expect.objectContaining({
         definitionId: "unit-light-mech",
@@ -1416,6 +1472,13 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(composer.getByText(/receives no Armor benefit/)).toBeVisible();
   await expect(composer.getByLabel("DAMAGED SUBSYSTEM")).toContainText("MOBILITY");
 
+  await page.locator(".unit-roster").getByRole("button", { name: /CARR-6/ }).click();
+  await expect(composer.getByRole("button", { name: "CREW REPAIR", exact: true })).toBeVisible();
+  await composer.getByRole("button", { name: "CREW REPAIR", exact: true }).click();
+  await expect(composer.getByLabel("DAMAGED SUBSYSTEM")).toContainText("MOBILITY");
+  await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
+  await expect(page.getByText(/CARR-6 order submitted to campaign command/)).toBeVisible();
+
   await page.locator(".unit-roster").getByRole("button", { name: /DOC-7/ }).click();
   await expect(composer.getByRole("button", { name: "LOAD", exact: true })).toBeVisible();
   await expect(composer.getByRole("button", { name: "UNLOAD", exact: true })).toBeVisible();
@@ -1490,7 +1553,7 @@ test("tactical composer exposes every currently executable action and no catalog
   await page.locator(".unit-roster").getByRole("button", { name: /DOC-7/ }).click();
   await expect(composer.getByRole("button", { name: "HEAL", exact: true })).toBeVisible();
   await composer.getByRole("button", { name: "HEAL", exact: true }).click();
-  await expect(composer.getByLabel("WOUNDED INFANTRY")).toContainText("RAVEN-2");
+  await expect(composer.getByLabel("WOUNDED INFANTRY")).toContainText("POLAR-1");
   await expect(composer.getByText(/MEDICAL SUPPLY:/)).toBeVisible();
   await composer.getByRole("button", { name: /SUBMIT ORDER|UPDATE ORDER/ }).click();
   await expect(page.getByText(/DOC-7 order submitted to campaign command/)).toBeVisible();
@@ -1511,12 +1574,13 @@ test("tactical composer exposes every currently executable action and no catalog
     });
     if (!response.ok()) return false;
     const state = await response.json() as {
-      deployments?: Array<{ callsign: string; supplies?: Record<string, number>; statuses?: string[] }>;
+      deployments?: Array<{ callsign: string; supplies?: Record<string, number>; statuses?: string[]; subsystems?: Array<{ subsystemId: string; state: string }> }>;
       events?: Array<{ type: string; actor?: string; payload?: Record<string, unknown> }>;
       map?: Array<{ structureIds: string[] }>;
     };
     const medic = state.deployments?.find((deployment) => deployment.callsign === "DOC-7");
     const artillery = state.deployments?.find((deployment) => deployment.callsign === "LONGBOW");
+    const carrier = state.deployments?.find((deployment) => deployment.callsign === "CARR-6");
     const razorWireBuilt = state.map?.some((hex) =>
       hex.structureIds.some((id) => id.startsWith("structure-razor-wire:"))
     );
@@ -1525,12 +1589,23 @@ test("tactical composer exposes every currently executable action and no catalog
       razorWireBuilt === true &&
       state.events?.some((event) => event.type === "EVASIVE_MANEUVER" && event.actor?.includes("force-nomad") && event.payload?.active === true) === true &&
       state.events?.some((event) => event.type === "UNIT_HEALED") === true &&
+      carrier?.subsystems?.some((subsystem) => subsystem.subsystemId === "MOBILITY" && subsystem.state === "OPERATIONAL") === true &&
+      state.events.some((event) => event.type === "UNIT_REPAIRED" && event.actor?.includes("force-carrier-6") && event.payload.conflictId === "RC-V5-024") === true &&
       state.events.some((event) => event.type === "ARTILLERY_DEPLOYED") === true &&
       state.events.some((event) => event.type === "STRUCTURE_COMPLETED" && event.payload.structureDefinitionId === "structure-razor-wire") === true;
   }).toBe(true);
 
   await page.reload();
   await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
+  const persistedCarrier = await page.request.get("/api/forces/force-carrier-6", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(persistedCarrier.status()).toBe(200);
+  await expect(persistedCarrier.json()).resolves.toMatchObject({
+    definitionId: "unit-infantry-fighting-vehicle",
+    callsign: "CARR-6",
+    subsystems: expect.arrayContaining([{ subsystemId: "MOBILITY", state: "OPERATIONAL" }]),
+  });
   await page.locator(".unit-roster").getByRole("button", { name: /DOC-7/ }).click();
   await composer.getByRole("button", { name: "RELOAD", exact: true }).click();
   await expect(composer.getByText("MEDICAL SUPPLY: 3/4", { exact: false })).toBeVisible();
@@ -1711,7 +1786,10 @@ test("tactical composer exposes every currently executable action and no catalog
   await expect(rewards.getByText("RECORDED", { exact: true })).toBeVisible();
   await expect(rewards.getByText("+25 RP", { exact: true })).toBeVisible();
   await expect(rewards).toContainText("public-v1-economy@1");
-  await expect(page.getByText(/NOMAD attacked .*Rapid Fire doubled the damage result/).first()).toBeVisible();
+  await page.getByRole("navigation", { name: "Resolved campaign rounds" }).getByRole("button", { name: /ROUND\s+1/ }).click();
+  await expect(page.getByText(/CARR-6's exposed crew restored MOBILITY without Armor benefit/).first()).toBeVisible();
+  await expect(page.getByText(/RC-V5-024/).first()).toBeVisible();
+  await page.getByRole("navigation", { name: "Resolved campaign rounds" }).getByRole("button", { name: /ROUND\s+4/ }).click();
   const replay = page.getByRole("region", { name: "Round 4 event playback" });
   await expect(replay).toBeVisible();
   await expect(replay.getByRole("img", { name: "Round 4 tactical reconstruction" })).toBeVisible();

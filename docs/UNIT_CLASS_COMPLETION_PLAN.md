@@ -6,7 +6,7 @@ Move every player unit class from `PARTIAL` or `CATALOGUE_ONLY` to an honest, te
 
 The current catalogue contains 29 player classes:
 
-- 13 V5 canonical classes. Light Vehicle is now `IMPLEMENTED`; the other 12 remain `PARTIAL` while their listed shared or class-specific gates are completed.
+- 13 V5 canonical classes. Light Vehicle and Infantry Fighting Vehicle are now `IMPLEMENTED`; the other 11 remain `PARTIAL` while their listed shared or class-specific gates are completed.
 - 16 companion classes from `Classes.html`. They are visible but deliberately blocked by `RC-UNIT-015` because their durability, attacks, prices, or signature mechanics do not cleanly map to V5.
 
 Enemy Bug roles and Orbital Crew/hulls are adjacent programs, not part of this 29-class promotion. They need their own completion plans because they use different AI and strategic/orbital systems.
@@ -41,7 +41,7 @@ A class may only be promoted when every gate below passes for the active, versio
 | Artillery | Movement, deploy/pack, bombardment, towing, experimental attack | Funnel; anti-orbital attack; verify spotting, ammo, area and packed-state edge cases | Remain partial; depends on LOS and orbital work |
 | Logistics Truck | Cargo, towing, artillery ammunition transfer | General resupply across ammunition/supply types; coordinated airdrop; carrier-loss rules | Remain partial until common logistics primitive is complete |
 | Light Vehicle | Hits, attack, movement, subsystems, Rapid Fire, Evasive, governed passenger/Small Supply cargo, persistence/replay/report/AI/scenario proof | **IMPLEMENTED** — generated authority and D1 agree; rejected companion slots are provenance-only; RC-V5-030 freezes cargo and emits adjudication without inventing casualties | Complete |
-| Infantry Fighting Vehicle | Hits, armour/AP, attack, movement, subsystems, infantry cargo, crew repair | Catalogue says no missing mechanics; audit cargo destruction, repairs, equipment, replay and scenario proof | Promotion candidate |
+| Infantry Fighting Vehicle | Hits, armour/AP, attack, movement, subsystems, governed infantry cargo, crew repair, persistence/replay/report/AI/scenario proof | **IMPLEMENTED** — 8 Req acquisition, generated authority, cargo/destruction rules and `RC-V5-024` Armor-exposed Crew Repair are live and proven end to end | Complete |
 | Main Battle Tank | Hits, armour/AP, facing/rear attack, subsystems, crew repair | Catalogue says no missing mechanics; audit arcs, subsystem outcomes, equipment, replay and scenario proof | Promotion candidate |
 | Light Mech | Hits, armour, attack, movement, hostile passage, subsystems, Evasive | Catalogue says no missing mechanics; audit passage legality, subsystem outcomes, replay and scenario proof | Promotion candidate |
 | Aerospace Fighter | Flight path, hostile passage, forward arc, ammo, landing/takeoff, rearm, intercept, no ground spotting | Catalogue says no missing mechanics; audit interception timing, facilities, reports and scenario proof | Promotion candidate after aerospace decision audit |
@@ -49,7 +49,7 @@ A class may only be promoted when every gate below passes for the active, versio
 | VTOL | Hits, armour, attack, flight, landing/takeoff, alternate cargo | Catalogue incorrectly lists `HAT_AIRDROP`; first correct class taxonomy, then audit cargo, rearm and hostile-passage behavior | Data correction, then promotion audit |
 | Heavy Air Transport | Flight, five-slot cargo, clear-route airdrop, landing/takeoff, no ground spotting | Hazardous drop results; coordinated supply drop; cargo-loss and route edge cases | Remain partial until drop rules land |
 
-Five more classes currently look like promotion work rather than major feature work: IFV, MBT, Light Mech, Fighter, and Bomber. They must still pass the full definition-of-done matrix; an empty `missing` array alone is not sufficient evidence.
+Four more classes currently look like promotion work rather than major feature work: MBT, Light Mech, Fighter, and Bomber. They must still pass the full definition-of-done matrix; an empty `missing` array alone is not sufficient evidence.
 
 ### Completed class evidence
 
@@ -64,6 +64,19 @@ Five more classes currently look like promotion work rather than major feature w
 - [x] Force catalogue, loadout/readiness, deployment planner, tactical composer, map glyph, event feed, replay and report use live state; blocked Optics/Scan is not advertised as executable.
 - [x] K-17 exercises NOMAD's Evasive movement and Rapid Fire against legal enemy AI, with deterministic resolver/report proof and the existing accessible unit artwork.
 - [x] Catalogue, class, Store, seed, typecheck, unit/integration and browser promotion gates pass at the promotion commit.
+
+#### Infantry Fighting Vehicle — `IMPLEMENTED`
+
+- [x] V5 Hits 3, Armor 2, Speed 2, Cannon AP 1/Range 2, subsystem, infantry transport and Crew Repair rules are published without adopting unsourced companion equipment slots.
+- [x] `public-v1-economy@1` publishes 8 Req; exact-once purchase, debit, ownership and force-roster projection are live.
+- [x] Generated `v5-core-curated@2` authority binds the executable unit handler, Hold/Advance/Rush, Attack/Load/Unload/Crew Repair and an empty `missing` list.
+- [x] Movement, attacks, Armor/AP, subsystem damage, governed full-squad embark/disembark and Crew Repair validate and resolve server-side.
+- [x] Crew Repair is stationary, Primary, unavailable without a damaged subsystem, restores one subsystem, exposes the crew to Armor 0 for the round and cites `RC-V5-024` in deterministic events.
+- [x] Health, subsystem state, cargo, location, ammunition and destruction consequences persist through the effect journal and survive force inspection/reload.
+- [x] Carrier destruction uses the common `RC-V5-030` fail-closed adjudication: cargo records freeze without invented passenger casualties or an automatic unload.
+- [x] Force catalogue, live readiness, deployment planner, tactical composer, map art/glyph, legal disabled states, event feed, replay and round report expose the same governed behavior.
+- [x] K-17 deploys CARR-6, exercises Armor-exposed Crew Repair while legal enemy fire resolves, persists MOBILITY recovery, and proves the result through the report and replay UI.
+- [x] Catalogue, class, Store, seed, typecheck, unit/integration and focused browser promotion gates pass at the promotion commit.
 
 There is also catalogue/seed drift to remove. For example, the Heavy Air Transport's generated top-level status is `PARTIAL`, while its nested seed correction says `IMPLEMENTED`. Status must be computed from one source and checked for parity.
 
@@ -150,7 +163,7 @@ Deliver UC-000 first. Establish the completion manifest, eliminate status drift,
 
 ### Wave 1 — Prove and promote the near-complete canonical classes
 
-Audit Light Vehicle, IFV, MBT, Light Mech, Fighter, and Bomber against the full done contract. Fill only the uncovered edge cases, persistence, UI/report, scenarios, and tests.
+Light Vehicle and IFV have passed this wave. Audit MBT, Light Mech, Fighter, and Bomber against the full done contract, filling only uncovered edge cases, persistence, UI/report, scenarios, and tests.
 
 **Exit gate:** each promoted class has no missing mechanics and passes acquisition → deployment → tactical action → persistence/reload → report/replay browser coverage.
 
@@ -249,7 +262,7 @@ Family-specific resolver, persistence, route, and scenario tests should be runna
 ## Immediate backlog
 
 1. Implement UC-000 and generate the first 29-row completion report.
-2. Audit and either promote or produce precise failing gates for the five remaining near-complete canonical classes.
+2. Audit and either promote or produce precise failing gates for the four remaining near-complete canonical classes: MBT, Light Mech, Fighter, and Bomber.
 3. Resolve the VTOL/HAT taxonomy error and Heavy Air Transport seed/status mismatch.
 4. Replace the hard-coded ability-status catalogue in `src/forces/model.ts` with generated/hydrated capability status.
 5. Approve the shared decision order: structures/LOS → logistics/cargo/drop → equipment/refit → companion conversion.

@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "226cdc08e4f60c48ba24cb59c5761f34bc7627622100688b983e49c7fe5c59c8",
+  "contentHash": "ed411b15f806459d6185dadbc0f7c6b2deef419e4db6e65a39d488ed3f0e0ead",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -14207,7 +14207,7 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-infantry-fighting-vehicle",
-        "implementationStatus": "PARTIAL",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
         "availabilityStatus": "AVAILABLE",
         "executable": true,
@@ -14235,7 +14235,7 @@ const snapshot = {
           ],
           "missing": [],
           "publicationCorrection": {
-            "reason": "The generated tactical handler executes the V5 IFV chassis, Snub Auto-Cannon, subsystem failures, six-FS infantry compartment, and stationary Armor-exposed Crew Repair.",
+            "reason": "The V5 Infantry Fighting Vehicle is playable end to end: acquisition, deployment, Snub Auto-Cannon combat, six-FS infantry cargo, subsystem consequences, stationary Armor-exposed Crew Repair, persistence, replay, reports, AI response and visual presentation are active.",
             "seedOverlay": {
               "availabilityStatus": "AVAILABLE",
               "executable": true,
@@ -25739,5 +25739,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "226cdc08e4f60c48ba24cb59c5761f34bc7627622100688b983e49c7fe5c59c8" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "ed411b15f806459d6185dadbc0f7c6b2deef419e4db6e65a39d488ed3f0e0ead" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

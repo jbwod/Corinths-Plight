@@ -72,8 +72,17 @@ function applyEvent(
       }
       break;
     case "UNIT_HEALED":
+      if (target && typeof payload.after === "number") target.currentHealth = payload.after;
+      break;
     case "UNIT_REPAIRED":
       if (target && typeof payload.after === "number") target.currentHealth = payload.after;
+      if (target && payload.repairKind === "SUBSYSTEM" && typeof payload.subsystemId === "string") {
+        target.subsystems = target.subsystems?.map((subsystem) =>
+          subsystem.subsystemId === payload.subsystemId
+            ? { subsystemId: subsystem.subsystemId, state: "OPERATIONAL" }
+            : subsystem
+        );
+      }
       break;
     case "LIGHT_AT_EXPENDED":
       if (actor && typeof payload.ammunitionAfter === "number") {

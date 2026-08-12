@@ -28,6 +28,7 @@ describe("campaign report replay", () => {
     }, 1);
     const actor = view.deployments.find((unit) => unit.side === "ALLIED")!;
     const target = view.deployments.find((unit) => unit.side === "ENEMY")!;
+    actor.subsystems = [{ subsystemId: "MOBILITY", state: "DISABLED" }];
     const objective = view.objectives[0]!;
     const destination = { q: actor.position.q + 1, r: actor.position.r };
     const frames = buildCampaignReplayFrames({
@@ -42,9 +43,17 @@ describe("campaign report replay", () => {
       event(4, "LIGHT_AT_EXPENDED", actor.id, { targetId: target.id, chargesSpent: 2, ammunitionAfter: 1 }),
       event(5, "OBJECTIVE_CAPTURED", undefined, { objectiveId: objective.id, owner: "ALLIED" }),
       event(6, "UNIT_DESTROYED", target.id, {}),
+      event(7, "UNIT_REPAIRED", actor.id, {
+        targetId: actor.id,
+        repairKind: "SUBSYSTEM",
+        repairMethod: "CREW",
+        subsystemId: "MOBILITY",
+        before: actor.currentHealth,
+        after: actor.currentHealth,
+      }),
     ]);
 
-    expect(frames).toHaveLength(7);
+    expect(frames).toHaveLength(8);
     expect(frames[0]!.deployments.find((unit) => unit.id === actor.id)?.position).toEqual(actor.position);
     expect(frames[1]!.deployments.find((unit) => unit.id === actor.id)?.position).toEqual(destination);
     expect(frames[2]!.deployments.find((unit) => unit.id === target.id)?.currentHealth).toBe(1);
@@ -55,5 +64,8 @@ describe("campaign report replay", () => {
       currentHealth: 0,
       status: "DESTROYED",
     });
+    expect(frames[7]!.deployments.find((unit) => unit.id === actor.id)?.subsystems).toEqual([
+      { subsystemId: "MOBILITY", state: "OPERATIONAL" },
+    ]);
   });
 });

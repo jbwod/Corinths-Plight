@@ -906,13 +906,13 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     explanation: "Engineer Repair, adjacent deployed-Artillery Dig In, and the source-complete V5 Sandbag, Razor Wire, and Tank Trap fieldworks execute end to end; Bridge remains gated.",
   },
   "UNIT:unit-infantry-fighting-vehicle": {
-    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
-    reasonCode: "MISSING_CANONICAL_PRICE",
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
     parameters: {
       implementedSubset: ["HITS", "ARMOUR", "AP", "ATTACK", "MOVEMENT", "SUBSYSTEMS", "INFANTRY_CARGO", "CREW_REPAIR"],
       missing: [],
     },
-    explanation: "The generated tactical handler executes the V5 IFV chassis, Snub Auto-Cannon, subsystem failures, six-FS infantry compartment, and stationary Armor-exposed Crew Repair.",
+    explanation: "The V5 Infantry Fighting Vehicle is playable end to end: acquisition, deployment, Snub Auto-Cannon combat, six-FS infantry cargo, subsystem consequences, stationary Armor-exposed Crew Repair, persistence, replay, reports, AI response and visual presentation are active.",
   },
   "UNIT:unit-logi-truck": {
     implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",

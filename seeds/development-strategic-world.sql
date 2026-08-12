@@ -411,7 +411,7 @@ UPDATE campaigns
  WHERE id = 'outpost-k17';
 
 UPDATE campaigns
-   SET strategic_node_id = 'node-outpost-k17'
+   SET strategic_node_id = NULL
  WHERE id = 'campaign-k17-relay';
 
 INSERT INTO strategic_operations (
@@ -578,7 +578,7 @@ INSERT INTO player_units (
 SELECT
   loaners.id, 'demo-user', definitions.ruleset_id, definitions.id,
   loaners.callsign, loaners.name, loaners.description,
-  'ACTIVE', definitions.max_health,
+  'ACTIVE', CASE WHEN loaners.id='force-polar-1' THEN definitions.max_health - 1 ELSE definitions.max_health END,
   json_object(
     'healthModel', definitions.health_model,
     'maxHealth', definitions.max_health,
@@ -700,7 +700,7 @@ ON CONFLICT(id) DO UPDATE SET
 -- The strategic fixture owns the exact playable rosters. Development-forces.sql
 -- initially groups the showcase collection under Hammer; split the executable
 -- foundation units here so Raven remains a distinct deployable formation while
--- catalogue-only Special Forces, VTOL, Medic, and IFV records stay non-playable.
+-- unsupported catalogue-only records stay outside the playable formation.
 DELETE FROM battlegroup_units
  WHERE battlegroup_id IN ('battlegroup-hammer', 'battlegroup-raven');
 

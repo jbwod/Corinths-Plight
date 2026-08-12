@@ -329,7 +329,7 @@ ON CONFLICT(player_unit_id, resource_type) DO UPDATE SET
 INSERT INTO player_unit_subsystems (player_unit_id, subsystem_type, state)
 SELECT units.id, subsystem_type,
        CASE
-         WHEN units.id = 'force-bellator' AND subsystem_type = 'MOBILITY' THEN 'DAMAGED'
+         WHEN units.id IN ('force-bellator', 'force-carrier-6') AND subsystem_type = 'MOBILITY' THEN 'DAMAGED'
          ELSE 'OPERATIONAL'
        END
   FROM player_units AS units
