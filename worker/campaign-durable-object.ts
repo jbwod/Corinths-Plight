@@ -4,6 +4,7 @@ import type {
   CampaignEvent,
   CampaignMarkerDto,
   CampaignMarkerKind,
+  CampaignOperationNoteDto,
   CampaignRuntimeState,
   ResolutionRecord,
   StructuredAction,
@@ -50,6 +51,7 @@ import {
   encodeCampaignStoredState,
   parseCampaignClockIntent,
   parseCampaignMarkerIntent,
+  parseCampaignOperationNoteIntent,
   parseCampaignOrderCancellationIntent,
   parseCampaignOrderIntent,
   parseCampaignStoredState,
@@ -103,7 +105,7 @@ interface WebSocketAttachment {
   role: string;
 }
 
-type CampaignCommandOperation = "ORDER_UPSERT" | "ORDER_CANCEL" | "CLOCK_UPDATE" | "MARKER_UPDATE";
+type CampaignCommandOperation = "ORDER_UPSERT" | "ORDER_CANCEL" | "CLOCK_UPDATE" | "MARKER_UPDATE" | "OPERATION_NOTE_UPDATE";
 
 interface CampaignCommandReceipt<TResponse extends object> {
   schemaVersion: 1;
@@ -150,6 +152,25 @@ interface StoredCampaignMarker {
 interface MarkerCommandResponse {
   marker?: CampaignMarkerDto;
   removedMarkerId?: string;
+}
+
+interface StoredCampaignOperationNote {
+  schemaVersion: 1;
+  id: string;
+  campaignId: string;
+  round: number;
+  side: ViewerContext["side"];
+  text: string;
+  battlegroupId?: string;
+  createdByUserId: string;
+  createdAt: number;
+  updatedAt: number;
+  revision: number;
+}
+
+interface OperationNoteCommandResponse {
+  note?: CampaignOperationNoteDto;
+  removedNoteId?: string;
 }
 
 function commandReceipt<TResponse extends object>(
@@ -292,6 +313,32 @@ export class CampaignDurableObject extends DurableObject<Env> {
 
   private markerStorageKey(round: number, markerId: string): string {
     return `marker/${String(round).padStart(8, "0")}/${encodeURIComponent(markerId)}`;
+  }
+
+  private operationNoteReceiptKey(userId: string, commandId: string): string {
+    return `command/operation-note/${encodeURIComponent(userId)}/${encodeURIComponent(commandId)}`;
+  }
+
+  private operationNoteStorageKey(round: number, noteId: string): string {
+    return `operation-note/${String(round).padStart(8, "0")}/${encodeURIComponent(noteId)}`;
+  }
+
+  private operationNoteDto(note: StoredCampaignOperationNote, viewer: ViewerContext): CampaignOperationNoteDto {
+    const own = note.createdByUserId === viewer.userId;
+    const command = viewer.role === "BATTALION_COMMAND" || viewer.role === "ADMIN";
+    return {
+      id: note.id,
+      campaignId: note.campaignId,
+      round: note.round,
+      text: note.text,
+      battlegroupId: note.battlegroupId,
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
+      revision: note.revision,
+      own,
+      canEdit: own,
+      canRemove: own || command,
+    };
   }
 
   private markerDto(marker: StoredCampaignMarker, viewer: ViewerContext): CampaignMarkerDto {
@@ -938,6 +985,8 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (url.pathname === "/state" && request.method === "GET") return await this.handleState(request);
       if (url.pathname === "/markers" && request.method === "GET") return await this.handleMarkers(request);
       if (url.pathname === "/markers" && request.method === "POST") return await this.handleMarkerCommand(request);
+      if (url.pathname === "/operation-notes" && request.method === "GET") return await this.handleOperationNotes(request);
+      if (url.pathname === "/operation-notes" && request.method === "POST") return await this.handleOperationNoteCommand(request);
       if (url.pathname === "/orders" && request.method === "POST") return await this.handleOrder(request);
       if (url.pathname.startsWith("/orders/") && request.method === "DELETE") {
         return await this.handleCancelOrder(request, decodeURIComponent(url.pathname.slice("/orders/".length)));
@@ -1080,6 +1129,130 @@ export class CampaignDurableObject extends DurableObject<Env> {
       await transaction.put(receiptKey, receipt);
     });
     this.broadcast(intent.operation === "PLACE" ? "marker-placed" : "marker-removed", state);
+    return json(response, { status });
+  }
+
+  private async handleOperationNotes(request: Request): Promise<Response> {
+    const viewer = this.viewer(request);
+    const state = await this.getState();
+    const stored = await this.ctx.storage.list<StoredCampaignOperationNote>({
+      prefix: `operation-note/${String(state.round).padStart(8, "0")}/`,
+    });
+    const notes = [...stored.values()]
+      .filter((note) => note.campaignId === state.campaignId && note.round === state.round)
+      .filter((note) => viewer.role === "ADMIN" || note.side === viewer.side)
+      .sort((left, right) => left.createdAt - right.createdAt || (left.id < right.id ? -1 : 1))
+      .map((note) => this.operationNoteDto(note, viewer));
+    return json({ notes, round: state.round });
+  }
+
+  private async handleOperationNoteCommand(request: Request): Promise<Response> {
+    const viewer = this.viewer(request);
+    const intent = parseCampaignOperationNoteIntent(await readJson<unknown>(request));
+    const requestHash = await campaignCommandHash(intent);
+    const receiptKey = this.operationNoteReceiptKey(viewer.userId, intent.commandId);
+    const storedReceipt = await this.ctx.storage.get<unknown>(receiptKey);
+    if (storedReceipt !== undefined) {
+      const prior = commandReceipt<OperationNoteCommandResponse>(storedReceipt, "OPERATION_NOTE_UPDATE");
+      if (prior.actorUserId !== viewer.userId || prior.commandId !== intent.commandId || prior.requestHash !== requestHash) {
+        return errorResponse(409, "COMMAND_REUSED", "commandId was already used with a different operation note command.");
+      }
+      return json(prior.response, { status: prior.status });
+    }
+    const state = await this.getState();
+    if (state.phase !== "PLANNING") {
+      return errorResponse(409, "OPERATION_NOTES_LOCKED", "Operation notes can only be changed during planning.");
+    }
+    const now = Date.now();
+    const command = viewer.role === "BATTALION_COMMAND" || viewer.role === "ADMIN";
+    let response: OperationNoteCommandResponse;
+    let status: 200 | 201;
+    let storageKey: string;
+    let nextNote: StoredCampaignOperationNote | undefined;
+    let remove = false;
+
+    if (intent.operation === "ADD") {
+      const current = await this.ctx.storage.list<StoredCampaignOperationNote>({
+        prefix: `operation-note/${String(state.round).padStart(8, "0")}/`,
+      });
+      const visible = [...current.values()].filter((note) => note.side === viewer.side);
+      if (visible.length >= 16 || visible.filter((note) => note.createdByUserId === viewer.userId).length >= 4) {
+        return errorResponse(409, "OPERATION_NOTE_LIMIT", "Remove an existing operation note before adding another.");
+      }
+      if (intent.battlegroupId && !state.deployments.some((deployment) =>
+        deployment.battlegroupId === intent.battlegroupId && deployment.side === viewer.side
+      )) {
+        return errorResponse(422, "BATTLEGROUP_NOT_PRESENT", "The referenced Battlegroup is not present in this operation.");
+      }
+      const noteId = `note-${requestHash.slice(0, 24)}`;
+      nextNote = {
+        schemaVersion: 1,
+        id: noteId,
+        campaignId: state.campaignId,
+        round: state.round,
+        side: viewer.side,
+        text: intent.text,
+        battlegroupId: intent.battlegroupId,
+        createdByUserId: viewer.userId,
+        createdAt: now,
+        updatedAt: now,
+        revision: 1,
+      };
+      storageKey = this.operationNoteStorageKey(state.round, noteId);
+      response = { note: this.operationNoteDto(nextNote, viewer) };
+      status = 201;
+    } else {
+      storageKey = this.operationNoteStorageKey(state.round, intent.noteId);
+      const current = await this.ctx.storage.get<StoredCampaignOperationNote>(storageKey);
+      if (!current || current.campaignId !== state.campaignId || current.round !== state.round) {
+        return errorResponse(404, "OPERATION_NOTE_NOT_FOUND", "Operation note was not found.");
+      }
+      if (current.revision !== intent.expectedRevision) {
+        return errorResponse(409, "OPERATION_NOTE_REVISION_CONFLICT", "Operation note changed; refresh before retrying.");
+      }
+      if (intent.operation === "UPDATE") {
+        if (current.createdByUserId !== viewer.userId) {
+          return errorResponse(403, "OPERATION_NOTE_FORBIDDEN", "Only the note author may edit it.");
+        }
+        if (intent.battlegroupId && !state.deployments.some((deployment) =>
+          deployment.battlegroupId === intent.battlegroupId && deployment.side === viewer.side
+        )) {
+          return errorResponse(422, "BATTLEGROUP_NOT_PRESENT", "The referenced Battlegroup is not present in this operation.");
+        }
+        nextNote = {
+          ...current,
+          text: intent.text,
+          battlegroupId: intent.battlegroupId,
+          updatedAt: now,
+          revision: current.revision + 1,
+        };
+        response = { note: this.operationNoteDto(nextNote, viewer) };
+      } else {
+        if (current.createdByUserId !== viewer.userId && !command) {
+          return errorResponse(403, "OPERATION_NOTE_FORBIDDEN", "Only the note author or command staff may remove it.");
+        }
+        remove = true;
+        response = { removedNoteId: current.id };
+      }
+      status = 200;
+    }
+    const receipt: CampaignCommandReceipt<OperationNoteCommandResponse> = {
+      schemaVersion: 1,
+      operation: "OPERATION_NOTE_UPDATE",
+      actorUserId: viewer.userId,
+      commandId: intent.commandId,
+      requestHash,
+      status,
+      response,
+      createdAt: now,
+    };
+    await this.ctx.storage.transaction(async (transaction) => {
+      if (await transaction.get<unknown>(receiptKey) !== undefined) return;
+      if (remove) await transaction.delete(storageKey);
+      else await transaction.put(storageKey, nextNote!);
+      await transaction.put(receiptKey, receipt);
+    });
+    this.broadcast(remove ? "operation-note-removed" : "operation-note-updated", state);
     return json(response, { status });
   }
 

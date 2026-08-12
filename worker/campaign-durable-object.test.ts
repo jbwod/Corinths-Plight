@@ -197,6 +197,51 @@ function orderBody(overrides: Record<string, unknown> = {}): string {
 }
 
 describe("CampaignDurableObject campaign contracts", () => {
+  it("persists, revises, replays, and removes round-scoped Allied operation notes", async () => {
+    const { campaign, storage } = campaignObject();
+    await campaign.fetch(request("/state"));
+    const addBody = JSON.stringify({
+      commandId: "operation-note-0001",
+      operation: "ADD",
+      text: "Hold the relay. Support element screens the east approach.",
+    });
+    const added = await campaign.fetch(request("/operation-notes", { method: "POST", body: addBody }));
+    const replay = await campaign.fetch(request("/operation-notes", { method: "POST", body: addBody }));
+    expect(added.status).toBe(201);
+    expect(replay.status).toBe(201);
+    const addedBody = await added.json() as { note: { id: string; revision: number; own: boolean; canEdit: boolean } };
+    expect(addedBody.note).toMatchObject({ revision: 1, own: true, canEdit: true });
+    expect([...storage.values.keys()].filter((key) => key.startsWith("operation-note/"))).toHaveLength(1);
+
+    const updated = await campaign.fetch(request("/operation-notes", {
+      method: "POST",
+      body: JSON.stringify({
+        commandId: "operation-note-0002",
+        operation: "UPDATE",
+        noteId: addedBody.note.id,
+        expectedRevision: 1,
+        text: "Hold the relay. Artillery shifts to the eastern approach.",
+      }),
+    }));
+    expect(updated.status).toBe(200);
+    await expect(updated.json()).resolves.toMatchObject({ note: { revision: 2 } });
+    await expect((await campaign.fetch(request("/operation-notes"))).json()).resolves.toMatchObject({
+      notes: [{ id: addedBody.note.id, revision: 2, text: "Hold the relay. Artillery shifts to the eastern approach." }],
+    });
+
+    const removed = await campaign.fetch(request("/operation-notes", {
+      method: "POST",
+      body: JSON.stringify({
+        commandId: "operation-note-0003",
+        operation: "REMOVE",
+        noteId: addedBody.note.id,
+        expectedRevision: 2,
+      }),
+    }));
+    expect(removed.status).toBe(200);
+    await expect((await campaign.fetch(request("/operation-notes"))).json()).resolves.toMatchObject({ notes: [] });
+  });
+
   it("persists, projects, replays, and clears round-scoped Allied command markers", async () => {
     const { campaign, storage } = campaignObject();
     const stateResponse = await campaign.fetch(request("/state"));

@@ -47,6 +47,8 @@ For every `PENDING` row:
 | DEC-018 | Optics and Drone behavior | Store rows 43/23 | URGENT PENDING | Current `IMPLEMENTED` overlays are incorrect/no-op |
 | DEC-019 | Campaign-end ammo/supply and facility coverage | `RULE_INTERPRETATIONS.md:17-23` | PENDING | Recovery/rearm/refit loop |
 | DEC-020 | Production scenario/world content authority | Product/content decision | PENDING | Any non-demo campaign/strategic play |
+| DEC-022 | Standard Melee Weapon attack profile | V5 Melee Charge + Store row 5 | PENDING | Player Melee Charge/Brawl activation |
+| DEC-023 | Smoke Grenade duration | Store row 17 + RC-EQP-006 | PENDING | Infantry smoke LOS activation |
 
 ## Detailed decisions
 
@@ -337,6 +339,34 @@ For every `PENDING` row:
 **Recommendation:** Option 3 as the next expansion after the V5 public loop is complete. Start with Sappers and Special Forces; do not infer vehicle Hits, weapon dice, dual-cannon behavior or prices. Record any later conversions in a named profile rather than editing V5 truth.
 
 **Acceptance:** every activated companion class has an explicit durability/attack/economy source, generated handler, persistent state, tactical UI/report coverage and a scenario proving its signature mechanic. Catalogue presence or generated artwork alone never grants execution or purchase.
+
+### DEC-022 — Standard Melee Weapon attack profile
+
+**Sources:** V5 defines Melee Charge timing, contact and Armor/Defense handling, while Store `Standard Melee Weapons` supplies the price, Primary slot and Infantry restrictions. Neither source supplies a player weapon damage die or explicit damage value. The Bug melee profile is enemy-specific and is not authority for player equipment.
+
+**Options:**
+
+1. Approve a single versioned damage die/profile for Standard Melee Weapons.
+2. Make the attack scale from current Force Strength using a precisely approved formula.
+3. Keep the item purchasable only as catalogue content and leave Melee Charge unavailable.
+
+**Recommendation:** Option 1 after a short playtest against Infantry and armored targets. Do not reuse Bug Claws or infer a value from Req price.
+
+**Acceptance:** the approved profile is published in the catalogue, Melee Charge and Brawl execute and persist end to end, defensive fire follows RC-V5-008, and external ranged attacks cannot target a Brawl.
+
+### DEC-023 — Smoke Grenade duration
+
+**Sources:** Store `Smoke Grenades` supplies price, Secondary slot, Infantry restriction, affected hexes, LOS effect, range-one exception and immunity of indirect fire. It does not state when the smoke clears. RC-EQP-006 already blocks guessed timing values.
+
+**Options:**
+
+1. Smoke lasts through the end of the current round.
+2. Smoke persists through the end of the following round.
+3. Smoke persists until a separate explicit clear/disperse effect.
+
+**Recommendation:** Option 2 gives opposing commanders one planning window to react and matches the persistence implied by placing smoke as a tactical action, but remains inactive until explicitly approved.
+
+**Acceptance:** a versioned duration is stored on authoritative hex state, LOS and indirect-fire targeting consume it, reports show placement/expiry, and retries cannot extend the effect.
 
 ## Provisional V5 rulings requiring owner confirmation
 

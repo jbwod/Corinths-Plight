@@ -30,6 +30,7 @@ const SQRT_THREE = Math.sqrt(3);
 const MARKER_COLORS = { PING: "#f1c96b", MOVE: "#65d6e8", ATTACK: "#ff765d", DEFEND: "#7e9ff2", SUPPORT: "#75d89b" } as const;
 
 type IntentVisualKind = "MANEUVER" | "ASSAULT" | "SUPPORT" | "FORTIFY" | "HOLD";
+type IntentScope = "ALL" | "MINE" | "ALLIES";
 
 interface IntentVisual {
   kind: IntentVisualKind;
@@ -205,6 +206,8 @@ export function HexMap({
   const [hovered, setHovered] = useState<AxialCoord>();
   const [showAlliedIntents, setShowAlliedIntents] = useState(true);
   const [focusedIntentId, setFocusedIntentId] = useState<string>();
+  const [intentScope, setIntentScope] = useState<IntentScope>("ALL");
+  const [intentKind, setIntentKind] = useState<IntentVisualKind | "ALL">("ALL");
 
   const mapIndex = useMemo(() => new Map(campaign.map.map((hex) => [coordKey(hex.coord), hex])), [campaign.map]);
   const unitIndex = useMemo(() => {
@@ -222,7 +225,13 @@ export function HexMap({
       return deployment?.side === campaign.viewer.side;
     })
     .sort((left, right) => left.unitId < right.unitId ? -1 : left.unitId > right.unitId ? 1 : 0), [campaign.deployments, campaign.orders, campaign.round, campaign.viewer.side]);
-  const activeFocusedIntentId = focusedIntentId && submittedAlliedIntents.some((order) => order.id === focusedIntentId)
+  const filteredAlliedIntents = useMemo(() => submittedAlliedIntents.filter((order) => {
+    const own = order.submittedBy === campaign.viewer.userId;
+    if (intentScope === "MINE" && !own) return false;
+    if (intentScope === "ALLIES" && own) return false;
+    return intentKind === "ALL" || intentVisual(order).kind === intentKind;
+  }), [campaign.viewer.userId, intentKind, intentScope, submittedAlliedIntents]);
+  const activeFocusedIntentId = focusedIntentId && filteredAlliedIntents.some((order) => order.id === focusedIntentId)
     ? focusedIntentId
     : undefined;
 
@@ -456,7 +465,7 @@ export function HexMap({
       ctx.restore();
     }
 
-    for (const order of showAlliedIntents ? submittedAlliedIntents : []) {
+    for (const order of showAlliedIntents ? filteredAlliedIntents : []) {
       const deployment = campaign.deployments.find((candidate) => candidate.id === order.unitId);
       if (!deployment) continue;
       const points = order.route.map(axialToWorld);
@@ -641,7 +650,7 @@ export function HexMap({
     vignette.addColorStop(1, "rgba(0,0,0,.48)");
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, size.width, size.height);
-  }, [activeFocusedIntentId, campaign, draftedFacing, draftedRoute, hovered, layer, mapIndex, markers, selectedUnitId, showAlliedIntents, size, submittedAlliedIntents, targetHex, targetUnitId, unitIndex, viewport]);
+  }, [activeFocusedIntentId, campaign, draftedFacing, draftedRoute, filteredAlliedIntents, hovered, layer, mapIndex, markers, selectedUnitId, showAlliedIntents, size, targetHex, targetUnitId, unitIndex, viewport]);
 
   const screenToCoord = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -729,8 +738,16 @@ export function HexMap({
       <div className="map-facing-readout">FACING {FACING_LABELS[draftedFacing] ?? "N"}</div>
       {submittedAlliedIntents.length > 0 && (
         <div className="map-intent-roster" role="region" aria-label="Submitted Allied map intentions">
-          <header><span>ALLIED INTENT</span><b>{submittedAlliedIntents.length}</b><button type="button" aria-pressed={showAlliedIntents} onClick={() => setShowAlliedIntents((visible) => !visible)}>{showAlliedIntents ? "HIDE" : "SHOW"}</button></header>
-          {showAlliedIntents && submittedAlliedIntents.slice(0, 6).map((order) => {
+          <header><span>ALLIED INTENT</span><b>{filteredAlliedIntents.length}/{submittedAlliedIntents.length}</b><button type="button" aria-pressed={showAlliedIntents} onClick={() => setShowAlliedIntents((visible) => !visible)}>{showAlliedIntents ? "HIDE" : "SHOW"}</button></header>
+          {showAlliedIntents && <div className="intent-filters" aria-label="Filter submitted Allied intentions">
+            <select aria-label="Intent ownership" value={intentScope} onChange={(event) => setIntentScope(event.target.value as IntentScope)}>
+              <option value="ALL">ALL COMMANDERS</option><option value="MINE">MY ORDERS</option><option value="ALLIES">ALLIES ONLY</option>
+            </select>
+            <select aria-label="Intent type" value={intentKind} onChange={(event) => setIntentKind(event.target.value as IntentVisualKind | "ALL")}>
+              <option value="ALL">ALL INTENTS</option>{Object.keys(INTENT_VISUALS).map((kind) => <option key={kind} value={kind}>{kind}</option>)}
+            </select>
+          </div>}
+          {showAlliedIntents && filteredAlliedIntents.slice(0, 6).map((order) => {
             const deployment = campaign.deployments.find((candidate) => candidate.id === order.unitId);
             const visual = intentVisual(order);
             return (
@@ -747,7 +764,8 @@ export function HexMap({
               </button>
             );
           })}
-          {showAlliedIntents && submittedAlliedIntents.length > 6 && <p>+{submittedAlliedIntents.length - 6} MORE SUBMITTED INTENTS</p>}
+          {showAlliedIntents && filteredAlliedIntents.length === 0 && <p>NO SUBMITTED INTENTS MATCH THIS FILTER</p>}
+          {showAlliedIntents && filteredAlliedIntents.length > 6 && <p>+{filteredAlliedIntents.length - 6} MORE MATCHING INTENTS</p>}
         </div>
       )}
       {markers.length > 0 && (

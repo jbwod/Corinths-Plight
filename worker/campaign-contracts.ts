@@ -166,6 +166,28 @@ export type CampaignMarkerIntent =
       markerId: string;
     };
 
+export type CampaignOperationNoteIntent =
+  | {
+      commandId: string;
+      operation: "ADD";
+      text: string;
+      battlegroupId?: string;
+    }
+  | {
+      commandId: string;
+      operation: "UPDATE";
+      noteId: string;
+      expectedRevision: number;
+      text: string;
+      battlegroupId?: string;
+    }
+  | {
+      commandId: string;
+      operation: "REMOVE";
+      noteId: string;
+      expectedRevision: number;
+    };
+
 export interface StoredCampaignStateV1 {
   schemaVersion: typeof CAMPAIGN_STORAGE_SCHEMA_VERSION;
   state: CampaignRuntimeState;
@@ -515,6 +537,52 @@ export function parseCampaignMarkerIntent(value: unknown): CampaignMarkerIntent 
     };
   }
   requestFail("$.operation", "Marker operation must be PLACE or REMOVE.");
+}
+
+export function parseCampaignOperationNoteIntent(value: unknown): CampaignOperationNoteIntent {
+  if (!isRecord(value)) requestFail("$", "Expected an operation note command.");
+  if (value.operation === "ADD" || value.operation === "UPDATE") {
+    const update = value.operation === "UPDATE";
+    onlyKeys(value, update
+      ? ["commandId", "operation", "noteId", "expectedRevision", "text", "battlegroupId"]
+      : ["commandId", "operation", "text", "battlegroupId"], "$"
+    );
+    if (typeof value.text !== "string") requestFail("$.text", "Operation note text is required.");
+    const text = value.text.trim();
+    if (text.length < 1 || text.length > 500) {
+      requestFail("$.text", "Operation note text must contain 1 through 500 characters.");
+    }
+    const common = {
+      commandId: identifier(value.commandId, "$.commandId"),
+      text,
+      ...(value.battlegroupId === undefined
+        ? {}
+        : { battlegroupId: identifier(value.battlegroupId, "$.battlegroupId") }),
+    };
+    if (!update) return { operation: "ADD", ...common };
+    if (!Number.isSafeInteger(value.expectedRevision) || Number(value.expectedRevision) < 1) {
+      requestFail("$.expectedRevision", "Expected note revision must be a positive integer.");
+    }
+    return {
+      operation: "UPDATE",
+      ...common,
+      noteId: identifier(value.noteId, "$.noteId"),
+      expectedRevision: Number(value.expectedRevision),
+    };
+  }
+  if (value.operation === "REMOVE") {
+    onlyKeys(value, ["commandId", "operation", "noteId", "expectedRevision"], "$");
+    if (!Number.isSafeInteger(value.expectedRevision) || Number(value.expectedRevision) < 1) {
+      requestFail("$.expectedRevision", "Expected note revision must be a positive integer.");
+    }
+    return {
+      commandId: identifier(value.commandId, "$.commandId"),
+      operation: "REMOVE",
+      noteId: identifier(value.noteId, "$.noteId"),
+      expectedRevision: Number(value.expectedRevision),
+    };
+  }
+  requestFail("$.operation", "Operation note command must be ADD, UPDATE, or REMOVE.");
 }
 
 export async function assertCampaignMutationBodyEmpty(request: Request): Promise<void> {

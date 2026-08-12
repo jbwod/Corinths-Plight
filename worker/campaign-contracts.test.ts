@@ -8,6 +8,7 @@ import {
   canonicalCampaignJson,
   encodeCampaignStoredState,
   parseCampaignClockIntent,
+  parseCampaignOperationNoteIntent,
   parseCampaignOrderCancellationIntent,
   parseCampaignOrderIntent,
   parseCampaignStoredState,
@@ -25,6 +26,33 @@ const CLOCK_COMMAND = {
 } as const;
 
 describe("campaign order request contracts", () => {
+  it("accepts strict operation note commands and rejects forged fields", () => {
+    expect(parseCampaignOperationNoteIntent({
+      commandId: "operation-note-0001",
+      operation: "ADD",
+      text: "  Hammer holds the relay while Raven screens east.  ",
+      battlegroupId: "battlegroup-hammer",
+    })).toEqual({
+      commandId: "operation-note-0001",
+      operation: "ADD",
+      text: "Hammer holds the relay while Raven screens east.",
+      battlegroupId: "battlegroup-hammer",
+    });
+    expect(() => parseCampaignOperationNoteIntent({
+      commandId: "operation-note-0002",
+      operation: "UPDATE",
+      noteId: "note-12345678",
+      expectedRevision: 0,
+      text: "Changed",
+    })).toThrow(CampaignRequestContractError);
+    expect(() => parseCampaignOperationNoteIntent({
+      commandId: "operation-note-0003",
+      operation: "ADD",
+      text: "Plan",
+      audience: "PUBLIC",
+    })).toThrow(CampaignRequestContractError);
+  });
+
   it("requires exact optimistic fields for order cancellation", () => {
     expect(parseCampaignOrderCancellationIntent({
       commandId: "cancel-order-0001",

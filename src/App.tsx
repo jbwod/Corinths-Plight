@@ -5,6 +5,7 @@ import type {
   CampaignEvent,
   CampaignMarkerDto,
   CampaignMarkerKind,
+  CampaignOperationNoteDto,
   CampaignView,
   Facing,
   OrderType,
@@ -222,6 +223,10 @@ async function errorMessage(response: Response): Promise<string> {
 function GameApp() {
   const [campaign, setCampaign] = useState<CampaignView>(initialCampaign);
   const [campaignMarkers, setCampaignMarkers] = useState<CampaignMarkerDto[]>([]);
+  const [operationNotes, setOperationNotes] = useState<CampaignOperationNoteDto[]>([]);
+  const [operationNoteText, setOperationNoteText] = useState("");
+  const [operationNoteBattlegroupId, setOperationNoteBattlegroupId] = useState("");
+  const [editingOperationNoteId, setEditingOperationNoteId] = useState<string>();
   const [markerMode, setMarkerMode] = useState<CampaignMarkerKind>();
   const [markerLabel, setMarkerLabel] = useState("");
   const [connection, setConnection] = useState<ConnectionState>("CONNECTING");
@@ -284,16 +289,20 @@ function GameApp() {
   const loadCampaign = useCallback(async (quiet = false, requestedCampaignId = campaignId) => {
     if (!requestedCampaignId) return undefined;
     try {
-      const [response, markerResponse] = await Promise.all([
+      const [response, markerResponse, noteResponse] = await Promise.all([
         fetch(`/api/campaigns/${requestedCampaignId}/state`, { headers: DEMO_HEADERS }),
         fetch(`/api/campaigns/${requestedCampaignId}/markers`, { headers: DEMO_HEADERS }),
+        fetch(`/api/campaigns/${requestedCampaignId}/operation-notes`, { headers: DEMO_HEADERS }),
       ]);
       if (!response.ok) throw new Error(await errorMessage(response));
       if (!markerResponse.ok) throw new Error(await errorMessage(markerResponse));
+      if (!noteResponse.ok) throw new Error(await errorMessage(noteResponse));
       const next = (await response.json()) as CampaignView;
       const markerBody = await markerResponse.json() as { markers?: CampaignMarkerDto[] };
+      const noteBody = await noteResponse.json() as { notes?: CampaignOperationNoteDto[] };
       setCampaign(next);
       setCampaignMarkers(Array.isArray(markerBody.markers) ? markerBody.markers : []);
+      setOperationNotes(Array.isArray(noteBody.notes) ? noteBody.notes : []);
       const latestEvent = [...next.events].sort((left, right) =>
         left.round - right.round || left.sequence - right.sequence
       ).at(-1);
@@ -659,6 +668,7 @@ function GameApp() {
   const missingCommandUnits = commandUnits.filter((unit) =>
     !ordersForRound.some((order) => order.unitId === unit.id)
   );
+  const operationBattlegroups = [...new Set(commandUnits.flatMap((unit) => unit.battlegroupId ? [unit.battlegroupId] : []))].sort();
   const locked =
     campaign.phase !== "PLANNING" ||
     (campaign.clock.lockAt > 0 && now >= campaign.clock.lockAt && scheduledRound === campaign.round);
@@ -919,6 +929,76 @@ function GameApp() {
       setNotice({ tone: "success", message: "Tactical marker cleared." });
     } catch (error) {
       setNotice({ tone: "danger", message: error instanceof Error ? error.message : "Marker removal failed." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function editOperationNote(note: CampaignOperationNoteDto) {
+    setEditingOperationNoteId(note.id);
+    setOperationNoteText(note.text);
+    setOperationNoteBattlegroupId(note.battlegroupId ?? "");
+  }
+
+  function resetOperationNoteComposer() {
+    setEditingOperationNoteId(undefined);
+    setOperationNoteText("");
+    setOperationNoteBattlegroupId("");
+  }
+
+  async function saveOperationNote() {
+    if (!campaignId || !operationNoteText.trim() || busy) return;
+    const existing = operationNotes.find((note) => note.id === editingOperationNoteId);
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/campaigns/${campaignId}/operation-notes`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(DEMO_HEADERS ?? {}) },
+        body: JSON.stringify(existing ? {
+          commandId: `operation-note-${crypto.randomUUID()}`,
+          operation: "UPDATE",
+          noteId: existing.id,
+          expectedRevision: existing.revision,
+          text: operationNoteText,
+          ...(operationNoteBattlegroupId ? { battlegroupId: operationNoteBattlegroupId } : {}),
+        } : {
+          commandId: `operation-note-${crypto.randomUUID()}`,
+          operation: "ADD",
+          text: operationNoteText,
+          ...(operationNoteBattlegroupId ? { battlegroupId: operationNoteBattlegroupId } : {}),
+        }),
+      });
+      if (!response.ok) throw new Error(await errorMessage(response));
+      await loadCampaign(true, campaignId);
+      resetOperationNoteComposer();
+      setNotice({ tone: "success", message: existing ? "Operation note updated." : "Operation note shared with Allied command." });
+    } catch (error) {
+      setNotice({ tone: "danger", message: error instanceof Error ? error.message : "Operation note update failed." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeOperationNote(note: CampaignOperationNoteDto) {
+    if (!campaignId || busy) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/campaigns/${campaignId}/operation-notes`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(DEMO_HEADERS ?? {}) },
+        body: JSON.stringify({
+          commandId: `operation-note-${crypto.randomUUID()}`,
+          operation: "REMOVE",
+          noteId: note.id,
+          expectedRevision: note.revision,
+        }),
+      });
+      if (!response.ok) throw new Error(await errorMessage(response));
+      await loadCampaign(true, campaignId);
+      if (editingOperationNoteId === note.id) resetOperationNoteComposer();
+      setNotice({ tone: "success", message: "Operation note removed." });
+    } catch (error) {
+      setNotice({ tone: "danger", message: error instanceof Error ? error.message : "Operation note removal failed." });
     } finally {
       setBusy(false);
     }
@@ -1356,6 +1436,40 @@ function GameApp() {
               : draftingCommandUnits.length > 0
                 ? <p><b>UNSUBMITTED DRAFTS</b> {draftingCommandUnits.map((unit) => unit.callsign).join(" · ")}</p>
                 : <p><b>ALLIED FORMATION READY</b> Every operational on-map unit has submitted.</p>}
+          </section>
+          <section className="operation-notes" aria-label="Round operation notes">
+            <header><span>OPERATION NOTES · ROUND {campaign.round}</span><b>{operationNotes.length}/16</b></header>
+            <div className="operation-note-list">
+              {operationNotes.map((note) => (
+                <article key={note.id} className={note.own ? "own" : ""}>
+                  <header><span>{note.battlegroupId?.replace("battlegroup-", "BG ").toUpperCase() ?? "ALLIED COMMAND"}</span><small>{note.own ? "YOU" : "ALLY"} · v{note.revision}</small></header>
+                  <p>{note.text}</p>
+                  {(note.canEdit || note.canRemove) && <footer>
+                    {note.canEdit && <button type="button" onClick={() => editOperationNote(note)}>EDIT</button>}
+                    {note.canRemove && <button type="button" className="danger" onClick={() => void removeOperationNote(note)}>REMOVE</button>}
+                  </footer>}
+                </article>
+              ))}
+              {operationNotes.length === 0 && <p className="operation-note-empty">No shared plan for this round yet.</p>}
+            </div>
+            <div className="operation-note-composer">
+              <textarea
+                aria-label="Allied operation note"
+                maxLength={500}
+                placeholder="Share the plan, timing, fire support, fallback, or commander intent…"
+                value={operationNoteText}
+                disabled={campaign.phase !== "PLANNING" || busy}
+                onChange={(event) => setOperationNoteText(event.target.value)}
+              />
+              <div>
+                <select aria-label="Operation note Battlegroup" value={operationNoteBattlegroupId} onChange={(event) => setOperationNoteBattlegroupId(event.target.value)}>
+                  <option value="">ALLIED COMMAND</option>
+                  {operationBattlegroups.map((id) => <option key={id} value={id}>{id.replace("battlegroup-", "BG ").toUpperCase()}</option>)}
+                </select>
+                {editingOperationNoteId && <button type="button" onClick={resetOperationNoteComposer}>CANCEL</button>}
+                <button type="button" className="primary" disabled={campaign.phase !== "PLANNING" || busy || !operationNoteText.trim()} onClick={() => void saveOperationNote()}>{editingOperationNoteId ? "SAVE" : "SHARE"}</button>
+              </div>
+            </div>
           </section>
           <div className="unit-roster">
             {rosterUnits.map((unit) => {

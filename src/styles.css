@@ -1476,6 +1476,25 @@ summary:focus-visible {
 .command-readiness > p { margin: 8px 0 0; color: var(--muted); font: 500 6px/1.45 var(--mono); }
 .command-readiness > p b { color: var(--gold); }
 
+.operation-notes { border-bottom: 1px solid var(--line); background: rgba(4, 15, 18, .78); }
+.operation-notes > header { min-height: 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; color: var(--teal); font: 600 6px/1 var(--mono); letter-spacing: .09em; }
+.operation-notes > header b { color: var(--dim); }
+.operation-note-list { max-height: 162px; overflow-y: auto; }
+.operation-note-list article { padding: 8px 11px; border-top: 1px solid rgba(100, 143, 143, .16); box-shadow: inset 2px 0 0 rgba(117, 216, 155, .35); }
+.operation-note-list article.own { box-shadow: inset 2px 0 0 var(--teal); }
+.operation-note-list article header { display: flex; justify-content: space-between; gap: 8px; color: #a8c3bf; font: 600 6px/1 var(--mono); }
+.operation-note-list article header small { color: var(--dim); font-size: 5px; }
+.operation-note-list article p { margin: 6px 0 0; color: var(--muted); font: 500 7px/1.45 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.operation-note-list article footer { display: flex; gap: 4px; margin-top: 6px; }
+.operation-note-list button, .operation-note-composer button { min-height: 21px; padding: 0 7px; border: 1px solid rgba(112, 217, 207, .25); background: transparent; color: var(--teal); font: 600 5px/1 var(--mono); cursor: pointer; }
+.operation-note-list button.danger { color: #ff927b; border-color: rgba(255, 128, 103, .3); }
+.operation-note-empty { margin: 0; padding: 8px 12px; border-top: 1px solid rgba(100, 143, 143, .16); color: var(--dim); font: 500 6px/1.4 var(--mono); }
+.operation-note-composer { padding: 7px; border-top: 1px solid var(--line); }
+.operation-note-composer textarea { width: 100%; min-height: 54px; resize: vertical; padding: 7px; border: 1px solid rgba(112, 217, 207, .2); background: #061013; color: #c1d2cf; font: 500 7px/1.4 var(--mono); }
+.operation-note-composer > div { display: flex; gap: 4px; margin-top: 4px; }
+.operation-note-composer select { min-width: 0; flex: 1; height: 23px; border: 1px solid rgba(112, 217, 207, .2); background: #061013; color: var(--muted); font: 600 5px/1 var(--mono); }
+.operation-note-composer button.primary { margin-left: auto; background: rgba(68, 136, 131, .28); }
+
 .panel-filter-row {
   height: 42px;
   display: grid;
@@ -1902,6 +1921,8 @@ summary:focus-visible {
 .map-intent-roster > header { min-height: 27px; display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; padding: 0 6px 0 9px; border-bottom: 1px solid var(--line); color: var(--teal); font-size: 6px; letter-spacing: .12em; }
 .map-intent-roster > header b { min-width: 20px; padding: 3px; border: 1px solid rgba(112, 217, 207, .3); text-align: center; }
 .map-intent-roster > header button { min-height: 20px; padding: 0 6px; border: 1px solid rgba(112, 217, 207, .24); background: transparent; color: var(--dim); font: 600 5px/1 var(--mono); cursor: pointer; }
+.intent-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 5px; border-bottom: 1px solid var(--line); }
+.intent-filters select { min-width: 0; height: 22px; border: 1px solid rgba(112, 217, 207, .22); background: #071114; color: #9db6b4; font: 600 5px/1 var(--mono); }
 .map-intent-roster > button:not(:first-child) { width: 100%; min-height: 38px; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; align-items: center; padding: 5px 9px; border: 0; border-bottom: 1px solid rgba(99, 134, 135, .13); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background 140ms ease, box-shadow 140ms ease; }
 .map-intent-roster > button:not(:first-child):hover { background: rgba(109, 190, 188, .08); }
 .map-intent-roster > button:not(:first-child).active { background: rgba(109, 190, 188, .13); box-shadow: inset 2px 0 0 currentColor; }

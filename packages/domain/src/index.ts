@@ -14,6 +14,20 @@ export interface CampaignMarkerDto {
   canRemove: boolean;
 }
 
+export interface CampaignOperationNoteDto {
+  id: string;
+  campaignId: string;
+  round: number;
+  text: string;
+  battlegroupId?: string;
+  createdAt: number;
+  updatedAt: number;
+  revision: number;
+  own: boolean;
+  canEdit: boolean;
+  canRemove: boolean;
+}
+
 export * from "./json-contract";
 export * from "./economy-policy";
 export * from "./rules-catalogue-contract";
