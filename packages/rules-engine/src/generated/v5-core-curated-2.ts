@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "2be4233931493a3cea0bafbef9e4ee2ad94c7be4166075ac89233a126eeff623",
+  "contentHash": "2f071d83544f29cd8e94b78415fa7be63c1eb006f070056f84b212a3d8da4f5c",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -2970,6 +2970,38 @@ const snapshot = {
     ],
     "equipment": [
       {
+        "id": "equipment-aerospace-500kg-bomb",
+        "kind": "EQUIPMENT",
+        "name": "500 kg Bomb",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 86",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "AEROSPACE_ORDNANCE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Ground Targets Only Damage 6",
+              "sourceName": "500KG",
+              "sourceSlot": "Bomb Bay",
+              "storeRow": 86,
+              "unitAccessText": "2 Per Crate"
+            }
+          },
+          "slotType": "bomb_bay"
+        }
+      },
+      {
         "id": "equipment-aerospace-afterburner",
         "kind": "EQUIPMENT",
         "name": "Afterburner",
@@ -2994,9 +3026,177 @@ const snapshot = {
               "AEROSPACE"
             ],
             "speedModifier": 2,
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Add +2 Speed - can be used at the start of the round 2 Uses",
+              "sourceName": "Afterburner (2)",
+              "sourceSlot": "Internal",
+              "storeRow": 82,
+              "unitAccessText": ""
+            },
             "uses": 2
           },
           "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-aerospace-cluster-smoke-bombs",
+        "kind": "EQUIPMENT",
+        "name": "Cluster Smoke Bombs",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 88",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "AEROSPACE_ORDNANCE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Drop smoke on a set of 3 hexs. Blocks line of sight through and indicated hexs. Till the end of the next round.",
+              "sourceName": "Cluster Smoke Bombs",
+              "sourceSlot": "Bomb Bay",
+              "storeRow": 88,
+              "unitAccessText": "4 Bombs Per Crate"
+            }
+          },
+          "slotType": "bomb_bay"
+        }
+      },
+      {
+        "id": "equipment-aerospace-drop-tank",
+        "kind": "EQUIPMENT",
+        "name": "Drop Tank",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 83",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "AEROSPACE_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Add's 1 extra round of Afterburner or Augmentor Speed Boost. Per Fuel Tank Mounted",
+              "sourceName": "Drop Tank",
+              "sourceSlot": "Light",
+              "storeRow": 83,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "light"
+        }
+      },
+      {
+        "id": "equipment-aerospace-gun-pod",
+        "kind": "EQUIPMENT",
+        "name": "Aerospace Gun Pod",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 80",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "AEROSPACE_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Multiple Pods Can be fired at once Damage 2, AP 1, Range 1",
+              "sourceName": "Gun Pod",
+              "sourceSlot": "Light",
+              "storeRow": 80,
+              "unitAccessText": "4 Per Crate 1 Per Mount"
+            }
+          },
+          "slotType": "light"
+        }
+      },
+      {
+        "id": "equipment-aerospace-hellfire-bombs",
+        "kind": "EQUIPMENT",
+        "name": "Hellfire Bombs",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 87",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "AEROSPACE_ORDNANCE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "\"Drop Fire Bombs on 3 hex's Burning it for till the start of the next round for base unit damage. Could be Area Denial. If they care about fire damage. Ignores armor given from building. Damage 2, Fly Over Range,",
+              "sourceName": "HellFire Bombs (Thanks Haven)",
+              "sourceSlot": "Bomb Bay",
+              "storeRow": 87,
+              "unitAccessText": "2 Per Crate"
+            }
+          },
+          "slotType": "bomb_bay"
+        }
+      },
+      {
+        "id": "equipment-aerospace-light-rocket-pod",
+        "kind": "EQUIPMENT",
+        "name": "Light Rocket Pod",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 81",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "AEROSPACE_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Ground Targets Only Fire all or just some in a single attack action. Damage 1, Range 1,",
+              "sourceName": "Light Rocket Pod",
+              "sourceSlot": "Light",
+              "storeRow": 81,
+              "unitAccessText": "16 Per Crate 4 Per Mount"
+            }
+          },
+          "slotType": "light"
         }
       },
       {
@@ -3026,6 +3226,14 @@ const snapshot = {
             "requiresTags": [
               "AEROSPACE"
             ],
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Can be fired against Air and Orbitals only. Damage 3, Range 3",
+              "sourceName": "Sidwinder AA Mssile",
+              "sourceSlot": "Light",
+              "storeRow": 79,
+              "unitAccessText": "4 Per Crate 1 Per Mount"
+            },
             "validTargets": [
               "AEROSPACE",
               "ORBITAL"
@@ -3059,9 +3267,49 @@ const snapshot = {
             "minimumHull": "DESTROYER",
             "rearmAerospace": true,
             "requiresLandingCapability": true,
-            "shipModule": true
+            "shipModule": true,
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Allows the storage and reloading of a aerospace unit per Interior hanger.-1 FS per Aerospace Storage Hanger. This is not a landing pad. Its built inside the ship. Inceases Cargo Capactiy +4 per Hanger You need a place for ships to land before they can be stored!",
+              "sourceName": "Aerospace Storage Hanger Destoryer or Larger only",
+              "sourceSlot": "Internal",
+              "storeRow": 111,
+              "unitAccessText": ""
+            }
           },
           "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-anti-material-rifles",
+        "kind": "EQUIPMENT",
+        "name": "Anti-material Rifles",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 20",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_UPGRADE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Sniper Rifle Upgrade. Adds +1 AP flat to attacks",
+              "sourceName": ".....Anti-Material Rifles requires Sniper Rifles",
+              "sourceSlot": "Upgrade",
+              "storeRow": 20,
+              "unitAccessText": "Special Forces Orbital Drop Troopers"
+            }
+          },
+          "slotType": "upgrade"
         }
       },
       {
@@ -3088,6 +3336,14 @@ const snapshot = {
             "requiresTags": [
               "VEHICLE"
             ],
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Simple. Just adds +1 AP to your attack when used. 3/3 Ammo",
+              "sourceName": "AP Ammo",
+              "sourceSlot": "Ammo Type",
+              "storeRow": 50,
+              "unitAccessText": ""
+            },
             "weaponModifier": {
               "armorPiercing": 1
             }
@@ -3118,7 +3374,239 @@ const snapshot = {
             "changeOwnedEquipment": true,
             "rearmInfantry": true,
             "shipModule": true,
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Increase enemy boarders take over time +2 Intracts with Drop Pods Supply point for attached infantry and allows them to change equipment if owned. Infantry Reloading here uses 1 Supply per weapon system",
+              "sourceName": "Armory",
+              "sourceSlot": "Internal",
+              "storeRow": 104,
+              "unitAccessText": ""
+            },
             "supplyPerWeaponReload": 1
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-artillery-shovels-sandbags",
+        "kind": "EQUIPMENT",
+        "name": "Artillery Shovels and Sandbags",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 56",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ARTILLERY_EQUIPMENT",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Automatically dig in to get the Entrenched 1 Status when deployed. This adds +1 Armor. Add to your deploy action in orders that you are also \"entrentched\" so the GM Knows.",
+              "sourceName": "Shovel's and Sandbags (Heavy Artillery Only)",
+              "sourceSlot": "Upgrade",
+              "storeRow": 56,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-artillery-smoke-rounds",
+        "kind": "EQUIPMENT",
+        "name": "Artillery Smoke Rounds",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 51",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ARTILLERY_EQUIPMENT",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Drop smoke on a hex. Blocks line of sight through and in indicated hex. Cooldown - 4 rounds",
+              "sourceName": "Smoke Rounds (Artillery Only)",
+              "sourceSlot": "Ammo Type",
+              "storeRow": 51,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "ammo"
+        }
+      },
+      {
+        "id": "equipment-at-mines",
+        "kind": "EQUIPMENT",
+        "name": "Anti-tank Mines",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 7",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Can set mines. Damage = 2 with 2AP ammo 3/3 (each placement uses 1 charge) Explodes on enemy contact.",
+              "sourceName": "AT Mines",
+              "sourceSlot": "Secondary",
+              "storeRow": 7,
+              "unitAccessText": "Infantry Unit Sappers Engineers"
+            }
+          },
+          "slotType": "secondary"
+        }
+      },
+      {
+        "id": "equipment-automated-turrets",
+        "kind": "EQUIPMENT",
+        "name": "Deployable Automated Turrets",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 24",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ENGINEER",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Add 3 Damage to Hex Firepower, Range 1. Has 1 attack worth of Ammo. Can't be reloaded Engineers don't need to be in the Hex. 1/1 use.",
+              "sourceName": "Deployable Automated Turrets",
+              "sourceSlot": "Secondary",
+              "storeRow": 24,
+              "unitAccessText": "Sappers Engineers"
+            }
+          },
+          "slotType": "engineer"
+        }
+      },
+      {
+        "id": "equipment-back-line-support-equipment",
+        "kind": "EQUIPMENT",
+        "name": "Back-line Support Equipment",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 28",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ENGINEER",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Supply Depots - Location for Logi to drop off and store ammunition. Reload location for all vehicles if Supply is stocked. VTOL Maintance and Landing Platform - dedicated area and equipment for repairing and rearming VTOL Aircraft. Repairs 2fs per round for landed aircraft. Sensor Tower - Reveals area around the Sensor tower Radar Station - Reveals exact location of Air Units out to X Hex Range. (Depends on map size, Blocked by topography) Vehicle Repair Center - Repairs Vehicles 2FS Per Turn",
+              "sourceName": "Back-Line Support Equipment",
+              "sourceSlot": "Engineer Specifc Equipment Slot",
+              "storeRow": 28,
+              "unitAccessText": "Engineers"
+            }
+          },
+          "slotType": "engineer"
+        }
+      },
+      {
+        "id": "equipment-ballistic-shields",
+        "kind": "EQUIPMENT",
+        "name": "Ballistic Shields",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 16",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Heavy Energy or Physical shields made for Power Armor Troops capable of holding off substantial direct fire. Action: Shield Wall Unit is immoble and the effect ends when you move. Add +1 Armor when the full unit deploys shields in a wall formation against direct weapons. Does not Stack with any other Cover.",
+              "sourceName": "Ballistic Shields",
+              "sourceSlot": "Primary",
+              "storeRow": 16,
+              "unitAccessText": "Power Armor"
+            }
+          },
+          "slotType": "primary"
+        }
+      },
+      {
+        "id": "equipment-bulldozer-attachment",
+        "kind": "EQUIPMENT",
+        "name": "Bulldozer Attachment",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 53",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ARTILLERY_EQUIPMENT",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Clear rough terrain wreckage. Can assist local engineers for +1 Build Points for assisting. Uses Action.",
+              "sourceName": "Bulldozer Attachment (Tanks Only)",
+              "sourceSlot": "Internal",
+              "storeRow": 53,
+              "unitAccessText": ""
+            }
           },
           "slotType": "internal"
         }
@@ -3148,9 +3636,49 @@ const snapshot = {
             "minimumHull": "DESTROYER",
             "rearm": true,
             "repairPerRound": 2,
-            "shipModule": true
+            "shipModule": true,
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Allow landing and resupply of fixed wing or VTOL aerospace craft on the surface of the orbital using onbard supply. Only 1 unit can land per round per upgrade. Can Carry 2 aerospace units Player units stored on flight deck can be targeted and will sustain any damage the orbital takes. Landed aircrat repair over time, 2FS per Round",
+              "sourceName": "Carrier Flight Deck Destoryer or Larger only",
+              "sourceSlot": "External",
+              "storeRow": 98,
+              "unitAccessText": ""
+            }
           },
           "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-charismatic-commander",
+        "kind": "EQUIPMENT",
+        "name": "Charismatic Commander",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 32",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_UPGRADE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Can Recruit from Cities and Population Centers When entering a Population Center. Use Recruiter Action to gain +1FS Max for standard Infantry. + 3FS for irregulars up to a maximum of 15FS MAX",
+              "sourceName": "Charismatic Commander / Irregular Commander",
+              "sourceSlot": "Upgrade",
+              "storeRow": 32,
+              "unitAccessText": "Irregular Infantry All Infantry"
+            }
+          },
+          "slotType": "high_risk_arms"
         }
       },
       {
@@ -3180,11 +3708,115 @@ const snapshot = {
             "requiresTags": [
               "AEROSPACE"
             ],
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Ground Targets Only 3 Damage over 2 Hex's,",
+              "sourceName": "Cluster Bombs",
+              "sourceSlot": "Bomb Bay",
+              "storeRow": 85,
+              "unitAccessText": "4 Per Crate"
+            },
             "validTargets": [
               "GROUND"
             ]
           },
           "slotType": "bomb_bay"
+        }
+      },
+      {
+        "id": "equipment-combat-shotguns",
+        "kind": "EQUIPMENT",
+        "name": "Combat Shotguns",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 5",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Sweep Weapons. When Assaulting buildings remove enemy armor gained from structure as your team sweeps and clears the building during an Assault of said building.",
+              "sourceName": "Shotguns (1/1)",
+              "sourceSlot": "Secondary",
+              "storeRow": 5,
+              "unitAccessText": "All Infantry"
+            }
+          },
+          "slotType": "secondary"
+        }
+      },
+      {
+        "id": "equipment-combat-stims",
+        "kind": "EQUIPMENT",
+        "name": "Combat Stims",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 38",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MEDICAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Can hand out Combat Stims to local force increasing movement speed by 1 for 2 round when used. Takes an action by the infantry unit using it. Can't be stacked with other temp speed buffs.",
+              "sourceName": "Combat Stims (limited Supply) 3/3",
+              "sourceSlot": "Medical Specifc Equipment Slot",
+              "storeRow": 38,
+              "unitAccessText": "Medical Infantry"
+            }
+          },
+          "slotType": "medical"
+        }
+      },
+      {
+        "id": "equipment-delayed-explosive-charge",
+        "kind": "EQUIPMENT",
+        "name": "Delayed Explosive Charge",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 17",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Can set explosves and then detonate remotely with an action. Uses FS for Damage. Special Forces comes with this equipment",
+              "sourceName": "Delayed Explosive Charge",
+              "sourceSlot": "Secondary",
+              "storeRow": 17,
+              "unitAccessText": "Standard Infantry Orbital Drop Troopers Irregular Infantry Power Armor SF & Sappers"
+            }
+          },
+          "slotType": "secondary"
         }
       },
       {
@@ -3231,9 +3863,113 @@ const snapshot = {
               "unit-infantry-squad",
               "unit-engineers",
               "unit-special-forces"
-            ]
+            ],
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Your unit has a few trained drone handlers. These drones are small and fit inside a standard issue backpack. While they arn't as stealthy as the dedicated K-9 scouts these drones can fly quickly over a larger area. Unlike Aircraft drones are fragile and can be damaged or attacked by ground forces. They act as an extention of your LOS. They can see at the same LOS range as a standard unit in the current campaign. Can be attacked. Are not stealthed. Could be used as a distraction. Action \"Deploy Drone Scout to (HEX)\" Drones's can only go 5 Hex's out. (6 round cooldown)",
+              "sourceName": "Drone Operator",
+              "sourceSlot": "Primary",
+              "storeRow": 23,
+              "unitAccessText": "All Infantry"
+            }
           },
-          "slotType": "secondary"
+          "slotType": "primary"
+        }
+      },
+      {
+        "id": "equipment-drop-pod-launch-bay",
+        "kind": "EQUIPMENT",
+        "name": "Drop Pod Launch Bay",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 102",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SHIP_MODULE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "When in high orbit can launch loaded drop pods anywhere on the battlefield. When in low orbit can only fire pods inside the orbitals base range. Can load the drop pods with a veriety of equipment..... Once a Support pods list below is launched it takes time to load another. 4 Rounds. Drop troops can launch the round after they arrive onboard the drop. If you have the Armory Upgrade you can launch Infantry Supply Pods this pod offers a single reload of 1 weapon system for infantry. Limit 3 Total If you have Heavy Ground Bay you can Launch limited number of Vehicle Repair Supply Pods. This repair supply pod can be used by a vehicle unit to repair 2fs in the field with an action. Limit 3 Total. If you have the Engineer Bay you can drop Construction Supply pod. This holds an engineer contstuction supply reload. Reloading a single unit of engineers. Limit 3.",
+              "sourceName": "Drop Pod Launch Bay",
+              "sourceSlot": "Internal",
+              "storeRow": 102,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-engineering-bay",
+        "kind": "EQUIPMENT",
+        "name": "Engineering Bay",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 105",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SHIP_MODULE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "If the Orbital has Orbital Structure Drop equipment the Engineers inside the engineering bay \"player unit\" can pre-build a portion or a full structure inside the Engineering bay before deployment. Only 1 Structure per Engineering Bay. Structure is built as normal. Deployed by orbital player.",
+              "sourceName": "Engineering Bay",
+              "sourceSlot": "Internal",
+              "storeRow": 105,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-explosive-anchors",
+        "kind": "EQUIPMENT",
+        "name": "Explosive Anchors",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 52",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ARTILLERY_EQUIPMENT",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "\"Instantly \"\"Deploy\"\" without using your action. Fire same turn. Takes 2 Rounds to Pack-Up after use. Single use during a campaign. Great for an assault opening. Can be taken multiple times for more uses. Can be taken twice. For 2 uses per campaign.",
+              "sourceName": "Explosive Anchors (Heavy Artillery Only)",
+              "sourceSlot": "Internal",
+              "storeRow": 52,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
         }
       },
       {
@@ -3267,9 +4003,273 @@ const snapshot = {
             "rule": "Add +1 Armor from 0 only",
             "statModifiers": {
               "armor": 1
+            },
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Add +1 Armor from 0 Only",
+              "sourceName": "Flack Vests",
+              "sourceSlot": "Upgrade",
+              "storeRow": 4,
+              "unitAccessText": "All Infantry"
             }
           },
           "slotType": "secondary"
+        }
+      },
+      {
+        "id": "equipment-flamethrower-team",
+        "kind": "EQUIPMENT",
+        "name": "Flamethrower Team",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 25",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ENGINEER",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "\"Fire Flame Projectors at a hex, Burning it for 2 rounds for base unit damage. Could be Area Denial. If they care about fire damage. Ignores armor given from building.",
+              "sourceName": "Flame Thrower Team",
+              "sourceSlot": "Primary Or Engineer Specific Equipment Slot",
+              "storeRow": 25,
+              "unitAccessText": "Standard Infantry Power Armor Engineers"
+            }
+          },
+          "slotType": "primary"
+        }
+      },
+      {
+        "id": "equipment-frag-grenades",
+        "kind": "EQUIPMENT",
+        "name": "Fragmentation Grenades",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 12",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Double Damage to Unarmored Targets. Range 1 1/1 Per",
+              "sourceName": "Grenades - Frag",
+              "sourceSlot": "Secondary",
+              "storeRow": 12,
+              "unitAccessText": "All Infantry"
+            }
+          },
+          "slotType": "secondary"
+        }
+      },
+      {
+        "id": "equipment-fuel-reserve",
+        "kind": "EQUIPMENT",
+        "name": "Fuel Reserve",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 46",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "VEHICLE_INTERNAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Increase Speed +2 for 1 Round. Can be Taken Twice for Super Heavy Battle Tanks for more uses.",
+              "sourceName": "Fuel Reserve",
+              "sourceSlot": "Internal",
+              "storeRow": 46,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-good-ammunition",
+        "kind": "EQUIPMENT",
+        "name": "Good Ammunition",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 37",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Add +2 to Attack Damage for 1 Round",
+              "sourceName": "Pass Out the \"Good Ammunition\"",
+              "sourceSlot": "Primary",
+              "storeRow": 37,
+              "unitAccessText": "Irregular Infantry"
+            }
+          },
+          "slotType": "high_risk_arms"
+        }
+      },
+      {
+        "id": "equipment-grab-handles-and-side-skirts",
+        "kind": "EQUIPMENT",
+        "name": "Grab Handles and Side Skirts",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 48",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "VEHICLE_INTERNAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "For 1 turn an infantry unit can gab onto the sides of the vehicle and ride along. This is exhausting. So the infantry unit will need to rest a full round before doing it again. Hence the limit.",
+              "sourceName": "Grab handles & Side Skirts",
+              "sourceSlot": "Internal",
+              "storeRow": 48,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-hardened-leadership",
+        "kind": "EQUIPMENT",
+        "name": "Hardened Leadership",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 31",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_UPGRADE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Leader who Doubles Units Standard Attack Damage at Cost of 3FS for current round. Some places call these officers commisars",
+              "sourceName": "Hardened Leadership",
+              "sourceSlot": "Upgrade",
+              "storeRow": 31,
+              "unitAccessText": "Irregular Infantry"
+            }
+          },
+          "slotType": "high_risk_arms"
+        }
+      },
+      {
+        "id": "equipment-heavy-drop-pod-launch-bay",
+        "kind": "EQUIPMENT",
+        "name": "Heavy Drop Pod Launch Bay",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 108",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SHIP_MODULE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Can Drop large Heavy pods capable of landing Power Armor. Light Vehicles Light Mechs and light tanks. If you have the Engineering bay can drop Heavy Automated Turret Pods.",
+              "sourceName": "Heavy Drop Pod Launch Bay",
+              "sourceSlot": "Internal",
+              "storeRow": 108,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-heavy-fortification-equipment",
+        "kind": "EQUIPMENT",
+        "name": "Heavy Fortification Equipment",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 26",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ENGINEER",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Can Build Walls, Gates out of Conrete Like Material, - Walls Must be Attacked to Cross or Rough Terrain to Climb.",
+              "sourceName": "Heavy Fortifications Equipment",
+              "sourceSlot": "Engineer Specifc Equipment Slot",
+              "storeRow": 26,
+              "unitAccessText": "Engineers"
+            }
+          },
+          "slotType": "engineer"
         }
       },
       {
@@ -3298,9 +4298,177 @@ const snapshot = {
             },
             "repairGroundVehiclePerRound": 1,
             "repairMech": false,
-            "shipModule": true
+            "shipModule": true,
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Allows 2 Units of Armor, or 1 Super Heavy to live on the ship. Comes with Dedicated Large Ramp for picking up and dropping off Armor if the Orbital can land \"corvette only\". Bay repairs ground vehicles at 1FS pre turn that are inside. While the bay can repair Heavy Artillery, Armor and Light vehicles. It can't repair Mechs.",
+              "sourceName": "Heavy Ground Vehicle Bay",
+              "sourceSlot": "Internal",
+              "storeRow": 107,
+              "unitAccessText": ""
+            }
           },
           "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-heavy-machine-gun-ammunition",
+        "kind": "EQUIPMENT",
+        "name": "Heavy Machine Gun Ammunition",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 9",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_AMMUNITION",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "1 Extra MG Weapon Team Reload",
+              "sourceName": "Heavy Machine Gun Ammunition",
+              "sourceSlot": "Secondary",
+              "storeRow": 9,
+              "unitAccessText": "All Infantry Mechanized Infantry"
+            }
+          },
+          "slotType": "secondary"
+        }
+      },
+      {
+        "id": "equipment-heavy-machine-gun-team",
+        "kind": "EQUIPMENT",
+        "name": "Heavy Machine Gun Team",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 8",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "The Heavy Machine Gun Team need time to deploy (action), eats ammo fast but can reach longer ranges to supress enemy infantry. Does 3 Damage. Range 3 Targets fired on become surpressed. Increases movement cost for fired on infantry to move by +1 1/1 Per Gun Team",
+              "sourceName": "Heavy Machine Gun",
+              "sourceSlot": "Primary",
+              "storeRow": 8,
+              "unitAccessText": "Infantry Unit Orbital Drop Troopers Irregular Infantry Power Armor Mechanized Infantry"
+            }
+          },
+          "slotType": "primary"
+        }
+      },
+      {
+        "id": "equipment-heavy-power-blade",
+        "kind": "EQUIPMENT",
+        "name": "Heavy Power Blade",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 30",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_UPGRADE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Requires Melee Weapon Equipment Add 1 additional Damage when Assaulting",
+              "sourceName": "Heavy Power Blade",
+              "sourceSlot": "Power Armor Melee Weapon Upgrade",
+              "storeRow": 30,
+              "unitAccessText": "Power Armor"
+            }
+          },
+          "slotType": "mech_weapon"
+        }
+      },
+      {
+        "id": "equipment-hellfire-artillery-rounds",
+        "kind": "EQUIPMENT",
+        "name": "Hellfire Artillery Rounds",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 55",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ARTILLERY_EQUIPMENT",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Burning Hex for 2 rounds for base unit damage. Depending on enemy type. Could be Area Denial. If they care about fire damage. 3/3 Ammo",
+              "sourceName": "Hell Fire Round's (Artillery Only - Haven Supplied)",
+              "sourceSlot": "Ammo Type",
+              "storeRow": 55,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "ammo"
+        }
+      },
+      {
+        "id": "equipment-high-risk-flamers",
+        "kind": "EQUIPMENT",
+        "name": "High-risk Flamers",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 33",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Fire Flame Projectors at a hex, Burning it for 2 rounds for base unit damage. Costs 2 FS to attack, solved after attack. Depending on enemy type. Could be Area Denial. If they care about fire damage. When used on infantry inside a structure these weapons ignore any armor given for being inside a structure.",
+              "sourceName": "High Risk Arms - Flamers",
+              "sourceSlot": "Primary",
+              "storeRow": 33,
+              "unitAccessText": "Irregular Infantry"
+            }
+          },
+          "slotType": "high_risk_arms"
         }
       },
       {
@@ -3329,9 +4497,49 @@ const snapshot = {
             "requiresTags": [
               "INFANTRY"
             ],
-            "scoutStatus": "PERMANENTLY_STEALTHED"
+            "scoutStatus": "PERMANENTLY_STEALTHED",
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Action: \"Send K-9's to (Hex)\" Send the dogs ahead to sniff and scout out an area. They act as an extention of your LOS. They can see at the same LOS range as a standard unit in the current campaign. K-9's can only go 3 Hex's from your postion and will return at the end of the next round. Are PERMANENTLY STEALTHED and can't be attacked by hostiles. They will move out of the way of threats or return to handlers if no escape possible. (4 Round Cooldown)",
+              "sourceName": "K-9 Scouts",
+              "sourceSlot": "Primary",
+              "storeRow": 22,
+              "unitAccessText": "All Infantry"
+            }
           },
           "slotType": "primary"
+        }
+      },
+      {
+        "id": "equipment-landing-gear",
+        "kind": "EQUIPMENT",
+        "name": "Landing Gear",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 106",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SHIP_MODULE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Allows Corvette's and only Corvette's to land on the surface of a world. Great for Mech Bays or Ground Vehicle Bay's",
+              "sourceName": "Landing Gear",
+              "sourceSlot": "Internal",
+              "storeRow": 106,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
         }
       },
       {
@@ -3364,9 +4572,273 @@ const snapshot = {
             ],
             "ammoCapacity": 3,
             "armorPiercing": 1,
-            "range": 1
+            "range": 1,
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Adds +1 AP Per Used Weapon - Upgrade gives 3/3 uses. Use them all at once or 1 at a time. Range 1",
+              "sourceName": "Lightweight Anti-armor Weapon \"Law\"",
+              "sourceSlot": "Primary",
+              "storeRow": 10,
+              "unitAccessText": "Standard Infantry Orbital Drop Troopers Irregular Infantry Power Armor SF & Sappers Mechanized Infantry"
+            }
           },
           "slotType": "primary"
+        }
+      },
+      {
+        "id": "equipment-light-mech-internal-jump-jets",
+        "kind": "EQUIPMENT",
+        "name": "Light Mech Internal Jump Jets",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 77",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_INTERNAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Jump over a distance of 3 hex grids. 3 Round Cooldown Can jump from Heavy Transport",
+              "sourceName": "Light Mech Internal Jump Jet Light Mech Only",
+              "sourceSlot": "Internal",
+              "storeRow": 77,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-longer-artillery-barrel",
+        "kind": "EQUIPMENT",
+        "name": "Longer Artillery Barrel",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 54",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ARTILLERY_EQUIPMENT",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Increases Attack Range +1",
+              "sourceName": "Longer Barrel (Self-Propelled Gun Only)",
+              "sourceSlot": "Secondary",
+              "storeRow": 54,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "secondary"
+        }
+      },
+      {
+        "id": "equipment-mash-defence-teams",
+        "kind": "EQUIPMENT",
+        "name": "MASH Defence Teams",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 40",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MEDICAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Defense Upgrade MASH Setups with Sandbags automatically on deployment. \"Entrench for any unit on center MASH Hex\"",
+              "sourceName": "Defense Teams \"MASH UPGRADE\"",
+              "sourceSlot": "Medical Specifc Equipment Slot",
+              "storeRow": 40,
+              "unitAccessText": "Medical Infantry"
+            }
+          },
+          "slotType": "medical"
+        }
+      },
+      {
+        "id": "equipment-mash-light-emergency-vehicles",
+        "kind": "EQUIPMENT",
+        "name": "MASH Light Emergency Vehicles",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 39",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MEDICAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "ACTION: Medical Evac Can move an Infantry Unit from 5 Range from center of MASH to MASH in 1 round with permission. MASH Must be deployed. Takes an Action.",
+              "sourceName": "Dedicated Light Emergency Vehicles \"MASH UPGRADE\"",
+              "sourceSlot": "Medical Specifc Equipment Slot",
+              "storeRow": 39,
+              "unitAccessText": "Medical Infantry"
+            }
+          },
+          "slotType": "medical"
+        }
+      },
+      {
+        "id": "equipment-massive-cargo-bay",
+        "kind": "EQUIPMENT",
+        "name": "Massive Cargo Bay",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 101",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SHIP_MODULE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Works as an Unlimited Supply Point. Other units can pull supply from this vehicle. Aircraft and other units can rearm when landed on / in this orbital without using supply. Logi Craft can load supply from this orbital if they can land on it. Will not fit on Corvette sized Obitals. -2 Armor -5 FS from craft.",
+              "sourceName": "Massive Cargo Bay",
+              "sourceSlot": "Internal",
+              "storeRow": 101,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-mech-ammo-box",
+        "kind": "EQUIPMENT",
+        "name": "Ammo Box",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 70",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_INTERNAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Adds 1 Reload to a chosen weapon system. Lowers FS -1 for every 1 ammo boxes taken.",
+              "sourceName": "Ammo Box",
+              "sourceSlot": "Internal",
+              "storeRow": 70,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-mech-autocannon",
+        "kind": "EQUIPMENT",
+        "name": "Autocannon Weapon System",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 60",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Its a Big Close Range Cannon",
+              "sourceName": "Auto-Cannon Weapon System (AC)",
+              "sourceSlot": "External",
+              "storeRow": 60,
+              "unitAccessText": "3"
+            }
+          },
+          "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-mech-back-hitch",
+        "kind": "EQUIPMENT",
+        "name": "Mech Back Hitch",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 73",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_INTERNAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "a small attachment on the back of a mech for a hitch of some kind. Can enable a medium or Heavy Mech to pull Artillery or something else",
+              "sourceName": "Back Hitch",
+              "sourceSlot": "Internal",
+              "storeRow": 73,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
         }
       },
       {
@@ -3394,7 +4866,175 @@ const snapshot = {
             },
             "refit": true,
             "repairPerRound": 1,
-            "shipModule": true
+            "shipModule": true,
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Can Carry 2 Unit's, Can Carry Mechs and Tanks up to Heavy Class. Bay will repair these vehicles over time, 1FS per Round, Those Vehicles can Refit here during a campaign. If Craft can land, this upgrade comes with a bay door to deploy said mech onto the battlefield. If Not, Work with a Heavy VTOL Pilot.",
+              "sourceName": "Mech Bay",
+              "sourceSlot": "External",
+              "storeRow": 99,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-mech-carry-crate",
+        "kind": "EQUIPMENT",
+        "name": "Mech Carry Crate",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 72",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_INTERNAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "a small compartment - carry a small group of people (like a downed pilot or small civilian group) or special gear locate in the field.",
+              "sourceName": "Carry Crate",
+              "sourceSlot": "Internal",
+              "storeRow": 72,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-mech-fists",
+        "kind": "EQUIPMENT",
+        "name": "Mech Fists",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 74",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_INTERNAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Allow an FS melee attack but it damages the mech -1FS can assist engineers for +1 Build Progress on structures",
+              "sourceName": "Fists",
+              "sourceSlot": "Internal",
+              "storeRow": 74,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-mech-heavy-machine-weapon",
+        "kind": "EQUIPMENT",
+        "name": "Heavy Machine Weapon System",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 59",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Can burst fire 2 shots at a time.",
+              "sourceName": "Heavy Machine Weapon System (HMGS)",
+              "sourceSlot": "External",
+              "storeRow": 59,
+              "unitAccessText": "3"
+            }
+          },
+          "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-mech-jump-jets",
+        "kind": "EQUIPMENT",
+        "name": "Mech Jump Jets",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 66",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Jump over a distance of 3 hex grids. 3 Round Cooldown Can jump from Heavy Transport",
+              "sourceName": "Jump Jet",
+              "sourceSlot": "External",
+              "storeRow": 66,
+              "unitAccessText": "NA"
+            }
+          },
+          "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-mech-large-laser",
+        "kind": "EQUIPMENT",
+        "name": "Large Laser Setup",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 65",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "No Ammo, Uses FS -1 for Damage, No AP, Range 3 Every 1 shot requires a round for cooling\"",
+              "sourceName": "Large Laser Setup (1/∞)",
+              "sourceSlot": "External",
+              "storeRow": 65,
+              "unitAccessText": "FS - 1"
+            }
           },
           "slotType": "external"
         }
@@ -3426,9 +5066,337 @@ const snapshot = {
             "requiresTags": [
               "MECH"
             ],
-            "shotsBeforeCooling": 3
+            "shotsBeforeCooling": 3,
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "No Ammo, Uses FS -1 for Damage, No AP, Range 1 Every 3 shots requires a round for cooling",
+              "sourceName": "Light Laser Setup (3/∞)",
+              "sourceSlot": "External",
+              "storeRow": 63,
+              "unitAccessText": "FS - 1"
+            }
           },
           "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-mech-lrm",
+        "kind": "EQUIPMENT",
+        "name": "Long-range Missile System",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 62",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "AA Defense Action or Indirect Arty Support",
+              "sourceName": "Long Range Missile System (LRM)",
+              "sourceSlot": "External",
+              "storeRow": 62,
+              "unitAccessText": "3"
+            }
+          },
+          "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-mech-magnetic-clamps",
+        "kind": "EQUIPMENT",
+        "name": "Magnetic Clamps",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 68",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_INTERNAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Power armor can grab onto this friendly Medium or larger mechs and move with them.",
+              "sourceName": "Magnetic Clamps",
+              "sourceSlot": "Internal",
+              "storeRow": 68,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-mech-medium-laser",
+        "kind": "EQUIPMENT",
+        "name": "Medium Laser Setup",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 64",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "No Ammo, Uses FS -1 for Damage, No AP, Range 2 Every 2 shots requires a round for cooling\"",
+              "sourceName": "Medium Laser Setup (2/∞)",
+              "sourceSlot": "External",
+              "storeRow": 64,
+              "unitAccessText": "FS - 1"
+            }
+          },
+          "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-mech-melee-weapon",
+        "kind": "EQUIPMENT",
+        "name": "Mech Melee Weapon",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 61",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Add +1 Attack on Assault* - Use Force Strength",
+              "sourceName": "Melee Weapon Upgrade",
+              "sourceSlot": "External",
+              "storeRow": 61,
+              "unitAccessText": "FS +1*"
+            }
+          },
+          "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-mech-neural-interface",
+        "kind": "EQUIPMENT",
+        "name": "Neural Interface",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 75",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_INTERNAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "1speed because your mech is now an extension of your body , but -1 FS for the same reason because you can actually feel the damage you take.",
+              "sourceName": "Neural interface upgrade",
+              "sourceSlot": "Internal",
+              "storeRow": 75,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-mech-optics",
+        "kind": "EQUIPMENT",
+        "name": "Mech Optics",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 71",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_INTERNAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Can Action: Optics reveal a hex at edge of LOS",
+              "sourceName": "Optics",
+              "sourceSlot": "Internal",
+              "storeRow": 71,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-mech-smoke-launcher",
+        "kind": "EQUIPMENT",
+        "name": "Mech Smoke Launcher",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 76",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_INTERNAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Drop smoke on a hex range 0-1. Blocks line of sight through and in indicated hex. Cooldown - 4 rounds",
+              "sourceName": "Pop Smoke",
+              "sourceSlot": "Internal",
+              "storeRow": 76,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-mech-up-armour",
+        "kind": "EQUIPMENT",
+        "name": "Up Armor",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 69",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "MECH_INTERNAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Increase Armor +1",
+              "sourceName": "Up Armor",
+              "sourceSlot": "Internal",
+              "storeRow": 69,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-mines",
+        "kind": "EQUIPMENT",
+        "name": "Mines",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 6",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Can set mines. Damage = 3 ammo 3/3 (each placement uses 1 charge) Explodes on enemy contact.",
+              "sourceName": "Mines",
+              "sourceSlot": "Secondary",
+              "storeRow": 6,
+              "unitAccessText": "Infantry Unit Sappers Engineers"
+            }
+          },
+          "slotType": "secondary"
+        }
+      },
+      {
+        "id": "equipment-mini-supply-depot",
+        "kind": "EQUIPMENT",
+        "name": "Mini Supply Depot",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 57",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ARTILLERY_EQUIPMENT",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "When Deployed you also setup and act as a mini-supply depot that other units can use. Supply Depot allows logi to drop off Supply Crates and store them for others to pick up. This mini-supply depot can reload all forces other then fixed wing aero-space assets unless next to or in the same hex as an airfield. This supply depote is fairly small. Limited 10 Supply Crates Max. These supply crates are lost when the artillery packs up.",
+              "sourceName": "Mini-Supply Depot (Artillery Only)",
+              "sourceSlot": "Internal",
+              "storeRow": 57,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
         }
       },
       {
@@ -3454,9 +5422,113 @@ const snapshot = {
             "carryInfantry": 2,
             "deployAllCooldownRounds": 6,
             "recoverAllCooldownRounds": 6,
-            "shipModule": true
+            "shipModule": true,
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "\"Allows 2 Units of Infantry to live on the ship. Comes with Dedicated shuttle for picking up and dropping off attached infantry in range of the ship. --Action - Deploy all Infantry: Deploys Units assigned to this battlegroup inside the ships range using the dedicated short-range landing craft stored in the ship. These shuttles take time to refuel. 6 Round cooldown. ---Action - Recover all Infantry: Recovers all infantry assigned to this battlegroup inside the ships range back to the vessel in a orderly fashion. 6 Round Cooldown.\"",
+              "sourceName": "\"Mobile Infantry Upgrade (needs attached infantry player declared before campaign start)\"",
+              "sourceSlot": "External & Internal",
+              "storeRow": 103,
+              "unitAccessText": ""
+            }
           },
           "slotType": "external_internal"
+        }
+      },
+      {
+        "id": "equipment-mortar-squad",
+        "kind": "EQUIPMENT",
+        "name": "Mortar Squad",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 15",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Setup Required \"Action: Deploy\" Damage 3, Range 3, Indirect Fire, Ammo 1/1 Per Team",
+              "sourceName": "Mortar Squad",
+              "sourceSlot": "Primary",
+              "storeRow": 15,
+              "unitAccessText": "Standard Infantry Orbital Drop Troopers Irregular Infantry Power Armor SF & Sappers Mechanized Infantry"
+            }
+          },
+          "slotType": "primary"
+        }
+      },
+      {
+        "id": "equipment-orbital-bombardment-cannons",
+        "kind": "EQUIPMENT",
+        "name": "Orbital Bombardment Cannons",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 93",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SHIP_MODULE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "4 cluster hex area is bombed per upgrade. Can only fire at ground targets. 2 Damage 2AP must be spread out Ground targets only",
+              "sourceName": "Orbital Bombardment Cannons",
+              "sourceSlot": "External",
+              "storeRow": 93,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-orbital-broadside-cannons",
+        "kind": "EQUIPMENT",
+        "name": "Broadside Cannons",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 95",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SHIP_MODULE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Point blank anti-ship weapon system. Get close. Can Fire Every Turn",
+              "sourceName": "Broadside Cannon's",
+              "sourceSlot": "External",
+              "storeRow": 95,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "external"
         }
       },
       {
@@ -3509,6 +5581,302 @@ const snapshot = {
             "deploymentGrant": "ORBITAL_DROP",
             "statModifiers": {
               "maxHealth": -1
+            },
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Train a unit that isn't an Orbital Drop unit to Drop. -1 FS",
+              "sourceName": "Orbital Drop Training",
+              "sourceSlot": "Upgrade",
+              "storeRow": 3,
+              "unitAccessText": "All Infantry Other than Irregular's"
+            }
+          },
+          "slotType": "upgrade"
+        }
+      },
+      {
+        "id": "equipment-orbital-laser",
+        "kind": "EQUIPMENT",
+        "name": "Orbital Laser",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 94",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SHIP_MODULE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Single Hex Constant Damage Orbital Support Weapon. Used to target ground targets. Does 3 Damage every round for 3 rounds. Has 3AP",
+              "sourceName": "Orbital Laser",
+              "sourceSlot": "External",
+              "storeRow": 94,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-orbital-rail-cannon",
+        "kind": "EQUIPMENT",
+        "name": "Rail Cannon",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 92",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SHIP_MODULE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "A large high damage Magnetic Accelerator Cannon used to take down enemy orbitals and high armored targets on the surface. Uses up both an External and Internal Slot as the weapon uses up a large portion of the hull of the vessel. 10ap 5 damage shot on single hex. 3 round cooldown Can target ground and Orbital Targets.",
+              "sourceName": "Rail Cannon",
+              "sourceSlot": "External & Internal",
+              "storeRow": 92,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-orbital-rapid-fire-aa",
+        "kind": "EQUIPMENT",
+        "name": "Rapid-fire Anti-air Cannons",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 91",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SHIP_MODULE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Can attack 1 air unit per cannon. Can only Target Air Units.",
+              "sourceName": "Rapid Fire Anti-Air Cannons",
+              "sourceSlot": "External",
+              "storeRow": 91,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-orbital-scanning-system",
+        "kind": "EQUIPMENT",
+        "name": "Orbital Scanning System",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 90",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SHIP_MODULE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Scan an area to reveal whats in the region. Pick a hex. Scans all connecting hex grids revealing for 1 round. Like all External equipment can be taken multiple times with each having its own cooldown.",
+              "sourceName": "Scanning System",
+              "sourceSlot": "External",
+              "storeRow": 90,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-orbital-structure-drop",
+        "kind": "EQUIPMENT",
+        "name": "Orbital Structure Drop",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 96",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SHIP_MODULE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Halfs action time required by engineers to setup a structure. Does not work on roads or Airfields.",
+              "sourceName": "Orbital Structure Drop (Structure)",
+              "sourceSlot": "External",
+              "storeRow": 96,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-orbital-thrusters",
+        "kind": "EQUIPMENT",
+        "name": "Orbital Thrusters Upgrade",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 110",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SHIP_MODULE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Time to High Orbit -1 Round",
+              "sourceName": "Orbital Thrusters Upgrade Can only be taken onces",
+              "sourceSlot": "Internal",
+              "storeRow": 110,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-powered-chainblades",
+        "kind": "EQUIPMENT",
+        "name": "Powered Chainblades",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 34",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_UPGRADE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Rev up your Chainblades before charging. Action - Rev Weapon, Add AP +1 on next turns attack Melee weapon",
+              "sourceName": "High Risk Arms - Powered Chainblades",
+              "sourceSlot": "Unit Upgrade",
+              "storeRow": 34,
+              "unitAccessText": "Irregular Infantry"
+            }
+          },
+          "slotType": "low_tech_melee"
+        }
+      },
+      {
+        "id": "equipment-reinforced-structural-integrity",
+        "kind": "EQUIPMENT",
+        "name": "Reinforced Structural Integrity",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 109",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SHIP_MODULE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Add +2 to FS of the Orbital per upgrade (limited 2 for now)",
+              "sourceName": "Reinforced Structural Integrity",
+              "sourceSlot": "Internal",
+              "storeRow": 109,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-remote-detonators",
+        "kind": "EQUIPMENT",
+        "name": "Remote Detonators",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 18",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_UPGRADE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Can set explosves and then detonate remotely with an action.",
+              "sourceName": ".....Remote Detonators requires Delayed explosive charges",
+              "sourceSlot": "Upgrade",
+              "storeRow": 18,
+              "unitAccessText": "Standard Infantry Orbital Drop Troopers Irregular Infantry Power Armor SF & Sappers"
             }
           },
           "slotType": "upgrade"
@@ -3542,9 +5910,49 @@ const snapshot = {
             "requiresTags": [
               "ENGINEER"
             ],
-            "roadMinimumHexes": 3
+            "roadMinimumHexes": 3,
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "The equipment needed to build roads and field runways. Roads - Define a minium of 3 hex range, takes 1 action per hex. On complition a road will connect the defined hex grids. Can Also build simple airfields for fix-winged aircraft landing. These don't automatically reload or repair aircraft. But can pull from a local Supply depot",
+              "sourceName": "Road Building Equipment",
+              "sourceSlot": "Primary Equipment Slot",
+              "storeRow": 29,
+              "unitAccessText": "Engineers Sapper"
+            }
           },
           "slotType": "engineer"
+        }
+      },
+      {
+        "id": "equipment-rocket-jump-pack",
+        "kind": "EQUIPMENT",
+        "name": "Rocket Jump Pack",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 36",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "More Rocket with straps than refined Jetpack. Shoot your unit up and over a hex. -2 FS on use.",
+              "sourceName": "High Risk Arms - Rocket Jump Pack",
+              "sourceSlot": "Secondary",
+              "storeRow": 36,
+              "unitAccessText": "Irregular Infantry"
+            }
+          },
+          "slotType": "high_risk_arms"
         }
       },
       {
@@ -3573,7 +5981,15 @@ const snapshot = {
             "range": 1,
             "requiresTags": [
               "INFANTRY_STEALTH"
-            ]
+            ],
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "3 Damage, quiet Range 1 weapons. If it kills the target you go undetected. If the target was guarding something expect units to investigate area. 3/3 Ammo",
+              "sourceName": "Silent SMG's",
+              "sourceSlot": "Primary",
+              "storeRow": 21,
+              "unitAccessText": "Special Forces"
+            }
           },
           "slotType": "primary"
         }
@@ -3603,11 +6019,83 @@ const snapshot = {
             "requiresTags": [
               "MEDICAL"
             ],
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Can hand out Medical Stimpacks to infantry. Heals for 2FS on use. \"Action\"",
+              "sourceName": "Simple Med-Stimpacks 2",
+              "sourceSlot": "Medical Specifc Equipment Slot",
+              "storeRow": 41,
+              "unitAccessText": "Medical Infantry"
+            },
             "targetTags": [
               "INFANTRY"
             ]
           },
           "slotType": "medical"
+        }
+      },
+      {
+        "id": "equipment-small-surface-to-air-missile",
+        "kind": "EQUIPMENT",
+        "name": "Small Surface-to-air Missile",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 45",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "VEHICLE_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Can be fired against Air and Orbitals only. Damage 3, Range 3 1/1 per SAM taken.",
+              "sourceName": "Small Surface to Air Missile",
+              "sourceSlot": "Secondary",
+              "storeRow": 45,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "secondary"
+        }
+      },
+      {
+        "id": "equipment-smoke-grenades",
+        "kind": "EQUIPMENT",
+        "name": "Smoke Grenades",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 13",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Blocks Line of Sight on Target Hex. - Can be your current Hex or 1 hex out. 1/1 Per Doesn't stop indirect weapons fire. Can be seen through if at range 1 of a target.",
+              "sourceName": "Grenades - Smoke",
+              "sourceSlot": "Secondary",
+              "storeRow": 13,
+              "unitAccessText": "All Infantry"
+            }
+          },
+          "slotType": "secondary"
         }
       },
       {
@@ -3639,9 +6127,273 @@ const snapshot = {
             },
             "requiresTags": [
               "VEHICLE"
-            ]
+            ],
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Blocks Line of Sight on Target Hex. - Can be your current Hex or 1 hex out. Doesn't stop indirect weapons fire. Can be seen through if at range 1 of a target. 1/1 per upgrade taken.",
+              "sourceName": "Smoke Launcher",
+              "sourceSlot": "Secondary",
+              "storeRow": 49,
+              "unitAccessText": ""
+            }
           },
           "slotType": "secondary"
+        }
+      },
+      {
+        "id": "equipment-sniper-rifles",
+        "kind": "EQUIPMENT",
+        "name": "Sniper Rifles",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 19",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Add 1 to Basic Attack Range. Can Action: Scope reveal a hex at edge of LOS Can support friendlys in a melee brawl!",
+              "sourceName": "Sniper Rifles",
+              "sourceSlot": "Primary",
+              "storeRow": 19,
+              "unitAccessText": "Special Forces Orbital Drop Troopers"
+            }
+          },
+          "slotType": "primary"
+        }
+      },
+      {
+        "id": "equipment-snorkels",
+        "kind": "EQUIPMENT",
+        "name": "Snorkels",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 44",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "VEHICLE_INTERNAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Cross Rivers without slowing down",
+              "sourceName": "Snorkels",
+              "sourceSlot": "Internal",
+              "storeRow": 44,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-sponson-machine-gun-turret",
+        "kind": "EQUIPMENT",
+        "name": "Sponson Machine-gun Turret",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 47",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "VEHICLE_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Can Apply Remaining Damage to Next Target at Range 1",
+              "sourceName": "Sponson Turret - MG",
+              "sourceSlot": "Secondary",
+              "storeRow": 47,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "secondary"
+        }
+      },
+      {
+        "id": "equipment-squad-automatic-weapon",
+        "kind": "EQUIPMENT",
+        "name": "Squad Automatic Weapon",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 14",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Any Extra Damage after first target is slain is applied to the next target in range. Only for Basic FS attack",
+              "sourceName": "Squad Automatic Weapon",
+              "sourceSlot": "Secondary",
+              "storeRow": 14,
+              "unitAccessText": "All Infantry"
+            }
+          },
+          "slotType": "secondary"
+        }
+      },
+      {
+        "id": "equipment-standard-melee-weapons",
+        "kind": "EQUIPMENT",
+        "name": "Standard Melee Weapons",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 2",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Action - Melee Charge: \"Charge into an enemy line starting a melee brawl. When fighting in a brawl no range units can fire at either side due to the danger of hitting friendly forces. Units with melee options or infantry equipped with sniper rifles can join in the fight safely.\" If you have melee weapons and are flanked you can choose to stand and fight.",
+              "sourceName": "Melee Weapons- Standard",
+              "sourceSlot": "Primary",
+              "storeRow": 2,
+              "unitAccessText": "All Infantry Other than Irregular's"
+            }
+          },
+          "slotType": "primary"
+        }
+      },
+      {
+        "id": "equipment-stick-bombs",
+        "kind": "EQUIPMENT",
+        "name": "Stick Bombs",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 35",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "AP2 - Costs 3 FS to attack with Stick Bombs resolved after attack.",
+              "sourceName": "High Risk Arms - Stick Bombs",
+              "sourceSlot": "Secondary",
+              "storeRow": 35,
+              "unitAccessText": "Irregular Infantry"
+            }
+          },
+          "slotType": "high_risk_arms"
+        }
+      },
+      {
+        "id": "equipment-stinger-aa",
+        "kind": "EQUIPMENT",
+        "name": "Stinger AA Missile",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 11",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "INFANTRY_WEAPON",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Anti Aircraft Missile 1/1 Damage 3, Range 2",
+              "sourceName": "Stinger AA Missile \"Cheap Man Portable AA\"",
+              "sourceSlot": "Primary",
+              "storeRow": 11,
+              "unitAccessText": "Standard Infantry Orbital Drop Troopers Irregular Infantry Power Armor SF & Sappers Mechanized Infantry"
+            }
+          },
+          "slotType": "primary"
+        }
+      },
+      {
+        "id": "equipment-through-ship-interior-hangar",
+        "kind": "EQUIPMENT",
+        "name": "Through-ship Interior Hangar",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 112",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "SHIP_MODULE",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Allows the landing and storage of a single Aerospace unit per Interior hanger. - 2 Armor from Craft to a minimum of 1",
+              "sourceName": "Through Ship Interior Hanger Destoryer or Larger only",
+              "sourceSlot": "Internal",
+              "storeRow": 112,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
         }
       },
       {
@@ -3682,6 +6434,14 @@ const snapshot = {
             ],
             "statModifiers": {
               "sensors": 1
+            },
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Can Action: Optics reveal a hex at edge of LOS",
+              "sourceName": "Optics",
+              "sourceSlot": "Internal",
+              "storeRow": 43,
+              "unitAccessText": ""
             }
           },
           "slotType": "internal"
@@ -3713,9 +6473,81 @@ const snapshot = {
               "VTOL": 2
             },
             "repairPerRound": 2,
-            "shipModule": true
+            "shipModule": true,
+            "storeCatalogue": {
+              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "rulesText": "Allow landing and resupply of VTOL's. Can Carry 2 VTOL units using onboard supply or a single Heavy Lift VTOL. Bay will repair these vehicles over time, 2FS per Round. Increases Cargo Supply Carry Capacity +2 Great for moving troops and equipment from oribtal the surface.",
+              "sourceName": "VTOL Bay",
+              "sourceSlot": "External",
+              "storeRow": 97,
+              "unitAccessText": ""
+            }
           },
           "slotType": "external"
+        }
+      },
+      {
+        "id": "equipment-vtol-smoke-dispenser",
+        "kind": "EQUIPMENT",
+        "name": "VTOL Smoke Dispenser",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 84",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "AEROSPACE_INTERNAL",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Drop smoke on a hex. Blocks line of sight through and in indicated hex at range 0-1. Till the end of the next round. Cooldown - 4 rounds",
+              "sourceName": "Drop Smoke VTOL Only",
+              "sourceSlot": "Internal",
+              "storeRow": 84,
+              "unitAccessText": ""
+            }
+          },
+          "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-weapon-emplacement-equipment",
+        "kind": "EQUIPMENT",
+        "name": "Weapon Emplacement Equipment",
+        "definitionStatus": "experimental",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 27",
+        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "category": "ENGINEER",
+          "consumable": false,
+          "definition": {
+            "storeCatalogue": {
+              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "rulesText": "Has the Equipment on Hand to Build Anti-Tank, Anti-Infantry Emplacements. Anti-Infantry Emplacements Adds FS+2 to Hex Firepower Range 1 Must of infantry unit in hex to benefit. Anti-Tank Emplacements Adds FS+1 AP+2 Range 2 Must of infantry unit in hex to benefit.",
+              "sourceName": "Weapon Emplacement Equipment",
+              "sourceSlot": "Engineer Specifc Equipment Slot",
+              "storeRow": 27,
+              "unitAccessText": "Engineers"
+            }
+          },
+          "slotType": "engineer"
         }
       }
     ],
@@ -8250,10 +11082,27 @@ const snapshot = {
       },
       {
         "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-aerospace-500kg-bomb",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 86",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 86
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-aerospace-afterburner",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8264,10 +11113,95 @@ const snapshot = {
       },
       {
         "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-aerospace-cluster-smoke-bombs",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 88",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 88
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-aerospace-drop-tank",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 83",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 83
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-aerospace-gun-pod",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 80",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 80
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-aerospace-hellfire-bombs",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 87",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 87
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-aerospace-light-rocket-pod",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 81",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 81
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-aerospace-sidewinder",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8278,10 +11212,27 @@ const snapshot = {
       },
       {
         "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-anti-material-rifles",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 20",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 20
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-ap-ammo",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8292,10 +11243,146 @@ const snapshot = {
       },
       {
         "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-artillery-shovels-sandbags",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 56",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 56
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-artillery-smoke-rounds",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 51",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 51
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-at-mines",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 7",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 7
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-automated-turrets",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 24",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 24
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-back-line-support-equipment",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 28",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 28
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-ballistic-shields",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 16",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 16
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-bulldozer-attachment",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 53",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 53
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-charismatic-commander",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 32",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 32
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-cluster-bombs",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8303,6 +11390,57 @@ const snapshot = {
         "sourcePath": "rules/The Store - Equipment List.html",
         "sourceLocator": "row 85",
         "parameters": {}
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-combat-shotguns",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 5",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 5
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-combat-stims",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 38",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 38
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-delayed-explosive-charge",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 17",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 17
+        }
       },
       {
         "definitionKind": "EQUIPMENT",
@@ -8333,6 +11471,23 @@ const snapshot = {
       },
       {
         "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-explosive-anchors",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 52",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 52
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-flak-vests",
         "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
@@ -8349,10 +11504,214 @@ const snapshot = {
       },
       {
         "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-flamethrower-team",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 25",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 25
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-frag-grenades",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 12",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 12
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-fuel-reserve",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 46",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 46
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-good-ammunition",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 37",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 37
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-grab-handles-and-side-skirts",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 48",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 48
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-hardened-leadership",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 31",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 31
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-heavy-fortification-equipment",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 26",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 26
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-heavy-machine-gun-ammunition",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 9",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 9
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-heavy-machine-gun-team",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 8",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 8
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-heavy-power-blade",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 30",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 30
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-hellfire-artillery-rounds",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 55",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 55
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-high-risk-flamers",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 33",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 33
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-k9-scouts",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8379,10 +11738,214 @@ const snapshot = {
       },
       {
         "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-light-mech-internal-jump-jets",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 77",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 77
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-longer-artillery-barrel",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 54",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 54
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mash-defence-teams",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 40",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 40
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mash-light-emergency-vehicles",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 39",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 39
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-ammo-box",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 70",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 70
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-autocannon",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 60",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 60
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-back-hitch",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 73",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 73
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-carry-crate",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 72",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 72
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-fists",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 74",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 74
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-heavy-machine-weapon",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 59",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 59
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-jump-jets",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 66",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 66
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-large-laser",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 65",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 65
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-mech-light-laser",
         "implementationStatus": "CATALOGUE_ONLY",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "HIDDEN",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8393,6 +11956,193 @@ const snapshot = {
           "conflictIds": [
             "RC-EQP-002"
           ]
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-lrm",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 62",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 62
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-magnetic-clamps",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 68",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 68
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-medium-laser",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 64",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 64
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-melee-weapon",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 61",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 61
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-neural-interface",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 75",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 75
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-optics",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 71",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 71
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-smoke-launcher",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 76",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 76
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mech-up-armour",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 69",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 69
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mines",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 6",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 6
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mini-supply-depot",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 57",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 57
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-mortar-squad",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 15",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 15
         }
       },
       {
@@ -8414,10 +12164,44 @@ const snapshot = {
       },
       {
         "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-powered-chainblades",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 34",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 34
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-remote-detonators",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 18",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 18
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-road-building",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8428,10 +12212,27 @@ const snapshot = {
       },
       {
         "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-rocket-jump-pack",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 36",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 36
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-silent-smgs",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8445,7 +12246,7 @@ const snapshot = {
         "definitionId": "equipment-simple-med-stimpacks",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8456,10 +12257,44 @@ const snapshot = {
       },
       {
         "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-small-surface-to-air-missile",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 45",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 45
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-smoke-grenades",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 13",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 13
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-smoke-launcher",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8467,6 +12302,125 @@ const snapshot = {
         "sourcePath": "rules/The Store - Equipment List.html",
         "sourceLocator": "row 49",
         "parameters": {}
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-sniper-rifles",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 19",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 19
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-snorkels",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 44",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 44
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-sponson-machine-gun-turret",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 47",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 47
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-squad-automatic-weapon",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 14",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 14
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-standard-melee-weapons",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 2",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 2
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-stick-bombs",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 35",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 35
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-stinger-aa",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 11",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 11
+        }
       },
       {
         "definitionKind": "EQUIPMENT",
@@ -8493,6 +12447,40 @@ const snapshot = {
             }
           },
           "verticalSlice": "equipment-deployment"
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-vtol-smoke-dispenser",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 84",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 84
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-weapon-emplacement-equipment",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 27",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 27
         }
       },
       {
@@ -8564,7 +12552,7 @@ const snapshot = {
         "definitionId": "equipment-aerospace-storage",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8578,7 +12566,7 @@ const snapshot = {
         "definitionId": "equipment-armory",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8592,7 +12580,7 @@ const snapshot = {
         "definitionId": "equipment-carrier-flight-deck",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8603,10 +12591,61 @@ const snapshot = {
       },
       {
         "definitionKind": "SHIP_MODULE",
+        "definitionId": "equipment-drop-pod-launch-bay",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "SHIP_MODULE_MUTATION_DEFERRED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 102",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 102
+        }
+      },
+      {
+        "definitionKind": "SHIP_MODULE",
+        "definitionId": "equipment-engineering-bay",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "SHIP_MODULE_MUTATION_DEFERRED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 105",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 105
+        }
+      },
+      {
+        "definitionKind": "SHIP_MODULE",
+        "definitionId": "equipment-heavy-drop-pod-launch-bay",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "SHIP_MODULE_MUTATION_DEFERRED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 108",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 108
+        }
+      },
+      {
+        "definitionKind": "SHIP_MODULE",
         "definitionId": "equipment-heavy-ground-vehicle-bay",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8617,10 +12656,44 @@ const snapshot = {
       },
       {
         "definitionKind": "SHIP_MODULE",
+        "definitionId": "equipment-landing-gear",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "SHIP_MODULE_MUTATION_DEFERRED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 106",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 106
+        }
+      },
+      {
+        "definitionKind": "SHIP_MODULE",
+        "definitionId": "equipment-massive-cargo-bay",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "SHIP_MODULE_MUTATION_DEFERRED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 101",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 101
+        }
+      },
+      {
+        "definitionKind": "SHIP_MODULE",
         "definitionId": "equipment-mech-bay",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8634,7 +12707,7 @@ const snapshot = {
         "definitionId": "equipment-mobile-infantry",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -8645,10 +12718,180 @@ const snapshot = {
       },
       {
         "definitionKind": "SHIP_MODULE",
+        "definitionId": "equipment-orbital-bombardment-cannons",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "SHIP_MODULE_MUTATION_DEFERRED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 93",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 93
+        }
+      },
+      {
+        "definitionKind": "SHIP_MODULE",
+        "definitionId": "equipment-orbital-broadside-cannons",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "SHIP_MODULE_MUTATION_DEFERRED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 95",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 95
+        }
+      },
+      {
+        "definitionKind": "SHIP_MODULE",
+        "definitionId": "equipment-orbital-laser",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "SHIP_MODULE_MUTATION_DEFERRED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 94",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 94
+        }
+      },
+      {
+        "definitionKind": "SHIP_MODULE",
+        "definitionId": "equipment-orbital-rail-cannon",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "SHIP_MODULE_MUTATION_DEFERRED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 92",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 92
+        }
+      },
+      {
+        "definitionKind": "SHIP_MODULE",
+        "definitionId": "equipment-orbital-rapid-fire-aa",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "SHIP_MODULE_MUTATION_DEFERRED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 91",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 91
+        }
+      },
+      {
+        "definitionKind": "SHIP_MODULE",
+        "definitionId": "equipment-orbital-scanning-system",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "SHIP_MODULE_MUTATION_DEFERRED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 90",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 90
+        }
+      },
+      {
+        "definitionKind": "SHIP_MODULE",
+        "definitionId": "equipment-orbital-structure-drop",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "SHIP_MODULE_MUTATION_DEFERRED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 96",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 96
+        }
+      },
+      {
+        "definitionKind": "SHIP_MODULE",
+        "definitionId": "equipment-orbital-thrusters",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "SHIP_MODULE_MUTATION_DEFERRED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 110",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 110
+        }
+      },
+      {
+        "definitionKind": "SHIP_MODULE",
+        "definitionId": "equipment-reinforced-structural-integrity",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "SHIP_MODULE_MUTATION_DEFERRED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 109",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 109
+        }
+      },
+      {
+        "definitionKind": "SHIP_MODULE",
+        "definitionId": "equipment-through-ship-interior-hangar",
+        "implementationStatus": "CATALOGUE_ONLY",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "BLOCKED",
+        "executable": false,
+        "purchasable": false,
+        "handlerId": null,
+        "reasonCode": "SHIP_MODULE_MUTATION_DEFERRED",
+        "sourcePath": "rules/The Store - Equipment List.html",
+        "sourceLocator": "row 112",
+        "parameters": {
+          "sourceExact": true,
+          "storeRow": 112
+        }
+      },
+      {
+        "definitionKind": "SHIP_MODULE",
         "definitionId": "equipment-vtol-bay",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "DEV_ONLY",
+        "availabilityStatus": "BLOCKED",
         "executable": false,
         "purchasable": false,
         "handlerId": null,
@@ -13317,6 +17560,41 @@ const snapshot = {
       ],
       "equipmentEligibility": [
         {
+          "id": "equipment-eligibility:equipment-aerospace-500kg-bomb",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-aerospace-500kg-bomb"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "500 kg Bomb / row 86",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-aerospace-bomber"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "2 Per Crate",
+              "sourceSlot": "Bomb Bay"
+            },
+            "slotTypes": [
+              "BOMB_BAY"
+            ]
+          }
+        },
+        {
           "id": "equipment-eligibility:equipment-aerospace-afterburner",
           "kind": "EQUIPMENT_ELIGIBILITY",
           "from": {
@@ -13341,9 +17619,191 @@ const snapshot = {
               "tag-aerospace"
             ],
             "requiredTagsAny": [],
-            "rule": {},
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
             "slotTypes": [
               "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-aerospace-cluster-smoke-bombs",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-aerospace-cluster-smoke-bombs"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Cluster Smoke Bombs / row 88",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-aerospace-bomber"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "4 Bombs Per Crate",
+              "sourceSlot": "Bomb Bay"
+            },
+            "slotTypes": [
+              "BOMB_BAY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-aerospace-drop-tank",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-aerospace-drop-tank"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Drop Tank / row 83",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-aerospace-fighter"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Light"
+            },
+            "slotTypes": [
+              "LIGHT",
+              "DISPOSABLE"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-aerospace-gun-pod",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-aerospace-gun-pod"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Aerospace Gun Pod / row 80",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-aerospace-fighter"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "4 Per Crate 1 Per Mount",
+              "sourceSlot": "Light"
+            },
+            "slotTypes": [
+              "LIGHT",
+              "DISPOSABLE"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-aerospace-hellfire-bombs",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-aerospace-hellfire-bombs"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Hellfire Bombs / row 87",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-aerospace-bomber"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "2 Per Crate",
+              "sourceSlot": "Bomb Bay"
+            },
+            "slotTypes": [
+              "BOMB_BAY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-aerospace-light-rocket-pod",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-aerospace-light-rocket-pod"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Light Rocket Pod / row 81",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-aerospace-fighter"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "16 Per Crate 4 Per Mount",
+              "sourceSlot": "Light"
+            },
+            "slotTypes": [
+              "LIGHT",
+              "DISPOSABLE"
             ]
           }
         },
@@ -13366,16 +17826,59 @@ const snapshot = {
             }
           },
           "parameters": {
-            "allowedUnitDefinitions": [],
-            "forbiddenTags": [],
-            "requiredTagsAll": [
-              "tag-aerospace"
+            "allowedUnitDefinitions": [
+              "unit-aerospace-fighter"
             ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
             "requiredTagsAny": [],
-            "rule": {},
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "4 Per Crate 1 Per Mount",
+              "sourceSlot": "Light"
+            },
             "slotTypes": [
               "LIGHT",
               "DISPOSABLE"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-anti-material-rifles",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-anti-material-rifles"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Anti-material Rifles / row 20",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-power-armoured-infantry",
+              "unit-special-forces"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [
+                "equipment-sniper-rifles"
+              ],
+              "sourceAccess": "Special Forces Orbital Drop Troopers",
+              "sourceSlot": "Upgrade"
+            },
+            "slotTypes": [
+              "UPGRADE",
+              "SECONDARY"
             ]
           }
         },
@@ -13398,15 +17901,312 @@ const snapshot = {
             }
           },
           "parameters": {
-            "allowedUnitDefinitions": [],
-            "forbiddenTags": [],
-            "requiredTagsAll": [
-              "tag-vehicle"
+            "allowedUnitDefinitions": [
+              "unit-logi-truck",
+              "unit-light-vehicle",
+              "unit-infantry-fighting-vehicle",
+              "unit-main-battle-tank",
+              "unit-artillery"
             ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
             "requiredTagsAny": [],
-            "rule": {},
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Ammo Type"
+            },
             "slotTypes": [
               "AMMO"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-artillery-shovels-sandbags",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-artillery-shovels-sandbags"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Artillery Shovels and Sandbags / row 56",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-artillery"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Upgrade"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-artillery-smoke-rounds",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-artillery-smoke-rounds"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Artillery Smoke Rounds / row 51",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-artillery"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Ammo Type"
+            },
+            "slotTypes": [
+              "AMMO"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-at-mines",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-at-mines"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Anti-tank Mines / row 7",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-special-forces",
+              "unit-engineers"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Infantry Unit Sappers Engineers",
+              "sourceSlot": "Secondary"
+            },
+            "slotTypes": [
+              "SECONDARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-automated-turrets",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-automated-turrets"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Deployable Automated Turrets / row 24",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-special-forces",
+              "unit-engineers"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Sappers Engineers",
+              "sourceSlot": "Secondary"
+            },
+            "slotTypes": [
+              "ENGINEER"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-back-line-support-equipment",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-back-line-support-equipment"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Back-line Support Equipment / row 28",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-engineers"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Engineers",
+              "sourceSlot": "Engineer Specifc Equipment Slot"
+            },
+            "slotTypes": [
+              "ENGINEER"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-ballistic-shields",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-ballistic-shields"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Ballistic Shields / row 16",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-power-armoured-infantry"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Power Armor",
+              "sourceSlot": "Primary"
+            },
+            "slotTypes": [
+              "PRIMARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-bulldozer-attachment",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-bulldozer-attachment"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Bulldozer Attachment / row 53",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-main-battle-tank"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-charismatic-commander",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-charismatic-commander"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Charismatic Commander / row 32",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-power-armoured-infantry",
+              "unit-combat-medic",
+              "unit-irregular",
+              "unit-special-forces",
+              "unit-engineers"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Irregular Infantry All Infantry",
+              "sourceSlot": "Upgrade"
+            },
+            "slotTypes": [
+              "HIGH_RISK_ARMS"
             ]
           }
         },
@@ -13433,13 +18233,128 @@ const snapshot = {
               "unit-aerospace-bomber"
             ],
             "forbiddenTags": [],
-            "requiredTagsAll": [
-              "tag-aerospace"
-            ],
+            "requiredTagsAll": [],
             "requiredTagsAny": [],
-            "rule": {},
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "4 Per Crate",
+              "sourceSlot": "Bomb Bay"
+            },
             "slotTypes": [
               "BOMB_BAY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-combat-shotguns",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-combat-shotguns"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Combat Shotguns / row 5",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-power-armoured-infantry",
+              "unit-combat-medic",
+              "unit-irregular",
+              "unit-special-forces",
+              "unit-engineers"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "All Infantry",
+              "sourceSlot": "Secondary"
+            },
+            "slotTypes": [
+              "SECONDARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-combat-stims",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-combat-stims"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Combat Stims / row 38",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-combat-medic"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Medical Infantry",
+              "sourceSlot": "Medical Specifc Equipment Slot"
+            },
+            "slotTypes": [
+              "MEDICAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-delayed-explosive-charge",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-delayed-explosive-charge"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Delayed Explosive Charge / row 17",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-power-armoured-infantry",
+              "unit-irregular",
+              "unit-special-forces"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Standard Infantry Orbital Drop Troopers Irregular Infantry Power Armor SF & Sappers",
+              "sourceSlot": "Secondary"
+            },
+            "slotTypes": [
+              "SECONDARY"
             ]
           }
         },
@@ -13457,24 +18372,64 @@ const snapshot = {
           "sourceLocator": "Drone Operator / row 23",
           "sourcedNumbers": {
             "maximumEquipped": {
-              "status": "PUBLISHED",
-              "value": 1
+              "status": "NOT_APPLICABLE",
+              "value": null
             }
           },
           "parameters": {
             "allowedUnitDefinitions": [
               "unit-infantry-squad",
-              "unit-engineers",
-              "unit-special-forces"
+              "unit-power-armoured-infantry",
+              "unit-combat-medic",
+              "unit-irregular",
+              "unit-special-forces",
+              "unit-engineers"
             ],
             "forbiddenTags": [],
-            "requiredTagsAll": [
-              "tag-infantry"
-            ],
+            "requiredTagsAll": [],
             "requiredTagsAny": [],
-            "rule": {},
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "All Infantry",
+              "sourceSlot": "Primary"
+            },
             "slotTypes": [
-              "SECONDARY"
+              "PRIMARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-explosive-anchors",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-explosive-anchors"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Explosive Anchors / row 52",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "PUBLISHED",
+              "value": 2
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-artillery"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
             ]
           }
         },
@@ -13489,7 +18444,7 @@ const snapshot = {
           "ordinal": null,
           "sourceId": "source-store",
           "sourcePath": null,
-          "sourceLocator": "Flack Vests / row 4",
+          "sourceLocator": "Flak Vests / row 4",
           "sourcedNumbers": {
             "maximumEquipped": {
               "status": "NOT_APPLICABLE",
@@ -13497,22 +18452,471 @@ const snapshot = {
             }
           },
           "parameters": {
-            "allowedUnitDefinitions": [],
-            "forbiddenTags": [],
-            "requiredTagsAll": [
-              "tag-infantry"
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-power-armoured-infantry",
+              "unit-combat-medic",
+              "unit-irregular",
+              "unit-special-forces",
+              "unit-engineers"
             ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
             "requiredTagsAny": [],
             "rule": {
-              "canonicalSlot": "UPGRADE",
-              "conflictIds": [
-                "RC-EQP-001"
-              ],
-              "legacyNormalizedSlot": "SECONDARY"
+              "prerequisites": [],
+              "sourceAccess": "All Infantry",
+              "sourceSlot": "Upgrade"
             },
             "slotTypes": [
               "UPGRADE",
               "SECONDARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-flamethrower-team",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-flamethrower-team"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Flamethrower Team / row 25",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-power-armoured-infantry",
+              "unit-engineers"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Standard Infantry Power Armor Engineers",
+              "sourceSlot": "Primary Or Engineer Specific Equipment Slot"
+            },
+            "slotTypes": [
+              "PRIMARY",
+              "ENGINEER"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-frag-grenades",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-frag-grenades"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Fragmentation Grenades / row 12",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-power-armoured-infantry",
+              "unit-combat-medic",
+              "unit-irregular",
+              "unit-special-forces",
+              "unit-engineers"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "All Infantry",
+              "sourceSlot": "Secondary"
+            },
+            "slotTypes": [
+              "SECONDARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-fuel-reserve",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-fuel-reserve"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Fuel Reserve / row 46",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-logi-truck",
+              "unit-light-vehicle",
+              "unit-infantry-fighting-vehicle",
+              "unit-main-battle-tank",
+              "unit-artillery"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-good-ammunition",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-good-ammunition"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Good Ammunition / row 37",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-irregular"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Irregular Infantry",
+              "sourceSlot": "Primary"
+            },
+            "slotTypes": [
+              "HIGH_RISK_ARMS"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-grab-handles-and-side-skirts",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-grab-handles-and-side-skirts"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Grab Handles and Side Skirts / row 48",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-logi-truck",
+              "unit-light-vehicle",
+              "unit-infantry-fighting-vehicle",
+              "unit-main-battle-tank",
+              "unit-artillery"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-hardened-leadership",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-hardened-leadership"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Hardened Leadership / row 31",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-irregular"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Irregular Infantry",
+              "sourceSlot": "Upgrade"
+            },
+            "slotTypes": [
+              "HIGH_RISK_ARMS"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-heavy-fortification-equipment",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-heavy-fortification-equipment"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Heavy Fortification Equipment / row 26",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-engineers"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Engineers",
+              "sourceSlot": "Engineer Specifc Equipment Slot"
+            },
+            "slotTypes": [
+              "ENGINEER"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-heavy-machine-gun-ammunition",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-heavy-machine-gun-ammunition"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Heavy Machine Gun Ammunition / row 9",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-power-armoured-infantry",
+              "unit-combat-medic",
+              "unit-irregular",
+              "unit-special-forces",
+              "unit-engineers"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "All Infantry Mechanized Infantry",
+              "sourceSlot": "Secondary"
+            },
+            "slotTypes": [
+              "SECONDARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-heavy-machine-gun-team",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-heavy-machine-gun-team"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Heavy Machine Gun Team / row 8",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-power-armoured-infantry",
+              "unit-irregular",
+              "unit-special-forces"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Infantry Unit Orbital Drop Troopers Irregular Infantry Power Armor Mechanized Infantry",
+              "sourceSlot": "Primary"
+            },
+            "slotTypes": [
+              "PRIMARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-heavy-power-blade",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-heavy-power-blade"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Heavy Power Blade / row 30",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-power-armoured-infantry"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [
+                "equipment-standard-melee-weapons"
+              ],
+              "sourceAccess": "Power Armor",
+              "sourceSlot": "Power Armor Melee Weapon Upgrade"
+            },
+            "slotTypes": [
+              "MECH_WEAPON"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-hellfire-artillery-rounds",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-hellfire-artillery-rounds"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Hellfire Artillery Rounds / row 55",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-artillery"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Ammo Type"
+            },
+            "slotTypes": [
+              "AMMO"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-high-risk-flamers",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-high-risk-flamers"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "High-risk Flamers / row 33",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-irregular"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Irregular Infantry",
+              "sourceSlot": "Primary"
+            },
+            "slotTypes": [
+              "HIGH_RISK_ARMS"
             ]
           }
         },
@@ -13535,13 +18939,22 @@ const snapshot = {
             }
           },
           "parameters": {
-            "allowedUnitDefinitions": [],
-            "forbiddenTags": [],
-            "requiredTagsAll": [
-              "tag-infantry"
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-power-armoured-infantry",
+              "unit-combat-medic",
+              "unit-irregular",
+              "unit-special-forces",
+              "unit-engineers"
             ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
             "requiredTagsAny": [],
-            "rule": {},
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "All Infantry",
+              "sourceSlot": "Primary"
+            },
             "slotTypes": [
               "PRIMARY"
             ]
@@ -13558,7 +18971,7 @@ const snapshot = {
           "ordinal": null,
           "sourceId": "source-store",
           "sourcePath": null,
-          "sourceLocator": "Lightweight Anti-armor Weapon / row 10",
+          "sourceLocator": "Lightweight Anti-armour Weapon / row 10",
           "sourcedNumbers": {
             "maximumEquipped": {
               "status": "NOT_APPLICABLE",
@@ -13573,15 +18986,435 @@ const snapshot = {
               "unit-special-forces"
             ],
             "forbiddenTags": [],
-            "requiredTagsAll": [
-              "tag-infantry"
-            ],
+            "requiredTagsAll": [],
             "requiredTagsAny": [],
             "rule": {
-              "ammoCapacity": 3
+              "prerequisites": [],
+              "sourceAccess": "Standard Infantry Orbital Drop Troopers Irregular Infantry Power Armor SF & Sappers Mechanized Infantry",
+              "sourceSlot": "Primary"
             },
             "slotTypes": [
               "PRIMARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-light-mech-internal-jump-jets",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-light-mech-internal-jump-jets"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Light Mech Internal Jump Jets / row 77",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-longer-artillery-barrel",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-longer-artillery-barrel"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Longer Artillery Barrel / row 54",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-artillery"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Secondary"
+            },
+            "slotTypes": [
+              "SECONDARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mash-defence-teams",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mash-defence-teams"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "MASH Defence Teams / row 40",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-combat-medic"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Medical Infantry",
+              "sourceSlot": "Medical Specifc Equipment Slot"
+            },
+            "slotTypes": [
+              "MEDICAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mash-light-emergency-vehicles",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mash-light-emergency-vehicles"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "MASH Light Emergency Vehicles / row 39",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-combat-medic"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Medical Infantry",
+              "sourceSlot": "Medical Specifc Equipment Slot"
+            },
+            "slotTypes": [
+              "MEDICAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-ammo-box",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-ammo-box"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Ammo Box / row 70",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-autocannon",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-autocannon"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Autocannon Weapon System / row 60",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "3",
+              "sourceSlot": "External"
+            },
+            "slotTypes": [
+              "EXTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-back-hitch",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-back-hitch"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Mech Back Hitch / row 73",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-carry-crate",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-carry-crate"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Mech Carry Crate / row 72",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-fists",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-fists"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Mech Fists / row 74",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-heavy-machine-weapon",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-heavy-machine-weapon"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Heavy Machine Weapon System / row 59",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "3",
+              "sourceSlot": "External"
+            },
+            "slotTypes": [
+              "EXTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-jump-jets",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-jump-jets"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Mech Jump Jets / row 66",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "NA",
+              "sourceSlot": "External"
+            },
+            "slotTypes": [
+              "EXTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-large-laser",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-large-laser"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Large Laser Setup / row 65",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "FS - 1",
+              "sourceSlot": "External"
+            },
+            "slotTypes": [
+              "EXTERNAL"
             ]
           }
         },
@@ -13604,15 +19437,410 @@ const snapshot = {
             }
           },
           "parameters": {
-            "allowedUnitDefinitions": [],
-            "forbiddenTags": [],
-            "requiredTagsAll": [
-              "tag-mech"
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
             ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
             "requiredTagsAny": [],
-            "rule": {},
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "FS - 1",
+              "sourceSlot": "External"
+            },
             "slotTypes": [
               "EXTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-lrm",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-lrm"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Long-range Missile System / row 62",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "3",
+              "sourceSlot": "External"
+            },
+            "slotTypes": [
+              "EXTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-magnetic-clamps",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-magnetic-clamps"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Magnetic Clamps / row 68",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-power-armoured-infantry",
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-medium-laser",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-medium-laser"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Medium Laser Setup / row 64",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "FS - 1",
+              "sourceSlot": "External"
+            },
+            "slotTypes": [
+              "EXTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-melee-weapon",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-melee-weapon"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Mech Melee Weapon / row 61",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "FS +1*",
+              "sourceSlot": "External"
+            },
+            "slotTypes": [
+              "EXTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-neural-interface",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-neural-interface"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Neural Interface / row 75",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-optics",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-optics"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Mech Optics / row 71",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-smoke-launcher",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-smoke-launcher"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Mech Smoke Launcher / row 76",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mech-up-armour",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-up-armour"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Up Armor / row 69",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-light-mech"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mines",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mines"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Mines / row 6",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-special-forces",
+              "unit-engineers"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Infantry Unit Sappers Engineers",
+              "sourceSlot": "Secondary"
+            },
+            "slotTypes": [
+              "SECONDARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mini-supply-depot",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mini-supply-depot"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Mini Supply Depot / row 57",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-artillery"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-mortar-squad",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mortar-squad"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Mortar Squad / row 15",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-power-armoured-infantry",
+              "unit-irregular",
+              "unit-special-forces"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Standard Infantry Orbital Drop Troopers Irregular Infantry Power Armor SF & Sappers Mechanized Infantry",
+              "sourceSlot": "Primary"
+            },
+            "slotTypes": [
+              "PRIMARY"
             ]
           }
         },
@@ -13630,26 +19858,101 @@ const snapshot = {
           "sourceLocator": "Orbital Drop Training / row 3",
           "sourcedNumbers": {
             "maximumEquipped": {
-              "status": "PUBLISHED",
-              "value": 1
+              "status": "NOT_APPLICABLE",
+              "value": null
             }
           },
           "parameters": {
             "allowedUnitDefinitions": [
               "unit-infantry-squad",
-              "unit-engineers",
+              "unit-power-armoured-infantry",
               "unit-combat-medic",
-              "unit-special-forces"
+              "unit-special-forces",
+              "unit-engineers"
             ],
-            "forbiddenTags": [
-              "tag-irregular"
-            ],
-            "requiredTagsAll": [
-              "tag-infantry"
-            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
             "requiredTagsAny": [],
             "rule": {
-              "forceStrengthModifier": -1
+              "prerequisites": [],
+              "sourceAccess": "All Infantry Other than Irregular's",
+              "sourceSlot": "Upgrade"
+            },
+            "slotTypes": [
+              "UPGRADE",
+              "SECONDARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-powered-chainblades",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-powered-chainblades"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Powered Chainblades / row 34",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-irregular"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Irregular Infantry",
+              "sourceSlot": "Unit Upgrade"
+            },
+            "slotTypes": [
+              "LOW_TECH_MELEE"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-remote-detonators",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-remote-detonators"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Remote Detonators / row 18",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-power-armoured-infantry",
+              "unit-irregular",
+              "unit-special-forces"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [
+                "equipment-delayed-explosive-charge"
+              ],
+              "sourceAccess": "Standard Infantry Orbital Drop Troopers Irregular Infantry Power Armor SF & Sappers",
+              "sourceSlot": "Upgrade"
             },
             "slotTypes": [
               "UPGRADE",
@@ -13680,15 +19983,50 @@ const snapshot = {
               "unit-engineers"
             ],
             "forbiddenTags": [],
-            "requiredTagsAll": [
-              "tag-engineer"
-            ],
+            "requiredTagsAll": [],
             "requiredTagsAny": [],
             "rule": {
-              "requisitionStatus": "BALANCE_REQUIRED"
+              "prerequisites": [],
+              "sourceAccess": "Engineers Sapper",
+              "sourceSlot": "Primary Equipment Slot"
             },
             "slotTypes": [
               "ENGINEER"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-rocket-jump-pack",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-rocket-jump-pack"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Rocket Jump Pack / row 36",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-irregular"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Irregular Infantry",
+              "sourceSlot": "Secondary"
+            },
+            "slotTypes": [
+              "HIGH_RISK_ARMS"
             ]
           }
         },
@@ -13712,14 +20050,17 @@ const snapshot = {
           },
           "parameters": {
             "allowedUnitDefinitions": [
+              "unit-power-armoured-infantry",
               "unit-special-forces"
             ],
             "forbiddenTags": [],
-            "requiredTagsAll": [
-              "tag-infantry-stealth"
-            ],
+            "requiredTagsAll": [],
             "requiredTagsAny": [],
-            "rule": {},
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Special Forces",
+              "sourceSlot": "Primary"
+            },
             "slotTypes": [
               "PRIMARY"
             ]
@@ -13748,13 +20089,94 @@ const snapshot = {
               "unit-combat-medic"
             ],
             "forbiddenTags": [],
-            "requiredTagsAll": [
-              "tag-medical"
-            ],
+            "requiredTagsAll": [],
             "requiredTagsAny": [],
-            "rule": {},
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Medical Infantry",
+              "sourceSlot": "Medical Specifc Equipment Slot"
+            },
             "slotTypes": [
               "MEDICAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-small-surface-to-air-missile",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-small-surface-to-air-missile"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Small Surface-to-air Missile / row 45",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-logi-truck",
+              "unit-light-vehicle",
+              "unit-infantry-fighting-vehicle",
+              "unit-main-battle-tank",
+              "unit-artillery"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Secondary"
+            },
+            "slotTypes": [
+              "SECONDARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-smoke-grenades",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-smoke-grenades"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Smoke Grenades / row 13",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-power-armoured-infantry",
+              "unit-combat-medic",
+              "unit-irregular",
+              "unit-special-forces",
+              "unit-engineers"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "All Infantry",
+              "sourceSlot": "Secondary"
+            },
+            "slotTypes": [
+              "SECONDARY"
             ]
           }
         },
@@ -13777,15 +20199,289 @@ const snapshot = {
             }
           },
           "parameters": {
-            "allowedUnitDefinitions": [],
-            "forbiddenTags": [],
-            "requiredTagsAll": [
-              "tag-vehicle"
+            "allowedUnitDefinitions": [
+              "unit-logi-truck",
+              "unit-light-vehicle",
+              "unit-infantry-fighting-vehicle",
+              "unit-main-battle-tank",
+              "unit-artillery"
             ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
             "requiredTagsAny": [],
-            "rule": {},
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Secondary"
+            },
             "slotTypes": [
               "SECONDARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-sniper-rifles",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-sniper-rifles"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Sniper Rifles / row 19",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-power-armoured-infantry",
+              "unit-special-forces"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Special Forces Orbital Drop Troopers",
+              "sourceSlot": "Primary"
+            },
+            "slotTypes": [
+              "PRIMARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-snorkels",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-snorkels"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Snorkels / row 44",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-logi-truck",
+              "unit-light-vehicle",
+              "unit-infantry-fighting-vehicle",
+              "unit-main-battle-tank",
+              "unit-artillery"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-sponson-machine-gun-turret",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-sponson-machine-gun-turret"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Sponson Machine-gun Turret / row 47",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-logi-truck",
+              "unit-light-vehicle",
+              "unit-infantry-fighting-vehicle",
+              "unit-main-battle-tank",
+              "unit-artillery"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Secondary"
+            },
+            "slotTypes": [
+              "SECONDARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-squad-automatic-weapon",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-squad-automatic-weapon"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Squad Automatic Weapon / row 14",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-power-armoured-infantry",
+              "unit-combat-medic",
+              "unit-irregular",
+              "unit-special-forces",
+              "unit-engineers"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "All Infantry",
+              "sourceSlot": "Secondary"
+            },
+            "slotTypes": [
+              "SECONDARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-standard-melee-weapons",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-standard-melee-weapons"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Standard Melee Weapons / row 2",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-power-armoured-infantry",
+              "unit-combat-medic",
+              "unit-special-forces",
+              "unit-engineers"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "All Infantry Other than Irregular's",
+              "sourceSlot": "Primary"
+            },
+            "slotTypes": [
+              "PRIMARY"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-stick-bombs",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-stick-bombs"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Stick Bombs / row 35",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-irregular"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Irregular Infantry",
+              "sourceSlot": "Secondary"
+            },
+            "slotTypes": [
+              "HIGH_RISK_ARMS"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-stinger-aa",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-stinger-aa"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Stinger AA Missile / row 11",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-infantry-squad",
+              "unit-power-armoured-infantry",
+              "unit-irregular",
+              "unit-special-forces"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Standard Infantry Orbital Drop Troopers Irregular Infantry Power Armor SF & Sappers Mechanized Infantry",
+              "sourceSlot": "Primary"
+            },
+            "slotTypes": [
+              "PRIMARY"
             ]
           }
         },
@@ -13800,7 +20496,7 @@ const snapshot = {
           "ordinal": null,
           "sourceId": "source-store",
           "sourcePath": null,
-          "sourceLocator": "Optics / row 43",
+          "sourceLocator": "Vehicle Optics / row 43",
           "sourcedNumbers": {
             "maximumEquipped": {
               "status": "NOT_APPLICABLE",
@@ -13808,15 +20504,93 @@ const snapshot = {
             }
           },
           "parameters": {
-            "allowedUnitDefinitions": [],
-            "forbiddenTags": [],
-            "requiredTagsAll": [
-              "tag-vehicle"
+            "allowedUnitDefinitions": [
+              "unit-logi-truck",
+              "unit-light-vehicle",
+              "unit-infantry-fighting-vehicle",
+              "unit-main-battle-tank",
+              "unit-artillery"
             ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
             "requiredTagsAny": [],
-            "rule": {},
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
             "slotTypes": [
               "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-vtol-smoke-dispenser",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-vtol-smoke-dispenser"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "VTOL Smoke Dispenser / row 84",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-vtol"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "",
+              "sourceSlot": "Internal"
+            },
+            "slotTypes": [
+              "INTERNAL"
+            ]
+          }
+        },
+        {
+          "id": "equipment-eligibility:equipment-weapon-emplacement-equipment",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-weapon-emplacement-equipment"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "Weapon Emplacement Equipment / row 27",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "NOT_APPLICABLE",
+              "value": null
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-engineers"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [],
+            "requiredTagsAny": [],
+            "rule": {
+              "prerequisites": [],
+              "sourceAccess": "Engineers",
+              "sourceSlot": "Engineer Specifc Equipment Slot"
+            },
+            "slotTypes": [
+              "ENGINEER"
             ]
           }
         }
@@ -14622,5 +21396,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "2be4233931493a3cea0bafbef9e4ee2ad94c7be4166075ac89233a126eeff623" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "2f071d83544f29cd8e94b78415fa7be63c1eb006f070056f84b212a3d8da4f5c" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

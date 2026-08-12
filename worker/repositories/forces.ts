@@ -774,7 +774,7 @@ export async function getEligibleEquipment(
                 AND equipment.definition_status NOT IN ('legacy')
                 AND equipment.category <> 'SHIP_MODULE'
                 AND (
-                  overlay.availability_status = 'AVAILABLE'
+                  overlay.availability_status IN ('AVAILABLE', 'BLOCKED')
                   OR (?3 = 1 AND overlay.availability_status = 'DEV_ONLY')
                 )
                 AND NOT EXISTS (

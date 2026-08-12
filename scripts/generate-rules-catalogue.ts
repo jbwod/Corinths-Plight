@@ -39,6 +39,7 @@ export const legacyRulesSeedFiles = [
   "seeds/v5-core-curated.sql",
   "seeds/v5-phase2-combined-arms.sql",
   "seeds/v5-equipment-deployment.sql",
+  "seeds/v5-store-catalogue.sql",
 ] as const;
 
 /**
@@ -1261,7 +1262,7 @@ export async function buildCanonicalCatalogueEnvelope(root = repositoryRoot): Pr
     readLegacyCatalogueSnapshot(root),
     readCanonicalConflictRegister(root),
   ]);
-  if (legacyTopLevelDefinitionCount(snapshot) !== 101) throw new Error("The final seed snapshot must contain exactly 101 top-level definitions.");
+  if (legacyTopLevelDefinitionCount(snapshot) !== 184) throw new Error("The final seed snapshot must contain exactly 184 top-level definitions.");
   if (canonicalConflicts.length !== 72) throw new Error("The canonical conflict register must contain exactly 72 records.");
   const sourceMismatches = await legacySourceHashMismatches(snapshot, root);
   if (sourceMismatches.length > 0) throw new Error(`Rules source hashes drifted: ${canonicalJson(sourceMismatches)}`);
@@ -1315,8 +1316,8 @@ export async function buildCanonicalCatalogueEnvelope(root = repositoryRoot): Pr
 async function bootstrapLegacySnapshot(destination: string): Promise<void> {
   const snapshot = await readLegacyCatalogueSnapshot();
   const topLevelDefinitions = legacyTopLevelDefinitionCount(snapshot);
-  if (topLevelDefinitions !== 101) {
-    throw new Error(`Expected 101 final seeded top-level definitions; received ${topLevelDefinitions}.`);
+  if (topLevelDefinitions !== 184) {
+    throw new Error(`Expected 184 final seeded top-level definitions; received ${topLevelDefinitions}.`);
   }
   await writeFile(destination, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
   console.log(`Bootstrapped ${topLevelDefinitions} definitions to ${relative(repositoryRoot, destination)}.`);

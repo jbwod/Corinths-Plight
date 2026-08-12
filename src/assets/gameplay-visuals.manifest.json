@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-11",
+  "generatedAt": "2026-08-12",
   "creator": "OpenAI built-in imagegen, directed by the Corinth's Plight project owner",
   "sourceReferences": [],
   "permissionBasis": "Original project-generated output; no third-party reference image was supplied",
@@ -11,41 +11,839 @@
     "accessibilityFallback": "Stable short code, accessible text label, and code-native tactical SVG glyph"
   },
   "assets": [
-    { "key": "unit.aerospace-bomber", "path": "src/assets/unit-art/generated/aerospace-bomber.png", "sha256": "e9d1f118dc374b7c2ec652db1bcc2efcec0ff0aef0fd7749999b7f10246fe336", "source": "exec-617d929c-c64a-479b-85f8-10cf1796e5c5.png", "status": "ACTIVE" },
-    { "key": "unit.aerospace-fighter", "path": "src/assets/unit-art/generated/aerospace-fighter.png", "sha256": "dd3a2eb1903917bed8c40796c9c480c0bb904c13fe46a3209ba8887f96dad1b0", "source": "exec-e538bcd3-b375-4009-8a53-60dbc52c399f.png", "status": "ACTIVE" },
-    { "key": "unit.artillery", "path": "src/assets/unit-art/generated/artillery.png", "sha256": "e620f8f2a098a76c0524cb12e2dd473677af81a33a82a72a6ced28cad1d019d8", "source": "exec-3eec17a3-dad3-470a-89e5-c7f7463c45e9.png", "status": "ACTIVE" },
-    { "key": "unit.combat-engineers", "path": "src/assets/unit-art/generated/combat-engineers.png", "sha256": "a46494989282485e3e9a78fe2b1262cebfbb9e6a56d5325acabc380a7a0bcc5c", "source": "exec-041244d2-8219-4174-8f32-e7edd4183973.png", "status": "ACTIVE" },
-    { "key": "unit.combat-medic", "path": "src/assets/unit-art/generated/combat-medic.png", "sha256": "43757e34d64774c2de942260fece6b260d08520824a09c06154ff9f963ed0e67", "source": "exec-32bbfef8-6748-41de-8ff0-a95daa508be0.png", "status": "ACTIVE" },
-    { "key": "unit.heavy-air-transport", "path": "src/assets/unit-art/generated/heavy-air-transport.png", "sha256": "6079a6daa35dcbc274b34edf137d0a264fa74bf3eeb560d31bb563372eeefab8", "source": "exec-1ff4b7cf-50c1-4490-80ee-6f9ea40b3c3f.png", "status": "ACTIVE" },
-    { "key": "unit.infantry-fighting-vehicle", "path": "src/assets/unit-art/generated/infantry-fighting-vehicle.png", "sha256": "dc9ce8452858107cd74f3c7146f14f60931a790d7a8808cf9afaf096c0adfc7b", "source": "exec-94466b6d-d5dd-4203-8661-d7adf19a80f9.png", "status": "ACTIVE" },
-    { "key": "unit.infantry", "path": "src/assets/unit-art/generated/infantry.png", "sha256": "bcef431fb4f0b9570902d63bb0ff1fe22dfd73107f78893e08f52298eb6c5f65", "source": "exec-7167c3a6-e911-4b5a-89c2-7fd71fd419da.png", "status": "ACTIVE" },
-    { "key": "unit.light-mech", "path": "src/assets/unit-art/generated/light-mech.png", "sha256": "fd8a39abf974a08e425f317ea3e5a5dfe62af82821f386dd3b54e4f4d6eadf45", "source": "exec-e9da523a-09f7-4e4a-8a49-36afa9447c5f.png", "status": "ACTIVE" },
-    { "key": "unit.light-vehicle", "path": "src/assets/unit-art/generated/light-vehicle.png", "sha256": "b017c2356469f7390f8f1906204f8530ff61d4545d2fcd7f487faf6eb7de4e96", "source": "exec-73d4fb90-aed1-459a-9afd-83744fd1cbc7.png", "status": "ACTIVE" },
-    { "key": "unit.logi-truck", "path": "src/assets/unit-art/generated/logi-truck.png", "sha256": "54bca84f4a5d145f6f819d98415910cbbbda532665677d80f2d892582eedf8fc", "source": "exec-db5dbba6-a9a8-4c28-b9cd-48b1e32cb9b3.png", "status": "ACTIVE" },
-    { "key": "unit.main-battle-tank", "path": "src/assets/unit-art/generated/main-battle-tank.png", "sha256": "47f875429de7ff6d5c09ef57730f534a857f0a0935b92a0499fa82c93066f48b", "source": "exec-593b091f-c6bf-48ee-9f5a-fbc3feec1bae.png", "status": "ACTIVE" },
-    { "key": "unit.vtol", "path": "src/assets/unit-art/generated/vtol.png", "sha256": "7febc11301229e18c0b7aa13f237b6f2edcc0cd91e0b205521be4421bd9a2aa2", "source": "exec-e6a25f62-f91d-4e76-ba01-62a8465d3658.png", "status": "ACTIVE" },
-    { "key": "equipment.aerospace-afterburner", "path": "src/assets/equipment-art/generated/aerospace-afterburner.png", "sha256": "916c4453b23826060845dea4a621f0a065306f6133dbb797d35829f42aa6af4b", "source": "exec-9b4564f5-b618-4024-8202-a6f95d2c3b56.png", "status": "ACTIVE" },
-    { "key": "equipment.aerospace-sidewinder", "path": "src/assets/equipment-art/generated/aerospace-sidewinder.png", "sha256": "0f108952fa352d58492f423e93c6e4823b3fda0aed01478ecadbed4bfdfa9a56", "source": "exec-5ef8895d-f4f0-4871-8b25-84c35d7b4b84.png", "status": "ACTIVE" },
-    { "key": "equipment.aerospace-storage", "path": "src/assets/equipment-art/generated/aerospace-storage.png", "sha256": "eaf1f4172c7bc34b24c3bb2cd5b8e564c4bda8b66ab4b59ee9a463826bc58e67", "source": "exec-28d1aa9e-65d0-450b-a2c7-113c671cf0a6.png", "status": "ACTIVE" },
-    { "key": "equipment.ap-ammo", "path": "src/assets/equipment-art/generated/ap-ammo.png", "sha256": "eecd7bbe89794aa13ade772d6a437bde729884ef2cfd699a122dd2aa73251962", "source": "exec-5b0493b1-88e0-434c-b0e5-760e548e5e4f.png", "status": "ACTIVE" },
-    { "key": "equipment.armory", "path": "src/assets/equipment-art/generated/armory.png", "sha256": "7adb4c7e160ade154602bd85b4eb91c18b9ca84f85f0e23cb324ffaba5cb1479", "source": "exec-54efa3f8-8555-4de7-902e-86e9f7c85aae.png", "status": "ACTIVE" },
-    { "key": "equipment.carrier-flight-deck", "path": "src/assets/equipment-art/generated/carrier-flight-deck.png", "sha256": "d523e0e2407c7dfd436e919453abd614bc43da4a6308d0e1b28f5919a13d0a34", "source": "exec-46a7ce99-4416-439d-872f-e0150462cbc4.png", "status": "ACTIVE" },
-    { "key": "equipment.cluster-bombs", "path": "src/assets/equipment-art/generated/cluster-bombs.png", "sha256": "51bc696de1d04049332a700fc11e9bd2ef1b270777861a3e9de6052631b6f4bf", "source": "exec-f19d0446-27a3-474f-9bcb-9e478735c71d.png", "status": "ACTIVE" },
-    { "key": "equipment.drone-operator", "path": "src/assets/equipment-art/generated/drone-operator.png", "sha256": "3061e5e231e4bd4a6473d7e8ae5eaa1ee497425023f8b8c5b55ccefe9edeeb6e", "source": "exec-a9b9c248-63f8-47eb-953e-3cadf8188361.png", "status": "ACTIVE" },
-    { "key": "equipment.flak-vests", "path": "src/assets/equipment-art/generated/flak-vests.png", "sha256": "adc606c48dba7dbdb493ec93cf9fc5583c92f04367c3350a8475275dd1a6d3a6", "source": "exec-e63b03f7-f5a0-42ef-8dba-79081f953d40.png", "status": "ACTIVE" },
-    { "key": "equipment.heavy-ground-vehicle-bay", "path": "src/assets/equipment-art/generated/heavy-ground-vehicle-bay.png", "sha256": "89ada0747be53f2bcd747dabd446de36d659e441ef966ebca8f548e990f1d6d7", "source": "exec-80d0bb41-dc15-4814-852e-32fc21413114.png", "status": "ACTIVE" },
-    { "key": "equipment.k9-scouts", "path": "src/assets/equipment-art/generated/k9-scouts.png", "sha256": "dd6668f2109cc1c52451489eda2e691ba08a5d67a6931b5670f1766b97ae991d", "source": "exec-ef649d83-e379-4e37-b44e-abb27cbd1519.png", "status": "ACTIVE" },
-    { "key": "equipment.light-at", "path": "src/assets/equipment-art/generated/light-at.png", "sha256": "f383a221f1cbe203040700b618ec0dcfc4d49c735e10cfcf4b1b72aafd6c799a", "source": "exec-3a7ca473-ddbd-4eed-9edd-cd00a38165b2.png", "status": "ACTIVE" },
-    { "key": "equipment.mech-bay", "path": "src/assets/equipment-art/generated/mech-bay.png", "sha256": "c470af31cbeb56f2f569d36c8a83445555777e267511ea871d5ae0cffb88ebdf", "source": "exec-8cf1be0e-abfe-4e5f-9925-28768133900a.png", "status": "ACTIVE" },
-    { "key": "equipment.mech-light-laser", "path": "src/assets/equipment-art/generated/mech-light-laser.png", "sha256": "ff165625615f70e8b334417975d639c2b1255539dd32e1c6e42d3b9bda9e5a0a", "source": "exec-286a2da2-e6e8-4409-a4a0-a0ab30966f93.png", "status": "ACTIVE" },
-    { "key": "equipment.mobile-infantry", "path": "src/assets/equipment-art/generated/mobile-infantry.png", "sha256": "1d36c3959a6104fc0a56134d6ff16d01ba7780e5dde917d2d43692b814178ceb", "source": "exec-77465979-7a4a-487a-88ff-52987c6f51a9.png", "status": "ACTIVE" },
-    { "key": "equipment.orbital-drop-training", "path": "src/assets/equipment-art/generated/orbital-drop-training.png", "sha256": "3474b24b0d5cd0a6d95d570190b83d09d444d464f2fb5945d8440824517c991f", "source": "exec-3e341166-4a65-465c-8918-88bdd3506686.png", "status": "ACTIVE" },
-    { "key": "equipment.road-building", "path": "src/assets/equipment-art/generated/road-building.png", "sha256": "7f9396de2922e21e430aa9654b4d84c0fe900013aa29675bacea05abc02e2fbe", "source": "exec-80afa7f2-2e80-42ad-9131-966861b3f197.png", "status": "ACTIVE" },
-    { "key": "equipment.silent-smgs", "path": "src/assets/equipment-art/generated/silent-smgs-v2.png", "sha256": "6defae82563f7a3970f0cc7b67afb39044d08832e12901d9230d7cc858c4dd4a", "source": "exec-76acfc8a-0007-47c2-babf-9e05b6825d3a.png", "status": "ACTIVE", "derivativeHistory": "Second composition requested by the project owner; replaces the dual-SMG composition in the registry" },
-    { "key": "equipment.silent-smgs.variant-1", "path": "src/assets/equipment-art/generated/silent-smgs.png", "sha256": "da10a8f820bbee387db2811140af83e1d6cee05ba274c694d741aad3b4e12548", "source": "exec-4bec7b7c-c013-40d3-8814-710baf9e838b.png", "status": "ALTERNATE" },
-    { "key": "equipment.simple-med-stimpacks", "path": "src/assets/equipment-art/generated/simple-med-stimpacks.png", "sha256": "3e38d1cf24da24b388172a2540d541cbb5bb0259b1b72634b1e78d76ca526453", "source": "exec-f4680ef5-7d6b-4a59-80c5-58e0fc24efb9.png", "status": "ACTIVE" },
-    { "key": "equipment.smoke-launcher", "path": "src/assets/equipment-art/generated/smoke-launcher.png", "sha256": "ee22394f0eadbee6808bc4112930e79a0b7d2cddd03c1313adeb7a60740a179e", "source": "exec-68dffa86-36c9-46f1-b819-e9e622c7e13a.png", "status": "ACTIVE" },
-    { "key": "equipment.vehicle-optics", "path": "src/assets/equipment-art/generated/vehicle-optics.png", "sha256": "8b4c027fc97a3afa7882b7b9ad7a832e55d13cb6deb6ffd80dad709836e9fdc5", "source": "exec-49865b3f-3be9-4753-b52b-20164dc2d512.png", "status": "ACTIVE" },
-    { "key": "equipment.vtol-bay", "path": "src/assets/equipment-art/generated/vtol-bay.png", "sha256": "500c8c82fd54d4798678e648a16f4cf908fa975ae69364d0dc8967c45c3ceaf7", "source": "exec-a090199f-cb80-4877-b41e-6c48e28de554.png", "status": "ACTIVE" }
+    {
+      "key": "unit.aerospace-bomber",
+      "path": "src/assets/unit-art/generated/aerospace-bomber.png",
+      "sha256": "e9d1f118dc374b7c2ec652db1bcc2efcec0ff0aef0fd7749999b7f10246fe336",
+      "source": "exec-617d929c-c64a-479b-85f8-10cf1796e5c5.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.aerospace-fighter",
+      "path": "src/assets/unit-art/generated/aerospace-fighter.png",
+      "sha256": "dd3a2eb1903917bed8c40796c9c480c0bb904c13fe46a3209ba8887f96dad1b0",
+      "source": "exec-e538bcd3-b375-4009-8a53-60dbc52c399f.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.artillery",
+      "path": "src/assets/unit-art/generated/artillery.png",
+      "sha256": "e620f8f2a098a76c0524cb12e2dd473677af81a33a82a72a6ced28cad1d019d8",
+      "source": "exec-3eec17a3-dad3-470a-89e5-c7f7463c45e9.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.combat-engineers",
+      "path": "src/assets/unit-art/generated/combat-engineers.png",
+      "sha256": "a46494989282485e3e9a78fe2b1262cebfbb9e6a56d5325acabc380a7a0bcc5c",
+      "source": "exec-041244d2-8219-4174-8f32-e7edd4183973.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.combat-medic",
+      "path": "src/assets/unit-art/generated/combat-medic.png",
+      "sha256": "43757e34d64774c2de942260fece6b260d08520824a09c06154ff9f963ed0e67",
+      "source": "exec-32bbfef8-6748-41de-8ff0-a95daa508be0.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.heavy-air-transport",
+      "path": "src/assets/unit-art/generated/heavy-air-transport.png",
+      "sha256": "6079a6daa35dcbc274b34edf137d0a264fa74bf3eeb560d31bb563372eeefab8",
+      "source": "exec-1ff4b7cf-50c1-4490-80ee-6f9ea40b3c3f.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.infantry-fighting-vehicle",
+      "path": "src/assets/unit-art/generated/infantry-fighting-vehicle.png",
+      "sha256": "dc9ce8452858107cd74f3c7146f14f60931a790d7a8808cf9afaf096c0adfc7b",
+      "source": "exec-94466b6d-d5dd-4203-8661-d7adf19a80f9.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.infantry",
+      "path": "src/assets/unit-art/generated/infantry.png",
+      "sha256": "bcef431fb4f0b9570902d63bb0ff1fe22dfd73107f78893e08f52298eb6c5f65",
+      "source": "exec-7167c3a6-e911-4b5a-89c2-7fd71fd419da.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.light-mech",
+      "path": "src/assets/unit-art/generated/light-mech.png",
+      "sha256": "fd8a39abf974a08e425f317ea3e5a5dfe62af82821f386dd3b54e4f4d6eadf45",
+      "source": "exec-e9da523a-09f7-4e4a-8a49-36afa9447c5f.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.light-vehicle",
+      "path": "src/assets/unit-art/generated/light-vehicle.png",
+      "sha256": "b017c2356469f7390f8f1906204f8530ff61d4545d2fcd7f487faf6eb7de4e96",
+      "source": "exec-73d4fb90-aed1-459a-9afd-83744fd1cbc7.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.logi-truck",
+      "path": "src/assets/unit-art/generated/logi-truck.png",
+      "sha256": "54bca84f4a5d145f6f819d98415910cbbbda532665677d80f2d892582eedf8fc",
+      "source": "exec-db5dbba6-a9a8-4c28-b9cd-48b1e32cb9b3.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.main-battle-tank",
+      "path": "src/assets/unit-art/generated/main-battle-tank.png",
+      "sha256": "47f875429de7ff6d5c09ef57730f534a857f0a0935b92a0499fa82c93066f48b",
+      "source": "exec-593b091f-c6bf-48ee-9f5a-fbc3feec1bae.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "unit.vtol",
+      "path": "src/assets/unit-art/generated/vtol.png",
+      "sha256": "7febc11301229e18c0b7aa13f237b6f2edcc0cd91e0b205521be4421bd9a2aa2",
+      "source": "exec-e6a25f62-f91d-4e76-ba01-62a8465d3658.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.aerospace-500kg-bomb",
+      "path": "src/assets/equipment-art/generated/aerospace-500kg-bomb.png",
+      "sha256": "3d30e15fcb9c75c59a95be4f31c5ce10002c5c2300985e2805f7a10e199e3964",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.aerospace-afterburner",
+      "path": "src/assets/equipment-art/generated/aerospace-afterburner.png",
+      "sha256": "916c4453b23826060845dea4a621f0a065306f6133dbb797d35829f42aa6af4b",
+      "source": "exec-9b4564f5-b618-4024-8202-a6f95d2c3b56.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.aerospace-cluster-smoke-bombs",
+      "path": "src/assets/equipment-art/generated/aerospace-cluster-smoke-bombs.png",
+      "sha256": "27a32f18286ef6db6fac7fe169194fb8f1bc4d7213eb646a58c350c17c5f93e0",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.aerospace-drop-tank",
+      "path": "src/assets/equipment-art/generated/aerospace-drop-tank.png",
+      "sha256": "7967329548d78b0376b9661cf3505634515306bdb5f1bcbdda6c2b456b8f95ae",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.aerospace-gun-pod",
+      "path": "src/assets/equipment-art/generated/aerospace-gun-pod.png",
+      "sha256": "7fb86097c71bf80c0e02adb185c0d6a7cdaf72079b504fd51a0525801d8ff485",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.aerospace-hellfire-bombs",
+      "path": "src/assets/equipment-art/generated/aerospace-hellfire-bombs.png",
+      "sha256": "86109c13632a79cdfce6940e2b57916bb902f6d16aa3d6795fc222c77905e0d8",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.aerospace-light-rocket-pod",
+      "path": "src/assets/equipment-art/generated/aerospace-light-rocket-pod.png",
+      "sha256": "a3f19e9f9b8cd930f7a805bfa83e0b522a5695e3ff6aba75dbd016879aea16a2",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.aerospace-sidewinder",
+      "path": "src/assets/equipment-art/generated/aerospace-sidewinder.png",
+      "sha256": "0f108952fa352d58492f423e93c6e4823b3fda0aed01478ecadbed4bfdfa9a56",
+      "source": "exec-5ef8895d-f4f0-4871-8b25-84c35d7b4b84.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.aerospace-storage",
+      "path": "src/assets/equipment-art/generated/aerospace-storage.png",
+      "sha256": "eaf1f4172c7bc34b24c3bb2cd5b8e564c4bda8b66ab4b59ee9a463826bc58e67",
+      "source": "exec-28d1aa9e-65d0-450b-a2c7-113c671cf0a6.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.anti-material-rifles",
+      "path": "src/assets/equipment-art/generated/anti-material-rifles.png",
+      "sha256": "781616266d84882f5bde9db011ecd7dba8f971dfcc0698a10d2b3dc88ebf4487",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.ap-ammo",
+      "path": "src/assets/equipment-art/generated/ap-ammo.png",
+      "sha256": "eecd7bbe89794aa13ade772d6a437bde729884ef2cfd699a122dd2aa73251962",
+      "source": "exec-5b0493b1-88e0-434c-b0e5-760e548e5e4f.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.armory",
+      "path": "src/assets/equipment-art/generated/armory.png",
+      "sha256": "7adb4c7e160ade154602bd85b4eb91c18b9ca84f85f0e23cb324ffaba5cb1479",
+      "source": "exec-54efa3f8-8555-4de7-902e-86e9f7c85aae.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.artillery-shovels-sandbags",
+      "path": "src/assets/equipment-art/generated/artillery-shovels-sandbags.png",
+      "sha256": "341c097202cd2746ec5b2d1868e944605124a261ed50ee864abf5ce5e2dc97a8",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.artillery-smoke-rounds",
+      "path": "src/assets/equipment-art/generated/artillery-smoke-rounds.png",
+      "sha256": "8fcc6fc21b8fd9fa5d098813673baa1d7e7570c994ca3fd5949ee00866cd165c",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.at-mines",
+      "path": "src/assets/equipment-art/generated/at-mines.png",
+      "sha256": "ef95fe5077565bfcd56531b0a91e440afce3b1ac8f3c5a9ffaaa14f029b57e51",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.automated-turrets",
+      "path": "src/assets/equipment-art/generated/automated-turrets.png",
+      "sha256": "ba4f107a0f2e736e3ba3e8f2c64bea96d869c4551e1ab100b7cb8c4930ff3a64",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.back-line-support-equipment",
+      "path": "src/assets/equipment-art/generated/back-line-support-equipment.png",
+      "sha256": "445c9c4c5a1ae4c41620507bb8ebd1f984f61d91c486d339c18ada9e64cde8b2",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.ballistic-shields",
+      "path": "src/assets/equipment-art/generated/ballistic-shields.png",
+      "sha256": "a51cc997f4843eff64ef5bccd75c628d65b5c9de6f5fd573b12a489de50ab028",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.bulldozer-attachment",
+      "path": "src/assets/equipment-art/generated/bulldozer-attachment.png",
+      "sha256": "a4b2a5e6162313613761de341a3f05e6eda05ab618c742f4b3f9350443fe7366",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.carrier-flight-deck",
+      "path": "src/assets/equipment-art/generated/carrier-flight-deck.png",
+      "sha256": "d523e0e2407c7dfd436e919453abd614bc43da4a6308d0e1b28f5919a13d0a34",
+      "source": "exec-46a7ce99-4416-439d-872f-e0150462cbc4.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.charismatic-commander",
+      "path": "src/assets/equipment-art/generated/charismatic-commander.png",
+      "sha256": "0778d24687e88e9f28c7eb7795fe65d6c4e58a8a49a3b66f6cf86a7defb502f2",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.cluster-bombs",
+      "path": "src/assets/equipment-art/generated/cluster-bombs.png",
+      "sha256": "51bc696de1d04049332a700fc11e9bd2ef1b270777861a3e9de6052631b6f4bf",
+      "source": "exec-f19d0446-27a3-474f-9bcb-9e478735c71d.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.combat-shotguns",
+      "path": "src/assets/equipment-art/generated/combat-shotguns.png",
+      "sha256": "4a941d565aef559ce84a39e3b56791dab45c8be90b8fe8886fafb369976b0212",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.combat-stims",
+      "path": "src/assets/equipment-art/generated/combat-stims.png",
+      "sha256": "5780c6c59061bc37de6143620f2b9b88d83eed7d88711393d4b5b67aa3ddd99c",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.delayed-explosive-charge",
+      "path": "src/assets/equipment-art/generated/delayed-explosive-charge.png",
+      "sha256": "50cc7d13a9a4107d497950e0e54d0c94905938b9df28ac9c443b05c4610c35e5",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.drone-operator",
+      "path": "src/assets/equipment-art/generated/drone-operator.png",
+      "sha256": "3061e5e231e4bd4a6473d7e8ae5eaa1ee497425023f8b8c5b55ccefe9edeeb6e",
+      "source": "exec-a9b9c248-63f8-47eb-953e-3cadf8188361.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.drop-pod-launch-bay",
+      "path": "src/assets/equipment-art/generated/drop-pod-launch-bay.png",
+      "sha256": "27b14b5de0e7b832eb323d0d87c9cfba45d2687c4496a1a1ec3dbed93d3deec8",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.engineering-bay",
+      "path": "src/assets/equipment-art/generated/engineering-bay.png",
+      "sha256": "151ca1cf01f537cd4ef5ea7e3310ed6e0bbf826d27405791e2bb912424e5d7f0",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.explosive-anchors",
+      "path": "src/assets/equipment-art/generated/explosive-anchors.png",
+      "sha256": "a0b12c2592e4df4faa697b1a9055a34e53b2b5d5af4dcf3f661a15c1c1e45c62",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.flak-vests",
+      "path": "src/assets/equipment-art/generated/flak-vests.png",
+      "sha256": "adc606c48dba7dbdb493ec93cf9fc5583c92f04367c3350a8475275dd1a6d3a6",
+      "source": "exec-e63b03f7-f5a0-42ef-8dba-79081f953d40.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.flamethrower-team",
+      "path": "src/assets/equipment-art/generated/flamethrower-team.png",
+      "sha256": "eb49ba53fc4a9c83dd7a33db0bb527f71f91b8159111d7faccb1eac4500b6b4e",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.frag-grenades",
+      "path": "src/assets/equipment-art/generated/frag-grenades.png",
+      "sha256": "4798f705d4b346a76f40361a74e5ba9ce17b4c9a773d39067d63ed1a6211946b",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.fuel-reserve",
+      "path": "src/assets/equipment-art/generated/fuel-reserve.png",
+      "sha256": "0f83139f5ab710d4bfdf27be6acda51b629373ce4001eb58e0f374500660fc3a",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.good-ammunition",
+      "path": "src/assets/equipment-art/generated/good-ammunition.png",
+      "sha256": "a58a9475db59c4e940a33353f468478b384e54be3a7d34c25e4a9ff9b739d34c",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.grab-handles-and-side-skirts",
+      "path": "src/assets/equipment-art/generated/grab-handles-side-skirts.png",
+      "sha256": "f4cb4b55b9f78ea4aa41ec31b5b6ab4c94867f6fd012deb431efc1ee4e26e6b3",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.hardened-leadership",
+      "path": "src/assets/equipment-art/generated/hardened-leadership.png",
+      "sha256": "8984c74f26d11c7231f672764796397cf023c34e4c1689c2ca59d470f8936c61",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.heavy-drop-pod-launch-bay",
+      "path": "src/assets/equipment-art/generated/heavy-drop-pod-launch-bay.png",
+      "sha256": "9e69b71f427859b903c154fb137b307d6d54471110463a4d1026503965b54e90",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.heavy-fortification-equipment",
+      "path": "src/assets/equipment-art/generated/heavy-fortification-equipment.png",
+      "sha256": "bdc286bb301720804fbc0d06f43003585c544dd15e087802c7f3fa84ff056d61",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.heavy-ground-vehicle-bay",
+      "path": "src/assets/equipment-art/generated/heavy-ground-vehicle-bay.png",
+      "sha256": "89ada0747be53f2bcd747dabd446de36d659e441ef966ebca8f548e990f1d6d7",
+      "source": "exec-80d0bb41-dc15-4814-852e-32fc21413114.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.heavy-machine-gun-ammunition",
+      "path": "src/assets/equipment-art/generated/heavy-machine-gun-ammunition.png",
+      "sha256": "bc49aa3ad51ed408851ce2037c1f2b2fc01975f0834addc48239f87f2630b6e8",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.heavy-machine-gun-team",
+      "path": "src/assets/equipment-art/generated/heavy-machine-gun-team.png",
+      "sha256": "0e1c98d3272eade3f1930d43101f29aa8c771d2603868b2494930550500a5e04",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.heavy-power-blade",
+      "path": "src/assets/equipment-art/generated/heavy-power-blade.png",
+      "sha256": "5827be909383d2ee4a3467b20d4bb83fcc70e52e440f7effaaa522d1214c75b2",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.hellfire-artillery-rounds",
+      "path": "src/assets/equipment-art/generated/hellfire-artillery-rounds.png",
+      "sha256": "2234dca787461310b3f745c8b4b4e864208f5d569b1a7cec7099fb0b61cffc42",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.high-risk-flamers",
+      "path": "src/assets/equipment-art/generated/high-risk-flamers.png",
+      "sha256": "4e10201f510731b4719881db956fc07d663c3fe05e2bf1cd88bffbb9dd954b66",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.k9-scouts",
+      "path": "src/assets/equipment-art/generated/k9-scouts.png",
+      "sha256": "dd6668f2109cc1c52451489eda2e691ba08a5d67a6931b5670f1766b97ae991d",
+      "source": "exec-ef649d83-e379-4e37-b44e-abb27cbd1519.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.landing-gear",
+      "path": "src/assets/equipment-art/generated/landing-gear.png",
+      "sha256": "47fc8f12d6a294d4d85f19896dec6071ed63698fb12b4e4fda92f9fb522b2552",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.light-at",
+      "path": "src/assets/equipment-art/generated/light-at.png",
+      "sha256": "f383a221f1cbe203040700b618ec0dcfc4d49c735e10cfcf4b1b72aafd6c799a",
+      "source": "exec-3a7ca473-ddbd-4eed-9edd-cd00a38165b2.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.light-mech-internal-jump-jets",
+      "path": "src/assets/equipment-art/generated/light-mech-internal-jump-jets.png",
+      "sha256": "6781b3b324c8e51a8c0723565838710cf733ca80d0247d1c716ed06b0e4b22d0",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.longer-artillery-barrel",
+      "path": "src/assets/equipment-art/generated/longer-artillery-barrel.png",
+      "sha256": "75c5843b434a69f6899450b73b7eae38d3113f3333def0fc8b43ddf6a2b9975d",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mash-defence-teams",
+      "path": "src/assets/equipment-art/generated/mash-defence-teams.png",
+      "sha256": "4cfb585fccf49f1f803922d79500409e3b36af0f486e2d8935272846d86d9017",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mash-light-emergency-vehicles",
+      "path": "src/assets/equipment-art/generated/mash-light-emergency-vehicles.png",
+      "sha256": "a91c54d229ac41172c2edaa2258a722000ea905803f77adde079de4d514eab7c",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.massive-cargo-bay",
+      "path": "src/assets/equipment-art/generated/massive-cargo-bay.png",
+      "sha256": "2d6e20c3fb0c792772b2c9e41fb5084a0b5a5674928ff446a2647499e699ea0d",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-ammo-box",
+      "path": "src/assets/equipment-art/generated/mech-ammo-box.png",
+      "sha256": "c611e2fd8119f7549cb184c9bb0c085fe644ff572538f3f5bc36b8569ac44418",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-autocannon",
+      "path": "src/assets/equipment-art/generated/mech-autocannon.png",
+      "sha256": "72056e25e3e6037f3e86203c421c40591105e2bd6ccc4f17e43ebc42dc2d92b6",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-back-hitch",
+      "path": "src/assets/equipment-art/generated/mech-back-hitch.png",
+      "sha256": "f92348b07f28a0addc6cd6d3f078a3700cf5d69d23a1f5bd471e4cc544900c03",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-bay",
+      "path": "src/assets/equipment-art/generated/mech-bay.png",
+      "sha256": "c470af31cbeb56f2f569d36c8a83445555777e267511ea871d5ae0cffb88ebdf",
+      "source": "exec-8cf1be0e-abfe-4e5f-9925-28768133900a.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-carry-crate",
+      "path": "src/assets/equipment-art/generated/mech-carry-crate.png",
+      "sha256": "8db8d9595d41f27c0dab86cf34c79e61258b7be89aba6e6f3da631c073d8c2c2",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-fists",
+      "path": "src/assets/equipment-art/generated/mech-fists.png",
+      "sha256": "788d5f782ebaa8494dbec55c375cceaa15bf6add123eaac2746233c7c70ad9a8",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-heavy-machine-weapon",
+      "path": "src/assets/equipment-art/generated/mech-heavy-machine-weapon.png",
+      "sha256": "27b14b5de0e7b832eb323d0d87c9cfba45d2687c4496a1a1ec3dbed93d3deec8",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-jump-jets",
+      "path": "src/assets/equipment-art/generated/mech-jump-jets.png",
+      "sha256": "9bc7dbd5ebdefdc69c3af4d6eff5a857a4b2d1059f522e48d395bc62ac425368",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-large-laser",
+      "path": "src/assets/equipment-art/generated/mech-large-laser.png",
+      "sha256": "d2b0f4be9c4512d8a2965a41c727aa48d35ab476a43c2ac71109ba228be1e2f1",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-light-laser",
+      "path": "src/assets/equipment-art/generated/mech-light-laser.png",
+      "sha256": "ff165625615f70e8b334417975d639c2b1255539dd32e1c6e42d3b9bda9e5a0a",
+      "source": "exec-286a2da2-e6e8-4409-a4a0-a0ab30966f93.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-lrm",
+      "path": "src/assets/equipment-art/generated/mech-lrm.png",
+      "sha256": "f671cc2787b7cf405c3915f29b601b8dda35cb41e74d2202596a85c330a262d2",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-magnetic-clamps",
+      "path": "src/assets/equipment-art/generated/mech-magnetic-clamps.png",
+      "sha256": "5582bc5f1a32a2d3f89d6a3885e506550852bdf4fd64098ea1c7bbce2c9b65e4",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-medium-laser",
+      "path": "src/assets/equipment-art/generated/mech-medium-laser.png",
+      "sha256": "fefac9f8a98b4285d6cd7596a3f3884840e14f29a1edd71e25d73b839f77b3f3",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-melee-weapon",
+      "path": "src/assets/equipment-art/generated/mech-melee-weapon.png",
+      "sha256": "ec0828aba6f9bc227760f947d9f17af980d32cc53dca2d9c60d4be99cc10d2bf",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-neural-interface",
+      "path": "src/assets/equipment-art/generated/mech-neural-interface.png",
+      "sha256": "9dd020d83096695c3d0bc7d95087f492c5d4823c5fea20c4376de54a715cbf38",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-optics",
+      "path": "src/assets/equipment-art/generated/mech-optics.png",
+      "sha256": "c8866919eb03375d6bf1d60d16de61d182ae5a3a1cc6f81da8690fa72f835114",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-smoke-launcher",
+      "path": "src/assets/equipment-art/generated/mech-smoke-launcher.png",
+      "sha256": "d0ac1ec3bce0489470739bf9540d72092c1991f3dc4a3728af5be896e21722e6",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mech-up-armour",
+      "path": "src/assets/equipment-art/generated/mech-up-armour.png",
+      "sha256": "385a5c07d139b53089e638bd7f3d5cdb69f6650256a8a9a9087433b98b639638",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mines",
+      "path": "src/assets/equipment-art/generated/mines.png",
+      "sha256": "47c247d3ad3136468b0d742d36ba27663bb8f1418aa9d7cad4e879d75ee3788d",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mini-supply-depot",
+      "path": "src/assets/equipment-art/generated/mini-supply-depot.png",
+      "sha256": "6fe9e3ab64cffccc7f52b78338454d99c58da3bcff3ee90e84c96f417cb28cfb",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mobile-infantry",
+      "path": "src/assets/equipment-art/generated/mobile-infantry.png",
+      "sha256": "1d36c3959a6104fc0a56134d6ff16d01ba7780e5dde917d2d43692b814178ceb",
+      "source": "exec-77465979-7a4a-487a-88ff-52987c6f51a9.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.mortar-squad",
+      "path": "src/assets/equipment-art/generated/mortar-squad.png",
+      "sha256": "bf7471b502fcf1522754749e4075fe5f9fe5823d9645ee40d13e32772e354b2f",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.orbital-bombardment-cannons",
+      "path": "src/assets/equipment-art/generated/orbital-bombardment-cannons.png",
+      "sha256": "5af46aa7d18bc0cf3a23ef691072c0fcad177e29056200c7253c8cd830a3f034",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.orbital-broadside-cannons",
+      "path": "src/assets/equipment-art/generated/orbital-broadside-cannons.png",
+      "sha256": "eb9223638f4f04f771c6b96e06b0132c091aa25e4f75f82c794932d1133bb625",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.orbital-drop-training",
+      "path": "src/assets/equipment-art/generated/orbital-drop-training.png",
+      "sha256": "3474b24b0d5cd0a6d95d570190b83d09d444d464f2fb5945d8440824517c991f",
+      "source": "exec-3e341166-4a65-465c-8918-88bdd3506686.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.orbital-laser",
+      "path": "src/assets/equipment-art/generated/orbital-laser.png",
+      "sha256": "b77a8edb1a7079689e432b54f96b7537b1d241564a79d89a154fa92d5f891663",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.orbital-rail-cannon",
+      "path": "src/assets/equipment-art/generated/orbital-rail-cannon.png",
+      "sha256": "92187037e618feca28b1f3020600c0db493ab168d486234438af4fdb81246454",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.orbital-rapid-fire-aa",
+      "path": "src/assets/equipment-art/generated/orbital-rapid-fire-aa.png",
+      "sha256": "41bf8b001658f31056ab692db24f8b6b05540de695c09fabbb4f53238b75f5c7",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.orbital-scanning-system",
+      "path": "src/assets/equipment-art/generated/orbital-scanning-system.png",
+      "sha256": "5df3bb197d30fc1ca47a7ac520a4c7b0aed69f92d7cc9c8ab8da3ad783e11b6b",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.orbital-structure-drop",
+      "path": "src/assets/equipment-art/generated/orbital-structure-drop.png",
+      "sha256": "a150f4409f1cfe6c06cf80929f99a9eea2fc056f39a8e83bd2e0d24d2933f867",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.orbital-thrusters",
+      "path": "src/assets/equipment-art/generated/orbital-thrusters.png",
+      "sha256": "ce958bb2fee5a29bc78ab56970a79b00250ae3a9cdc2c7dca9f7e959b3f900e2",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.powered-chainblades",
+      "path": "src/assets/equipment-art/generated/powered-chainblades.png",
+      "sha256": "8b520b698918f8be42be3f5674aefa5b721df0c66bec18ceeecb4ffea3459f22",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.reinforced-structural-integrity",
+      "path": "src/assets/equipment-art/generated/reinforced-structural-integrity.png",
+      "sha256": "2b53488250039618f6d985041a49c32d2689b7bb4ead79282fe19d563b1ce293",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.remote-detonators",
+      "path": "src/assets/equipment-art/generated/remote-detonators.png",
+      "sha256": "e02675522b64d8d13c54a9cdf11baee548570032b20533e4b2ae364f02120ad9",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.road-building",
+      "path": "src/assets/equipment-art/generated/road-building.png",
+      "sha256": "7f9396de2922e21e430aa9654b4d84c0fe900013aa29675bacea05abc02e2fbe",
+      "source": "exec-80afa7f2-2e80-42ad-9131-966861b3f197.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.rocket-jump-pack",
+      "path": "src/assets/equipment-art/generated/rocket-jump-pack.png",
+      "sha256": "7f47772304149527371dec04cc16e8958952854d7750582a144508368dfe32b4",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.silent-smgs",
+      "path": "src/assets/equipment-art/generated/silent-smgs-v2.png",
+      "sha256": "6defae82563f7a3970f0cc7b67afb39044d08832e12901d9230d7cc858c4dd4a",
+      "source": "exec-76acfc8a-0007-47c2-babf-9e05b6825d3a.png",
+      "status": "ACTIVE",
+      "derivativeHistory": "Second composition requested by the project owner; replaces the dual-SMG composition in the registry"
+    },
+    {
+      "key": "equipment.simple-med-stimpacks",
+      "path": "src/assets/equipment-art/generated/simple-med-stimpacks.png",
+      "sha256": "3e38d1cf24da24b388172a2540d541cbb5bb0259b1b72634b1e78d76ca526453",
+      "source": "exec-f4680ef5-7d6b-4a59-80c5-58e0fc24efb9.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.small-surface-to-air-missile",
+      "path": "src/assets/equipment-art/generated/small-surface-to-air-missile.png",
+      "sha256": "05ac8491c7501a1ee819eb17b3fa2f9b64913fff140afb766392fcc7f26705e7",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.smoke-grenades",
+      "path": "src/assets/equipment-art/generated/smoke-grenades.png",
+      "sha256": "daea01d8e7d6841e45636eda51c12ff5fb6f9298bc0e4b5a9d6cabcbdcae8975",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.smoke-launcher",
+      "path": "src/assets/equipment-art/generated/smoke-launcher.png",
+      "sha256": "ee22394f0eadbee6808bc4112930e79a0b7d2cddd03c1313adeb7a60740a179e",
+      "source": "exec-68dffa86-36c9-46f1-b819-e9e622c7e13a.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.sniper-rifles",
+      "path": "src/assets/equipment-art/generated/sniper-rifles.png",
+      "sha256": "09976dcd71864b9623337ddb861841e27ebb50449ad1e1221885c69265f20e68",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.snorkels",
+      "path": "src/assets/equipment-art/generated/snorkels.png",
+      "sha256": "01636323ac1781837fcdc214d4c1d8e9a8357365a12063f55ba3b4ba0e98e132",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.sponson-machine-gun-turret",
+      "path": "src/assets/equipment-art/generated/sponson-mg-turret.png",
+      "sha256": "a5a7206447d6f8dd36b3eec318b3e0750bac06ede3346998f138d529d368a66b",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.squad-automatic-weapon",
+      "path": "src/assets/equipment-art/generated/squad-automatic-weapon.png",
+      "sha256": "272dc681e3b1944df0f659da20215937b0da95f9d6512a75a5cc8c016af45368",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.standard-melee-weapons",
+      "path": "src/assets/equipment-art/generated/standard-melee-weapons.png",
+      "sha256": "22870f8b7e84278a3e76885518148fb32ce374b747e613666ab0e5e888c7b016",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.stick-bombs",
+      "path": "src/assets/equipment-art/generated/stick-bombs.png",
+      "sha256": "6221cf898e952722c519c223ba0a3478495418e224c155d7c52c8964b9e0f6a8",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.stinger-aa",
+      "path": "src/assets/equipment-art/generated/stinger-aa.png",
+      "sha256": "fff8fba7efb9a89740136488d7e5dbaff063ca4e6e97b074dccb3eb68648c892",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.through-ship-interior-hangar",
+      "path": "src/assets/equipment-art/generated/through-ship-interior-hangar.png",
+      "sha256": "38e8898072356ad381306d84192d85a834ab95d61ef6085aa9be2cd1bb6c2f7c",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.vehicle-optics",
+      "path": "src/assets/equipment-art/generated/vehicle-optics.png",
+      "sha256": "8b4c027fc97a3afa7882b7b9ad7a832e55d13cb6deb6ffd80dad709836e9fdc5",
+      "source": "exec-49865b3f-3be9-4753-b52b-20164dc2d512.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.vtol-bay",
+      "path": "src/assets/equipment-art/generated/vtol-bay.png",
+      "sha256": "500c8c82fd54d4798678e648a16f4cf908fa975ae69364d0dc8967c45c3ceaf7",
+      "source": "exec-a090199f-cb80-4877-b41e-6c48e28de554.png",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.vtol-smoke-dispenser",
+      "path": "src/assets/equipment-art/generated/vtol-smoke-dispenser.png",
+      "sha256": "82759be2841e7600ae183de83829a9e18950976459e5c09310996e8e1fef8371",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.weapon-emplacement-equipment",
+      "path": "src/assets/equipment-art/generated/weapon-emplacement-equipment.png",
+      "sha256": "5e6e0d2ccef45991dae8c9700cfc0fea60314ae52d87818df8746f0e21fd3b76",
+      "source": "OpenAI built-in imagegen Store expansion batch",
+      "status": "ACTIVE"
+    },
+    {
+      "key": "equipment.silent-smgs.variant-1",
+      "path": "src/assets/equipment-art/generated/silent-smgs.png",
+      "sha256": "da10a8f820bbee387db2811140af83e1d6cee05ba274c694d741aad3b4e12548",
+      "source": "exec-4bec7b7c-c013-40d3-8814-710baf9e838b.png",
+      "status": "ALTERNATE"
+    }
   ]
 }

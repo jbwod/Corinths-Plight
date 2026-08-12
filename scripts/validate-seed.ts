@@ -47,11 +47,12 @@ const phase3MigrationSql = await readFile("migrations/0004_phase3_strategic_laye
 const phase3SeedSql = await readFile("seeds/development-strategic-world.sql", "utf8");
 const equipmentMigrationSql = await readFile("migrations/0005_equipment_deployment_vertical_slice.sql", "utf8");
 const equipmentSeedSql = await readFile("seeds/v5-equipment-deployment.sql", "utf8");
+const storeSeedSql = await readFile("seeds/v5-store-catalogue.sql", "utf8");
 const spearheadSeedSql = await readFile("seeds/development-spearhead.sql", "utf8");
 const onboardingMigrationSql = await readFile("migrations/0007_guided_onboarding_and_battalions.sql", "utf8");
 const economyMigrationSql = await readFile("migrations/0017_public_v1_economy.sql", "utf8");
 const onboardingSeedSql = await readFile("seeds/onboarding-foundation.sql", "utf8");
-const combinedSeedSql = `${seedSql}\n${phase2SeedSql}\n${equipmentSeedSql}`;
+const combinedSeedSql = `${seedSql}\n${phase2SeedSql}\n${equipmentSeedSql}\n${storeSeedSql}`;
 
 const definitionTables = new Set([
   "unit_class_definitions",

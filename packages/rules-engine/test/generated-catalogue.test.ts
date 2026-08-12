@@ -27,7 +27,7 @@ describe("rules catalogue bootstrap", () => {
     expect(legacyDefinitionCounts(snapshot)).toEqual({
       units: 16,
       weapons: 12,
-      equipment: 22,
+      equipment: 105,
       actions: 24,
       orders: 6,
       structures: 6,
@@ -35,7 +35,7 @@ describe("rules catalogue bootstrap", () => {
       ships: 4,
       enemies: 7,
     });
-    expect(legacyTopLevelDefinitionCount(snapshot)).toBe(101);
+    expect(legacyTopLevelDefinitionCount(snapshot)).toBe(184);
     expect(await legacySourceHashMismatches(snapshot)).toEqual([]);
     expect(legacyUnitPublicationSplit(snapshot)).toEqual({
       canonicalUnitIds: [
@@ -70,7 +70,7 @@ describe("rules catalogue bootstrap", () => {
     const referencedIds = referencedConflictIds(snapshot);
 
     expect(conflicts).toHaveLength(72);
-    expect(referencedIds).toHaveLength(27);
+    expect(referencedIds).toHaveLength(26);
     expect(referencedIds.filter((id) => !canonicalIds.has(id))).toEqual([]);
   });
 
@@ -93,7 +93,7 @@ describe("rules catalogue bootstrap", () => {
     expect([
       ...content.units, ...content.weapons, ...content.equipment, ...content.actions,
       ...content.orders, ...content.structures, ...content.terrain, ...content.ships, ...content.enemies,
-    ]).toHaveLength(101);
+    ]).toHaveLength(184);
     expect(content.conflicts).toHaveLength(84);
 
     const medic = content.units.find((unit) => unit.id === "unit-combat-medic")!;
