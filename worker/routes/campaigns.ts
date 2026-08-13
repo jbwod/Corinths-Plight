@@ -1,7 +1,7 @@
 import { authenticate } from "../auth";
 import {
-  AUTHORED_SCENARIO_MAP_SOURCES,
-  isAuthoredScenarioMapSourceKey,
+  AUTHORED_SCENARIO_CONTENT_SELECTIONS,
+  isAuthoredScenarioContentSelection,
 } from "../../packages/rules-engine/src";
 import type { Env } from "../env";
 import { errorResponse, json } from "../http";
@@ -12,6 +12,7 @@ interface CampaignDirectoryRow {
   status: string;
   planet_name: string;
   map_source_key: string;
+  scenario_content_key: string | null;
   side: string;
   role: string;
   joined_at: number;
@@ -48,6 +49,7 @@ interface PublicCampaignRow {
   status: string;
   planet_name: string;
   map_source_key: string;
+  scenario_content_key: string | null;
   minimum_players: number;
   maximum_players: number;
   member_count: number;
@@ -55,7 +57,8 @@ interface PublicCampaignRow {
 
 const joinPath = /^\/api\/campaigns\/([a-z0-9][a-z0-9-]{0,63})\/join$/;
 const withdrawPath = /^\/api\/campaigns\/([a-z0-9][a-z0-9-]{0,63})\/withdraw$/;
-const [outpostMapSource, ironRainMapSource, brokenRoadMapSource, nightGlassMapSource, coldHorizonMapSource] = AUTHORED_SCENARIO_MAP_SOURCES;
+const [outpostScenario, ironRainScenario, brokenRoadScenario, nightGlassScenario, coldHorizonScenario] =
+  AUTHORED_SCENARIO_CONTENT_SELECTIONS;
 
 function scenarioBriefing(mapSourceKey: string): Record<string, unknown> | undefined {
   if (mapSourceKey === "fixture/outpost-k17") {
@@ -137,10 +140,27 @@ async function joinCampaign(request: Request, env: Env, campaignId: string): Pro
       SELECT campaigns.id,?1,active.battalion_id,'ALLIED','PLAYER'
       FROM campaigns JOIN user_active_battalions AS active ON active.user_id=?1
       WHERE campaigns.id=?2 AND campaigns.status='RECRUITING'
-        AND campaigns.map_source_key IN (?3,?4,?5,?6,?7)
+        AND ((campaigns.map_source_key=?3 AND campaigns.scenario_content_key=?4)
+          OR (campaigns.map_source_key=?5 AND campaigns.scenario_content_key=?6)
+          OR (campaigns.map_source_key=?7 AND campaigns.scenario_content_key=?8)
+          OR (campaigns.map_source_key=?9 AND campaigns.scenario_content_key=?10)
+          OR (campaigns.map_source_key=?11 AND campaigns.scenario_content_key=?12))
         AND (SELECT COUNT(*) FROM campaign_memberships WHERE campaign_id=campaigns.id) < campaigns.maximum_players
       ON CONFLICT(campaign_id,user_id) DO NOTHING`)
-      .bind(userId, campaignId, outpostMapSource, ironRainMapSource, brokenRoadMapSource, nightGlassMapSource, coldHorizonMapSource),
+      .bind(
+        userId,
+        campaignId,
+        outpostScenario.mapSourceKey,
+        outpostScenario.scenarioContentKey,
+        ironRainScenario.mapSourceKey,
+        ironRainScenario.scenarioContentKey,
+        brokenRoadScenario.mapSourceKey,
+        brokenRoadScenario.scenarioContentKey,
+        nightGlassScenario.mapSourceKey,
+        nightGlassScenario.scenarioContentKey,
+        coldHorizonScenario.mapSourceKey,
+        coldHorizonScenario.scenarioContentKey,
+      ),
     env.DB.prepare(`INSERT INTO campaign_join_receipts
       (user_id,command_id,campaign_id,request_hash,response_json)
       SELECT ?1,?2,?3,?4,?5 WHERE EXISTS (
@@ -238,6 +258,7 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
   const [result, available] = await Promise.all([
     env.DB.prepare(`SELECT campaigns.id AS campaign_id, campaigns.name,
       campaigns.status, planets.name AS planet_name, campaigns.map_source_key,
+      campaigns.scenario_content_key,
       campaigns.force_policy_json,operations.reinforcement_policy_json,
       COALESCE((SELECT MAX(round_number) + 1 FROM round_metadata WHERE campaign_id=campaigns.id),1) AS current_round,
       memberships.side, memberships.role, memberships.joined_at,
@@ -260,20 +281,40 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
       WHEN 'ACTIVE' THEN 0 WHEN 'RECRUITING' THEN 1 WHEN 'PAUSED' THEN 2 ELSE 3 END,
       campaigns.name, campaigns.id`).bind(userId).all<CampaignDirectoryRow>(),
     env.DB.prepare(`SELECT campaigns.id AS campaign_id,campaigns.name,campaigns.status,
-        planets.name AS planet_name,campaigns.map_source_key,campaigns.minimum_players,
+        planets.name AS planet_name,campaigns.map_source_key,campaigns.scenario_content_key,
+        campaigns.minimum_players,
         campaigns.maximum_players,(SELECT COUNT(*) FROM campaign_memberships AS members
           WHERE members.campaign_id=campaigns.id) AS member_count
       FROM campaigns JOIN planets ON planets.id=campaigns.planet_id
-      WHERE campaigns.status='RECRUITING' AND campaigns.map_source_key IN (?2,?3,?4,?5,?6)
+      WHERE campaigns.status='RECRUITING'
+        AND ((campaigns.map_source_key=?2 AND campaigns.scenario_content_key=?3)
+          OR (campaigns.map_source_key=?4 AND campaigns.scenario_content_key=?5)
+          OR (campaigns.map_source_key=?6 AND campaigns.scenario_content_key=?7)
+          OR (campaigns.map_source_key=?8 AND campaigns.scenario_content_key=?9)
+          OR (campaigns.map_source_key=?10 AND campaigns.scenario_content_key=?11))
         AND NOT EXISTS (SELECT 1 FROM campaign_memberships AS mine
           WHERE mine.campaign_id=campaigns.id AND mine.user_id=?1)
         AND (SELECT COUNT(*) FROM campaign_memberships AS members
           WHERE members.campaign_id=campaigns.id) < campaigns.maximum_players
       ORDER BY campaigns.name,campaigns.id`)
-      .bind(userId, outpostMapSource, ironRainMapSource, brokenRoadMapSource, nightGlassMapSource, coldHorizonMapSource).all<PublicCampaignRow>(),
+      .bind(
+        userId,
+        outpostScenario.mapSourceKey,
+        outpostScenario.scenarioContentKey,
+        ironRainScenario.mapSourceKey,
+        ironRainScenario.scenarioContentKey,
+        brokenRoadScenario.mapSourceKey,
+        brokenRoadScenario.scenarioContentKey,
+        nightGlassScenario.mapSourceKey,
+        nightGlassScenario.scenarioContentKey,
+        coldHorizonScenario.mapSourceKey,
+        coldHorizonScenario.scenarioContentKey,
+      ).all<PublicCampaignRow>(),
   ]);
   return json({
-    campaigns: result.results.map((row) => ({
+    campaigns: result.results.map((row) => {
+      const scenarioAvailable = isAuthoredScenarioContentSelection(row.map_source_key, row.scenario_content_key);
+      return {
       campaignId: row.campaign_id,
       name: row.name,
       planetName: row.planet_name,
@@ -285,12 +326,12 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
       deploymentCount: Number(row.deployment_count),
       minimumPlayers: Number(row.minimum_players),
       maximumPlayers: Number(row.maximum_players),
-      scenarioAvailable: isAuthoredScenarioMapSourceKey(row.map_source_key),
-      canReinforce: reinforcementOpen(row),
+      scenarioAvailable,
+      canReinforce: scenarioAvailable && reinforcementOpen(row),
       canWithdraw: row.status === "RECRUITING" && row.role === "PLAYER" && Number(row.deployment_count) === 0,
-      canEnter: isAuthoredScenarioMapSourceKey(row.map_source_key) && Number(row.deployment_count) > 0 &&
+      canEnter: scenarioAvailable && Number(row.deployment_count) > 0 &&
         ["RECRUITING", "ACTIVE", "PAUSED", "COMPLETE", "FAILED"].includes(row.status),
-      briefing: scenarioBriefing(row.map_source_key),
+      briefing: scenarioAvailable ? scenarioBriefing(row.map_source_key) : undefined,
       outcome: row.result ? {
         result: row.result,
         reason: row.outcome_reason,
@@ -298,8 +339,11 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
         rewards: row.rewards_json ? JSON.parse(row.rewards_json) : undefined,
         resolvedAt: Number(row.resolved_at),
       } : undefined,
-    })),
-    availableCampaigns: available.results.map((row) => ({
+      };
+    }),
+    availableCampaigns: available.results.map((row) => {
+      const scenarioAvailable = isAuthoredScenarioContentSelection(row.map_source_key, row.scenario_content_key);
+      return {
       campaignId: row.campaign_id,
       name: row.name,
       planetName: row.planet_name,
@@ -307,9 +351,10 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
       memberCount: Number(row.member_count),
       minimumPlayers: Number(row.minimum_players),
       maximumPlayers: Number(row.maximum_players),
-      scenarioAvailable: isAuthoredScenarioMapSourceKey(row.map_source_key),
-      canJoin: isAuthoredScenarioMapSourceKey(row.map_source_key),
-      briefing: scenarioBriefing(row.map_source_key),
-    })),
+      scenarioAvailable,
+      canJoin: scenarioAvailable,
+      briefing: scenarioAvailable ? scenarioBriefing(row.map_source_key) : undefined,
+      };
+    }),
   });
 }

@@ -7,6 +7,7 @@ import {
   getActionDefinition,
   getTacticalCargoProfile,
   getTacticalUnitClass,
+  IRON_RAIN_SCENARIO_CONTENT_KEY,
   projectCampaignState,
   resolveRound,
   resolveSimultaneousMovement,
@@ -239,6 +240,7 @@ describe("Heavy Air Transport completion mechanics", () => {
     const source = createDemoCampaignState(1_000).deployments.find((deployment) => deployment.id === "dep-atlas-1")!;
     const landingState = createScenarioCampaignState({
       mapSourceKey: "fixture/operation-iron-rain",
+      scenarioContentKey: IRON_RAIN_SCENARIO_CONTENT_KEY,
       campaignId: "hat-flight-state",
       campaignName: "HAT Flight State",
       planetName: "Corinth",

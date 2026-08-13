@@ -15,6 +15,11 @@ vi.mock("cloudflare:workers", () => ({
 import type { Env } from "./env";
 import { CampaignDurableObject } from "./campaign-durable-object";
 import { encodeCampaignStoredState, parseCampaignStoredState } from "./campaign-contracts";
+import {
+  createDemoCampaignState,
+  createScenarioCampaignState,
+  IRON_RAIN_SCENARIO_CONTENT_KEY,
+} from "../packages/rules-engine/src";
 
 const CAMPAIGN_ID = "outpost-k17";
 const UNIT_ID = "dep-rook-7";
@@ -76,6 +81,9 @@ class EffectStatement {
   }
 
   async first(): Promise<Record<string, unknown> | null> {
+    if (this.query.includes("SELECT map_source_key,scenario_content_key") && this.query.includes("FROM campaigns")) {
+      return this.database.campaignRow;
+    }
     if (this.query.includes("FROM campaigns") && this.query.includes("JOIN planets")) {
       return this.database.campaignRow;
     }
@@ -166,10 +174,13 @@ class EffectDatabase {
   }
 }
 
-function campaignObject(database?: EffectDatabase): { campaign: CampaignDurableObject; storage: MemoryStorage } {
+function campaignObject(
+  database?: EffectDatabase,
+  campaignId = CAMPAIGN_ID,
+): { campaign: CampaignDurableObject; storage: MemoryStorage } {
   const storage = new MemoryStorage();
   const context = {
-    id: { name: CAMPAIGN_ID, toString: () => CAMPAIGN_ID },
+    id: { name: campaignId, toString: () => campaignId },
     storage,
     getWebSockets: () => [],
   } as unknown as DurableObjectState;
@@ -204,7 +215,78 @@ function orderBody(overrides: Record<string, unknown> = {}): string {
   });
 }
 
+function ironRainState(campaignId: string) {
+  const alliedDeployments = createDemoCampaignState(1_000).deployments
+    .filter((deployment) => deployment.side === "ALLIED")
+    .slice(0, 1)
+    .map((deployment) => ({ ...deployment, campaignId, ownerId: "demo-user" }));
+  return createScenarioCampaignState({
+    mapSourceKey: "fixture/operation-iron-rain",
+    scenarioContentKey: IRON_RAIN_SCENARIO_CONTENT_KEY,
+    campaignId,
+    campaignName: "Operation Iron Rain",
+    planetName: "Corinth",
+    now: 1_000,
+    durationMs: 300_000,
+    alliedDeployments,
+  });
+}
+
 describe("CampaignDurableObject campaign contracts", () => {
+  it("fails closed without materialising latest content for an unpinned legacy campaign", async () => {
+    const database = new EffectDatabase();
+    const campaignId = "legacy-iron-rain";
+    database.campaignRow = {
+      id: campaignId,
+      status: "ACTIVE",
+      name: "Legacy Iron Rain",
+      map_source_key: "fixture/operation-iron-rain",
+      scenario_content_key: null,
+      round_duration_ms: 300000,
+      planet_name: "Corinth",
+    };
+    const { campaign, storage } = campaignObject(database, campaignId);
+
+    const response = await campaign.fetch(request("/state"));
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "CAMPAIGN_ERROR", details: { message: "CAMPAIGN_SCENARIO_CONTENT_UNPINNED" } },
+    });
+    expect(storage.values.has("state/current")).toBe(false);
+  });
+
+  it("rejects a stored scenario whose identity differs from its immutable campaign pin", async () => {
+    const database = new EffectDatabase();
+    const campaignId = "pinned-iron-rain";
+    database.campaignRow = {
+      id: campaignId,
+      status: "ACTIVE",
+      name: "Pinned Iron Rain",
+      map_source_key: "fixture/operation-iron-rain",
+      scenario_content_key: IRON_RAIN_SCENARIO_CONTENT_KEY,
+      round_duration_ms: 300000,
+      planet_name: "Corinth",
+    };
+    const { campaign, storage } = campaignObject(database, campaignId);
+    const stored = ironRainState(campaignId);
+    stored.scenarioVersion = 2;
+    storage.values.set("state/current", encodeCampaignStoredState(stored));
+
+    const response = await campaign.fetch(request("/state"));
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "CAMPAIGN_ERROR",
+        details: {
+          message: "CAMPAIGN_SCENARIO_CONTENT_MISMATCH:scenario-operation-iron-rain@2:scenario-operation-iron-rain@3",
+        },
+      },
+    });
+    expect(parseCampaignStoredState(storage.values.get("state/current"), campaignId).state.scenarioVersion).toBe(2);
+  });
+
   it("imports a committed Allied reinforcement once and exposes its Battlegroup", async () => {
     const database = new EffectDatabase();
     const { campaign, storage } = campaignObject(database);
@@ -216,6 +298,7 @@ describe("CampaignDurableObject campaign contracts", () => {
       status: "ACTIVE",
       name: "Outpost K-17",
       map_source_key: "fixture/outpost-k17",
+      scenario_content_key: "scenario-outpost-k17-hold-relay@3",
       round_duration_ms: 300000,
       planet_name: "Corinth",
     };

@@ -3,15 +3,20 @@ import { describe, expect, it } from "vitest";
 import { createDemoCampaignState } from "../src/demo";
 import {
   BROKEN_ROAD_SCENARIO_ID,
+  BROKEN_ROAD_SCENARIO_CONTENT_KEY,
   BROKEN_ROAD_SCENARIO_VERSION,
   COLD_HORIZON_SCENARIO_ID,
+  COLD_HORIZON_SCENARIO_CONTENT_KEY,
   COLD_HORIZON_SCENARIO_VERSION,
   createScenarioCampaignState,
   IRON_RAIN_SCENARIO_ID,
+  IRON_RAIN_SCENARIO_CONTENT_KEY,
   IRON_RAIN_SCENARIO_VERSION,
   NIGHT_GLASS_SCENARIO_ID,
+  NIGHT_GLASS_SCENARIO_CONTENT_KEY,
   NIGHT_GLASS_SCENARIO_VERSION,
   OUTPOST_K17_SCENARIO_ID,
+  OUTPOST_K17_SCENARIO_CONTENT_KEY,
   OUTPOST_K17_SCENARIO_VERSION,
 } from "../src/scenario-content";
 
@@ -23,6 +28,7 @@ describe("authored scenario content", () => {
       .map((deployment) => ({ ...deployment, campaignId: "campaign-live", ownerId: "player-live" }));
     const state = createScenarioCampaignState({
       mapSourceKey: "fixture/outpost-k17",
+      scenarioContentKey: OUTPOST_K17_SCENARIO_CONTENT_KEY,
       campaignId: "campaign-live",
       campaignName: "Hold the Relay",
       planetName: "Corinth",
@@ -58,6 +64,7 @@ describe("authored scenario content", () => {
   it("fails closed when a campaign names content that is not authored", () => {
     expect(() => createScenarioCampaignState({
       mapSourceKey: "fixture/operation-unknown",
+      scenarioContentKey: "scenario-operation-unknown@1",
       campaignId: "unknown",
       campaignName: "Unknown",
       planetName: "Corinth",
@@ -65,6 +72,19 @@ describe("authored scenario content", () => {
       durationMs: 300_000,
       alliedDeployments: [],
     })).toThrow("CAMPAIGN_SCENARIO_NOT_AVAILABLE");
+  });
+
+  it("fails closed when a campaign pins an unavailable authored scenario version", () => {
+    expect(() => createScenarioCampaignState({
+      mapSourceKey: "fixture/operation-iron-rain",
+      scenarioContentKey: "scenario-operation-iron-rain@2",
+      campaignId: "old-iron-rain",
+      campaignName: "Old Iron Rain",
+      planetName: "Corinth",
+      now: 10_000,
+      durationMs: 300_000,
+      alliedDeployments: [],
+    })).toThrow("CAMPAIGN_SCENARIO_VERSION_NOT_AVAILABLE:scenario-operation-iron-rain@2");
   });
 
   it("builds the authored Iron Rain combined-arms battlefield", () => {
@@ -79,6 +99,7 @@ describe("authored scenario content", () => {
       }));
     const state = createScenarioCampaignState({
       mapSourceKey: "fixture/operation-iron-rain",
+      scenarioContentKey: IRON_RAIN_SCENARIO_CONTENT_KEY,
       campaignId: "operation-iron-rain",
       campaignName: "Operation Iron Rain",
       planetName: "Corinth",
@@ -96,7 +117,7 @@ describe("authored scenario content", () => {
         primaryObjectiveId: "objective-kestrel-airfield",
       },
     });
-    expect(state.map).toHaveLength(169);
+    expect(state.map).toHaveLength(311);
     expect(state.map.find((hex) => hex.coord.q === -6 && hex.coord.r === 2)?.capacity).toBe(8);
     expect(state.objectives.map((objective) => objective.name)).toEqual(["Hold Airfield", "Destroy Hive"]);
     expect(state.deployments.filter((deployment) => deployment.side === "ALLIED")).toHaveLength(13);
@@ -122,6 +143,7 @@ describe("authored scenario content", () => {
       }));
     const state = createScenarioCampaignState({
       mapSourceKey: "fixture/operation-broken-road",
+      scenarioContentKey: BROKEN_ROAD_SCENARIO_CONTENT_KEY,
       campaignId: "operation-broken-road",
       campaignName: "Operation Broken Road",
       planetName: "Corinth",
@@ -139,7 +161,7 @@ describe("authored scenario content", () => {
         primaryObjectiveId: "objective-junction-7",
       },
     });
-    expect(state.map).toHaveLength(127);
+    expect(state.map).toHaveLength(244);
     expect(state.map.find((hex) => hex.coord.q === -5 && hex.coord.r === 1)?.capacity).toBe(8);
     expect(state.objectives.map((objective) => objective.name)).toEqual(["Hold Junction 7", "Protect Supply Cache"]);
     expect(state.deployments.filter((deployment) => deployment.side === "ENEMY" && deployment.status === "ACTIVE")).toHaveLength(3);
@@ -163,6 +185,7 @@ describe("authored scenario content", () => {
       }));
     const state = createScenarioCampaignState({
       mapSourceKey: "fixture/operation-night-glass",
+      scenarioContentKey: NIGHT_GLASS_SCENARIO_CONTENT_KEY,
       campaignId: "operation-night-glass",
       campaignName: "Operation Night Glass",
       planetName: "Corinth",
@@ -180,7 +203,7 @@ describe("authored scenario content", () => {
         primaryObjectiveId: "objective-night-glass-array",
       },
     });
-    expect(state.map).toHaveLength(91);
+    expect(state.map).toHaveLength(240);
     expect(state.map.find((hex) => hex.coord.q === -4 && hex.coord.r === 2)?.capacity).toBe(8);
     expect(state.objectives.map((objective) => objective.name)).toEqual(["Hold Sensor Array", "Clear Forward Burrow"]);
     expect(state.deployments.filter((deployment) => deployment.side === "ENEMY" && deployment.status === "ACTIVE")).toHaveLength(2);
@@ -204,6 +227,7 @@ describe("authored scenario content", () => {
       }));
     const state = createScenarioCampaignState({
       mapSourceKey: "fixture/operation-cold-horizon",
+      scenarioContentKey: COLD_HORIZON_SCENARIO_CONTENT_KEY,
       campaignId: "operation-cold-horizon",
       campaignName: "Operation Cold Horizon",
       planetName: "Corinth II",
@@ -222,7 +246,7 @@ describe("authored scenario content", () => {
         primaryObjectiveId: "objective-cold-horizon-beacon",
       },
     });
-    expect(state.map).toHaveLength(127);
+    expect(state.map).toHaveLength(298);
     expect(state.map.find((hex) => hex.coord.q === -5 && hex.coord.r === 2)?.capacity).toBe(8);
     expect(state.objectives.map((objective) => objective.name)).toEqual(["Hold Colony Beacon", "Secure Landing Field"]);
     expect(state.deployments.filter((deployment) => deployment.side === "ENEMY" && deployment.status === "ACTIVE")).toHaveLength(3);

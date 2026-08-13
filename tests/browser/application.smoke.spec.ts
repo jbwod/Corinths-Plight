@@ -1,6 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { CampaignView } from "../../packages/domain/src";
-import { calculateRouteCost, canTarget, hexDistance, shortestPath } from "../../packages/rules-engine/src";
+import {
+  calculateRouteCost,
+  canTarget,
+  hexDistance,
+  IRON_RAIN_SCENARIO_VERSION,
+  shortestPath,
+} from "../../packages/rules-engine/src";
 
 async function expectNoDocumentOverflow(page: Page): Promise<void> {
   const dimensions = await page.evaluate(() => ({
@@ -1247,14 +1253,31 @@ test("strategic deployment authorization boots a persistent tactical operation",
   await page.getByRole("button", { name: "VALIDATE PLAN" }).click();
   await expect(page.getByRole("heading", { name: "Ready for command" })).toBeVisible();
   await page.getByRole("button", { name: "COMMIT DEPLOYMENT" }).click();
-  await expect(page.getByText(/campaign snapshots committed/i)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Tactical operations map" })).toBeVisible();
 
   const campaign = await page.request.get("/api/campaigns/operation-iron-rain/state", {
     headers: { "x-demo-user": "demo-user" },
   });
   expect(campaign.status()).toBe(200);
-  const tactical = await campaign.json() as { deployments: Array<{ ownerId: string }> };
+  const tactical = await campaign.json() as {
+    scenarioVersion: number;
+    map: Array<{ coord: { q: number; r: number } }>;
+    deployments: Array<{ ownerId: string }>;
+  };
+  expect(tactical.scenarioVersion).toBe(IRON_RAIN_SCENARIO_VERSION);
+  expect(tactical.map).toHaveLength(311);
   expect(tactical.deployments.filter((unit) => unit.ownerId === "demo-user")).toHaveLength(2);
+
+  const tacticalCanvas = page.getByRole("application", { name: /Operation Iron Rain tactical hex map/ });
+  await tacticalCanvas.focus();
+  const cursorStatus = page.getByRole("status", { name: "Tactical keyboard cursor" });
+  await expect(cursorStatus).toContainText(/Hex -6\.2/);
+  await tacticalCanvas.press("ArrowRight");
+  await expect(cursorStatus).toContainText(/Hex -5\.1/);
+  await tacticalCanvas.press("Alt+ArrowLeft");
+  await expect(cursorStatus).toContainText(/Hex -6\.1/);
+  await tacticalCanvas.press("Enter");
+  await expect(page.getByText(/1 HEX/).first()).toBeVisible();
 });
 
 test("Task Force resupply consumes one Large Supply and extends strategic access", async ({ page }) => {

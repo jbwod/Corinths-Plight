@@ -16,7 +16,7 @@ This document distinguishes three states:
 | **Target** | An accepted architecture decision that still needs implementation before production |
 | **Deferred** | Outside the first foundation deliverable |
 
-The current repository is a deployed identity/guided-enlistment foundation with partial force, equipment, deployment, tactical, and strategic read-model work. K-17, the Corinth strategic world, and Spearhead are development fixtures. It is **not** yet the complete production game: production has no world/campaign content, public strategic order submission and resolution are explicitly blocked, non-K-17 tactical state still inherits the K-17 demo map, and the tactical effect journal advances before D1 acknowledgement.
+The current repository is a deployed identity/guided-enlistment foundation with partial force, equipment, deployment, tactical, and strategic read-model work. K-17, the Corinth strategic world, and Spearhead are development fixtures. It is **not** yet the complete production game: production has no world/campaign content, public strategic order submission and resolution are explicitly blocked, general scenario import/publication remains open, and the tactical effect journal still lacks its complete cryptographic protocol.
 
 ## 2. Exact foundation milestone
 
@@ -25,11 +25,11 @@ The current repository is a deployed identity/guided-enlistment foundation with 
 | Deliverable | Repository evidence | Status |
 |---|---|---|
 | Foundation and Phase 3 design/audit documents | Original seven documents plus `STRATEGIC_LAYER.md`, `BATTALION_MODEL.md`, `SHIP_SYSTEM.md`, and `STRATEGIC_RESOLUTION.md` | Implemented |
-| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0017_public_v1_economy.sql` | Seventeen additive schema artifacts in the repository; production is recorded only through `0007`, so later gameplay and operations migrations are local until an explicitly authorized release |
+| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0018_campaign_scenario_content_pins.sql` | Eighteen additive schema artifacts in the repository; production is recorded only through `0007`, so later gameplay and operations migrations are local until an explicitly authorized release |
 | Ruleset seed | `seeds/v5-core-curated.sql`; consistency check in `scripts/validate-seed.ts` | Idempotent SQL artifact exists, but its 12 obsolete conflict IDs and split compiled/D1 catalogue prevent a complete authority claim |
 | Domain contracts | `packages/domain/src/index.ts`, `worker/campaign-contracts.ts` | Shared TypeScript interfaces plus bounded tactical request contracts and a versioned, validated Campaign DO state/snapshot envelope; general public DTO/runtime schemas remain incomplete |
 | Pure rules engine | `packages/rules-engine/src/` and `packages/rules-engine/test/` | Implemented foundation subset |
-| Campaign DO skeleton | `worker/campaign-durable-object.ts` | Implemented for K-17; non-K-17 initialization requires committed deployment snapshots but still derives map/terrain defaults from the K-17 demo factory and is not a general scenario bootstrap |
+| Campaign DO skeleton | `worker/campaign-durable-object.ts` | Implemented for the explicit development K-17 fixture and five exact-pinned authored `@3` loaders; persistent initialization requires committed deployment snapshots and is not a general scenario bootstrap |
 | Accelerated clock | `worker/campaign-clock.ts` and its tests | Implemented, including manual/1m/5m/30m/24h presets |
 | Basic hex-map prototype | `src/App.tsx`, `src/components/HexMap.tsx`, `src/components/Glyph.tsx` | Implemented |
 | Phase 2 persistent forces | `0003`, the combined-arms catalogue/fixture, typed force services and UI | Implemented checkpoint; not every catalogue mutation is active |
@@ -92,7 +92,7 @@ There are no independently deployed microservices. The client, Worker entry poin
 | `worker/auth.ts` | Demo/session authentication, D1 membership lookup, trusted viewer headers | Demo mode is development-only; no V1 credential compatibility |
 | `worker/services/security-operations.ts`, `worker/repositories/security-operations.ts`, `worker/services/invitation-delivery.ts` | Bounded retention maintenance, pseudonymized invitation throttling/audit, and a leased Resend delivery outbox | Immediate `waitUntil` attempts plus hourly recovery and migration `0008` exist locally; production remains on the pre-`0008` deployment |
 | `worker/routes/ship-admin.ts`, `worker/services/ship-admin.ts`, `worker/repositories/ship-admin.ts` | Primary-ship name/registry mutation, current-Battalion authorization, optimistic concurrency, audience history and exact replay receipts | Existing-ship identity only; hull acquisition and module mutation/economy remain blocked |
-| `worker/campaign-durable-object.ts` | K-17 campaign state, fixture-derived committed-snapshot initialization, orders, alarms, sockets, resolution, projections, and narrow receipt-idempotent D1 writeback | General scenario bootstrap, next-round acknowledgement gate, audience-safe realtime/reporting, and cryptographic effect journal remain open |
+| `worker/campaign-durable-object.ts` | Exact-pinned authored campaign state, committed-snapshot initialization, orders, alarms, sockets, resolution, projections, and receipt-idempotent D1 writeback | General scenario schema/import, audience-safe realtime/reporting, and the complete cryptographic effect journal remain open |
 | `worker/campaign-clock.ts` | Pure clock/schedule transitions | Schedule is currently embedded in `state/current`, not separate storage records |
 | `worker/strategic-*` | Strategic request policy/validation/clock and map coordination as landed | Must remain map-sharded and permission scoped; no global game object |
 | `worker/enemy-ai.ts` | Deterministic foundation enemy orders | No LLM or network dependency |
@@ -100,7 +100,7 @@ There are no independently deployed microservices. The client, Worker entry poin
 | `packages/domain/src/` | Shared TypeScript interfaces and constants | Compile-time contracts only; not a runtime schema package yet |
 | `packages/rules-engine/src/` | Pure compiled catalogue, hex, mechanics, visibility, RNG, enemy/demo fixtures, and resolver | No storage, network, wall-clock reads, or `Math.random()`; its five allied tactical definitions do not cover all D1 classes marked executable |
 | `packages/rules-engine/test/` | Pure engine fixtures and regression tests | No live Cloudflare integration |
-| `migrations/` | Sixteen ordered additive D1 SQL migrations | Production is recorded through `0007`; no new runtime uses the legacy Alembic files also retained in this directory |
+| `migrations/` | Eighteen ordered additive D1 SQL migrations | Production is recorded through `0007`; no new runtime uses the legacy Alembic files also retained in this directory |
 | `seeds/v5-core-curated.sql`, `seeds/v5-phase2-combined-arms.sql` | Versioned D1 rules/source/conflict catalogue | Definitions only; availability overlays distinguish executable/catalogue state |
 | `seeds/onboarding-foundation.sql` | Production-safe guided-enlistment policy and three NPC recruitment Battalions | Product fixture, not canonical V5 lore; no development User or campaign data |
 | `seeds/development-forces.sql`, `seeds/development-strategic-world.sql` | Explicit local-only Phase 2/3 fixtures | Never production data or automatically canonical lore |
@@ -135,7 +135,7 @@ For `/api/campaigns/{campaignId}/*` the current Worker:
 7. strips cookies, authorization/demo inputs, and client-supplied internal viewer headers before adding server-derived viewer headers;
 8. routes to `CAMPAIGN.getByName(campaignId)`.
 
-The DO self-initialises without D1 only for the explicit local `outpost-k17` fixture. Registered campaigns require committed D1 deployment snapshots and an authored `map_source_key`. K-17 and Operation Iron Rain now load different versioned maps, objectives, enemy forces, reinforcement schedules and round policies; any unsupported source fails closed before state is created.
+The DO self-initialises without D1 only for the explicit local `outpost-k17` fixture. Registered campaigns require committed D1 deployment snapshots and an exact supported `map_source_key`/`scenario_content_key` pair. Migration `0018` adds the nullable immutable `<scenarioId>@<version>` selector without backfilling legacy rows. K-17, Iron Rain, Broken Road, Night Glass, and Cold Horizon load their exact `@3` maps, objectives, enemy forces, reinforcement schedules, terrain rules, and round policies. Iron Rain contains 311 land hexes, Broken Road 244, Night Glass 240, and Cold Horizon 298. A legacy `NULL` pin, unavailable version, or stored-state mismatch fails closed without state creation, rewriting, or auto-upgrade.
 
 Current tactical order commands derive start position, class eligibility, executable order/action definitions, action economy/speed cost, fitted weapons/equipment, owner, current visible target IDs, and one-attack limits on the server. Order upsert and cancellation require an actor-scoped `commandId`, `expectedCampaignVersion`, and `expectedOrderRevision`; clock update requires `commandId` and `expectedCampaignVersion`. Each stores a SHA-256 request hash and exact response receipt atomically with its state/event changes, matching retries replay, and changed-payload reuse fails. The pure resolver independently rechecks the pinned ruleset, compiled executable definitions, routes, speed/action budget, attack count, targets, weapons, LOS/range, ammo, cooldown, and friendly-fire rules. This boundary is incomplete while D1 can mark a class executable that the compiled catalogue cannot resolve.
 
@@ -162,6 +162,7 @@ The stable strategic coordinator name comes from `strategic_maps.coordinator_key
 | Concern | Implemented owner now | Target owner |
 |---|---|---|
 | Users, session validation, campaign registry/membership | D1, read by Worker | D1 |
+| Authored scenario selection | Nullable exact `campaigns.scenario_content_key` plus `map_source_key`; runtime rejects unpinned/mismatched content | Hash-pinned immutable scenario publication with explicit upgrade migrations |
 | Rules, source provenance, conflict and persistent-world table shapes | D1 migrations/seed exist; runtime rules are also compiled in `catalogue.ts` | D1-pinned immutable rules plus a verified compiled engine interpretation |
 | Player Units, requisition, Battalions, ships, deployments, archives | D1 plus implemented force/loadout/deployment/onboarding subsets; broader lifecycle workflows remain open | D1 transactional global truth |
 | Strategic locations/maps/nodes/routes, operations, formations, supply, rounds, orders, events, receipts, war variables | D1 migration and local fixture exist; checkpoint services use only their landed subset | D1 transactional strategic truth |
@@ -279,7 +280,7 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 |---|---|---|
 | Package skeleton, TypeScript, lint, unit tests, local production build | Complete | Root package scripts |
 | Application browser smoke baseline | Partial/local | Playwright covers public auth, authenticated live navigation without showcase fallback, tactical rejection of client-authored economy, and 390px overflow (4 tests); remote CI evidence, broader browser matrix, accessibility, and performance gates remain open |
-| Migrations and idempotent seed artifacts | Local head `0017`; production head `0007` | Fresh empty D1 replay through all seventeen migrations and all seven seeds twice passes integrity/FK checks across 122 tables; production-approved and development seed families remain separated |
+| Migrations and idempotent seed artifacts | Local head `0018`; production head `0007` | Fresh empty D1 replay through all eighteen migrations and all seven seeds twice passes integrity/FK checks; fresh campaign inserts receive current exact pins, while conflict replay never repins existing campaigns |
 | Deterministic resolver subset and regression coverage | Partial but tested | Narrow Hold/Advance/Rush/Attack/equipment paths have unit coverage; locale ordering, terrain defaults, category-scoped flanking, cargo ledger, and release journal defects remain |
 | K-17 state, alarms, clock, pause/resume, sockets | Partial | Unit coverage exists; crash/alarm/WebSocket integration coverage does not |
 | Viewer projection | Partial | Basic state/report redaction exists; event-time and socket-field leakage tests remain |
@@ -288,9 +289,9 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 | Separate persisted schedule records and reconnect catch-up | Partial | Schedule lives inside current state; sockets provide bounded projected cursor catch-up but no separate persisted feed |
 | Production passwordless identity/session issuance | Deployed foundation | Resend verified-email links, opaque sessions, logout, auth rate limits, and pseudonymized audit are deployed; `0008` retention schedule is local-only pending migration/deployment |
 | Guided enlistment and Battalion recruitment | Deployed foundation | Public/private/code/targeted joins, one-charter economy, starter grant, tour, recruitment settings, and Resend delivery are deployed; `0008` invitation throttling/expiry is local-only |
-| Helion/Corinth strategic schema and fixture | Complete as development data only | Fresh 0001–0017 replay and all seven seeds twice passed; production seeds still create no strategic world or campaigns |
+| Helion/Corinth strategic schema and fixture | Complete as development data only | Fresh 0001–0018 replay and all seven seeds twice passed; production seeds still create no strategic world or campaigns |
 | Strategic map sharding, pure resolver, permission-scoped reads, responsive UI | Partial/blocked | Unit tests cover the pure resolver and service shell; public order submission and DO resolution return `501`, route durations are `BALANCE_REQUIRED`, and the UI can use showcase state |
-| Strategic-to-tactical deployment/result reconciliation | Partial | Loadout/deployment commit and narrow tactical writeback exist; scenario bootstrap remains K-17-derived, and withdrawal plus the acknowledgement-gated protocol remain deferred |
+| Strategic-to-tactical deployment/result reconciliation | Partial | Loadout/deployment commit, exact-pinned authored scenario bootstrap, and narrow tactical writeback exist; general scenario publication and withdrawal remain open |
 | Production D1 and custom-domain foundation | Complete | Production binding is migrated through `0007`; `corinthplight.qnetica.com.au` serves the current Worker/UI |
 | Phase 3/identity/onboarding code deployment | Recorded foundation deployment | Cloudflare version `f34fa674-b242-4bda-9a7d-dd06cddc7363`; custom-domain health/UI/auth/origin-policy smoke tests passed, but Phase 3 execution is not complete |
 

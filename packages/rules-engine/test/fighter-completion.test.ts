@@ -4,6 +4,7 @@ import {
   createDemoCampaignState,
   createScenarioCampaignState,
   getActionDefinition,
+  IRON_RAIN_SCENARIO_CONTENT_KEY,
   resolveRound,
   validateOrder,
 } from "../src";
@@ -62,6 +63,7 @@ describe("Aerospace Fighter completion mechanics", () => {
       .find((deployment) => deployment.id === "dep-vulture-1")!;
     const state = createScenarioCampaignState({
       mapSourceKey: "fixture/operation-iron-rain",
+      scenarioContentKey: IRON_RAIN_SCENARIO_CONTENT_KEY,
       campaignId: "fighter-rearm-persistence",
       campaignName: "Fighter Rearm Persistence",
       planetName: "Corinth",

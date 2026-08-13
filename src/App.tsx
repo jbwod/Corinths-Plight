@@ -1677,9 +1677,9 @@ function GameApp() {
           <section className="operation-notes" aria-label="Round operation notes">
             <header><span>OPERATION NOTES · ROUND {campaign.round}</span><b>{operationNotes.length}/16</b></header>
             <div className="operation-note-list">
-              {operationNotes.map((note) => (
+              {operationNotes.map((note, index) => (
                 <article key={note.id} className={note.own ? "own" : ""}>
-                  <header><span>{note.battlegroupId?.replace("battlegroup-", "BG ").toUpperCase() ?? "ALLIED COMMAND"}</span><small>{note.own ? "YOU" : "ALLY"} · v{note.revision}</small></header>
+                  <header><i>{String(index + 1).padStart(2, "0")}</i><span>{note.battlegroupId?.replace("battlegroup-", "BG ").toUpperCase() ?? "ALLIED COMMAND"}</span><small>{note.own ? "YOU" : "ALLY"} · v{note.revision}</small></header>
                   <p>{note.text}</p>
                   {(note.canEdit || note.canRemove) && <footer>
                     {note.canEdit && <button type="button" onClick={() => editOperationNote(note)}>EDIT</button>}

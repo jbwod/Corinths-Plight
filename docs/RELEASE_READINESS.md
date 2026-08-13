@@ -1,8 +1,8 @@
 # Corinth's Plight — Release Readiness
 
-**Assessment date:** 2026-08-10 (Australia/Sydney)
+**Assessment date:** 2026-08-14 (Australia/Sydney)
 
-**Assessed commit:** `61b2de2` plus the local CP-300 primary-ship identity slice
+**Assessed commit:** `61b2de2` plus the current uncommitted implementation slices; no release commit is claimed
 
 **Target:** Honest public release
 
@@ -21,7 +21,7 @@ This is the live release checklist. A checked local build item is not permission
 | Strategic order and resolution `501` | open P0 when advertised | `POST /api/strategic/orders`; Strategic Map DO `/resolve`. |
 | Tactical next-round/effect acknowledgement ordering | open P0 | Next PLANNING state is committed before D1 effect ACK. |
 | WebSocket/report fog | partial P0 security | Socket invalidations are viewer-specific, identifier-free and provide bounded projected catch-up; reports still use current-time rather than event-time visibility. |
-| Runtime schema/fail-closed authoritative JSON | partial P0 | Campaign order/clock intents and v1 current/snapshot state now validate and fail closed; remaining routes, DTOs, rules/scenarios and stored documents are not comprehensively versioned. |
+| Runtime schema/fail-closed authoritative JSON | partial P0 | Campaign order/clock intents and v1 current/snapshot state validate and fail closed. The five authored scenarios now require an exact immutable content key and reject unpinned, unavailable, or stored-state-mismatched campaigns; remaining routes, DTOs, rules and stored documents are not comprehensively versioned. |
 | Preview environment | blocked P0 | Preview D1 is a placeholder and has no deploy/migrate/smoke proof. |
 | Auth retention/session operations/invite abuse controls | partial P0 | Local migration `0008` adds bounded cleanup, invitation limits/audit and a durable background delivery outbox; it is not deployed, and idle/device/revoke/opt-out/monitoring work remains. |
 | Observability, diagnostics, SLOs and release manifest | open P0 | No journal/schedule/effect/socket operational dashboard or alerts. |
@@ -34,17 +34,17 @@ This is the live release checklist. A checked local build item is not permission
 
 | Command | Environment | Outcome | Notes |
 |---|---|---:|---|
-| `npm run seed:check` | macOS local, Node project toolchain | PASS | 46 definitions; 41 active; 196 SQL definitions; 13 canonical and 16 companion allied classes; 7 enemy roles; 4 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
+| `npm run seed:check` | macOS local, Node project toolchain | PASS | 49 definitions; 43 active; 225 SQL definitions; 13 canonical and 16 Phase-2 allied classes; 7 enemy roles; 4 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
 | `npm run typecheck` | local | PASS | TypeScript 6.0.3. |
 | `npm run lint` | local | PASS | ESLint 10.8.1. |
-| `npm test` | local | PASS | Vitest 4.1.10; 66 files / 500 tests. |
-| `npm run build` | local development config | PASS | Worker 1,401.56 kB; client JS 867.98 kB; CSS 162.14 kB; Wrangler emitted only its known sandboxed debug-log warning. |
+| `npm test` | local | PASS | Vitest 4.1.10; 96 files / 736 tests. |
+| `npm run build` | local development config | PASS | Worker 2,053.02 kB; client JS 1,920.16 kB; CSS 218.38 kB. The explicit manifest bundles 29 active tactical sheets (7.77 MiB); only the QA-passed light-v3, medium-v4 and heavy-v3 mech revisions enter the client. The post-build hash verifier confirms inactive revisions and chroma sources are absent. Wrangler emitted only its known sandboxed debug-log warning. Bundle/performance budgets remain open under CP-802. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
-| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0017 applied; all nine seeds replay twice across 122 tables with integrity/FK clean. |
+| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0018 applied; all nine seeds replay twice across 122 tables with integrity/FK clean. |
 | Nine seeds, twice | same isolated D1 | PASS | Core, Phase 2, companion classes, equipment, Store, onboarding and three development fixtures replayed twice. |
 | SQLite integrity | isolated D1 database | PASS | `integrity_check=ok`; `foreign_key_check` empty. |
-| `npm run ci:verify:d1` | isolated local D1 | PASS | Seventeen migrations; nine seeds twice; stable table fingerprints/counts; 122 checked application tables. |
-| `npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 18/18 journeys pass, including Battalion join/switch/leave, rank create/update/permission assignment/member assignment/delete, creator-command handoff/restoration and authorized removal; primary-ship identity mutation, replay and Battalion history; campaign staging/withdrawal; unit identity and Reserve equipment mutation; strategic Disembark, resupply and operation deployment; executable tactical actions; HAT drop composition; live planning views; and 390px overflow coverage. |
+| `npm run ci:verify:d1` | isolated local D1 | PASS | Eighteen migrations; nine seeds twice; stable table fingerprints/counts; 122 checked application tables. |
+| `npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS baseline + affected reruns | The prior 18/18 baseline covers Battalion join/switch/leave, rank/command administration, ship identity, campaign staging/withdrawal, unit/loadout mutations, strategic/deployment/tactical/report paths and 390px overflow. The prior two affected composer/map-layer journeys remain green. On 2026-08-14 a clean isolated strategic-deployment-to-tactical journey passed with persisted scenario V3, 311 map hexes, keyboard traversal, and keyboard route selection. |
 | `git diff --check` | local Phase-1 tree | PASS | No whitespace errors at final gate. |
 | `npm audit --audit-level=high` | npm advisory service | PASS | Zero known vulnerabilities at assessment time; the result is time-sensitive. |
 
@@ -86,6 +86,15 @@ The workflow is a Phase-0 baseline, not a complete release pipeline. Official ac
 | 0007 | `0007_guided_onboarding_and_battalions.sql` | Onboarding policies/progress/receipts and recruitment/invites | pass |
 | 0008 | `0008_auth_retention_and_invitation_abuse.sql` | Auth/invitation retention, abuse audit/rate state and durable invitation delivery | local pass; not deployed |
 | 0009 | `0009_campaign_join_receipts.sql` | Campaign-owned join receipts and deployable starter-Battlegroup backfill | local pass; not deployed |
+| 0010 | `0010_campaign_results.sql` | Durable tactical results for directory, reports and strategic projection | local pass; not deployed |
+| 0011 | `0011_battlegroup_management.sql` | Battlegroup mutations and idempotent receipts | local pass; not deployed |
+| 0012 | `0012_active_battalion_switching.sql` | Persistent active-Battalion switching receipts | local pass; not deployed |
+| 0013 | `0013_battalion_departures.sql` | Battalion departure and removal receipts | local pass; not deployed |
+| 0014 | `0014_battalion_rank_administration.sql` | Rank administration mutations and receipts | local pass; not deployed |
+| 0015 | `0015_battalion_command_transfer.sql` | Battalion command-transfer mutations and receipts | local pass; not deployed |
+| 0016 | `0016_ship_identity_mutations.sql` | Primary-ship identity mutations and receipts | local pass; not deployed |
+| 0017 | `0017_public_v1_economy.sql` | Approved application economy policy and ledger support | local pass; not deployed |
+| 0018 | `0018_campaign_scenario_content_pins.sql` | Nullable exact authored-scenario content pin; no legacy backfill or automatic upgrade | local pass; not deployed |
 
 ### Production-approved seed families
 
@@ -129,7 +138,7 @@ No external state was changed during this Phase-0 assessment.
 | Secrets scan/dependency/code scan | missing release evidence | Add CI scanners and triage policy. |
 | Data export/delete/anonymisation | missing | Depends on DEC-016. |
 | Privacy/terms/support/security route | missing | Depends on DEC-016. |
-| Asset provenance/licensing | partial evidence | The 35 active generated gameplay visuals plus one retained alternate have stable keys, hashes, source renders, processing history and fallbacks in `src/assets/gameplay-visuals.manifest.json`; final public terms/ownership approval and the remaining legacy assets still require manifest coverage or quarantine. |
+| Asset provenance/licensing | partial evidence | The 135 active generated portrait/equipment visuals plus one retained alternate have stable keys, hashes, source renders, processing history and fallbacks in `src/assets/gameplay-visuals.manifest.json`. A separate manifest records exact hashes and dispositions for every active/alternate/quarantined mech revision; the three active mechs pass strict nadir QA and inactive revisions are excluded from the client. The other 26 active tactical sheets remain provisional and still need equivalent lineage/QA. Public terms/ownership approval and the remaining legacy assets remain release gates. |
 
 ## Reliability and operations checklist
 
@@ -162,7 +171,7 @@ No external state was changed during this Phase-0 assessment.
 | Submit/edit/cancel/schedule tactical orders | partial | Current-round generated orders support submit, edit and two-step cancel through actor-scoped hashed receipts and optimistic campaign/order revisions. Cancellation emits an Allied event and supports replacement before lock. Future scheduling remains intentionally unavailable pending reliable semantics. |
 | Resolve deterministic PvE combined arms | narrow partial | CP-500–CP-507 |
 | Persist effects before next round | narrow pass | Supported tactical effects hold `EFFECTS_PENDING` and acknowledge before one next round; broaden under CP-402. |
-| Audience-safe reconnect/report/replay | partial/fail | Projected submitted Allied orders drive readiness and a visual intent layer while drafts remain owner-only. Shared tactical markers are side-filtered and known-hex restricted. Report detail now consumes the audience-projected locked battlefield snapshot and archived events to provide interactive map reconstruction plus a synchronized accessible ledger. Event payload visibility is conservatively based on the locked snapshot; per-event knowledge evolution, declassification/export and broader multi-account evidence remain CP-403/CP-700–CP-701. |
+| Audience-safe reconnect/report/replay | partial/fail | Projected submitted Allied orders drive readiness and an ownership-aware visual intent layer while drafts remain owner-only. Outlined directional corridors, action targets, labelled reticle markers, numbered operation notes and combined-force owner colours consume only existing projected fields. Shared tactical markers remain side-filtered and known-hex restricted. Report detail consumes the audience-projected locked battlefield snapshot and archived events to provide interactive map reconstruction plus a synchronized accessible ledger. Event payload visibility is conservatively based on the locked snapshot; the deterministic multiplayer screenshot is presentation evidence only. Per-event knowledge evolution, declassification/export and real multi-account evidence remain CP-403/CP-700–CP-701. |
 | Apply tactical result to living war | partial/playable local | Authored victories atomically change strategic nodes/routes/follow-on operations, and the terminal report names the acknowledged effects before returning to Galactic Operations. General result ingestion and production content remain CP-600–CP-603. |
 | Withdraw/re-embark/redeploy | partial/playable local | Survivors return to reserve with exact state, their Battlegroup enters recovery, and the live strategic UI can re-embark it. Repair/resupply and production evidence remain CP-603. |
 

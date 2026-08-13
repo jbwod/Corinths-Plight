@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-14",
+  "creator": "OpenAI built-in imagegen, directed by the Corinth's Plight project owner",
+  "sourceReferences": [],
+  "permissionBasis": "Original project-generated output; accepted plan-view revisions were generated without third-party image references",
+  "publicReleaseReview": "PENDING",
+  "frameContract": {
+    "format": "PNG RGBA",
+    "width": 1536,
+    "height": 256,
+    "frameWidth": 256,
+    "frameHeight": 256,
+    "frames": ["idle", "move-a", "move-b", "attack", "support", "damaged"],
+    "forward": "NORTH",
+    "viewAngle": "ORTHOGRAPHIC_NADIR"
+  },
+  "processing": {
+    "chromaRemoval": "remove_chroma_key.py --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+    "packing": "scripts/pack-tactical-sprite-sheet.py"
+  },
+  "assets": [
+    {
+      "definitionId": "unit-light-mech",
+      "revisionId": "unit-light-mech-v3",
+      "status": "ACTIVE",
+      "visualQa": "PASS",
+      "source": "OpenAI built-in imagegen reference-free plan-view render plus constrained spacing/effect cleanup",
+      "sourceRender": "exec-945a57bb-a9bb-48be-b836-5f84a608046e.png",
+      "chromaPath": "src/assets/tactical-sprites/chroma/unit-light-mech-v3.png",
+      "chromaSha256": "7e9e8ebc75c502e3c9c58c0de3841ae5e793e2fd7d5027602aea4e9489d87bfc",
+      "path": "src/assets/tactical-sprites/generated/unit-light-mech-v3.png",
+      "sha256": "b14f8b502e3689f862e67cd6fc76eb59cf74cc91a2735c994c182185d134a3fc",
+      "qaNote": "Strict roof-only plan silhouette; compact limb footprints; fixed north; six isolated cells."
+    },
+    {
+      "definitionId": "unit-medium-mech",
+      "revisionId": "unit-medium-mech-v4",
+      "status": "ACTIVE",
+      "visualQa": "PASS",
+      "source": "OpenAI built-in imagegen reference-free plan-view render plus constrained spacing/effect cleanup",
+      "sourceRender": "exec-2bc00da7-88f2-40c0-876a-f60f59a50b74.png",
+      "chromaPath": "src/assets/tactical-sprites/chroma/unit-medium-mech-v4.png",
+      "chromaSha256": "ec38dfd934d4c06ae930acd412383de321130f800fdc6b007da74b18ebe8c4c0",
+      "path": "src/assets/tactical-sprites/generated/unit-medium-mech-v4.png",
+      "sha256": "180947d7f48e8f3b61a8b2b4090933677da63585ac53bba3d4035dc81687a1ff",
+      "qaNote": "Strict roof-only plan silhouette; asymmetric launcher/cannon topology; fixed north; six isolated cells."
+    },
+    {
+      "definitionId": "unit-heavy-mech",
+      "revisionId": "unit-heavy-mech-v3",
+      "status": "ACTIVE",
+      "visualQa": "PASS",
+      "source": "OpenAI built-in imagegen reference-free plan-view render plus constrained spacing/effect cleanup",
+      "sourceRender": "exec-c0e910a0-e2d8-4f23-927a-14e66d0cbb51.png",
+      "chromaPath": "src/assets/tactical-sprites/chroma/unit-heavy-mech-v3.png",
+      "chromaSha256": "2f55757fafe0ea28e4b137aeab69bfdb40ef8603735c9899f889ff3317c4c74e",
+      "path": "src/assets/tactical-sprites/generated/unit-heavy-mech-v3.png",
+      "sha256": "bf0b285d3b93f50d5101d2ab6428b1f2bf7fbb5ccf8d67b455e7b33fd60fa4f2",
+      "qaNote": "Strict roof-only plan silhouette; twin heavy roof pods; fixed north; six isolated cells."
+    },
+    {
+      "definitionId": "unit-light-mech",
+      "revisionId": "unit-light-mech",
+      "status": "ALTERNATE",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/generated/unit-light-mech.png",
+      "sha256": "516d0fe40adbdb68af71307b6258030c4de071141767fe6137538e07d3e02a29",
+      "qaNote": "Original frontal standing pose; never runtime imported."
+    },
+    {
+      "definitionId": "unit-medium-mech",
+      "revisionId": "unit-medium-mech",
+      "status": "ALTERNATE",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/generated/unit-medium-mech.png",
+      "sha256": "f7c8b0832a060bcbb1c171ac174c49a73f6b734a24f1888f280d33ec851f865d",
+      "qaNote": "Original frontal/high-oblique standing pose; never runtime imported."
+    },
+    {
+      "definitionId": "unit-heavy-mech",
+      "revisionId": "unit-heavy-mech",
+      "status": "ALTERNATE",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/generated/unit-heavy-mech.png",
+      "sha256": "3398d64defee8d12fd4378944dc03beeb9bc2d9f93c036b36055790677449baf",
+      "qaNote": "Original high-oblique standing pose; never runtime imported."
+    },
+    {
+      "definitionId": "unit-light-mech",
+      "revisionId": "unit-light-mech-v2",
+      "status": "ALTERNATE",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/generated/unit-light-mech-v2.png",
+      "sha256": "2694777b0e8fa028ef2fa0d6ecad0342cc5f1b737b943d73c5cb60d2df2ff8b8",
+      "qaNote": "High-oblique standing pose with visible vertical front planes; never runtime imported."
+    },
+    {
+      "definitionId": "unit-medium-mech",
+      "revisionId": "unit-medium-mech-v2",
+      "status": "ALTERNATE",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/generated/unit-medium-mech-v2.png",
+      "sha256": "271c6470290cb6df78e28c8e56b6e505460942c5906b4a6d42a2ae987626ebf9",
+      "qaNote": "Frontal/high-oblique standing pose; never runtime imported."
+    },
+    {
+      "definitionId": "unit-medium-mech",
+      "revisionId": "unit-medium-mech-v3",
+      "status": "ALTERNATE",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/generated/unit-medium-mech-v3.png",
+      "sha256": "8dca28b410ca3cbb8d459d69aedd71acb364ef35dcd0e2dcdf9e649ba47af7d2",
+      "qaNote": "Improved but still high-oblique with visible standing anatomy; never runtime imported."
+    },
+    {
+      "definitionId": "unit-heavy-mech",
+      "revisionId": "unit-heavy-mech-v2",
+      "status": "ALTERNATE",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/generated/unit-heavy-mech-v2.png",
+      "sha256": "e33b37495ecb2d418fb5d689b55739966c178438e3b5b5f1a6ac48a5b42f3582",
+      "qaNote": "Improved but still high-oblique with visible vertical leg/front planes; never runtime imported."
+    },
+    {
+      "definitionId": "unit-light-mech",
+      "revisionId": "unit-light-mech-edit-oblique",
+      "status": "QUARANTINED",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/quarantine/unit-light-mech-edit-oblique.png",
+      "sha256": "cb966b0ffbe9ff1e9dfe1e25d06c06030704e67be6ad09101bd70621f470867f",
+      "qaNote": "First edit iteration retained for audit; high-oblique standing pose."
+    },
+    {
+      "definitionId": "unit-medium-mech",
+      "revisionId": "unit-medium-mech-edit-oblique",
+      "status": "QUARANTINED",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/quarantine/unit-medium-mech-edit-oblique.png",
+      "sha256": "b5f4788546a91025a7c1564c12ac7c8ec011835bb096df7b777cf6d8496428b7",
+      "qaNote": "First edit iteration retained for audit; high-oblique standing pose."
+    },
+    {
+      "definitionId": "unit-heavy-mech",
+      "revisionId": "unit-heavy-mech-edit-oblique",
+      "status": "QUARANTINED",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/quarantine/unit-heavy-mech-edit-oblique.png",
+      "sha256": "c43ef0cbba99036c73615fc870287e8c297417efb51eabf62599b10fd9e819b6",
+      "qaNote": "First edit iteration retained for audit; high-oblique standing pose."
+    },
+    {
+      "definitionId": "unit-light-mech",
+      "revisionId": "unit-light-mech-plan-edit-oblique",
+      "status": "QUARANTINED",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/quarantine/unit-light-mech-plan-edit-oblique.png",
+      "sha256": "08f1afd2220ce5dada393d3110d81dc844e06f40c106ba0728b9eef9a2ad738e",
+      "qaNote": "Second edit iteration retained for audit; plan brief still preserved frontal planes."
+    },
+    {
+      "definitionId": "unit-medium-mech",
+      "revisionId": "unit-medium-mech-plan-edit-oblique",
+      "status": "QUARANTINED",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/quarantine/unit-medium-mech-plan-edit-oblique.png",
+      "sha256": "d7a48e81394dd3ca9a30c5cb550e4bd5009a4c0eb27a884d7f7f488faac6e6d4",
+      "qaNote": "Second edit iteration retained for audit; plan brief still preserved frontal planes."
+    },
+    {
+      "definitionId": "unit-heavy-mech",
+      "revisionId": "unit-heavy-mech-plan-edit-oblique",
+      "status": "QUARANTINED",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/quarantine/unit-heavy-mech-plan-edit-oblique.png",
+      "sha256": "99a093aade865d2ba248615231e115ab1952769aefc7901e8889a5cfaab2428d",
+      "qaNote": "Second edit iteration retained for audit; improved but retained visible vertical planes."
+    },
+    {
+      "definitionId": "unit-light-mech",
+      "revisionId": "unit-light-mech-supplied-oblique",
+      "status": "QUARANTINED",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/quarantine/unit-light-mech-supplied-oblique.png",
+      "sha256": "5c3a003ad72ecd6181314039d03cefa76ff2b823e7dbc719dbed0e6af65af5bd",
+      "qaNote": "Supplied iteration input retained for audit; frontal/high-oblique."
+    },
+    {
+      "definitionId": "unit-medium-mech",
+      "revisionId": "unit-medium-mech-supplied-oblique",
+      "status": "QUARANTINED",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/quarantine/unit-medium-mech-supplied-oblique.png",
+      "sha256": "cfabb6055e02d4fee45495d6f995c31ee95c2f1cdc3c088701476dc4fb761ca4",
+      "qaNote": "Supplied iteration input retained for audit; frontal/high-oblique."
+    },
+    {
+      "definitionId": "unit-heavy-mech",
+      "revisionId": "unit-heavy-mech-supplied-oblique",
+      "status": "QUARANTINED",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/quarantine/unit-heavy-mech-supplied-oblique.png",
+      "sha256": "d2cbb6d4ee8b8b059f461b614d2fd1862149e1a063994c26b8db48e3192efd2b",
+      "qaNote": "Supplied iteration input retained for audit; frontal/high-oblique."
+    },
+    {
+      "definitionId": "unit-light-mech",
+      "revisionId": "unit-light-mech-plan-boundary-bleed",
+      "status": "QUARANTINED",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/quarantine/unit-light-mech-plan-boundary-bleed.png",
+      "sha256": "aec9be918d2fa21d677643006cd003c9ed7eb64f22d01d8da034708924cbdb22",
+      "qaNote": "Camera passed, but support effects crossed nominal cell boundaries."
+    },
+    {
+      "definitionId": "unit-medium-mech",
+      "revisionId": "unit-medium-mech-plan-boundary-bleed",
+      "status": "QUARANTINED",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/quarantine/unit-medium-mech-plan-boundary-bleed.png",
+      "sha256": "761f8c7046d243b23b38d305621d260e1c4f9c5756c6732a327ce7788339e4da",
+      "qaNote": "Camera passed, but support effects crossed nominal cell boundaries."
+    },
+    {
+      "definitionId": "unit-heavy-mech",
+      "revisionId": "unit-heavy-mech-plan-boundary-bleed",
+      "status": "QUARANTINED",
+      "visualQa": "FAIL",
+      "path": "src/assets/tactical-sprites/quarantine/unit-heavy-mech-plan-boundary-bleed.png",
+      "sha256": "fa6b6e3bb9c55478b6f549a78ff4571925a01e13e299492616f675b0e9d079e1",
+      "qaNote": "Camera passed, but support effects crossed nominal cell boundaries."
+    }
+  ]
+}

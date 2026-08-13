@@ -303,12 +303,12 @@ ON CONFLICT(id) DO UPDATE SET
 
 INSERT INTO campaigns (
   id, planet_id, ruleset_id, name, status, round_duration_ms,
-  map_source_key, minimum_players, maximum_players, created_by,
+  map_source_key, scenario_content_key, minimum_players, maximum_players, created_by,
   force_policy_json, strategic_node_id, strategic_status, strategic_revision
 ) VALUES (
   'operation-iron-rain', 'planet-corinth', 'ruleset-v5-core-curated-1',
   'Operation Iron Rain', 'RECRUITING', 300000,
-  'fixture/operation-iron-rain', 2, 8, 'demo-user',
+  'fixture/operation-iron-rain', 'scenario-operation-iron-rain@3', 2, 8, 'demo-user',
   '{"allowedCategories":["INFANTRY","SUPPORT","ENGINEER","ARTILLERY","ARMOUR","MECH","AEROSPACE"],"requiresShip":true}',
   'node-kestrel-ridge', 'MUSTERING', 1
 )
@@ -319,12 +319,12 @@ ON CONFLICT(id) DO UPDATE SET
 
 INSERT INTO campaigns (
   id, planet_id, ruleset_id, name, status, round_duration_ms,
-  map_source_key, minimum_players, maximum_players, created_by,
+  map_source_key, scenario_content_key, minimum_players, maximum_players, created_by,
   force_policy_json, strategic_node_id, strategic_status, strategic_revision
 ) VALUES (
   'operation-broken-road', 'planet-corinth', 'ruleset-v5-core-curated-1',
   'Operation Broken Road', 'DRAFT', 300000,
-  'fixture/operation-broken-road', 1, 8, 'demo-user',
+  'fixture/operation-broken-road', 'scenario-operation-broken-road@3', 1, 8, 'demo-user',
   '{"allowedCategories":["INFANTRY","SUPPORT","ENGINEER","ARTILLERY","ARMOUR","MECH"],"requiresShip":false}',
   'node-junction-7', 'ANNOUNCED', 1
 )
@@ -348,12 +348,12 @@ ON CONFLICT(id) DO UPDATE SET
 
 INSERT INTO campaigns (
   id, planet_id, ruleset_id, name, status, round_duration_ms,
-  map_source_key, minimum_players, maximum_players, created_by,
+  map_source_key, scenario_content_key, minimum_players, maximum_players, created_by,
   force_policy_json, strategic_node_id, strategic_status, strategic_revision
 ) VALUES (
   'operation-cold-horizon', 'planet-corinth-ii', 'ruleset-v5-core-curated-1',
   'Operation Cold Horizon', 'RECRUITING', 300000,
-  'fixture/operation-cold-horizon', 1, 6, 'demo-user',
+  'fixture/operation-cold-horizon', 'scenario-operation-cold-horizon@3', 1, 6, 'demo-user',
   '{"allowedCategories":["INFANTRY","SUPPORT","ENGINEER","ARTILLERY","ARMOUR","MECH"],"requiresShip":true}',
   'node-corinth-ii', 'MUSTERING', 1
 )
@@ -378,12 +378,12 @@ ON CONFLICT(id) DO UPDATE SET
 
 INSERT INTO campaigns (
   id, planet_id, ruleset_id, name, status, round_duration_ms,
-  map_source_key, minimum_players, maximum_players, created_by,
+  map_source_key, scenario_content_key, minimum_players, maximum_players, created_by,
   force_policy_json, strategic_node_id, strategic_status, strategic_revision
 ) VALUES (
   'operation-night-glass', 'planet-corinth', 'ruleset-v5-core-curated-1',
   'Operation Night Glass', 'DRAFT', 300000,
-  'fixture/operation-night-glass', 1, 6, 'demo-user',
+  'fixture/operation-night-glass', 'scenario-operation-night-glass@3', 1, 6, 'demo-user',
   '{"allowedCategories":["INFANTRY","SUPPORT","ENGINEER","ARTILLERY","ARMOUR","MECH"],"requiresShip":false}',
   'node-new-carthage', 'ANNOUNCED', 1
 )

@@ -14,7 +14,7 @@ The repository builds a React/Vite client and one Cloudflare Worker containing t
 
 The Phase 3, equipment/deployment, passwordless identity, and guided-enlistment runtime was deployed on 2026-08-10. The primary custom domain is `https://corinthplight.qnetica.com.au`; `https://corinths-plight.cybercow-now.workers.dev` remains enabled as a fallback. Production version `f34fa674-b242-4bda-9a7d-dd06cddc7363` binds D1 database `corinths-plight-production` (`c75ca7bc-f10b-4987-853d-f387d377bdb9`) and both Durable Object namespaces. Production is migrated through `0007` and contains the four production-approved seed families, verified-email challenge/session support, the onboarding economy policy, and three NPC recruitment Battalions. The catalogue/conflict split documented in [GAME_SYSTEMS.md](./GAME_SYSTEMS.md) remains a release blocker. Development fixtures were deliberately not applied; preview remains unprovisioned.
 
-The current repository additionally contains migration `0008_auth_retention_and_invitation_abuse.sql`, an hourly `0 * * * *` Worker schedule, bounded retention maintenance, and invitation throttling/audit. Those changes are locally verified only. They are not present in the recorded production version and must not be described as active on the public origin until `0008` is migrated and a new Worker version is explicitly deployed.
+The current repository migration head is `0018_campaign_scenario_content_pins.sql`. It includes the locally verified `0008_auth_retention_and_invitation_abuse.sql` hourly retention/invitation controls and later gameplay migrations, none of which are present in the recorded production version. They must not be described as active on the public origin until the ordered pending migrations are applied and a new Worker version is explicitly deployed.
 
 ## 2. Current runtime topology
 
@@ -50,7 +50,7 @@ All public traffic passes through the Worker. Campaign traffic resolves D1 campa
 | `worker/env.ts` | Typed `DB`, `CAMPAIGN`, environment, auth, and clock bindings |
 | `worker/http.ts` | JSON response/body-size/parse helpers |
 | `worker/campaign-clock.ts` | Pure clock, schedule, pause, and resume transitions |
-| `worker/campaign-durable-object.ts` | Exported DO class, K-17 state/orders, alarms, hibernating sockets, reports/resolution |
+| `worker/campaign-durable-object.ts` | Exported DO class, exact-pinned authored scenario state/orders, alarms, hibernating sockets, reports/resolution |
 | `worker/strategic-map-durable-object.ts` | Exported map-sharded Phase 3 coordinator shell; internal order handler exists, but public order submission is blocked and development resolution returns `501` |
 | `packages/domain/src/index.ts` | Shared compile-time contracts |
 | `packages/rules-engine/src/` | Pure deterministic engine/catalogue/demo fixture |
@@ -62,6 +62,7 @@ All public traffic passes through the Worker. Campaign traffic resolves D1 campa
 | `migrations/0006_production_identity.sql` | Verified-email challenges, session activity, HMAC-keyed rate limits, and auth audit events |
 | `migrations/0007_guided_onboarding_and_battalions.sql` | Guided progress/receipts, Battalion recruitment/charters/email invites, and starter grants |
 | `migrations/0008_auth_retention_and_invitation_abuse.sql` | Indexed bounded retention paths, pseudonymized invitation rate buckets/audit, and leased delivery jobs; present locally, not applied to recorded production |
+| `migrations/0018_campaign_scenario_content_pins.sql` | Adds nullable `campaigns.scenario_content_key`; legacy rows remain unpinned and fail closed rather than being assigned current scenario content |
 | `seeds/v5-core-curated.sql` | Idempotent D1 SQL rules seed |
 | `seeds/v5-phase2-combined-arms.sql` | Provenance-bearing Phase 2 combined-arms catalogue |
 | `seeds/v5-equipment-deployment.sql` | Equipment/action/deployment-method overlays for the narrow vertical slice; presence or `executable` flags do not override the open slot/Scan/Drone rule gates |
@@ -82,7 +83,7 @@ There is no `worker/demo.ts` or `scripts/seed-ruleset.ts`. Demo authentication i
 | Binding/config | Current resource | Authority/status |
 |---|---|---|
 | `DB` | D1 | Identity/session/onboarding, Battalion recruitment, force/equipment/loadout/deployment services, campaign authorization, strategic read models, and narrow campaign-effect receipts are active; broader economy/world workflows and release-grade round finalisation remain open |
-| `CAMPAIGN` | Durable Object namespace | One named object per campaign; K-17 self-initialises, while other authorised campaigns require committed D1 deployment snapshots but still inherit the K-17 demo map/terrain scaffold |
+| `CAMPAIGN` | Durable Object namespace | One named object per campaign; the explicit development K-17 fixture may self-initialise, while persistent campaigns require committed D1 deployment snapshots and an exact supported `map_source_key`/`scenario_content_key` pair |
 | `STRATEGIC_MAP` | Durable Object namespace | Deployed named-object boundary per strategic map/theatre; internal order service shell exists, but public order submission and resolution are blocked |
 | DO migration `v1` | `new_sqlite_classes: ["CampaignDurableObject"]` | Present |
 | DO migration `v2` | `new_sqlite_classes: ["StrategicMapDurableObject"]` | Present in the recorded production deployment; namespace existence is not evidence of strategic execution |
@@ -112,7 +113,7 @@ Clock values change configuration only; manual/accelerated/production alarms cal
 
 The default Wrangler configuration deliberately enables the local demo. It must never be used for a remote deployment. Root production scripts always set/select the production environment. Operators must use those scripts and must not bypass them with a bare `wrangler deploy`.
 
-`ALLOW_DEMO_AUTH` is accepted only when its value is exactly `true` and `ENVIRONMENT` is exactly `development`. Production also returns 503 if configured with demo auth enabled. Demo campaign access still requires a seeded D1 campaign and membership; current local content includes K-17, Iron Rain, and Spearhead records, while only K-17 and Iron Rain have authored tactical loaders.
+`ALLOW_DEMO_AUTH` is accepted only when its value is exactly `true` and `ENVIRONMENT` is exactly `development`. Production also returns 503 if configured with demo auth enabled. Demo campaign access still requires a seeded D1 campaign and membership. The authored tactical loaders are K-17, Iron Rain, Broken Road, Night Glass, and Cold Horizon at scenario version `@3`; the local Spearhead record remains unsupported tactical content.
 
 ## 6. Authentication and campaign-routing boundary
 
@@ -126,6 +127,7 @@ The default Wrangler configuration deliberately enables the local demo. It must 
 - `PLAYER` and `BATTALION_COMMAND` retain their campaign side; campaign `GM` maps to internal `ADMIN`; `OBSERVER`, unknown roles, and unsafe neutral projections fail closed.
 - Cookies, authorization/demo inputs, query demo identity, and client-supplied internal viewer headers are stripped before the Worker adds trusted viewer headers for the DO.
 - An arbitrary campaign name cannot create demo state: the DO self-initialises only when its name is exactly `outpost-k17`.
+- Persistent campaign discovery, joining, creation, and stored-state reads require an exact supported `map_source_key`/`scenario_content_key` pair. The content key is the immutable `<scenarioId>@<version>` selector; a legacy `NULL` pin, unavailable version, or stored-state mismatch fails closed without materialising or rewriting current content.
 - WebSocket commands are read-only; mutations use authenticated HTTP handlers.
 - The passwordless Resend flow, opaque session issuance, current-session projection, logout, and guided onboarding are deployed through migrations `0006` and `0007`. See [AUTHENTICATION.md](./AUTHENTICATION.md) and [ONBOARDING.md](./ONBOARDING.md).
 - Migration `0008` adds bounded hourly retention and four-scope invitation abuse controls locally; it is not active on production until a separately authorized migration and deploy.
@@ -135,7 +137,7 @@ The default Wrangler configuration deliberately enables the local demo. It must 
 - There is no separate synchronizer-token mechanism; the current cookie-auth mitigation is exact same-origin Origin enforcement plus `SameSite=Lax`. Deployment/proxy policy must preserve the Origin signal.
 - `readJson` enforces size and parses JSON but does not require JSON content type or apply general runtime schemas.
 - Campaign order/clock payloads have dedicated bounded parsers; bodyless tactical mutations reject payloads; and `state/current`/new snapshots use a validated versioned envelope. Critical nested map/deployment/weapon/order/clock/effect shapes are checked, but this remains a tactical contract rather than general public DTO coverage.
-- A non-K-17 campaign requires authorised D1 deployment snapshots, but its runtime still calls the K-17 demo-state factory, retains that map/terrain shape, clears objectives, and uses fallback positions. General scenario bootstrap remains open.
+- Five code-authored scenario loaders are available at `@3`. Iron Rain has 311 land hexes, Broken Road 244, Night Glass 240, and Cold Horizon 298; each preserves its authored playable core, insertion/objective coordinates, terrain rules, enemy forces, waves, and round policy. General scenario schema/import remains open.
 - The compiled rules endpoint is separate from D1 seed rows; a campaign is not yet loaded from a D1 content hash.
 - Operator commands treat any viewer as an operator outside production for development convenience; production requires `ADMIN`.
 
@@ -274,13 +276,13 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 - [x] No R2, Queue, or KV authority binding is present.
 - [x] Demo auth requires exact development opt-in and is limited to `outpost-k17` and `operation-spearhead`; production cannot enable it safely.
 - [x] Unsafe mutations/WebSocket upgrades require same origin; D1 membership is checked before DO lookup.
-- [~] Eight additive D1 migrations pass a fresh empty replay locally; all seven seeds pass twice with integrity/FK checks. Production is recorded only through `0007`, and `0008` awaits explicit migration/deployment authorization.
+- [~] Eighteen additive D1 migrations pass a fresh empty replay locally; all seven seeds pass twice with integrity/FK checks. Production is recorded only through `0007`, and `0008`–`0018` await explicit migration/deployment authorization.
 - [~] A four-test local Playwright smoke baseline covers public auth, authenticated live navigation without showcase fallback, tactical rejection of forged action economy, and 390px overflow; CI is configured, but no remote run, full browser matrix, accessibility, or performance evidence exists yet.
 - [~] Guided enlistment and Battalion public/private/code/invitation recruitment are deployed with actor-scoped receipts, expected revisions, permission checks, and Resend delivery; `0008` invitation throttling/expiry is locally verified but not deployed.
 - [~] Manual/accelerated/24h clocks and pause/resume are unit-tested; alarm crash/eviction integration is not.
 - [~] Snapshot/report projection exists; event-time payload and socket-audience leakage coverage is incomplete.
 - [x] Implement and deploy passwordless production registration/login, opaque session issuance, email-based recovery, and logout revocation.
-- [~] Load non-K-17 forces from committed D1 deployment snapshots; replace the inherited K-17 map/terrain scaffold with authoritative scenario content and validation.
+- [~] Committed D1 deployment snapshots load into five exact-pinned authored `@3` scenarios; general scenario schema/import and content-hash publication remain open.
 - [ ] Implement PREPARED journal, cryptographic input/output hashes, and protected deterministic seed.
 - [ ] Implement separate persisted schedule records and consumed/recovery semantics.
 - [~] D1 persistent-effect application uses idempotent receipts; acknowledgement-gated next-round transition and a cryptographic payload journal remain open.
@@ -294,7 +296,7 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 
 ### ADR-C01: One Worker plus one named DO per campaign
 
-**Status:** Implemented for K-17; committed-snapshot force loading is partial and scenario bootstrap is still fixture-derived.
+**Status:** Implemented for the explicit development K-17 fixture and five exact-pinned authored `@3` loaders; general scenario schema/import remains open.
 
 **Trade-off:** Active campaign scale is bounded by one DO, while Worker/client share a release.
 
@@ -336,13 +338,13 @@ Related boundaries: [ARCHITECTURE.md](./ARCHITECTURE.md), [DATA_MODEL.md](./DATA
 
 ## 14. Current migration and seed order
 
-The repository migration head is `0017_public_v1_economy.sql`; the recorded production head remains `0007_guided_onboarding_and_battalions.sql`. Migrations `0008`–`0017` contain the locally verified operations and gameplay slices and are not active on the recorded production release. The production-approved seed chain is core, Phase 2 combined arms, equipment/deployment, then onboarding foundation. `development-forces.sql`, `development-strategic-world.sql`, and `development-spearhead.sql` are local-only and must never be applied to production.
+The repository migration head is `0018_campaign_scenario_content_pins.sql`; the recorded production head remains `0007_guided_onboarding_and_battalions.sql`. Migrations `0008`–`0018` contain the locally verified operations and gameplay slices and are not active on the recorded production release. Migration `0018` deliberately leaves existing campaigns' `scenario_content_key` nullable and unpinned; it does not backfill or auto-upgrade old scenario state. The production-approved seed chain is core, Phase 2 combined arms, equipment/deployment, then onboarding foundation. Fresh campaign inserts receive current exact content keys, while idempotent seed conflicts do not repin existing campaigns. `development-forces.sql`, `development-strategic-world.sql`, and `development-spearhead.sql` are local-only and must never be applied to production.
 
 Production release order is:
 
 1. export/backup the production D1 database;
 2. run a production Worker dry build;
-3. apply pending D1 migrations in order through the reviewed repository head (currently `0017`) before deploying code that depends on them;
+3. apply pending D1 migrations in order through the reviewed repository head (currently `0018`) before deploying code that depends on them;
 4. apply the four production-approved seed families in order; never apply a development fixture;
 5. deploy the Worker/client with the Phase 3 Strategic Map DO export;
 6. smoke-test health, anonymous authentication boundaries, the custom domain, and migration state.

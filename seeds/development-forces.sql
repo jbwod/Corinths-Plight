@@ -67,24 +67,23 @@ ON CONFLICT(id) DO UPDATE SET
 
 INSERT INTO campaigns (
   id, planet_id, ruleset_id, name, status, round_duration_ms,
-  map_source_key, minimum_players, maximum_players, created_by,
+  map_source_key, scenario_content_key, minimum_players, maximum_players, created_by,
   started_at, completed_at, force_policy_json
 ) VALUES
   (
     'outpost-k17', 'planet-corinth', 'ruleset-v5-core-curated-1',
-    'Outpost K-17', 'COMPLETE', 300000, 'fixture/outpost-k17',
+    'Outpost K-17', 'COMPLETE', 300000, 'fixture/outpost-k17', 'scenario-outpost-k17-hold-relay@3',
     1, 8, 'demo-user', 1778500000, 1786270000, '{}'
   ),
   (
     'operation-iron-rain', 'planet-corinth', 'ruleset-v5-core-curated-1',
-    'Operation Iron Rain', 'RECRUITING', 300000, 'fixture/operation-iron-rain',
+    'Operation Iron Rain', 'RECRUITING', 300000, 'fixture/operation-iron-rain', 'scenario-operation-iron-rain@3',
     2, 8, 'demo-user', NULL, NULL,
     '{"allowedCategories":["INFANTRY","SUPPORT","ENGINEER","ARTILLERY","ARMOUR","MECH","AEROSPACE"],"requiresShip":true}'
   )
 ON CONFLICT(id) DO UPDATE SET
   status = excluded.status,
   round_duration_ms = excluded.round_duration_ms,
-  map_source_key = excluded.map_source_key,
   minimum_players = excluded.minimum_players,
   maximum_players = excluded.maximum_players,
   started_at = excluded.started_at,

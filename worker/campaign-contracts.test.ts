@@ -1,4 +1,9 @@
-import { createDemoCampaignState, createScenarioCampaignState, resolveRound } from "../packages/rules-engine/src";
+import {
+  createDemoCampaignState,
+  createScenarioCampaignState,
+  OUTPOST_K17_SCENARIO_CONTENT_KEY,
+  resolveRound,
+} from "../packages/rules-engine/src";
 import { describe, expect, it } from "vitest";
 import {
   CAMPAIGN_STORAGE_SCHEMA_VERSION,
@@ -538,6 +543,7 @@ describe("versioned campaign Durable Object storage", () => {
   it("round-trips authored reserve waves without exposing an invalid deployment shape", () => {
     const state = createScenarioCampaignState({
       mapSourceKey: "fixture/outpost-k17",
+      scenarioContentKey: OUTPOST_K17_SCENARIO_CONTENT_KEY,
       campaignId: CAMPAIGN_ID,
       campaignName: "Hold the Relay",
       planetName: "Corinth",

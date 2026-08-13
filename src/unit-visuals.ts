@@ -27,6 +27,7 @@ import vtolArt from "./assets/unit-art/generated/vtol.png";
 import vtolHeavyLiftArt from "./assets/unit-art/generated/vtol-heavy-lift.png";
 import vtolMultipurposeAirliftArt from "./assets/unit-art/generated/vtol-multipurpose-airlift.png";
 import vtolTroopAirliftArt from "./assets/unit-art/generated/vtol-troop-airlift.png";
+import { findActiveTacticalSpriteAsset } from "./tactical-sprite-manifest";
 
 export type TacticalUnitGlyphKind =
   | "INFANTRY"
@@ -140,6 +141,11 @@ function semanticFallback(input: UnitVisualLookup): Pick<UnitVisualDefinition, "
 
 export function findUnitVisual(definitionId: string): UnitVisualDefinition | undefined {
   return UNIT_VISUAL_BY_ID.get(definitionId);
+}
+
+export function findTacticalSprite(definitionId: string): string | undefined {
+  const canonicalId = findUnitVisual(definitionId)?.definitionId ?? definitionId;
+  return findActiveTacticalSpriteAsset(canonicalId)?.src;
 }
 
 export function resolveUnitVisual(input: UnitVisualLookup): UnitVisualDefinition | (ReturnType<typeof semanticFallback> & { definitionId: string; assetKey: string; aliases: readonly []; artSrc?: undefined }) {

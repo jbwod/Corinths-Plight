@@ -75,6 +75,10 @@ export function projectCampaignState(
         }
       : {}),
   }));
+  const projectedHexes = new Map(map.map((hex) => [coordKey(hex.coord), hex] as const));
+  const objectives = state.objectives.filter((objective) =>
+    viewer.role === "ADMIN" || projectedHexes.get(coordKey(objective.coord))?.visibility !== "UNKNOWN",
+  );
   const orders = state.orders.filter(
     (order) => {
       if (viewer.role === "ADMIN") return true;
@@ -106,6 +110,7 @@ export function projectCampaignState(
     map,
     deployments,
     orders,
+    objectives,
     events,
     viewer,
     serverTime,

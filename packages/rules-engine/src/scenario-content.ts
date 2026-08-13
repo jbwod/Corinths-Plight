@@ -10,17 +10,23 @@ import { getUnitClass } from "./catalogue";
 import { createOutpostMap } from "./demo";
 import { INFANTRY_COVER_ARMOR_1, INFANTRY_GARRISON_BUILDING } from "./cover";
 import { ENGINE_VERSION } from "./resolver";
+import { createIrregularTheatreCoordinates } from "./theatre-map";
 
 export const OUTPOST_K17_SCENARIO_ID = "scenario-outpost-k17-hold-relay" as const;
 export const OUTPOST_K17_SCENARIO_VERSION = 3 as const;
 export const IRON_RAIN_SCENARIO_ID = "scenario-operation-iron-rain" as const;
-export const IRON_RAIN_SCENARIO_VERSION = 1 as const;
+export const IRON_RAIN_SCENARIO_VERSION = 3 as const;
 export const BROKEN_ROAD_SCENARIO_ID = "scenario-operation-broken-road" as const;
-export const BROKEN_ROAD_SCENARIO_VERSION = 1 as const;
+export const BROKEN_ROAD_SCENARIO_VERSION = 3 as const;
 export const NIGHT_GLASS_SCENARIO_ID = "scenario-operation-night-glass" as const;
-export const NIGHT_GLASS_SCENARIO_VERSION = 1 as const;
+export const NIGHT_GLASS_SCENARIO_VERSION = 3 as const;
 export const COLD_HORIZON_SCENARIO_ID = "scenario-operation-cold-horizon" as const;
-export const COLD_HORIZON_SCENARIO_VERSION = 1 as const;
+export const COLD_HORIZON_SCENARIO_VERSION = 3 as const;
+export const OUTPOST_K17_SCENARIO_CONTENT_KEY = `${OUTPOST_K17_SCENARIO_ID}@${OUTPOST_K17_SCENARIO_VERSION}` as const;
+export const IRON_RAIN_SCENARIO_CONTENT_KEY = `${IRON_RAIN_SCENARIO_ID}@${IRON_RAIN_SCENARIO_VERSION}` as const;
+export const BROKEN_ROAD_SCENARIO_CONTENT_KEY = `${BROKEN_ROAD_SCENARIO_ID}@${BROKEN_ROAD_SCENARIO_VERSION}` as const;
+export const NIGHT_GLASS_SCENARIO_CONTENT_KEY = `${NIGHT_GLASS_SCENARIO_ID}@${NIGHT_GLASS_SCENARIO_VERSION}` as const;
+export const COLD_HORIZON_SCENARIO_CONTENT_KEY = `${COLD_HORIZON_SCENARIO_ID}@${COLD_HORIZON_SCENARIO_VERSION}` as const;
 
 export const AUTHORED_SCENARIO_MAP_SOURCES = [
   "fixture/outpost-k17",
@@ -30,12 +36,29 @@ export const AUTHORED_SCENARIO_MAP_SOURCES = [
   "fixture/operation-cold-horizon",
 ] as const;
 
+export const AUTHORED_SCENARIO_CONTENT_SELECTIONS = [
+  { mapSourceKey: "fixture/outpost-k17", scenarioContentKey: OUTPOST_K17_SCENARIO_CONTENT_KEY },
+  { mapSourceKey: "fixture/operation-iron-rain", scenarioContentKey: IRON_RAIN_SCENARIO_CONTENT_KEY },
+  { mapSourceKey: "fixture/operation-broken-road", scenarioContentKey: BROKEN_ROAD_SCENARIO_CONTENT_KEY },
+  { mapSourceKey: "fixture/operation-night-glass", scenarioContentKey: NIGHT_GLASS_SCENARIO_CONTENT_KEY },
+  { mapSourceKey: "fixture/operation-cold-horizon", scenarioContentKey: COLD_HORIZON_SCENARIO_CONTENT_KEY },
+] as const;
+
 export function isAuthoredScenarioMapSourceKey(value: string): boolean {
   return (AUTHORED_SCENARIO_MAP_SOURCES as readonly string[]).includes(value);
 }
 
+export function isAuthoredScenarioContentSelection(
+  mapSourceKey: string,
+  scenarioContentKey: string | null | undefined,
+): boolean {
+  return AUTHORED_SCENARIO_CONTENT_SELECTIONS.some((selection) =>
+    selection.mapSourceKey === mapSourceKey && selection.scenarioContentKey === scenarioContentKey);
+}
+
 export interface ScenarioCampaignInput {
   mapSourceKey: string;
+  scenarioContentKey: string;
   campaignId: string;
   campaignName: string;
   planetName: string;
@@ -125,14 +148,12 @@ function ironRainHex(q: number, r: number): BattlefieldHex {
   };
 }
 
-export function createIronRainMap(radius = 7): BattlefieldHex[] {
-  const hexes: BattlefieldHex[] = [];
-  for (let q = -radius; q <= radius; q += 1) {
-    const minimumR = Math.max(-radius, -q - radius);
-    const maximumR = Math.min(radius, -q + radius);
-    for (let r = minimumR; r <= maximumR; r += 1) hexes.push(ironRainHex(q, r));
-  }
-  return hexes;
+export function createIronRainMap(outerRadius = 11): BattlefieldHex[] {
+  return createIrregularTheatreCoordinates({
+    seed: IRON_RAIN_SCENARIO_ID,
+    coreRadius: Math.min(7, outerRadius),
+    outerRadius,
+  }).map(({ q, r }) => ironRainHex(q, r));
 }
 
 const brokenRoadObjectiveCoordinates = new Map([
@@ -178,14 +199,12 @@ function brokenRoadHex(q: number, r: number): BattlefieldHex {
   };
 }
 
-export function createBrokenRoadMap(radius = 6): BattlefieldHex[] {
-  const hexes: BattlefieldHex[] = [];
-  for (let q = -radius; q <= radius; q += 1) {
-    const minimumR = Math.max(-radius, -q - radius);
-    const maximumR = Math.min(radius, -q + radius);
-    for (let r = minimumR; r <= maximumR; r += 1) hexes.push(brokenRoadHex(q, r));
-  }
-  return hexes;
+export function createBrokenRoadMap(outerRadius = 10): BattlefieldHex[] {
+  return createIrregularTheatreCoordinates({
+    seed: BROKEN_ROAD_SCENARIO_ID,
+    coreRadius: Math.min(6, outerRadius),
+    outerRadius,
+  }).map(({ q, r }) => brokenRoadHex(q, r));
 }
 
 const nightGlassObjectiveCoordinates = new Map([
@@ -228,14 +247,12 @@ function nightGlassHex(q: number, r: number): BattlefieldHex {
   };
 }
 
-export function createNightGlassMap(radius = 5): BattlefieldHex[] {
-  const hexes: BattlefieldHex[] = [];
-  for (let q = -radius; q <= radius; q += 1) {
-    const minimumR = Math.max(-radius, -q - radius);
-    const maximumR = Math.min(radius, -q + radius);
-    for (let r = minimumR; r <= maximumR; r += 1) hexes.push(nightGlassHex(q, r));
-  }
-  return hexes;
+export function createNightGlassMap(outerRadius = 10): BattlefieldHex[] {
+  return createIrregularTheatreCoordinates({
+    seed: NIGHT_GLASS_SCENARIO_ID,
+    coreRadius: Math.min(5, outerRadius),
+    outerRadius,
+  }).map(({ q, r }) => nightGlassHex(q, r));
 }
 
 const coldHorizonObjectiveCoordinates = new Map([
@@ -284,14 +301,12 @@ function coldHorizonHex(q: number, r: number): BattlefieldHex {
   };
 }
 
-export function createColdHorizonMap(radius = 6): BattlefieldHex[] {
-  const hexes: BattlefieldHex[] = [];
-  for (let q = -radius; q <= radius; q += 1) {
-    const minimumR = Math.max(-radius, -q - radius);
-    const maximumR = Math.min(radius, -q + radius);
-    for (let r = minimumR; r <= maximumR; r += 1) hexes.push(coldHorizonHex(q, r));
-  }
-  return hexes;
+export function createColdHorizonMap(outerRadius = 11): BattlefieldHex[] {
+  return createIrregularTheatreCoordinates({
+    seed: COLD_HORIZON_SCENARIO_ID,
+    coreRadius: Math.min(6, outerRadius),
+    outerRadius,
+  }).map(({ q, r }) => coldHorizonHex(q, r));
 }
 
 function objectives(): ObjectiveState[] {
@@ -773,19 +788,34 @@ function createIronRainCampaignState(input: ScenarioCampaignInput): CampaignRunt
 
 export function createScenarioCampaignState(input: ScenarioCampaignInput): CampaignRuntimeState {
   if (input.mapSourceKey === "fixture/operation-iron-rain") {
+    if (input.scenarioContentKey !== IRON_RAIN_SCENARIO_CONTENT_KEY) {
+      throw new Error(`CAMPAIGN_SCENARIO_VERSION_NOT_AVAILABLE:${input.scenarioContentKey}`);
+    }
     return createIronRainCampaignState(input);
   }
   if (input.mapSourceKey === "fixture/operation-broken-road") {
+    if (input.scenarioContentKey !== BROKEN_ROAD_SCENARIO_CONTENT_KEY) {
+      throw new Error(`CAMPAIGN_SCENARIO_VERSION_NOT_AVAILABLE:${input.scenarioContentKey}`);
+    }
     return createBrokenRoadCampaignState(input);
   }
   if (input.mapSourceKey === "fixture/operation-night-glass") {
+    if (input.scenarioContentKey !== NIGHT_GLASS_SCENARIO_CONTENT_KEY) {
+      throw new Error(`CAMPAIGN_SCENARIO_VERSION_NOT_AVAILABLE:${input.scenarioContentKey}`);
+    }
     return createNightGlassCampaignState(input);
   }
   if (input.mapSourceKey === "fixture/operation-cold-horizon") {
+    if (input.scenarioContentKey !== COLD_HORIZON_SCENARIO_CONTENT_KEY) {
+      throw new Error(`CAMPAIGN_SCENARIO_VERSION_NOT_AVAILABLE:${input.scenarioContentKey}`);
+    }
     return createColdHorizonCampaignState(input);
   }
   if (input.mapSourceKey !== "fixture/outpost-k17") {
     throw new Error(`CAMPAIGN_SCENARIO_NOT_AVAILABLE:${input.mapSourceKey}`);
+  }
+  if (input.scenarioContentKey !== OUTPOST_K17_SCENARIO_CONTENT_KEY) {
+    throw new Error(`CAMPAIGN_SCENARIO_VERSION_NOT_AVAILABLE:${input.scenarioContentKey}`);
   }
   const round = input.round ?? 1;
   const lockLeadMs = Math.min(30_000, Math.floor(input.durationMs / 5));

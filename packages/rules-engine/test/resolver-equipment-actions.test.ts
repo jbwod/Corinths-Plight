@@ -9,6 +9,7 @@ import {
   getTacticalUnitClass,
   hexDistance,
   createScenarioCampaignState,
+  IRON_RAIN_SCENARIO_CONTENT_KEY,
   resolveTacticalCover,
   resolveAttackRoll,
   resolveRound,
@@ -55,6 +56,7 @@ describe("equipment and transport actions", () => {
       .find((deployment) => deployment.definitionId === "unit-aerospace-fighter")!;
     const landingState = createScenarioCampaignState({
       mapSourceKey: "fixture/operation-iron-rain",
+      scenarioContentKey: IRON_RAIN_SCENARIO_CONTENT_KEY,
       campaignId: "iron-rain-flight-ops",
       campaignName: "Operation Iron Rain",
       planetName: "Corinth",
@@ -95,6 +97,7 @@ describe("equipment and transport actions", () => {
 
     const takeOffState = createScenarioCampaignState({
       mapSourceKey: "fixture/operation-iron-rain",
+      scenarioContentKey: IRON_RAIN_SCENARIO_CONTENT_KEY,
       campaignId: "iron-rain-takeoff",
       campaignName: "Operation Iron Rain",
       planetName: "Corinth",
@@ -138,6 +141,7 @@ describe("equipment and transport actions", () => {
       .find((deployment) => deployment.definitionId === "unit-aerospace-bomber")!;
     const landingState = createScenarioCampaignState({
       mapSourceKey: "fixture/operation-iron-rain",
+      scenarioContentKey: IRON_RAIN_SCENARIO_CONTENT_KEY,
       campaignId: "iron-rain-bomber-ops",
       campaignName: "Operation Iron Rain",
       planetName: "Corinth",

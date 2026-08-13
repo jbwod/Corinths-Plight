@@ -30,6 +30,7 @@ describe("campaign directory", () => {
       status: "ACTIVE",
       planet_name: "Corinth",
       map_source_key: "fixture/outpost-k17",
+      scenario_content_key: "scenario-outpost-k17-hold-relay@3",
       side: "ALLIED",
       role: "PLAYER",
       joined_at: 1,
@@ -86,6 +87,7 @@ describe("campaign directory", () => {
       status: "RECRUITING",
       planet_name: "Corinth",
       map_source_key: "fixture/operation-iron-rain",
+      scenario_content_key: "scenario-operation-iron-rain@3",
       side: "ALLIED",
       role: "BATTALION_COMMAND",
       joined_at: 1,
@@ -127,6 +129,7 @@ describe("campaign directory", () => {
       status: "RECRUITING",
       planet_name: "Corinth",
       map_source_key: "fixture/operation-broken-road",
+      scenario_content_key: "scenario-operation-broken-road@3",
       side: "ALLIED",
       role: "PLAYER",
       joined_at: 1,
@@ -168,6 +171,7 @@ describe("campaign directory", () => {
       status: "RECRUITING",
       planet_name: "Corinth",
       map_source_key: "fixture/operation-night-glass",
+      scenario_content_key: "scenario-operation-night-glass@3",
       side: "ALLIED",
       role: "PLAYER",
       joined_at: 1,
@@ -207,6 +211,7 @@ describe("campaign directory", () => {
       status: "RECRUITING",
       planet_name: "Corinth II",
       map_source_key: "fixture/operation-cold-horizon",
+      scenario_content_key: "scenario-operation-cold-horizon@3",
       side: "ALLIED",
       role: "PLAYER",
       joined_at: 1,
@@ -251,5 +256,42 @@ describe("campaign directory", () => {
       headers: { "x-demo-user": "demo-user" },
     }), env([]));
     expect(wrongMethod?.status).toBe(405);
+  });
+
+  it("fails closed for a legacy campaign without an immutable scenario pin", async () => {
+    const response = await routeCampaignDirectoryRequest(new Request("https://game.test/api/campaigns", {
+      headers: { "x-demo-user": "demo-user" },
+    }), env([{
+      campaign_id: "legacy-iron-rain",
+      name: "Legacy Iron Rain",
+      status: "ACTIVE",
+      planet_name: "Corinth",
+      map_source_key: "fixture/operation-iron-rain",
+      scenario_content_key: null,
+      side: "ALLIED",
+      role: "PLAYER",
+      joined_at: 1,
+      minimum_players: 1,
+      maximum_players: 8,
+      member_count: 1,
+      deployment_count: 1,
+      force_policy_json: '{"reinforcementStatus":"OPEN"}',
+      reinforcement_policy_json: null,
+      current_round: 1,
+      result: null,
+      outcome_reason: null,
+      result_round: null,
+      rewards_json: null,
+      resolved_at: null,
+    }]));
+
+    await expect(response?.json()).resolves.toMatchObject({
+      campaigns: [{
+        campaignId: "legacy-iron-rain",
+        scenarioAvailable: false,
+        canEnter: false,
+        canReinforce: false,
+      }],
+    });
   });
 });

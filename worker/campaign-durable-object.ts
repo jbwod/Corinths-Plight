@@ -26,6 +26,7 @@ import {
   hexDistance,
   isLightAtChargeStore,
   isConstructibleFieldworkId,
+  isAuthoredScenarioContentSelection,
   projectCampaignState,
   resolveRound,
   synchronizeSupplyCargo,
@@ -232,6 +233,34 @@ export class CampaignDurableObject extends DurableObject<Env> {
     return Number.isFinite(parsed) && parsed >= 1_000 ? parsed : 30_000;
   }
 
+  private isDevelopmentFoundationFixture(): boolean {
+    return this.campaignId() === FOUNDATION_CAMPAIGN_ID && this.env.ENVIRONMENT === "development";
+  }
+
+  private assertPinnedScenarioSelection(selection: {
+    map_source_key: string;
+    scenario_content_key: string | null;
+  }): asserts selection is { map_source_key: string; scenario_content_key: string } {
+    if (!selection.scenario_content_key) throw new Error("CAMPAIGN_SCENARIO_CONTENT_UNPINNED");
+    if (!isAuthoredScenarioContentSelection(selection.map_source_key, selection.scenario_content_key)) {
+      throw new Error(`CAMPAIGN_SCENARIO_VERSION_NOT_AVAILABLE:${selection.scenario_content_key}`);
+    }
+  }
+
+  private async assertStoredStateMatchesPinnedScenario(state: CampaignRuntimeState): Promise<void> {
+    const selection = await this.env.DB.prepare(`SELECT map_source_key,scenario_content_key
+      FROM campaigns WHERE id=?1 LIMIT 1`)
+      .bind(this.campaignId()).first<{ map_source_key: string; scenario_content_key: string | null }>();
+    if (!selection) throw new Error("CAMPAIGN_NOT_INITIALISED");
+    this.assertPinnedScenarioSelection(selection);
+    const storedContentKey = state.scenarioId && state.scenarioVersion
+      ? `${state.scenarioId}@${state.scenarioVersion}`
+      : undefined;
+    if (storedContentKey !== selection.scenario_content_key) {
+      throw new Error(`CAMPAIGN_SCENARIO_CONTENT_MISMATCH:${storedContentKey ?? "UNVERSIONED"}:${selection.scenario_content_key}`);
+    }
+  }
+
   private hydrateAlliedExecutionSupport(state: CampaignRuntimeState): boolean {
     let changed = false;
     for (const deployment of state.deployments) {
@@ -288,11 +317,14 @@ export class CampaignDurableObject extends DurableObject<Env> {
     const stored = await this.ctx.storage.get<unknown>(STATE_KEY);
     if (stored !== undefined) {
       const parsed = parseCampaignStoredState(stored, this.campaignId());
+      if (!this.isDevelopmentFoundationFixture()) {
+        await this.assertStoredStateMatchesPinnedScenario(parsed.state);
+      }
       const hydrated = this.hydrateAlliedExecutionSupport(parsed.state);
       if (parsed.legacy || hydrated) await this.ctx.storage.put(STATE_KEY, encodeCampaignStoredState(parsed.state));
       return parsed.state;
     }
-    const created = this.campaignId() === FOUNDATION_CAMPAIGN_ID && this.env.ENVIRONMENT === "development"
+    const created = this.isDevelopmentFoundationFixture()
       ? createDemoCampaignState(Date.now(), this.configuredDuration(), this.campaignId())
       : await this.createPersistentCampaignState();
     created.clock = makeRoundClock(
@@ -371,16 +403,17 @@ export class CampaignDurableObject extends DurableObject<Env> {
 
   private async createPersistentCampaignState(): Promise<CampaignRuntimeState> {
     const campaign = await this.env.DB.prepare(`SELECT campaigns.id, campaigns.status,
-        campaigns.name, campaigns.map_source_key, campaigns.round_duration_ms,
+        campaigns.name, campaigns.map_source_key, campaigns.scenario_content_key, campaigns.round_duration_ms,
         planets.name AS planet_name
       FROM campaigns
       JOIN planets ON planets.id = campaigns.planet_id
       WHERE campaigns.id = ?1 AND campaigns.status IN ('ACTIVE','DRAFT','RECRUITING') LIMIT 1`)
       .bind(this.campaignId()).first<{
-        id: string; status: string; name: string; map_source_key: string;
+        id: string; status: string; name: string; map_source_key: string; scenario_content_key: string | null;
         round_duration_ms: number; planet_name: string;
       }>();
     if (!campaign) throw new Error("CAMPAIGN_NOT_INITIALISED");
+    this.assertPinnedScenarioSelection(campaign);
     const rows = await this.env.DB.prepare(`SELECT deployments.id, deployments.owner_id,
         deployments.side, deployments.status, deployments.snapshot_json,
         units.id AS persistent_unit_id, units.ruleset_id, units.definition_id, units.callsign,
@@ -523,6 +556,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
     }
     return createScenarioCampaignState({
       mapSourceKey: campaign.map_source_key,
+      scenarioContentKey: campaign.scenario_content_key,
       campaignId: campaign.id,
       campaignName: campaign.name,
       planetName: campaign.planet_name,

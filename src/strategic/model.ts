@@ -112,6 +112,7 @@ export interface ShipCapacityView {
 export interface ShipCargoView {
   id: string;
   label: string;
+  kind?: "UNIT" | "SUPPLY" | "EQUIPMENT" | "CARGO";
   quantity: number | null;
   supplySize?: "LARGE" | "MEDIUM" | "SMALL";
   location: string;
@@ -119,6 +120,7 @@ export interface ShipCargoView {
 
 export interface EmbarkedUnitView {
   id: string;
+  definitionId?: string;
   callsign: string;
   className: string;
   battlegroupName?: string;

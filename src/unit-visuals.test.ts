@@ -5,6 +5,7 @@ import {
   TACTICAL_UNIT_GLYPH_PATHS,
   UNIT_VISUALS,
   findUnitVisual,
+  findTacticalSprite,
   resolveUnitVisual,
 } from "./unit-visuals";
 
@@ -27,6 +28,23 @@ describe("unit visual registry", () => {
     expect(findUnitVisual("unit-light-artillery")?.definitionId).toBe("unit-light-artillery");
     expect(findUnitVisual("unit-logistics-vehicle")?.definitionId).toBe("unit-logi-truck");
     expect(findUnitVisual("unit-heavy-aerospace-transport")?.definitionId).toBe("unit-heavy-air-transport");
+  });
+
+  it("maps every catalogued class to a six-state tactical sprite sheet", () => {
+    for (const visual of UNIT_VISUALS) {
+      expect(findTacticalSprite(visual.definitionId), visual.definitionId).toMatch(/\.png$/);
+      for (const alias of visual.aliases) {
+        if (findUnitVisual(alias)?.definitionId === visual.definitionId) {
+          expect(findTacticalSprite(alias), alias).toBe(findTacticalSprite(visual.definitionId));
+        }
+      }
+    }
+  });
+
+  it("uses the QA-passed plan-view mech revisions", () => {
+    expect(findTacticalSprite("unit-light-mech")).toContain("unit-light-mech-v3");
+    expect(findTacticalSprite("unit-medium-mech")).toContain("unit-medium-mech-v4");
+    expect(findTacticalSprite("unit-heavy-mech")).toContain("unit-heavy-mech-v3");
   });
 
   it("fails visibly to a code-native tactical glyph when no portrait is registered", () => {

@@ -137,6 +137,8 @@ export interface ShipUnitCargoRow {
   ship_id: string;
   definition_id: string;
   callsign: string;
+  class_name: string;
+  battlegroup_name: string | null;
 }
 
 export interface SupplyBalanceRow {
@@ -685,9 +687,19 @@ export async function listShipUnitCargo(
 ): Promise<ShipUnitCargoRow[]> {
   const result = await db
     .prepare(`SELECT units.id AS unit_id, units.location_id AS ship_id,
-                    units.definition_id, units.callsign
+                    units.definition_id, units.callsign,
+                    definitions.name AS class_name,
+                    groups.name AS battlegroup_name
                FROM player_units AS units
                JOIN ships ON ships.id = units.location_id
+               JOIN unit_class_definitions AS definitions
+                 ON definitions.id = units.definition_id
+                AND definitions.ruleset_id = units.ruleset_id
+               LEFT JOIN battlegroup_units AS assignments
+                 ON assignments.player_unit_id = units.id
+               LEFT JOIN battlegroups AS groups
+                 ON groups.id = assignments.battlegroup_id
+                AND groups.battalion_id = ships.battalion_id
               WHERE units.location_state = 'ON_SHIP'
                 AND units.location_id = ?3
                 AND ships.battalion_id = ?2

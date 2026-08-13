@@ -14,8 +14,7 @@ INSERT INTO campaigns (
 ON CONFLICT(id) DO UPDATE SET
   name = excluded.name,
   status = CASE WHEN campaigns.status IN ('COMPLETE','FAILED') THEN campaigns.status ELSE excluded.status END,
-  force_policy_json = excluded.force_policy_json,
-  map_source_key = excluded.map_source_key;
+  force_policy_json = excluded.force_policy_json;
 
 INSERT INTO campaign_memberships (campaign_id,user_id,battalion_id,side,role)
 VALUES ('operation-spearhead','demo-user','battalion-33rd-expeditionary','ALLIED','BATTALION_COMMAND')

@@ -243,6 +243,14 @@ describe("campaign-state redaction", () => {
 
   it("redacts dynamic control, objective, structure, and hazard data from UNKNOWN hexes", () => {
     const { state } = visibilityFixture();
+    state.objectives.push({
+      id: "secret-objective",
+      name: "Hidden Hive",
+      coord: { q: 3, r: 0 },
+      owner: "ENEMY",
+      status: "ACTIVE",
+      description: "Must not cross the audience projection boundary.",
+    });
     const view = projectCampaignState(state, alliedViewer, 9_999);
     const hiddenHex = view.map.find((hex) => hex.coord.q === 3 && hex.coord.r === 0)!;
 
@@ -251,6 +259,8 @@ describe("campaign-state redaction", () => {
     expect(hiddenHex.objectiveId).toBeUndefined();
     expect(hiddenHex.structureIds).toEqual([]);
     expect(hiddenHex.environment).toEqual([]);
+    expect(view.objectives).not.toContainEqual(expect.objectContaining({ id: "secret-objective" }));
+    expect(JSON.stringify(view)).not.toContain("Hidden Hive");
   });
 
   it("does not leak an unseen enemy route through a nominally public event payload", () => {

@@ -4,6 +4,7 @@ import {
   createScenarioCampaignState,
   applyScenarioReinforcements,
   evaluateScenarioRoundEnd,
+  OUTPOST_K17_SCENARIO_CONTENT_KEY,
   resolveRound,
 } from "../src";
 
@@ -208,6 +209,7 @@ describe("declarative Outpost K-17 scenario policy", () => {
       .map((deployment) => ({ ...deployment, campaignId: "campaign-waves", persistentUnitId: undefined }));
     const state = createScenarioCampaignState({
       mapSourceKey: "fixture/outpost-k17",
+      scenarioContentKey: OUTPOST_K17_SCENARIO_CONTENT_KEY,
       campaignId: "campaign-waves",
       campaignName: "Hold the Relay",
       planetName: "Corinth",

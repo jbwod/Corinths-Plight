@@ -60,6 +60,15 @@ function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" && value.trim() ? value : fallback;
 }
 
+function readableIdentifier(value: string): string {
+  return value
+    .replace(/^(unit|equipment|capability)-/, "")
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ") || "Unit";
+}
+
 function asNumber(value: unknown, fallback = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
@@ -287,6 +296,7 @@ function normalizeCargo(payload: JsonRecord): ShipCargoView[] {
     return [{
       id: identifier(record, "id", "cargoId") || `cargo-${index + 1}`,
       label,
+      kind: ["UNIT", "SUPPLY", "EQUIPMENT"].includes(kind) ? kind as ShipCargoView["kind"] : "CARGO",
       quantity: asNullableNumber(record.quantity),
       supplySize: ["LARGE", "MEDIUM", "SMALL"].includes(size) ? size as ShipCargoView["supplySize"] : undefined,
       location: asString(record.locationName, asString(record.location, "Primary ship cargo")),
@@ -556,9 +566,10 @@ export function normalizeStrategicPayloads(payloads: StrategicApiPayloads): Stra
     const unitId = identifier(record, "unitId", "id") || `embarked-unit-${index + 1}`;
     return [{
       id: unitId,
+      definitionId: asString(record.definitionId) || undefined,
       callsign: asString(record.callsign, unitId.replace(/^force-/, "").toUpperCase()),
-      className: asString(record.className, asString(record.definitionId, "Unit")),
-      battlegroupName: undefined,
+      className: asString(record.className, asString(record.definitionName, readableIdentifier(asString(record.definitionId, "Unit")))),
+      battlegroupName: asString(record.battlegroupName) || undefined,
       state: "EMBARKED",
     }];
   });
@@ -622,8 +633,9 @@ export function normalizeStrategicPayloads(payloads: StrategicApiPayloads): Stra
         const battlegroup = firstRecord(record, "battlegroup");
         return [{
           id: identifier(record, "id", "unitId") || `embarked-unit-${index + 1}`,
+          definitionId: asString(record.definitionId) || undefined,
           callsign: asString(record.callsign, "UNNAMED"),
-          className: asString(record.className, asString(record.definitionName, "Unit")),
+          className: asString(record.className, asString(record.definitionName, readableIdentifier(asString(record.definitionId, "Unit")))),
           battlegroupName: asString(record.battlegroupName, asString(battlegroup.name)) || undefined,
           state: normalizedStatus(record.state ?? record.locationState, "EMBARKED"),
         }];

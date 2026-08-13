@@ -12,6 +12,10 @@ This register does not turn recommendations into rules. A decision becomes activ
 
 The local Phase-1 security checkpoint adds provisional operational retention periods, invitation quotas and delivery retry limits. Those are abuse/reliability defaults, not game rules or a legal retention decision, and they do **not** resolve DEC-016. No rules or balance decision was activated by that checkpoint.
 
+The 2026-08-13 tactical presentation pass changes only formation layout, sprite scale/animation, commander colour, intent-arrow grammar, marker callouts and operation-note styling. It consumes authoritative positions, facings, orders, marker kinds and note text without changing movement, stacking/capacity, targeting, visibility, action economy or balance. It therefore activates no rules decision; unresolved values below remain blocked.
+
+The 2026-08-14 V3 theatre expansion is versioned scenario content, not a presentation-only change. It preserves each operation's complete former map as an inner core and uses that operation's existing terrain authoring function for deterministic connected outer coordinates. The extra playable space can affect scenario balance, so existing campaigns are not silently migrated and public publication still requires scenario playtest/content approval. It does not approve a reusable terrain profile or resolve DEC-007.
+
 ## Decision protocol
 
 For every `PENDING` row:

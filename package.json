@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && npm run verify:tactical-sprite-bundle",
     "build:production": "CLOUDFLARE_ENV=production npm run build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
@@ -44,6 +44,7 @@
     "classes:check": "node --import tsx scripts/generate-classes-catalogue.ts --check",
     "equipment-art:manifest": "node --import tsx scripts/update-equipment-visual-manifest.ts",
     "unit-art:manifest": "node --import tsx scripts/update-unit-visual-manifest.ts",
+    "verify:tactical-sprite-bundle": "node --import tsx scripts/verify-tactical-sprite-bundle.ts",
     "seed:check": "node --import tsx scripts/validate-seed.ts"
   },
   "dependencies": {

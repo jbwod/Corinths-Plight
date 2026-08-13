@@ -2,7 +2,7 @@
 
 **Status:** Phase-0 reconciled implemented schema/use plus target deltas (2026-08-10)
 
-**Scope:** D1 migrations `0001`–`0011`, all production/development seed files, current Campaign Durable Object storage, and the Phase 3 Strategic Map coordination boundary
+**Scope:** D1 migrations `0001`–`0018`, all production/development seed files, current Campaign Durable Object storage, and the Phase 3 Strategic Map coordination boundary
 
 ## 1. Authority and status
 
@@ -14,7 +14,7 @@
 
 D1 owns global identity, ownership, economy, organisation, ship, strategic-world, campaign-registry, event, and archive truth. One named Campaign Durable Object owns the mutable tactical state of one active campaign. Phase 3 adds a separate sharded Strategic Map Durable Object boundary, one coordinator per strategic map/theatre. It is never a global-galaxy singleton.
 
-The authored K-17 campaign loads committed D1 force snapshots into the versioned `scenario-outpost-k17-hold-relay@3` battlefield, resolves its four-round objective policy, and persists its terminal result. Other map-source keys remain unsupported rather than receiving an invented battlefield, so this is one complete scenario rather than a general campaign-authoring system.
+Five authored campaigns load committed D1 force snapshots into exact version-`@3` battlefields: K-17, Iron Rain, Broken Road, Night Glass, and Cold Horizon. Unsupported map/content pairs remain unavailable rather than receiving invented or latest-at-runtime content, so this is a fixed authored set rather than a general campaign-authoring system.
 
 ## 2. Representation conventions
 
@@ -28,7 +28,7 @@ The authored K-17 campaign loads committed D1 force snapshots into the versioned
 
 ## 3. Implemented D1 schema
 
-The ten migrations create the following table families. Field lists below reflect landed SQL, not a claim that every service workflow is executable. Production deployment state must still be checked separately before applying local migrations.
+The eighteen migrations create the following table families. Field lists below reflect landed SQL, not a claim that every service workflow is executable. Production deployment state must still be checked separately before applying local migrations.
 
 ### 3.1 Identity and sessions
 
@@ -112,7 +112,7 @@ Ship status is exactly `DOCKED`, `ORBIT`, `IN_TRANSIT`, `ARRIVING`, `DEPLOYING`,
 | Table | Implemented fields and constraints |
 |---|---|
 | `planets` | `id`, unique `name`, `strategic_coord_json`, `environment_json`, `war_state_json` |
-| `campaigns` | `id`, `planet_id`, `ruleset_id`, `name`, `status`, `round_duration_ms`, `map_source_key`, `minimum_players`, `maximum_players`, `created_by`, `created_at`, `started_at`, `completed_at`; unique `(planet_id, name)`. Status: `DRAFT`, `RECRUITING`, `ACTIVE`, `PAUSED`, `COMPLETE`, `FAILED`. There is no engine hash, seed policy, or DO-name column. |
+| `campaigns` | `id`, `planet_id`, `ruleset_id`, `name`, `status`, `round_duration_ms`, `map_source_key`, nullable `scenario_content_key`, `minimum_players`, `maximum_players`, `created_by`, `created_at`, `started_at`, `completed_at`; unique `(planet_id, name)`. Status: `DRAFT`, `RECRUITING`, `ACTIVE`, `PAUSED`, `COMPLETE`, `FAILED`. Migration `0018` adds the exact immutable `<scenarioId>@<version>` selector without backfilling legacy rows. There is no engine hash, seed policy, or DO-name column. |
 | `campaign_memberships` | `campaign_id`, `user_id`, nullable `battalion_id`, `side`, `role`, `joined_at`; composite PK. Side: `ALLIED`, `ENEMY`, `NEUTRAL`; role: `PLAYER`, `BATTALION_COMMAND`, `GM`, `OBSERVER`. |
 | `deployments` | `id`, `campaign_id`, `player_unit_id`, `owner_id`, `side`, `status`, `snapshot_json`, `deployed_at`, `withdrawn_at`; unique campaign/unit and a partial unique index preventing a unit from having more than one `READY`, `ACTIVE`, or `IMMOBILISED` deployment. There is no snapshot hash. |
 | `round_metadata` | `campaign_id`, positive `round_number`, globally unique `resolution_key`, `phase`, `lock_at`, `resolves_at`, `state_digest`, `archived_at`; PK campaign/round. No input/output hash, seed commitment, resolver version, effect status, or event range. |
@@ -205,7 +205,7 @@ New reward JSON records service history plus the published `public-v1-economy@1`
 
 ## 4. Current Campaign Durable Object records
 
-One DO is named by the URL/D1 campaign ID. The explicit local `outpost-k17` fixture remains available only in development. A persistent campaign requires committed D1 deployment/loadout snapshots and a supported authored `map_source_key`; K-17 loads `scenario-outpost-k17-hold-relay@3`, Iron Rain loads `scenario-operation-iron-rain@1`, and unsupported content fails closed. General scenario import/authoring is not implemented.
+One DO is named by the URL/D1 campaign ID. The explicit local `outpost-k17` fixture remains available only in development. A persistent campaign requires committed D1 deployment/loadout snapshots and an exact supported `map_source_key`/`scenario_content_key` pair. K-17, Iron Rain, Broken Road, Night Glass, and Cold Horizon all load their named `@3` content. Iron Rain has 311 land hexes, Broken Road 244, Night Glass 240, and Cold Horizon 298. A legacy `NULL` pin, unavailable version, or mismatch between stored DO scenario identity and the D1 pin fails closed without creating, rewriting, or auto-upgrading state. General scenario import/authoring is not implemented.
 
 | Storage key | Implemented contents | Current behavior |
 |---|---|---|
@@ -260,6 +260,7 @@ The resolution seed is currently a predictable string derived from campaign, rou
 - one archive event per event ID and campaign/round/sequence;
 - one D1 effect row per idempotency key;
 - unique invitation-security bucket keys plus constrained scope/outcome vocabularies and indexed bounded cleanup paths from migration `0008`;
+- nullable campaign scenario pins from migration `0018`; runtime requires an exact supported map/content pair, deliberately leaving legacy rows unavailable until an explicit migration decision;
 - acyclic structured strategic-location hierarchy and same-map, non-self route edges;
 - one active operational Battalion selection backed by active membership;
 - Battalion-consistent ranks, Task Force ships, Battlegroup embarkations, and strategic-order subjects;
@@ -288,7 +289,7 @@ The resolution seed is currently a predictable string derived from campaign, rou
 - complete Req pricing/income/replacement rules beyond the currently published purchases;
 - full unit/ship/location reconciliation beyond the implemented loadout/deployment boundary;
 - immutable published ruleset content and a campaign-bound engine/content hash;
-- scenario-specific battlefield/map/objective bootstrap beyond the K-17-derived scaffold and committed force snapshots;
+- general scenario schema/import and content-hash publication beyond the five exact-pinned authored `@3` loaders;
 - immutable archival of all order revisions and canonical events into D1;
 - cryptographic input/output/effect payload hashes;
 - cryptographically journaled exactly-once D1 damage, death, equipment loss, history, and requisition effects beyond the current receipt-idempotent subset;
@@ -313,7 +314,7 @@ The tactical `persistent_effects` table still needs a follow-up migration or del
 1. Add runtime schemas and explicit D1-to-domain adapters, including seconds/milliseconds and quarter-point conversion.
 2. Choose one generated/hashed source of rules truth and enforce published immutability.
 3. Deploy and monitor the locally implemented `0008` retention/invitation controls only after migration approval, then extend the passwordless boundary with operator account controls and session/device management without exposing auth identities publicly.
-4. Evolve the current code-authored K-17 and Iron Rain loaders into runtime-validated, hash-pinned scenario publications while retaining fail-closed map-source selection.
+4. Evolve the five exact version-pinned authored loaders into hash-pinned scenario publications while retaining fail-closed selection and explicit, separately approved migrations for any legacy campaign upgrade.
 5. Complete and reconcile the existing purchase/equip/deploy services, then add withdrawal/recovery before exposing the broader table families as complete features.
 6. Add the tactical PREPARED/hash journal and D1 persistent-effect applier before claiming exact-once tactical-to-strategic resolution.
 7. Reconcile legacy Player Unit/ship compatibility locations with structured strategic location through one transactional service.
