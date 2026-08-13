@@ -1,5 +1,6 @@
 import type { BattlefieldHex, CampaignDeployment } from "../../domain/src";
 import { V5_CORE_CURATED_2_CATALOGUE } from "./generated/v5-core-curated-2";
+import { resolveMechCrouchCover } from "./companion-mechs";
 
 export const INFANTRY_COVER_ARMOR_1 = "INFANTRY_COVER_ARMOR_1" as const;
 export const INFANTRY_GARRISON_BUILDING = "INFANTRY_GARRISON_BUILDING" as const;
@@ -46,7 +47,10 @@ export function resolveTacticalCover(
   attacker: CampaignDeployment,
   target: CampaignDeployment,
   hexes: BattlefieldHex[],
+  options: { directFire?: boolean } = {},
 ): TacticalCoverResult {
+  const mechCrouch = resolveMechCrouchCover(target, hexes, options.directFire !== false);
+  if (mechCrouch.armor === 1) return mechCrouch;
   const tags = new Set(target.tags ?? []);
   if (sameHex(attacker, target) || !tags.has("PERSONNEL") || tags.has("VEHICLE")) {
     return { armor: 0, sources: [] };
@@ -65,6 +69,7 @@ export function resolveTacticalCover(
     if (definitionId) sources.push(definitionId);
   }
   if (hex.environment.includes(INFANTRY_COVER_ARMOR_1)) sources.push(INFANTRY_COVER_ARMOR_1);
+  if (target.statuses.includes("SHIELD_WALL") && options.directFire !== false) sources.push("SHIELD_WALL");
 
   return sources.length > 0
     ? { armor: 1, sources: [...new Set(sources)].sort() }

@@ -170,6 +170,7 @@ ON CONFLICT(definition_kind, definition_id, ruleset_id) DO UPDATE SET
 
 UPDATE ruleset_implementation_overlays
 SET implementation_status = 'IMPLEMENTED',
+    requisition_status = 'PUBLISHED',
     availability_status = 'AVAILABLE',
     executable = 1,
     purchasable = 1,

@@ -220,6 +220,16 @@ export async function buildStoredEffectiveUnit(
     const rows = grouped.get(item.instanceId)!;
     const row = rows[0];
     if (row.assigned_unit_id && row.assigned_unit_id !== unitId) throw new ForceServiceError(409, "EQUIPMENT_ASSIGNED_ELSEWHERE", `${row.name} is assigned to another unit.`);
+    if (
+      row.equipment_definition_id === "equipment-power-armour-back-light-laser-public-v1" &&
+      (context.definition_id !== "unit-power-armoured-infantry" || context.service_campaigns < 1)
+    ) {
+      throw new ForceServiceError(
+        422,
+        "POWER_ARMOUR_BACK_WEAPON_LOCKED",
+        "The Power Armour back-mounted Light Laser unlocks after one completed mission.",
+      );
+    }
     if (row.implementation_status === "CATALOGUE_ONLY" || row.executable !== 1) throw new ForceServiceError(422, "EQUIPMENT_NOT_EXECUTABLE", `${row.name} is not executable in the active ruleset.`);
     const allowedSlots = parseJson<string[]>(row.slot_types_json, [row.canonical_slot_type]).map((slot) => slot.toUpperCase());
     if (!allowedSlots.includes(item.slotType.toUpperCase())) throw new ForceServiceError(422, "EQUIPMENT_SLOT_INVALID", `${row.name} cannot use ${item.slotType}.`);

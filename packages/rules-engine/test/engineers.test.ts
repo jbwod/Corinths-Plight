@@ -196,6 +196,67 @@ describe("Engineer completion mechanics", () => {
     }));
   });
 
+  it("constructs a Field Bridge across an authored river edge and opens the crossing", () => {
+    const state = createDemoCampaignState(1_000);
+    const engineer = state.deployments.find((deployment) => deployment.definitionId === "unit-engineers")!;
+    const source = state.map.find((hex) => hex.coord.q === engineer.position.q && hex.coord.r === engineer.position.r)!;
+    const target = state.map.find((hex) => hex.coord.q === engineer.position.q && hex.coord.r === engineer.position.r - 1)!;
+    engineer.persistentUnitId = "force-engineer-bridge";
+    engineer.supplies = { SMALL_SUPPLY: 2 };
+    source.edges.rivers = [0];
+    target.edges.rivers = [3];
+
+    const construct = order(state, engineer, [action("construct-bridge", "CONSTRUCT", {
+      targetHex: target.coord,
+      structureDefinitionId: "structure-bridge",
+    })]);
+    const output = resolve(state, [construct], "engineer-bridge");
+    const resolvedSource = output.state.map.find((hex) => hex.coord.q === source.coord.q && hex.coord.r === source.coord.r)!;
+    const resolvedTarget = output.state.map.find((hex) => hex.coord.q === target.coord.q && hex.coord.r === target.coord.r)!;
+
+    expect(output.state.deployments.find((deployment) => deployment.id === engineer.id)?.supplies)
+      .toEqual({ SMALL_SUPPLY: 0 });
+    expect(resolvedSource.edges.rivers).not.toContain(0);
+    expect(resolvedTarget.edges.rivers).not.toContain(3);
+    expect(resolvedSource.structureIds).toContainEqual(expect.stringMatching(/^structure-bridge:/));
+    expect(resolvedTarget.structureIds).toContainEqual(expect.stringMatching(/^structure-bridge:/));
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "STRUCTURE_COMPLETED",
+      actor: engineer.id,
+      payload: expect.objectContaining({
+        structureDefinitionId: "structure-bridge",
+        edgeDirection: 0,
+        opensGroundCrossing: true,
+        smallSupplySpent: 2,
+        applicationProfileId: "public-v1-engineer-bridge@1",
+      }),
+    }));
+  });
+
+  it("rejects Field Bridge construction where no authored river edge exists", () => {
+    const state = createDemoCampaignState(1_000);
+    const engineer = state.deployments.find((deployment) => deployment.definitionId === "unit-engineers")!;
+    const target = state.map.find((hex) => hex.coord.q === engineer.position.q && hex.coord.r === engineer.position.r - 1)!;
+    engineer.supplies = { SMALL_SUPPLY: 2 };
+    state.map.forEach((hex) => { hex.edges.rivers = []; });
+
+    const construct = order(state, engineer, [action("invalid-bridge", "CONSTRUCT", {
+      targetHex: target.coord,
+      structureDefinitionId: "structure-bridge",
+    })]);
+    const output = resolve(state, [construct], "engineer-invalid-bridge");
+
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "ORDER_REJECTED",
+      actor: engineer.id,
+      payload: expect.objectContaining({
+        reasons: ["A Field Bridge must join the Engineer's hex to an adjacent river-crossing hex."],
+      }),
+    }));
+    expect(output.state.deployments.find((deployment) => deployment.id === engineer.id)?.supplies)
+      .toEqual({ SMALL_SUPPLY: 2 });
+  });
+
   it("repairs exactly one lost vehicle Hit for one Small Supply and persists both units", () => {
     const state = createDemoCampaignState(1_000);
     const engineer = state.deployments.find((deployment) => deployment.definitionId === "unit-engineers")!;

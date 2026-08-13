@@ -9,6 +9,8 @@ export const TACTICAL_SUPPLY_RESOURCE_IDS = [
   "LARGE_SUPPLY",
   "MEDICAL_SUPPLY",
   "MAIN_AMMUNITION",
+  "BUILD_SUPPLY",
+  "GENERAL_SUPPLY",
 ] as const;
 
 export type TacticalSupplyResourceId = (typeof TACTICAL_SUPPLY_RESOURCE_IDS)[number];

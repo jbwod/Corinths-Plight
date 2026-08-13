@@ -15,10 +15,14 @@ import type {
 } from "../../domain/src";
 import {
   calculateRouteCost,
+  addCoord,
   canOccupyHex,
   coordKey,
+  facingBetween,
   hexDistance,
+  rearFacing,
   sameCoord,
+  HEX_DIRECTIONS,
 } from "./hex";
 import {
   attachTow,
@@ -27,6 +31,7 @@ import {
   disembarkCargo,
   embarkCargo,
   reloadAmmunition,
+  transferCoordinatedSupplyDrop,
   synchronizeSupplyCargo,
   resupplyLogiTarget,
 } from "./logistics";
@@ -48,6 +53,81 @@ import { isLightAtChargeStore, validateLightAtAttack } from "./light-at";
 import { isGarrisonEligible, isInfantryGarrisonBuilding } from "./cover";
 import { getTacticalSubsystemRules, getTacticalUnitClass } from "./tactical-unit-catalogue";
 import { applyScenarioReinforcements, evaluateScenarioRoundEnd } from "./scenario";
+import {
+  POWER_ARMOURED_INFANTRY_PUBLIC_V1,
+  isPowerArmourBackWeaponId,
+  powerArmourHatParadropAllowed,
+  resolvePowerArmourBackWeaponCycle,
+  validateMagneticClampDismount,
+  validateMagneticClampMount,
+} from "./power-armoured-infantry";
+import {
+  isCompanionMech,
+  reloadMechWeaponAtSupplyPoint,
+  resolveMechCrouch,
+  validateCompanionMechChassis,
+  validateMechAttackActivation,
+} from "./companion-mechs";
+import {
+  isMechanizedInfantry,
+  resolveForwardLineControl,
+  validateMechanizedInfantryIdentity,
+} from "./mechanized-infantry";
+import {
+  V5_FUNNEL_FORCED_DISTANCE_QUARTERS,
+  validateArtilleryAntiOrbitalExecution,
+  validateFunnelExecution,
+} from "./artillery";
+import { resolveInfantryStealthOrder } from "./infantry-stealth";
+import {
+  isIrregularDeployment,
+  recruitIrregularAtPopulationCenter,
+} from "./irregular-progression";
+import {
+  SPECIAL_FORCES_DELAYED_CHARGE,
+  detonateSpecialForcesDelayedCharge,
+  isSpecialForcesDeployment,
+  placeSpecialForcesDelayedCharge,
+  readSpecialForcesDelayedCharge,
+  revealSpecialForces,
+} from "./special-forces";
+import {
+  applySapperWeaponEmplacement,
+  isSapperDeployment,
+  parseSapperMinefield,
+  performSapperConstruction,
+  reloadSapperBuildSupplyFromDeployment,
+  resolveSapperMineTrigger,
+  sensorTowerRevealHexes,
+} from "./sapper-construction";
+import {
+  getCompanionTankSubsystemRules,
+  getMechanizedInfantrySubsystemRules,
+  isCompanionTankDefinitionId,
+  selectCompanionTankAttackWeapons,
+  validateCompanionTankTransport,
+} from "./companion-tanks";
+import {
+  abandonCompanionArtillery,
+  companionArtilleryReplacementCost,
+  isCompanionArtilleryDefinitionId,
+  isCrewedCompanionArtilleryDefinitionId,
+  replaceCompanionArtillery,
+  selectCompanionArtilleryFire,
+  validateCompanionArtilleryTransport,
+  validateCompanionArtilleryRange,
+} from "./companion-artillery";
+import {
+  COMPANION_VTOL_EXTERNAL_LOAD_TAG,
+  COMPANION_VTOL_OBJECTIVE_CARGO_TAG,
+  COMPANION_VTOL_SUPPLY_CARGO_TAG,
+  companionVtolNormalCargoOperationAllowed,
+  isCompanionVtolTransport,
+  makeCompanionVtolCargoItem,
+  resolveCompanionVtolRappel,
+  validateCompanionVtolIdentity,
+  validateCompanionVtolManifest,
+} from "./companion-vtol-transports";
 
 export const ENGINE_VERSION = "foundation-0.1.0";
 
@@ -58,11 +138,20 @@ export interface OrderValidation {
 }
 
 function isArtilleryDeployment(deployment: CampaignDeployment): boolean {
+  if (isCrewedCompanionArtilleryDefinitionId(deployment.definitionId)) return true;
   try {
     return getTacticalUnitClass(deployment.definitionId).tags.includes("ARTILLERY");
   } catch {
     return false;
   }
+}
+
+function isLogiTruck(deployment: CampaignDeployment): boolean {
+  return deployment.definitionId === "unit-logi-truck" && deploymentAllowsAction(deployment, "RESUPPLY");
+}
+
+function isHeavyAirTransport(deployment: CampaignDeployment): boolean {
+  return deployment.definitionId === "unit-heavy-air-transport" && deploymentAllowsAction(deployment, "AIRDROP");
 }
 
 function artilleryState(deployment: CampaignDeployment): "PACKED" | "DEPLOYED" {
@@ -99,10 +188,51 @@ function deploymentAllowsAction(
   deployment: CampaignDeployment,
   actionType: StructuredAction["type"],
 ): boolean {
+  if (isCrewedCompanionArtilleryDefinitionId(deployment.definitionId)) {
+    return actionType === "ATTACK" || actionType === "DEPLOY" || actionType === "PACK_UP" || actionType === "ABANDON_GUNS";
+  }
+  if (deployment.definitionId === "unit-self-propelled-artillery") return actionType === "ATTACK";
+  if (deployment.definitionId === "unit-companion-artillery-crew") return actionType === "REPLACE_GUNS";
+  if (
+    deployment.definitionId === "unit-power-armoured-infantry" &&
+    (actionType === "DIG_IN" || actionType === "SHIELD_WALL" ||
+      actionType === "MOUNT_MAGNETIC_CLAMPS" || actionType === "DISMOUNT_MAGNETIC_CLAMPS")
+  ) return true;
+  if (isCompanionMech(deployment)) {
+    return actionType === "ATTACK" || actionType === "RELOAD" ||
+      actionType === "MOUNT_MAGNETIC_CLAMPS" || actionType === "DISMOUNT_MAGNETIC_CLAMPS" ||
+      (deployment.definitionId === "unit-medium-mech" && actionType === "DIG_IN");
+  }
+  if (isMechanizedInfantry(deployment)) return actionType === "ATTACK";
+  if (isCompanionVtolTransport(deployment)) {
+    if (actionType === "LOAD" || actionType === "UNLOAD" || actionType === "LAND" || actionType === "TAKE_OFF") return true;
+    return deployment.definitionId !== "unit-vtol-heavy-lift" &&
+      (actionType === "ATTACK" || actionType === "REARM_AEROSPACE");
+  }
+  if (isCompanionTankDefinitionId(deployment.definitionId)) {
+    return actionType === "ATTACK" || actionType === "CREW_REPAIR" || actionType === "LOAD" || actionType === "UNLOAD";
+  }
+  if (
+    isSpecialForcesDeployment(deployment) &&
+    (actionType === "PLACE_DELAYED_CHARGE" || actionType === "DETONATE_DELAYED_CHARGE")
+  ) return true;
+  if (isSapperDeployment(deployment) && (actionType === "SAPPER_CONSTRUCT" || actionType === "RELOAD_BUILD_SUPPLY")) return true;
+  if (isIrregularDeployment(deployment) && actionType === "RECRUIT_IRREGULAR") return true;
   try {
     return getTacticalUnitClass(deployment.definitionId).allowedActions.includes(actionType);
   } catch {
     return false;
+  }
+}
+
+function deploymentAllowsOrder(deployment: CampaignDeployment, orderType: UnitOrder["orderType"]): boolean {
+  if (isCompanionVtolTransport(deployment)) return orderType === "HOLD" || orderType === "ADVANCE";
+  if ((isSpecialForcesDeployment(deployment) || isSapperDeployment(deployment)) && orderType === "STEALTH") return true;
+  if (deployment.allowedOrders) return deployment.allowedOrders.includes(orderType);
+  try {
+    return getTacticalUnitClass(deployment.definitionId).allowedOrders.includes(orderType);
+  } catch {
+    return orderType !== "STEALTH";
   }
 }
 
@@ -120,7 +250,7 @@ function facilitySupports(
   state: RoundOutput["state"],
   deployment: CampaignDeployment,
   position: CampaignDeployment["position"],
-  capability: "LAND" | "REARM_AEROSPACE",
+  capability: "LAND" | "REARM_AEROSPACE" | "RELOAD_MECH" | "REPLACE_ARTILLERY",
 ): boolean {
   const hex = state.map.find((candidate) => sameCoord(candidate.coord, position));
   if (!hex) return false;
@@ -129,6 +259,7 @@ function facilitySupports(
     state.objectives.find((objective) => objective.id === hex.objectiveId)?.owner === deployment.side
   );
   if (!friendly) return false;
+  if (capability === "RELOAD_MECH" || capability === "REPLACE_ARTILLERY") return hex.environment.includes("SUPPLY_POINT");
   if (capability === "REARM_AEROSPACE") return hex.environment.includes("REARM_AEROSPACE");
   return deploymentTags(deployment).includes("VTOL")
     ? hex.environment.includes("LAND_VTOL")
@@ -188,11 +319,12 @@ function campaignCargoItem(
   cargo: CampaignDeployment,
   transportMode: "EMBARKED" | "TOWED" = "EMBARKED",
 ) {
+  const companionCrewedArtillery = isCrewedCompanionArtilleryDefinitionId(cargo.definitionId);
   return {
     id: `campaign-cargo:${campaignId}:${cargo.id}`,
-    kind: cargo.stats.healthModel === "FORCE_STRENGTH" ? "PERSONNEL" as const : "VEHICLE" as const,
-    quantity: cargo.stats.healthModel === "FORCE_STRENGTH" ? cargo.currentHealth : 1,
-    tags: deploymentTags(cargo),
+    kind: companionCrewedArtillery || cargo.stats.healthModel !== "FORCE_STRENGTH" ? "VEHICLE" as const : "PERSONNEL" as const,
+    quantity: companionCrewedArtillery || cargo.stats.healthModel !== "FORCE_STRENGTH" ? 1 : cargo.currentHealth,
+    tags: companionCrewedArtillery ? [...new Set([...deploymentTags(cargo), "VEHICLE"])] : deploymentTags(cargo),
     transportMode,
     unitId: cargo.id,
   };
@@ -202,6 +334,9 @@ function cargoTransportMode(
   carrier: CampaignDeployment,
   cargo: CampaignDeployment,
 ): "EMBARKED" | "TOWED" | undefined {
+  if (isHeavyAirTransport(carrier) && isCrewedCompanionArtilleryDefinitionId(cargo.definitionId)) {
+    return artilleryState(cargo) === "PACKED" ? "EMBARKED" : undefined;
+  }
   if (isArtilleryDeployment(cargo)) {
     if (
       carrier.cargoProfile &&
@@ -245,6 +380,9 @@ export function validateOrder(
   const reasons: string[] = [];
   if (!deployment) return { legal: false, reasons: ["Deployment does not exist."], movementCost: 0 };
   if (deployment.status === "DESTROYED") reasons.push("Unit was destroyed before the order resolved.");
+  if (isCompanionMech(deployment)) reasons.push(...validateCompanionMechChassis(deployment).reasons);
+  if (isMechanizedInfantry(deployment)) reasons.push(...validateMechanizedInfantryIdentity(deployment).reasons);
+  if (isCompanionVtolTransport(deployment)) reasons.push(...validateCompanionVtolIdentity(deployment).reasons);
   if (deployment.status === "IMMOBILISED" && order.route.length > 1) reasons.push("Unit is immobilised.");
   if (hasDisabledSubsystem(deployment, "MOBILITY") && order.route.length > 1) {
     reasons.push("The unit's mobility subsystem is disabled.");
@@ -284,8 +422,11 @@ export function validateOrder(
     reasons.push("Deployed artillery must pack up before it can move in a later round.");
   }
   const embarked = deployment.locationState === "EMBARKED" || deployment.locationState === "IN_VEHICLE" || deployment.locationState === "IN_AIR_TRANSPORT";
-  if (embarked && (order.route.length > 1 || order.actions.some((action) => action.type !== "UNLOAD"))) {
-    reasons.push("Embarked units cannot move or perform actions other than coordinated unloading.");
+  const magneticClampDismount = deployment.definitionId === "unit-power-armoured-infantry" &&
+    order.actions.length > 0 && order.actions.every((action) => action.type === "DISMOUNT_MAGNETIC_CLAMPS");
+  if (embarked && (order.route.length > 1 || order.actions.some((action) => action.type !== "UNLOAD" && action.type !== "DISMOUNT_MAGNETIC_CLAMPS") ||
+    (order.actions.some((action) => action.type === "DISMOUNT_MAGNETIC_CLAMPS") && !magneticClampDismount))) {
+    reasons.push("Embarked units cannot move or perform actions other than coordinated unloading or Magnetic Clamp dismount.");
   }
   if (order.campaignId !== input.previousState.campaignId) reasons.push("Order belongs to another campaign.");
   if (order.round !== input.previousState.round) reasons.push("Order targets another round.");
@@ -311,6 +452,12 @@ export function validateOrder(
   if (!orderDefinition.executable) {
     reasons.push(`${order.orderType.replaceAll("_", " ")} is catalogued but not executable in this engine version.`);
   }
+  if (!deploymentAllowsOrder(deployment, order.orderType)) {
+    reasons.push(`${order.orderType.replaceAll("_", " ")} is not available to this unit class.`);
+  }
+  if (order.orderType === "STEALTH" && order.route.length < 2) {
+    reasons.push("Infantry Stealth requires a movement route.");
+  }
   const route = calculateRouteCost(order.route, input.previousState.map, {
     rush: order.orderType === "RUSH",
     unitTags: deployment.tags,
@@ -322,6 +469,28 @@ export function validateOrder(
   ]);
   if (!budget.legal) reasons.push(`Speed budget exceeded (${budget.spent}/${budget.available}).`);
   for (const action of actions) {
+    if (action.type === "ABANDON_GUNS" || action.type === "REPLACE_GUNS") {
+      if (action.economy !== "PRIMARY" || action.speedCost !== 0) {
+        reasons.push(`${action.type.replaceAll("_", " ")} must be a zero-Speed Primary Action.`);
+      }
+      if (!deploymentAllowsAction(deployment, action.type)) {
+        reasons.push(action.type === "ABANDON_GUNS"
+          ? "Only operational Light or Heavy Artillery may abandon its guns."
+          : "Only an abandoned artillery CREW may replace its guns.");
+      }
+      if (action.type === "ABANDON_GUNS" && artilleryState(deployment) !== "DEPLOYED") {
+        reasons.push("Artillery must be deployed before its guns can be abandoned.");
+      }
+      if (action.type === "REPLACE_GUNS") {
+        if (!deployment.persistentUnitId) reasons.push("Artillery replacement requires a persistent player unit.");
+        if (!deployment.companionArtilleryAbandonment) reasons.push("The artillery CREW has no original gun snapshot.");
+        if (deployment.companionArtilleryAbandonment?.replacementUsed) reasons.push("This artillery crew already used its one campaign replacement.");
+        if (!facilitySupports(input.previousState, deployment, order.endHex, "REPLACE_ARTILLERY")) {
+          reasons.push("Artillery replacement requires a friendly Supply Point.");
+        }
+      }
+      continue;
+    }
     let definition;
     try {
       definition = getTacticalActionRule(action.type);
@@ -332,8 +501,33 @@ export function validateOrder(
     if (!definition.executable) {
       reasons.push(`${action.type.replaceAll("_", " ")} is catalogued but not executable in this engine version.`);
     }
-    if (action.economy !== definition.economy || action.speedCost !== definition.speedCost) {
+    const coordinatedSupplyDrop = action.type === "RESUPPLY" && input.previousState.deployments
+      .some((candidate) => candidate.id === action.targetDeploymentId && isHeavyAirTransport(candidate));
+    const companionMechAttack = action.type === "ATTACK" && isCompanionMech(deployment);
+    const superHeavyTankAttack = action.type === "ATTACK" && deployment.definitionId === "unit-super-heavy-tank";
+    const expectedEconomy = coordinatedSupplyDrop || companionMechAttack || superHeavyTankAttack ? "PRIMARY" : definition.economy;
+    const expectedSpeedCost = coordinatedSupplyDrop ? 0 : definition.speedCost;
+    if (action.economy !== expectedEconomy || action.speedCost !== expectedSpeedCost) {
       reasons.push(`${action.type.replaceAll("_", " ")} economy or speed cost does not match the pinned ruleset.`);
+    }
+    if (isCompanionVtolTransport(deployment) && !deploymentAllowsAction(deployment, action.type)) {
+      reasons.push(`${action.type.replaceAll("_", " ")} is not available to this companion VTOL transport.`);
+    }
+    if (isCompanionVtolTransport(deployment) && (action.type === "LOAD" || action.type === "UNLOAD")) {
+      const rappel = action.type === "UNLOAD" && action.payload?.mode === "RAPPEL_GARRISON";
+      if (rappel) {
+        if (deployment.definitionId !== "unit-vtol-troop-airlift") {
+          reasons.push("Only VTOL Heavy Troop Airlift may use Rappel Garrison.");
+        }
+        if (landed && !takesOff) reasons.push("Rappel Garrison requires the Troop Airlift to be airborne.");
+        if (!action.targetHex) reasons.push("Rappel Garrison requires an authored building target hex.");
+      } else {
+        const projectedCarrier = lands && !takesOff
+          ? { ...deployment, statuses: [...new Set([...deployment.statuses, "LANDED"])] }
+          : deployment;
+        reasons.push(...companionVtolNormalCargoOperationAllowed(projectedCarrier).reasons);
+        if (takesOff) reasons.push("Companion VTOL cannot perform a normal cargo operation while taking off.");
+      }
     }
     if (action.type === "DIG_IN" && !deploymentAllowsAction(deployment, "DIG_IN")) {
       reasons.push("This unit class cannot Dig In.");
@@ -349,6 +543,94 @@ export function validateOrder(
     }
     if (action.type === "RELOAD" && action.weaponId === "weapon-light-at") {
       reasons.push("Light AT charges have no active field reload rule.");
+    }
+    if (action.type === "RELOAD" && isPowerArmourBackWeaponId(action.weaponId)) {
+      reasons.push("The Power Armour back-mounted Light Laser cools automatically and cannot be reloaded.");
+    }
+    if (action.type === "RELOAD" && isCompanionMech(deployment)) {
+      const reload = reloadMechWeaponAtSupplyPoint({
+        deployment,
+        weaponId: action.weaponId,
+        atFriendlyGovernedSupplyPoint: facilitySupports(input.previousState, deployment, order.endHex, "RELOAD_MECH"),
+      });
+      reasons.push(...reload.reasons);
+    }
+    if (action.type === "BOMBARDMENT" && !artillery) {
+      reasons.push("Bombardment requires an Artillery unit.");
+    }
+    if (action.type === "FUNNEL") {
+      if (!artillery) reasons.push("Funnel requires an Artillery unit.");
+      if (!action.targetDeploymentId) reasons.push("Funnel requires a hostile target unit.");
+      if (action.direction === undefined) reasons.push("Funnel requires a chosen displacement direction.");
+      if (!artilleryDeployed && !order.actions.some((candidate) => candidate.type === "DEPLOY")) {
+        reasons.push("Artillery must deploy before using Funnel.");
+      }
+    }
+    if (action.type === "RESUPPLY" && !isLogiTruck(deployment)) {
+      reasons.push("Transfer Supply requires a Logi Truck.");
+    }
+    if (
+      (action.type === "PLACE_DELAYED_CHARGE" || action.type === "DETONATE_DELAYED_CHARGE") &&
+      !deploymentAllowsAction(deployment, action.type)
+    ) {
+      reasons.push("Delayed charges require a Special Forces team.");
+    }
+    if (action.type === "PLACE_DELAYED_CHARGE") {
+      const target = input.previousState.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+      if (!target) reasons.push("Delayed charge placement requires a target deployment.");
+      if (readSpecialForcesDelayedCharge(deployment)) reasons.push("This Special Forces team already has an active delayed charge.");
+    }
+    if (action.type === "DETONATE_DELAYED_CHARGE") {
+      const charge = readSpecialForcesDelayedCharge(deployment);
+      if (!charge) reasons.push("This Special Forces team has no active delayed charge.");
+      else if (input.previousState.round < charge.armedFromRound) {
+        reasons.push("The delayed charge arms at the end of its placement round and may detonate next round or later.");
+      }
+    }
+    if ((action.type === "SAPPER_CONSTRUCT" || action.type === "RELOAD_BUILD_SUPPLY") && !deploymentAllowsAction(deployment, action.type)) {
+      reasons.push("This action requires a Sapper team.");
+    }
+    if (action.type === "SAPPER_CONSTRUCT") {
+      if (!action.targetHex || !action.structureDefinitionId) reasons.push("Sapper construction requires a structure and target hex.");
+      if ((deployment.supplies?.BUILD_SUPPLY ?? 0) < 3) reasons.push("Sapper construction requires 3 Build Supply.");
+    }
+    if (action.type === "RELOAD_BUILD_SUPPLY") {
+      if ((deployment.supplies?.BUILD_SUPPLY ?? 0) >= 6) reasons.push("Sapper Build Supply is already full.");
+      if ((deployment.supplies?.GENERAL_SUPPLY ?? 0) < 1) reasons.push("Reload requires 1 General Supply crate.");
+    }
+    if (action.type === "RECRUIT_IRREGULAR") {
+      if (!deploymentAllowsAction(deployment, action.type)) reasons.push("Recruit requires an Irregular unit.");
+      if (!deployment.equipmentIds.includes("equipment-charismatic-commander")) reasons.push("Irregular recruitment requires a Charismatic Commander.");
+    }
+    if (action.type === "SHIELD_WALL") {
+      if (deployment.definitionId !== "unit-power-armoured-infantry") reasons.push("Shield Wall requires Power Armoured Infantry.");
+      if (!deployment.equipmentIds.includes(POWER_ARMOURED_INFANTRY_PUBLIC_V1.ballisticShieldsEquipmentId)) {
+        reasons.push("Shield Wall requires fitted Ballistic Shields.");
+      }
+      if (order.route.length > 1) reasons.push("Shield Wall consumes the unit's full movement and requires it to hold position.");
+    }
+    if (action.type === "MOUNT_MAGNETIC_CLAMPS" || action.type === "DISMOUNT_MAGNETIC_CLAMPS") {
+      const target = input.previousState.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+      if (!target) {
+        reasons.push("Magnetic Clamp actions require a target unit.");
+      } else if (action.type === "MOUNT_MAGNETIC_CLAMPS") {
+        const rider = deployment.definitionId === "unit-power-armoured-infantry" ? deployment : target;
+        const carrier = rider.id === deployment.id ? target : deployment;
+        const matching = [...input.playerOrders, ...input.enemyOrders].find((candidate) => candidate.unitId === target.id)
+          ?.actions.some((candidate) => candidate.type === action.type && candidate.targetDeploymentId === deployment.id) ?? false;
+        reasons.push(...validateMagneticClampMount({
+          rider,
+          carrier,
+          matchingPrimaryActions: matching,
+          carrierRiderIds: (carrier.cargo ?? []).filter((item) => item.tags.includes("MAGNETIC_CLAMP_RIDER") && item.unitId).map((item) => item.unitId!),
+        }).reasons);
+      } else {
+        const rider = deployment.definitionId === "unit-power-armoured-infantry" ? deployment : target;
+        const carrier = rider.id === deployment.id ? target : deployment;
+        const matching = [...input.playerOrders, ...input.enemyOrders].find((candidate) => candidate.unitId === target.id)
+          ?.actions.some((candidate) => candidate.type === action.type && candidate.targetDeploymentId === deployment.id) ?? false;
+        reasons.push(...validateMagneticClampDismount(rider, carrier, matching).reasons);
+      }
     }
   }
   const attackActivations = [...order.actions, ...order.incidentalActions]
@@ -372,13 +654,23 @@ export function validateOrder(
     const lightAt = validateLightAtAttack({ ...deployment, position: { ...order.endHex } }, target.position, action.lightAtCharges);
     if (!lightAt.legal) reasons.push(lightAt.reason ?? "Light AT use is not legal.");
   }
+  for (const action of order.actions.filter((candidate) => candidate.type === "ATTACK" && isCompanionMech(deployment))) {
+    reasons.push(...validateMechAttackActivation({
+      deployment,
+      economy: action.economy,
+      declaredWeaponIds: action.weaponIds,
+    }).reasons);
+  }
   const deployActions = order.actions.filter((action) => action.type === "DEPLOY");
   const packActions = order.actions.filter((action) => action.type === "PACK_UP");
   const digInActions = order.actions.filter((action) => action.type === "DIG_IN");
   const artilleryDigInActions = order.actions.filter((action) => action.type === "ARTILLERY_DIG_IN");
   if (digInActions.length > 1) reasons.push("A unit may Dig In once per round.");
   if (digInActions.length > 0 && order.route.length > 1) reasons.push("Dig In consumes all movement and requires the unit to hold position.");
-  if (digInActions.length > 0 && deployment.statuses.includes("DUG_IN")) reasons.push("The unit is already dug in.");
+  if (digInActions.length > 0 && (
+    deployment.statuses.includes("DUG_IN") ||
+    (isCompanionMech(deployment) && deployment.statuses.includes("CROUCHED"))
+  )) reasons.push(isCompanionMech(deployment) ? "The Medium Mech is already crouched." : "The unit is already dug in.");
   for (const action of artilleryDigInActions) {
     const target = input.previousState.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
     const targetOrder = [...input.playerOrders, ...input.enemyOrders].find((candidate) => candidate.unitId === target?.id);
@@ -407,12 +699,33 @@ export function validateOrder(
   }
   if (deployActions.length > 0 && artilleryDeployed) reasons.push("Artillery is already deployed.");
   if (packActions.length > 0 && !artilleryDeployed) reasons.push("Artillery is already packed.");
-  if (artillery && order.actions.some((action) => action.type === "ATTACK") && !artilleryDeployed && deployActions.length === 0) {
+  if (deployment.definitionId === "unit-artillery" && order.actions.some((action) => action.type === "ATTACK")) {
+    if (!artilleryDeployed && deployActions.length === 0) {
+      reasons.push("Artillery must deploy before firing.");
+    } else {
+      const directFire = validateArtilleryAntiOrbitalExecution({
+        deploymentState: deployActions.length > 0 ? "DEPLOYED" : artilleryState(deployment),
+        targetDomain: "GROUND",
+        distance: 0,
+        supplyAvailable: deployment.supplies?.SMALL_SUPPLY ?? 0,
+      });
+      reasons.push(`${directFire.reason} The experimental barrage profile is not V5 ground direct-fire authority.`);
+    }
+  }
+  if (artillery && order.actions.some((action) => action.type === "BOMBARDMENT") && !artilleryDeployed && deployActions.length === 0) {
     reasons.push("Artillery must deploy before firing.");
   }
   const primaryCount = order.actions.filter((action) => action.economy === "PRIMARY").length;
   if (primaryCount > 1) reasons.push("A unit may perform one Primary Action per round.");
-  if (primaryCount > 0 && order.actions.some((action) => action.type === "ATTACK")) {
+  if (
+    primaryCount > 0 &&
+    order.actions.some((action) => action.type === "ATTACK") &&
+    !order.actions.some((action) =>
+      action.type === "ATTACK" &&
+      action.economy === "PRIMARY" &&
+      (isCompanionMech(deployment) || deployment.definitionId === "unit-super-heavy-tank")
+    )
+  ) {
     reasons.push("A Primary Action replaces the unit's attack.");
   }
   return { legal: reasons.length === 0, reasons, movementCost: route.total };
@@ -573,9 +886,53 @@ export function resolveRound(input: RoundInput): RoundOutput {
     const deployment = state.deployments.find((candidate) => candidate.id === order.unitId)!;
     deployment.facing = order.facing;
   }
+  const completedMagneticClampActions = new Set<string>();
+  for (const order of [...validOrders.values()].sort((left, right) => left.id.localeCompare(right.id))) {
+    const actor = state.deployments.find((candidate) => candidate.id === order.unitId);
+    if (!actor) continue;
+    for (const action of order.actions.filter((candidate) => candidate.type === "MOUNT_MAGNETIC_CLAMPS")) {
+      if (completedMagneticClampActions.has(action.id)) continue;
+      const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+      const targetOrder = target ? validOrders.get(target.id) : undefined;
+      const matching = targetOrder?.actions.find((candidate) =>
+        candidate.type === action.type && candidate.targetDeploymentId === actor.id
+      );
+      if (!target || !matching) continue;
+      const rider = actor.definitionId === "unit-power-armoured-infantry" ? actor : target;
+      const carrier = rider.id === actor.id ? target : actor;
+      const validation = validateMagneticClampMount({
+        rider,
+        carrier,
+        matchingPrimaryActions: action.economy === "PRIMARY" && matching.economy === "PRIMARY",
+        carrierRiderIds: (carrier.cargo ?? []).filter((item) => item.tags.includes("MAGNETIC_CLAMP_RIDER") && item.unitId).map((item) => item.unitId!),
+      });
+      if (!validation.legal) continue;
+      carrier.cargo = [...(carrier.cargo ?? []), {
+        id: `magnetic-clamp:${state.campaignId}:${carrier.id}:${rider.id}`,
+        kind: "PERSONNEL",
+        quantity: rider.currentHealth,
+        tags: [...new Set([...deploymentTags(rider), "MAGNETIC_CLAMP_RIDER"])],
+        transportMode: "EMBARKED",
+        unitId: rider.id,
+      }];
+      rider.locationState = "EMBARKED";
+      rider.position = { ...carrier.position };
+      event("MAGNETIC_CLAMPS_MOUNTED", carrier.id, {
+        actionId: action.id,
+        matchingActionId: matching.id,
+        riderDeploymentId: rider.id,
+        carrierDeploymentId: carrier.id,
+        position: { ...carrier.position },
+        capacity: 1,
+      }, carrier.side === "ENEMY" ? "ENEMY" : "ALLIED");
+      completedMagneticClampActions.add(action.id);
+      completedMagneticClampActions.add(matching.id);
+    }
+  }
   const resolvedRoutes = new Map(
     [...validOrders.values()].map((order) => [order.id, order.route.map((coord) => ({ ...coord }))]),
   );
+  const pendingSapperMineDamage = new Map<string, number>();
   const movementOutcomes = resolveSimultaneousMovement(
     [...validOrders.values()].filter((order) => order.route.length > 1),
     state.deployments,
@@ -612,6 +969,47 @@ export function resolveRound(input: RoundInput): RoundOutput {
           reason: "MOVED_FROM_POSITION",
         });
       }
+    }
+    if (moved && activeOnMap(deployment)) {
+      let triggered = false;
+      for (const position of outcome.traversedRoute.slice(1)) {
+        if (triggered) break;
+        const hex = state.map.find((candidate) => sameCoord(candidate.coord, position));
+        if (!hex) continue;
+        for (const structureInstanceId of [...hex.structureIds].sort((left, right) => left.localeCompare(right))) {
+          const mine = parseSapperMinefield(structureInstanceId);
+          if (!mine) continue;
+          const result = resolveSapperMineTrigger(mine, deployment, state.round);
+          if (!result.triggered) continue;
+          hex.structureIds = hex.structureIds.filter((id) => id !== structureInstanceId);
+          if (result.healthLoss > 0) pendingSapperMineDamage.set(
+            deployment.id,
+            (pendingSapperMineDamage.get(deployment.id) ?? 0) + result.healthLoss,
+          );
+          event("SAPPER_MINE_TRIGGERED", deployment.id, {
+            structureInstanceId,
+            structureDefinitionId: mine.definitionId,
+            position,
+            healthLoss: result.healthLoss,
+            armorPiercing: result.armorPiercing,
+            consumed: true,
+          });
+          triggered = true;
+          break;
+        }
+      }
+    }
+    if (moved && deployment.statuses.includes("CROUCHED")) {
+      deployment.statuses = deployment.statuses.filter((status) => status !== "CROUCHED");
+      event("UNIT_DUG_OUT", deployment.id, {
+        orderId: outcome.orderId,
+        from: outcome.from,
+        reason: "MOVED_FROM_POSITION",
+        stance: "MECH_CROUCH",
+      });
+    }
+    if (moved && deployment.statuses.includes("SHIELD_WALL")) {
+      deployment.statuses = deployment.statuses.filter((status) => status !== "SHIELD_WALL");
     }
     if (moved) {
       const order = validOrders.get(deployment.id)!;
@@ -708,6 +1106,106 @@ export function resolveRound(input: RoundInput): RoundOutput {
   }
   synchronizeEmbarkedCargo(state.deployments);
 
+  for (const order of validOrders.values()) {
+    if (order.orderType !== "STEALTH") continue;
+    const actor = state.deployments.find((candidate) => candidate.id === order.unitId)!;
+    const route = resolvedRoutes.get(order.id) ?? order.route;
+    const stealth = resolveInfantryStealthOrder({
+      unit: { ...actor, position: { ...route[0]! } },
+      route,
+      observers: state.deployments
+        .filter((candidate) => candidate.id !== actor.id)
+        .map((candidate) => ({
+          id: candidate.id,
+          side: candidate.side,
+          status: candidate.status,
+          position: candidate.position,
+          sensorRange: candidate.stats.sensors,
+        })),
+      map: state.map,
+      roll: random.die(6),
+    });
+    actor.statuses = stealth.legal && !stealth.stealthBroken
+      ? [...new Set([...actor.statuses.filter((status) => status !== "REVEALED"), "STEALTHED"])]
+      : [...new Set([...actor.statuses.filter((status) => status !== "STEALTHED"), "REVEALED"])];
+    event("INFANTRY_STEALTH_RESOLVED", actor.id, {
+      orderId: order.id,
+      route,
+      legal: stealth.legal,
+      reason: stealth.reason,
+      detected: stealth.detected,
+      stealthBroken: stealth.stealthBroken,
+      observerIds: stealth.observerIds,
+      threshold: stealth.threshold,
+      roll: stealth.roll,
+    }, actor.side === "ENEMY" ? "ENEMY" : "ALLIED");
+  }
+
+  // Minimal deterministic application rule: the Logi spends its V5 Primary
+  // Action, the HAT declares an Airdrop over the Logi's resolved endpoint, and
+  // Small Supply transfers only up to the Logi's remaining two-slot capacity.
+  const completedCoordinatedSupplyActions = new Set<string>();
+  for (const logiOrder of [...validOrders.values()].sort((left, right) => left.id.localeCompare(right.id))) {
+    const logi = state.deployments.find((deployment) => deployment.id === logiOrder.unitId);
+    if (!logi || !isLogiTruck(logi) || !activeOnMap(logi)) continue;
+    for (const logiAction of logiOrder.actions.filter((action) => action.type === "RESUPPLY")) {
+      const hat = state.deployments.find((deployment) => deployment.id === logiAction.targetDeploymentId);
+      const hatOrder = hat ? validOrders.get(hat.id) : undefined;
+      const hatAction = hatOrder?.actions.find((action) =>
+        action.type === "AIRDROP" &&
+        action.targetDeploymentId === logi.id &&
+        action.targetHex !== undefined &&
+        sameCoord(action.targetHex, logi.position)
+      );
+      const route = hatOrder ? resolvedRoutes.get(hatOrder.id) ?? hatOrder.route : [];
+      const fliesOverLogi = route.some((position) => sameCoord(position, logi.position));
+      const manifestedSmallSupply = hat?.cargo?.some((item) =>
+        item.kind === "SUPPLY" && item.supplyType === "SMALL_SUPPLY" && item.quantity > 0
+      );
+      if (
+        !hat ||
+        !isHeavyAirTransport(hat) ||
+        !activeOnMap(hat) ||
+        hat.side !== logi.side ||
+        !hatOrder ||
+        !hatAction ||
+        !fliesOverLogi ||
+        !manifestedSmallSupply
+      ) continue;
+      const transfer = transferCoordinatedSupplyDrop(hat.supplies ?? {}, logi.supplies ?? {});
+      if (!transfer.legal) continue;
+
+      hat.supplies = transfer.source;
+      logi.supplies = transfer.destination;
+      completedCoordinatedSupplyActions.add(logiAction.id);
+      completedCoordinatedSupplyActions.add(hatAction.id);
+      event("AIR_DROP_COMPLETED", hat.id, {
+        actionId: hatAction.id,
+        coordinatedByActionId: logiAction.id,
+        targetDeploymentId: logi.id,
+        targetHex: { ...logi.position },
+        supplyType: transfer.resourceType,
+        quantity: transfer.quantityTransferred,
+        sourceRemaining: transfer.source.SMALL_SUPPLY ?? 0,
+        targetAfter: transfer.destination.SMALL_SUPPLY ?? 0,
+        applicationRule: "COORDINATED_DROP_TO_LOGI_ENDPOINT_PARTIAL_TO_CAPACITY",
+      }, hat.side === "ENEMY" ? "ENEMY" : "ALLIED");
+      event("SUPPLY_TRANSFERRED", logi.id, {
+        actionId: logiAction.id,
+        dropActionId: hatAction.id,
+        sourceId: hat.id,
+        targetId: logi.id,
+        sourceResourceType: transfer.resourceType,
+        resourceType: transfer.resourceType,
+        quantity: transfer.quantityTransferred,
+        sourceRemaining: transfer.source.SMALL_SUPPLY ?? 0,
+        targetAfter: transfer.destination.SMALL_SUPPLY ?? 0,
+        purpose: "COORDINATED_SUPPLY_DROP",
+        applicationRule: "COORDINATED_DROP_TO_LOGI_ENDPOINT_PARTIAL_TO_CAPACITY",
+      }, logi.side === "ENEMY" ? "ENEMY" : "ALLIED");
+    }
+  }
+
   const evasiveUnits = new Set<string>();
   for (const order of validOrders.values()) {
     if (order.orderType !== "EVASIVE") continue;
@@ -727,11 +1225,47 @@ export function resolveRound(input: RoundInput): RoundOutput {
     }, deployment.side === "ENEMY" ? "ENEMY" : "ALLIED");
   }
 
+  for (const order of [...validOrders.values()].sort((left, right) => left.id.localeCompare(right.id))) {
+    const actor = state.deployments.find((candidate) => candidate.id === order.unitId);
+    if (!actor) continue;
+    for (const action of order.actions.filter((candidate) => candidate.type === "DISMOUNT_MAGNETIC_CLAMPS")) {
+      if (completedMagneticClampActions.has(action.id)) continue;
+      const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+      const targetOrder = target ? validOrders.get(target.id) : undefined;
+      const matching = targetOrder?.actions.find((candidate) =>
+        candidate.type === action.type && candidate.targetDeploymentId === actor.id
+      );
+      if (!target || !matching) continue;
+      const rider = actor.definitionId === "unit-power-armoured-infantry" ? actor : target;
+      const carrier = rider.id === actor.id ? target : actor;
+      const validation = validateMagneticClampDismount(
+        rider,
+        carrier,
+        action.economy === "STANDARD" && matching.economy === "STANDARD",
+      );
+      if (!validation.legal) continue;
+      carrier.cargo = (carrier.cargo ?? []).filter((item) =>
+        !(item.unitId === rider.id && item.tags.includes("MAGNETIC_CLAMP_RIDER"))
+      );
+      rider.locationState = "ON_MAP";
+      rider.position = { ...carrier.position };
+      event("MAGNETIC_CLAMPS_DISMOUNTED", carrier.id, {
+        actionId: action.id,
+        matchingActionId: matching.id,
+        riderDeploymentId: rider.id,
+        carrierDeploymentId: carrier.id,
+        position: { ...carrier.position },
+      }, carrier.side === "ENEMY" ? "ENEMY" : "ALLIED");
+      completedMagneticClampActions.add(action.id);
+      completedMagneticClampActions.add(matching.id);
+    }
+  }
+
   for (const order of validOrders.values()) {
     const actor = state.deployments.find((candidate) => candidate.id === order.unitId)!;
     const actorVisibility: CampaignEvent["visibility"] = actor.side === "ENEMY" ? "ENEMY" : "ALLIED";
     const supportActions = order.actions
-      .filter((candidate) => candidate.type !== "ATTACK")
+      .filter((candidate) => candidate.type !== "ATTACK" && candidate.type !== "DETONATE_DELAYED_CHARGE")
       .map((action, index) => ({ action, index }))
       .sort((left, right) => {
         const priority = (type: StructuredAction["type"]) => type === "LAND" ? -2 : type === "DEPLOY" ? -1 : 0;
@@ -739,6 +1273,8 @@ export function resolveRound(input: RoundInput): RoundOutput {
       })
       .map(({ action }) => action);
     for (const action of supportActions) {
+      if (completedCoordinatedSupplyActions.has(action.id)) continue;
+      if (completedMagneticClampActions.has(action.id)) continue;
       if (action.type === "TAKE_OFF") continue;
       if (action.type === "LAND") {
         if (!facilitySupports(state, actor, actor.position, "LAND")) {
@@ -784,7 +1320,250 @@ export function resolveRound(input: RoundInput): RoundOutput {
           rulesDecisionId: "RC-V5-023",
         }, actorVisibility);
       }
+      if (action.type === "PLACE_DELAYED_CHARGE") {
+        const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+        const placement = placeSpecialForcesDelayedCharge(actor, target, state.round);
+        if (!placement.legal || !placement.charge) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [placement.reason ?? "Delayed charge placement is illegal."],
+          }, actorVisibility);
+          continue;
+        }
+        actor.statusEffects = placement.statusEffects;
+        revealSpecialForces(actor);
+        event("DELAYED_CHARGE_PLACED", actor.id, {
+          actionId: action.id,
+          targetId: placement.charge.targetDeploymentId,
+          targetKind: placement.charge.targetKind,
+          placedRound: placement.charge.placedRound,
+          armedFromRound: placement.charge.armedFromRound,
+          persistent: true,
+        }, actorVisibility);
+      }
+      if (action.type === "SAPPER_CONSTRUCT") {
+        const construction = performSapperConstruction(actor, action.structureDefinitionId, action.targetHex, state.map, state.round);
+        if (!construction.legal) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [construction.reason ?? "Sapper construction is illegal."],
+          }, actorVisibility);
+          continue;
+        }
+        actor.supplies = { ...(actor.supplies ?? {}), BUILD_SUPPLY: construction.buildSupplyAfter };
+        actor.statusEffects = construction.statusEffects;
+        event("SAPPER_BUILD_PROGRESS", actor.id, {
+          actionId: action.id,
+          structureDefinitionId: action.structureDefinitionId,
+          targetHex: action.targetHex,
+          buildSupplyBefore: construction.buildSupplyBefore,
+          buildSupplyAfter: construction.buildSupplyAfter,
+          progressBefore: construction.progressBefore,
+          progressAfter: construction.progressAfter,
+          requiredProgress: construction.project?.requiredProgress,
+          completed: construction.completed,
+        }, actorVisibility);
+        if (construction.completed && construction.structureInstanceId && action.targetHex) {
+          const targetMapHex = state.map.find((hex) => sameCoord(hex.coord, action.targetHex!));
+          targetMapHex?.structureIds.push(construction.structureInstanceId);
+          if (action.structureDefinitionId === "structure-road" && targetMapHex) {
+            const sourceHex = state.map.find((hex) => sameCoord(hex.coord, actor.position));
+            const direction = facingBetween(actor.position, action.targetHex);
+            if (sourceHex && direction !== null) {
+              sourceHex.edges.roads = [...new Set([...sourceHex.edges.roads, direction])].sort();
+              targetMapHex.edges.roads = [...new Set([...targetMapHex.edges.roads, rearFacing(direction)])].sort();
+            }
+          }
+          const revealHexes = action.structureDefinitionId === "structure-sensor-tower"
+            ? sensorTowerRevealHexes(action.targetHex, state.map)
+            : [];
+          for (const coord of revealHexes) {
+            const hex = state.map.find((candidate) => sameCoord(candidate.coord, coord));
+            if (hex) hex.visibility = "VISIBLE";
+          }
+          event("STRUCTURE_COMPLETED", actor.id, {
+            actionId: action.id,
+            structureDefinitionId: action.structureDefinitionId,
+            structureInstanceId: construction.structureInstanceId,
+            targetHex: action.targetHex,
+            buildSupplySpent: 3,
+            revealHexes,
+            applicationPolicy: "SAPPER_PUBLIC_V1_BUILD_PROGRESS",
+          }, actorVisibility);
+        }
+      }
+      if (action.type === "RELOAD_BUILD_SUPPLY") {
+        const reload = reloadSapperBuildSupplyFromDeployment(actor);
+        if (!reload.legal) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [reload.reason ?? "Sapper Build Supply reload is illegal."],
+          }, actorVisibility);
+          continue;
+        }
+        const buildSupplyBefore = actor.supplies?.BUILD_SUPPLY ?? 0;
+        const generalSupplyBefore = actor.supplies?.GENERAL_SUPPLY ?? 0;
+        actor.supplies = reload.supplies;
+        event("SAPPER_BUILD_SUPPLY_RELOADED", actor.id, {
+          actionId: action.id,
+          resourceType: "BUILD_SUPPLY",
+          buildSupplyBefore,
+          buildSupplyAfter: actor.supplies.BUILD_SUPPLY,
+          sourceResourceType: "GENERAL_SUPPLY",
+          generalSupplyBefore,
+          generalSupplyAfter: actor.supplies.GENERAL_SUPPLY,
+        }, actorVisibility);
+      }
+      if (action.type === "RECRUIT_IRREGULAR") {
+        const recruitment = recruitIrregularAtPopulationCenter({
+          deployment: actor,
+          route: resolvedRoutes.get(order.id) ?? order.route,
+          map: state.map,
+          campaignDeployments: state.deployments,
+          round: state.round,
+        });
+        if (!recruitment.legal) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [recruitment.reason ?? "Irregular recruitment is illegal."],
+          }, actorVisibility);
+          continue;
+        }
+        const currentHealthBefore = actor.currentHealth;
+        actor.stats = { ...actor.stats, maxHealth: recruitment.maximumForceStrengthAfter };
+        actor.statusEffects = recruitment.statusEffects;
+        event("IRREGULAR_RECRUITED", actor.id, {
+          actionId: action.id,
+          populationCenterKey: recruitment.centerKey,
+          maximumForceStrengthBefore: recruitment.maximumForceStrengthBefore,
+          maximumForceStrengthAfter: recruitment.maximumForceStrengthAfter,
+          maximumForceStrengthGained: recruitment.maximumForceStrengthGained,
+          currentHealthBefore,
+          currentHealthAfter: actor.currentHealth,
+          healed: false,
+          permanent: true,
+        }, actorVisibility);
+      }
+      if (action.type === "ABANDON_GUNS") {
+        const abandoned = abandonCompanionArtillery(actor);
+        if (!abandoned.legal || !abandoned.snapshot || artilleryState(actor) !== "DEPLOYED") {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [abandoned.reason ?? "Artillery must be operational and deployed before its guns can be abandoned."],
+          }, actorVisibility);
+          continue;
+        }
+        const originalDefinitionId = actor.definitionId;
+        Object.assign(actor, abandoned.deployment);
+        actor.companionArtilleryAbandonment = abandoned.snapshot;
+        event("ARTILLERY_ABANDONED", actor.id, {
+          actionId: action.id,
+          originalDefinitionId,
+          replacementCost: companionArtilleryReplacementCost(abandoned.snapshot.originalDefinitionId),
+          position: { ...actor.position },
+          transformedDefinitionId: actor.definitionId,
+          unarmed: true,
+          replacementLimit: "ONCE_PER_CAMPAIGN",
+        }, actorVisibility);
+      }
+      if (action.type === "REPLACE_GUNS") {
+        const snapshot = actor.companionArtilleryAbandonment;
+        const persistent = actor.persistentUnitId !== undefined;
+        const atSupplyPoint = facilitySupports(state, actor, actor.position, "REPLACE_ARTILLERY");
+        const replacementCost = snapshot ? companionArtilleryReplacementCost(snapshot.originalDefinitionId) : 0;
+        const replacement = replaceCompanionArtillery({
+          deployment: actor,
+          snapshot,
+          atFriendlySupplyPoint: atSupplyPoint,
+          // Availability is enforced atomically by the persistent Req ledger effect below.
+          availableRequisition: replacementCost,
+        });
+        if (!persistent || !replacement.legal || !replacement.snapshot) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [
+              !persistent
+                ? "Artillery replacement requires a persistent player unit for authoritative Requisition debit."
+                : replacement.reason ?? "Artillery replacement is illegal.",
+            ],
+          }, actorVisibility);
+          continue;
+        }
+        Object.assign(actor, replacement.deployment);
+        actor.companionArtilleryAbandonment = replacement.snapshot;
+        effects.push({
+          idempotencyKey: `${state.campaignId}:${state.round}:artillery-replacement:${actor.persistentUnitId}`,
+          type: "REQUISITION_SPENT",
+          unitId: actor.persistentUnitId,
+          payload: {
+            campaignId: state.campaignId,
+            round: state.round,
+            amount: replacement.requisitionSpent,
+            reasonCode: "ARTILLERY_REPLACEMENT",
+            definitionId: actor.definitionId,
+          },
+          status: "PENDING",
+        });
+        event("ARTILLERY_REPLACED", actor.id, {
+          actionId: action.id,
+          definitionId: actor.definitionId,
+          position: { ...actor.position },
+          requisitionSpent: replacement.requisitionSpent,
+          replacementUsed: true,
+          deploymentState: actor.artilleryDeployment,
+        }, actorVisibility);
+      }
+      if (action.type === "SHIELD_WALL") {
+        if (
+          actor.definitionId !== "unit-power-armoured-infantry" ||
+          !actor.equipmentIds.includes(POWER_ARMOURED_INFANTRY_PUBLIC_V1.ballisticShieldsEquipmentId) ||
+          !sameCoord(order.startHex, order.endHex)
+        ) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: ["Shield Wall requires stationary Power Armoured Infantry with fitted Ballistic Shields."],
+          }, actorVisibility);
+          continue;
+        }
+        actor.statuses = [...new Set([...actor.statuses, "SHIELD_WALL"])];
+        event("SHIELD_WALL_FORMED", actor.id, {
+          actionId: action.id,
+          position: { ...actor.position },
+          coverArmor: 1,
+          directFireOnly: true,
+          stackingCap: 1,
+          clearsOnMovement: true,
+        }, actorVisibility);
+      }
       if (action.type === "DIG_IN") {
+        if (isCompanionMech(actor)) {
+          const crouch = resolveMechCrouch(actor, sameCoord(order.startHex, order.endHex));
+          if (!crouch.legal) {
+            event("ORDER_REJECTED", actor.id, {
+              orderId: order.id,
+              actionId: action.id,
+              reasons: crouch.reasons,
+            }, actorVisibility);
+            continue;
+          }
+          actor.statuses = [...new Set([...actor.statuses, "CROUCHED"])];
+          event("UNIT_DUG_IN", actor.id, {
+            actionId: action.id,
+            position: actor.position,
+            stance: "MECH_CROUCH",
+            coverArmor: 1,
+            coverRequirement: "BLOCKING_LEVEL_1_TERRAIN_DIRECT_FIRE_ONLY",
+            speedCost: action.speedCost,
+          }, actorVisibility);
+          continue;
+        }
         if (!deploymentAllowsAction(actor, "DIG_IN") || actor.statuses.includes("DUG_IN")) {
           event("ORDER_REJECTED", actor.id, {
             orderId: order.id,
@@ -862,6 +1641,14 @@ export function resolveRound(input: RoundInput): RoundOutput {
         const alreadyPresent = fieldwork
           ? targetMapHex?.structureIds.some((id) => structureInstanceMatches(id, fieldwork.id)) ?? false
           : false;
+        const bridgeDirection = targetHex ? facingBetween(actor.position, targetHex) : null;
+        const bridgeSourceHex = fieldwork?.id === "structure-bridge"
+          ? state.map.find((hex) => sameCoord(hex.coord, actor.position))
+          : undefined;
+        const bridgeHasRiverEdge = fieldwork?.id !== "structure-bridge" || (
+          bridgeDirection !== null && bridgeSourceHex !== undefined && targetMapHex !== undefined &&
+          (bridgeSourceHex.edges.rivers.includes(bridgeDirection) || targetMapHex.edges.rivers.includes(rearFacing(bridgeDirection)))
+        );
         if (
           !deploymentAllowsAction(actor, "CONSTRUCT") ||
           !fieldwork ||
@@ -869,6 +1656,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
           !targetMapHex ||
           hexDistance(actor.position, targetHex) > 1 ||
           alreadyPresent ||
+          !bridgeHasRiverEdge ||
           supplyBefore < (fieldwork?.smallSupplyCost ?? 0)
         ) {
           event("ORDER_REJECTED", actor.id, {
@@ -880,7 +1668,9 @@ export function resolveRound(input: RoundInput): RoundOutput {
                 : !fieldwork
                   ? "That fieldwork is not executable."
                   : alreadyPresent
-                    ? `That hex already contains ${fieldwork.name}.`
+                  ? `That hex already contains ${fieldwork.name}.`
+                  : !bridgeHasRiverEdge
+                    ? "A Field Bridge must join the Engineer's hex to an adjacent river-crossing hex."
                     : supplyBefore < fieldwork.smallSupplyCost
                       ? `${fieldwork.name} requires ${fieldwork.smallSupplyCost} Small Supply.`
                       : `${fieldwork.name} must be placed in the Engineer's current or an adjacent hex.`,
@@ -890,6 +1680,11 @@ export function resolveRound(input: RoundInput): RoundOutput {
         }
         const instanceId = `${fieldwork.id}:${state.campaignId}:${state.round}:${actor.id}:${targetHex.q},${targetHex.r}`;
         targetMapHex.structureIds.push(instanceId);
+        if (fieldwork.id === "structure-bridge" && bridgeSourceHex && bridgeDirection !== null) {
+          bridgeSourceHex.structureIds.push(instanceId);
+          bridgeSourceHex.edges.rivers = bridgeSourceHex.edges.rivers.filter((direction) => direction !== bridgeDirection);
+          targetMapHex.edges.rivers = targetMapHex.edges.rivers.filter((direction) => direction !== rearFacing(bridgeDirection));
+        }
         actor.supplies = { ...(actor.supplies ?? {}), SMALL_SUPPLY: supplyBefore - fieldwork.smallSupplyCost };
         event("STRUCTURE_COMPLETED", actor.id, {
           actionId: action.id,
@@ -899,6 +1694,9 @@ export function resolveRound(input: RoundInput): RoundOutput {
           targetHex,
           smallSupplySpent: fieldwork.smallSupplyCost,
           movementPenalty: fieldwork.movementPenalty,
+          edgeDirection: fieldwork.id === "structure-bridge" ? bridgeDirection : undefined,
+          opensGroundCrossing: fieldwork.id === "structure-bridge",
+          applicationProfileId: fieldwork.id === "structure-bridge" ? "public-v1-engineer-bridge@1" : undefined,
         }, actorVisibility);
       }
       if (action.type === "TRENCH_UPGRADE") {
@@ -982,6 +1780,8 @@ export function resolveRound(input: RoundInput): RoundOutput {
               map: state.map,
               spotters: artillerySpotters(state, actor),
               supplyAvailable: actor.supplies?.SMALL_SUPPLY ?? 0,
+              minimumRange: 1,
+              maximumRange: 4,
             })
           : undefined;
         if (!isArtilleryDeployment(actor) || !targetHex || !weapon || !targetOnMap || !minimumRangeSatisfied || !validation?.legal) {
@@ -998,10 +1798,12 @@ export function resolveRound(input: RoundInput): RoundOutput {
           }, actorVisibility);
           continue;
         }
+        const smallSupplyBefore = actor.supplies?.SMALL_SUPPLY ?? 0;
         actor.supplies = { ...(actor.supplies ?? {}), SMALL_SUPPLY: validation.supplyAfter };
         const affected = state.deployments
           .filter((candidate) =>
-            candidate.side !== actor.side &&
+            ((actor.side === "ALLIED" && candidate.side === "ENEMY") ||
+              (actor.side === "ENEMY" && candidate.side === "ALLIED")) &&
             candidate.status !== "DESTROYED" &&
             candidate.status !== "WITHDRAWN" &&
             (candidate.locationState ?? "ON_MAP") === "ON_MAP" &&
@@ -1013,7 +1815,9 @@ export function resolveRound(input: RoundInput): RoundOutput {
           targetHex,
           areaRadius: 1,
           spotterId: validation.spotterId,
+          smallSupplyBefore,
           smallSupplySpent: validation.supplySpent,
+          smallSupplyAfter: validation.supplyAfter,
           affectedTargetIds: affected.map((candidate) => candidate.id),
         }, actorVisibility);
         for (const target of affected) {
@@ -1034,8 +1838,151 @@ export function resolveRound(input: RoundInput): RoundOutput {
           }, actorVisibility);
         }
       }
+      if (action.type === "FUNNEL") {
+        const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+        const targetOrder = target ? validOrders.get(target.id) : undefined;
+        const targetRoute = targetOrder ? resolvedRoutes.get(targetOrder.id) ?? targetOrder.route : [];
+        const supplyBefore = actor.supplies?.SMALL_SUPPLY ?? 0;
+        const validation = validateFunnelExecution({
+          deploymentState: artilleryState(actor),
+          targetExists: Boolean(target),
+          targetHostile: Boolean(target && target.side !== actor.side && target.side !== "NEUTRAL"),
+          targetOperational: Boolean(target && target.status !== "DESTROYED" && target.status !== "WITHDRAWN"),
+          targetOnMap: Boolean(target && (target.locationState ?? "ON_MAP") === "ON_MAP"),
+          targetMovedThisRound: targetRoute.length > 1,
+          distance: target ? hexDistance(actor.position, target.position) : 0,
+          chosenDirection: action.direction,
+          supplyAvailable: supplyBefore,
+        });
+        const destination = target && action.direction !== undefined
+          ? addCoord(target.position, HEX_DIRECTIONS[action.direction]!)
+          : undefined;
+        const destinationHex = destination && state.map.find((hex) => sameCoord(hex.coord, destination));
+        const destinationOpen = Boolean(
+          target && destination && destinationHex && canOccupyHex(destination, target.id, state.deployments, state.map),
+        );
+        if (!validation.legal || !target || !destination || !destinationHex || !destinationOpen) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [
+              validation.legal
+                ? "Funnel displacement must end in an open battlefield hex and cannot chain-push another unit."
+                : validation.reason,
+            ],
+          }, actorVisibility);
+          continue;
+        }
+        const from = { ...target.position };
+        target.position = { ...destination };
+        actor.supplies = { ...(actor.supplies ?? {}), SMALL_SUPPLY: validation.supplyAfter };
+        event("ARTILLERY_FUNNELLED", actor.id, {
+          actionId: action.id,
+          targetId: target.id,
+          from,
+          to: destination,
+          direction: action.direction,
+          forcedDistanceQuarters: V5_FUNNEL_FORCED_DISTANCE_QUARTERS,
+          smallSupplyBefore: supplyBefore,
+          smallSupplySpent: validation.supplySpent,
+          smallSupplyAfter: validation.supplyAfter,
+          applicationProfileId: validation.applicationProfileId,
+        }, actorVisibility);
+      }
       if (action.type === "LOAD") {
         const cargo = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
+        if (actor.definitionId === "unit-heavy-air-transport" && cargo && isCompanionArtilleryDefinitionId(cargo.definitionId)) {
+          const transport = validateCompanionArtilleryTransport(cargo.definitionId, "unit-heavy-air-transport");
+          if (!transport.legal) {
+            event("ORDER_REJECTED", actor.id, {
+              orderId: order.id,
+              actionId: action.id,
+              reasons: [transport.reason ?? "That companion artillery unit cannot use a Heavy Air Transport."],
+            }, actorVisibility);
+            continue;
+          }
+        }
+        if (isCompanionVtolTransport(actor)) {
+          const passivePackage = cargo && (
+            deploymentTags(cargo).includes(COMPANION_VTOL_SUPPLY_CARGO_TAG) ||
+            deploymentTags(cargo).includes(COMPANION_VTOL_OBJECTIVE_CARGO_TAG)
+          );
+          const matching = cargo && (passivePackage || validOrders.get(cargo.id)?.actions
+            .some((candidate) => candidate.type === "LOAD" && candidate.targetDeploymentId === actor.id));
+          const built = cargo
+            ? makeCompanionVtolCargoItem({
+                campaignId: state.campaignId,
+                carrierDefinitionId: actor.definitionId,
+                cargo,
+              })
+            : undefined;
+          if (
+            !cargo ||
+            !matching ||
+            !actor.cargoProfile ||
+            !actor.statuses.includes("LANDED") ||
+            cargo.status === "DESTROYED" ||
+            cargo.status === "WITHDRAWN" ||
+            cargo.locationState === "EMBARKED" ||
+            !sameCoord(actor.position, cargo.position) ||
+            !built?.legal ||
+            !built.item
+          ) {
+            event("ORDER_REJECTED", actor.id, {
+              orderId: order.id,
+              actionId: action.id,
+              reasons: built?.reasons.length
+                ? built.reasons
+                : ["Companion VTOL loading requires an eligible co-located cargo package, a landed carrier, and unit consent."],
+            }, actorVisibility);
+            continue;
+          }
+          const loaded = embarkCargo(actor.cargoProfile, actor.cargo ?? [], built.item, Math.round(actor.stats.speed * 4));
+          const companionManifest = loaded.legal
+            ? validateCompanionVtolManifest(actor.definitionId, loaded.manifest)
+            : undefined;
+          if (!loaded.legal || !companionManifest?.legal) {
+            event("ORDER_REJECTED", actor.id, {
+              orderId: order.id,
+              actionId: action.id,
+              reasons: companionManifest?.reasons.length
+                ? companionManifest.reasons
+                : [loaded.reason ?? "Cargo cannot be loaded."],
+            }, actorVisibility);
+            continue;
+          }
+          actor.cargo = loaded.manifest;
+          cargo.locationState = "EMBARKED";
+          cargo.position = { ...actor.position };
+          event("CARGO_LOADED", actor.id, {
+            actionId: action.id,
+            cargoDeploymentId: cargo.id,
+            transportMode: built.item.transportMode ?? "EMBARKED",
+            externalLoad: built.item.tags.includes(COMPANION_VTOL_EXTERNAL_LOAD_TAG),
+            passivePackage: Boolean(passivePackage),
+            speedCostQuarters: loaded.speedCostQuarters,
+          }, actorVisibility);
+          continue;
+        }
+        const actorTankTransport = cargo
+          ? validateCompanionTankTransport(cargo.definitionId, actor.definitionId)
+          : undefined;
+        const cargoTankTransport = cargo
+          ? validateCompanionTankTransport(actor.definitionId, cargo.definitionId)
+          : undefined;
+        const invalidTankTransport = actorTankTransport?.legal === false
+          ? actorTankTransport
+          : cargoTankTransport?.legal === false
+            ? cargoTankTransport
+            : undefined;
+        if (invalidTankTransport) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [invalidTankTransport.reason ?? "That companion tank cannot use this carrier."],
+          }, actorVisibility);
+          continue;
+        }
         const actorCandidateMode = cargo && actor.cargoProfile ? cargoTransportMode(actor, cargo) : undefined;
         const actorCandidateItem = cargo && actor.cargoProfile && actorCandidateMode
           ? campaignCargoItem(state.campaignId, cargo, actorCandidateMode)
@@ -1117,7 +2064,9 @@ export function resolveRound(input: RoundInput): RoundOutput {
             ).length
           : 0;
         const validation = cargo && item && hex
-          ? validateHatClearAirDrop({ flightPath: order.route, destination: hex, cargo: item, currentOccupancy })
+          ? powerArmourHatParadropAllowed(cargo)
+            ? validateHatClearAirDrop({ flightPath: order.route, destination: hex, cargo: item, currentOccupancy })
+            : { legal: false, reasons: ["Power Armoured Infantry requires Heavy Drop Pod insertion and cannot use generic HAT paradrop."], hazardous: false }
           : { legal: false, reasons: ["Airdrop requires manifested cargo and a battlefield target hex."], hazardous: false };
         if (
           !actor.cargoProfile ||
@@ -1167,6 +2116,116 @@ export function resolveRound(input: RoundInput): RoundOutput {
         if (!actor.cargoProfile && targetCarrier?.cargoProfile) continue;
         const cargoId = typeof action.payload?.cargoDeploymentId === "string" ? action.payload.cargoDeploymentId : action.targetDeploymentId;
         const cargo = state.deployments.find((candidate) => candidate.id === cargoId);
+        if (isCompanionVtolTransport(actor)) {
+          const item = actor.cargo?.find((candidate) => candidate.unitId === cargo?.id);
+          const targetHex = action.targetHex ?? actor.position;
+          const hex = state.map.find((candidate) => sameCoord(candidate.coord, targetHex));
+          const rappel = action.payload?.mode === "RAPPEL_GARRISON";
+          if (rappel) {
+            const rappelled = cargo
+              ? resolveCompanionVtolRappel({
+                  carrier: actor,
+                  passenger: cargo,
+                  flightPath: resolvedRoutes.get(order.id) ?? order.route,
+                  destination: hex,
+                  canOccupyDestination: Boolean(hex && canOccupyHex(targetHex, cargo.id, state.deployments, state.map)),
+                })
+              : undefined;
+            if (!cargo || !rappelled?.legal || !rappelled.targetHex) {
+              event("ORDER_REJECTED", actor.id, {
+                orderId: order.id,
+                actionId: action.id,
+                reasons: rappelled?.reasons ?? ["Rappel Garrison requires manifested Infantry cargo."],
+              }, actorVisibility);
+              continue;
+            }
+            actor.cargo = rappelled.manifest;
+            cargo.locationState = "ON_MAP";
+            cargo.position = { ...rappelled.targetHex };
+            cargo.statuses = rappelled.passengerStatuses;
+            event("CARGO_UNLOADED", actor.id, {
+              actionId: action.id,
+              cargoDeploymentId: cargo.id,
+              transportMode: item?.transportMode ?? "EMBARKED",
+              mode: "RAPPEL_GARRISON",
+              targetHex: rappelled.targetHex,
+              speedCostQuarters: 0,
+              passengerActionRequired: rappelled.passengerActionRequired,
+              carrierMustLand: rappelled.carrierMustLand,
+            }, actorVisibility);
+            event("UNIT_GARRISONED", cargo.id, {
+              actionId: action.id,
+              carrierDeploymentId: actor.id,
+              position: rappelled.targetHex,
+              movementCost: 0,
+              coverArmor: 1,
+              reason: "VTOL_RAPPEL_GARRISON",
+              conflictId: "RC-COVER-001",
+            }, cargo.side === "ENEMY" ? "ENEMY" : "ALLIED");
+            continue;
+          }
+
+          const passivePackage = Boolean(item && (
+            item.tags.includes(COMPANION_VTOL_SUPPLY_CARGO_TAG) ||
+            item.tags.includes(COMPANION_VTOL_OBJECTIVE_CARGO_TAG)
+          ));
+          const matching = cargo && (passivePackage || validOrders.get(cargo.id)?.actions
+            .some((candidate) => candidate.type === "UNLOAD" && candidate.targetDeploymentId === actor.id));
+          if (
+            !cargo ||
+            !item ||
+            !matching ||
+            !actor.cargoProfile ||
+            !actor.statuses.includes("LANDED") ||
+            !hex ||
+            !sameCoord(targetHex, actor.position) ||
+            !canOccupyHex(targetHex, cargo.id, state.deployments, state.map)
+          ) {
+            event("ORDER_REJECTED", actor.id, {
+              orderId: order.id,
+              actionId: action.id,
+              reasons: ["Companion VTOL normal unloading requires manifested cargo, a landed carrier hex, room, and unit consent."],
+            }, actorVisibility);
+            continue;
+          }
+          const unloaded = disembarkCargo(actor.cargoProfile, actor.cargo ?? [], [item.id], Math.round(actor.stats.speed * 4));
+          if (!unloaded.legal) {
+            event("ORDER_REJECTED", actor.id, {
+              orderId: order.id,
+              actionId: action.id,
+              reasons: [unloaded.reason ?? "Cargo cannot unload."],
+            }, actorVisibility);
+            continue;
+          }
+          actor.cargo = unloaded.manifest;
+          cargo.locationState = "ON_MAP";
+          cargo.position = { ...targetHex };
+          const garrisoned = isGarrisonEligible(cargo) && isInfantryGarrisonBuilding(hex);
+          cargo.statuses = garrisoned
+            ? [...new Set([...cargo.statuses, "GARRISONED"])]
+            : cargo.statuses.filter((status) => status !== "GARRISONED");
+          event("CARGO_UNLOADED", actor.id, {
+            actionId: action.id,
+            cargoDeploymentId: cargo.id,
+            transportMode: item.transportMode ?? "EMBARKED",
+            externalLoad: item.tags.includes(COMPANION_VTOL_EXTERNAL_LOAD_TAG),
+            passivePackage,
+            targetHex,
+            speedCostQuarters: unloaded.speedCostQuarters,
+          }, actorVisibility);
+          if (garrisoned) {
+            event("UNIT_GARRISONED", cargo.id, {
+              actionId: action.id,
+              carrierDeploymentId: actor.id,
+              position: targetHex,
+              movementCost: 0,
+              coverArmor: 1,
+              reason: "VTOL_NORMAL_UNLOAD",
+              conflictId: "RC-COVER-001",
+            }, cargo.side === "ENEMY" ? "ENEMY" : "ALLIED");
+          }
+          continue;
+        }
         const item = actor.cargo?.find((candidate) => candidate.unitId === cargo?.id);
         const matching = cargo && validOrders.get(cargo.id)?.actions.some((candidate) => candidate.type === "UNLOAD" && candidate.targetDeploymentId === actor.id);
         if (!cargo || !item || !matching || !actor.cargoProfile) {
@@ -1207,11 +2266,45 @@ export function resolveRound(input: RoundInput): RoundOutput {
         }, actorVisibility);
       }
       if (action.type === "RELOAD") {
+        if (isCompanionMech(actor)) {
+          const reload = reloadMechWeaponAtSupplyPoint({
+            deployment: actor,
+            weaponId: action.weaponId,
+            atFriendlyGovernedSupplyPoint: facilitySupports(state, actor, actor.position, "RELOAD_MECH"),
+          });
+          if (!reload.legal) {
+            event("ORDER_REJECTED", actor.id, {
+              orderId: order.id,
+              actionId: action.id,
+              reasons: reload.reasons,
+            }, actorVisibility);
+            continue;
+          }
+          actor.ammunition[action.weaponId!] = reload.ammunitionAfter;
+          event("WEAPON_RELOADED", actor.id, {
+            actionId: action.id,
+            weaponId: action.weaponId,
+            ammunitionBefore: reload.ammunitionBefore,
+            ammunitionAfter: reload.ammunitionAfter,
+            facilityCapability: "SUPPLY_POINT",
+            supplySpent: 0,
+            rulesProfileId: "companion-v1-mechs@1",
+          }, actorVisibility);
+          continue;
+        }
         if (action.weaponId === "weapon-light-at") {
           event("ORDER_REJECTED", actor.id, {
             orderId: order.id,
             actionId: action.id,
             reasons: ["Light AT charges have no active field reload rule."],
+          }, actorVisibility);
+          continue;
+        }
+        if (isPowerArmourBackWeaponId(action.weaponId)) {
+          event("ORDER_REJECTED", actor.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: ["The Power Armour back-mounted Light Laser cools automatically and cannot be reloaded."],
           }, actorVisibility);
           continue;
         }
@@ -1476,9 +2569,20 @@ export function resolveRound(input: RoundInput): RoundOutput {
       }
       if (action.type === "RESUPPLY") {
         const target = state.deployments.find((candidate) => candidate.id === action.targetDeploymentId);
-        const actorIsLogistics = deploymentTags(actor).includes("LOGISTICS");
-        const targetTags = target ? deploymentTags(target) : [];
-        const targetIsSupported = targetTags.some((tag) => tag === "ARTILLERY" || tag === "ENGINEER" || tag === "MEDICAL");
+        const actorIsLogistics = isLogiTruck(actor);
+        const targetTags = (() => {
+          if (!target) return [];
+          try {
+            return getTacticalUnitClass(target.definitionId).tags;
+          } catch {
+            return [];
+          }
+        })();
+        const targetIsSupported = target?.definitionId === "unit-artillery" ||
+          target?.definitionId === "unit-engineers";
+        const targetHasFiniteAmmunition = target?.weapons.some((weapon) =>
+          weapon.ammoCapacity !== undefined && (target.ammunition[weapon.id] ?? 0) < weapon.ammoCapacity
+        ) ?? false;
         const transfer = target && actorIsLogistics && targetIsSupported && target.side === actor.side &&
           target.status !== "DESTROYED" && sameCoord(actor.position, target.position)
           ? resupplyLogiTarget({
@@ -1497,7 +2601,9 @@ export function resolveRound(input: RoundInput): RoundOutput {
               !actorIsLogistics
                 ? "Transfer Supply requires a Logi Truck."
                 : !target || !targetIsSupported || target.side !== actor.side || target.status === "DESTROYED"
-                  ? "Field resupply requires a friendly operational Medic, Engineer, or Artillery unit."
+                  ? targetHasFiniteAmmunition
+                    ? "Weapon-ammunition resupply has no governed Small Supply conversion (RC-SUP-001)."
+                    : "Field resupply requires a friendly operational Engineer or Artillery unit with governed Small Supply capacity."
                   : !sameCoord(actor.position, target.position)
                     ? "The Logi Truck and target unit must finish in the same hex."
                     : transfer && "reason" in transfer ? transfer.reason : "Small Supply transfer is illegal.",
@@ -1516,7 +2622,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
           sourceRemaining: transfer.source.SMALL_SUPPLY ?? 0,
           targetAfter: transfer.destination[transfer.resourceType] ?? 0,
           purpose: transfer.purpose,
-          conflictId: transfer.purpose === "ARTILLERY_RELOAD" ? "RC-SUP-001" : undefined,
+          applicationRule: "SAME_RESOURCE_PARTIAL_TRANSFER_NO_AMMO_CONVERSION",
         }, actorVisibility);
       }
       if (action.type === "SCAN" || action.type === "DEPLOY_DRONE") {
@@ -1555,6 +2661,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
   }
 
   const damage = new Map<string, number>();
+  for (const [targetId, healthLoss] of pendingSapperMineDamage) damage.set(targetId, healthLoss);
   const pendingSubsystemStates = new Map<string, NonNullable<CampaignDeployment["subsystems"]>>();
   const pendingSubsystemEvents: Array<{
     targetId: string;
@@ -1567,6 +2674,93 @@ export function resolveRound(input: RoundInput): RoundOutput {
       .filter(([, order]) => order.orderType === "RUSH")
       .map(([unitId]) => unitId),
   );
+  for (const order of validOrders.values()) {
+    const actor = state.deployments.find((candidate) => candidate.id === order.unitId)!;
+    for (const action of order.actions.filter((candidate) => candidate.type === "DETONATE_DELAYED_CHARGE")) {
+      const detonation = detonateSpecialForcesDelayedCharge(actor, state.round);
+      const actorVisibility: CampaignEvent["visibility"] = actor.side === "ENEMY" ? "ENEMY" : "ALLIED";
+      if (!detonation.legal || !detonation.charge) {
+        event("ORDER_REJECTED", actor.id, {
+          orderId: order.id,
+          actionId: action.id,
+          reasons: [detonation.reason ?? "Delayed charge detonation is illegal."],
+        }, actorVisibility);
+        continue;
+      }
+      actor.statusEffects = detonation.statusEffects;
+      revealSpecialForces(actor);
+      const target = state.deployments.find((candidate) => candidate.id === detonation.charge!.targetDeploymentId);
+      if (!target || !activeOnMap(target)) {
+        event("DELAYED_CHARGE_DETONATED", actor.id, {
+          actionId: action.id,
+          targetId: detonation.charge.targetDeploymentId,
+          targetKind: detonation.charge.targetKind,
+          healthLoss: 0,
+          reason: "ATTACHED_TARGET_NO_LONGER_OPERATIONAL",
+        }, actorVisibility);
+        continue;
+      }
+      const demolitionOrigin: CampaignDeployment = {
+        ...actor,
+        position: { ...target.position },
+        stats: { ...actor.stats, healthModel: "HITS" },
+      };
+      const result = resolveAttackRoll(
+        demolitionOrigin,
+        target,
+        SPECIAL_FORCES_DELAYED_CHARGE,
+        state.map,
+        random,
+        state.deployments,
+        { targetEvasive: evasiveUnits.has(target.id), targetCrewRepairing: crewRepairingUnits.has(target.id) },
+      );
+      if (!result.legal || !result.roll) {
+        event("DELAYED_CHARGE_DETONATED", actor.id, {
+          actionId: action.id,
+          targetId: target.id,
+          targetKind: detonation.charge.targetKind,
+          healthLoss: 0,
+          reason: result.reason ?? "DETONATION_TARGET_INVALID",
+        }, actorVisibility);
+        continue;
+      }
+      event("DICE_ROLLED", actor.id, {
+        actionId: action.id,
+        weaponId: SPECIAL_FORCES_DELAYED_CHARGE.id,
+        targetId: target.id,
+        dice: SPECIAL_FORCES_DELAYED_CHARGE.damage,
+        raw: result.roll.raw,
+        modified: result.roll.modified,
+        capped: result.roll.capped,
+        damageResult: result.damageResult,
+        armorPiercing: SPECIAL_FORCES_DELAYED_CHARGE.armorPiercing,
+      });
+      event("UNIT_ATTACKED", actor.id, {
+        actionId: action.id,
+        targetId: target.id,
+        weaponId: SPECIAL_FORCES_DELAYED_CHARGE.id,
+        armor: result.targetArmor,
+        coverArmor: result.coverArmor,
+        effectiveArmor: result.effectiveArmor,
+        defense: result.targetDefense,
+        threshold: result.threshold,
+        penetrated: result.penetrated,
+        healthLoss: result.healthLoss,
+        damageResult: result.damageResult,
+      });
+      event("DELAYED_CHARGE_DETONATED", actor.id, {
+        actionId: action.id,
+        targetId: target.id,
+        targetKind: detonation.charge.targetKind,
+        armedFromRound: detonation.charge.armedFromRound,
+        detonatedRound: state.round,
+        healthLoss: result.healthLoss,
+        damageResult: result.damageResult,
+        armorPiercing: SPECIAL_FORCES_DELAYED_CHARGE.armorPiercing,
+      }, actorVisibility);
+      if (result.healthLoss > 0) damage.set(target.id, (damage.get(target.id) ?? 0) + result.healthLoss);
+    }
+  }
   const interceptorsByTarget = new Map<string, CampaignDeployment[]>();
   for (const interceptorOrder of validOrders.values()) {
     const interceptor = state.deployments.find((candidate) => candidate.id === interceptorOrder.unitId)!;
@@ -1599,6 +2793,180 @@ export function resolveRound(input: RoundInput): RoundOutput {
     const attacker = state.deployments.find((candidate) => candidate.id === order.unitId)!;
     const resolvedRoute = resolvedRoutes.get(order.id) ?? order.route;
     for (const action of order.actions.filter((candidate) => candidate.type === "ATTACK")) {
+      const mechActivation = isCompanionMech(attacker)
+        ? validateMechAttackActivation({
+            deployment: attacker,
+            economy: action.economy,
+            declaredWeaponIds: action.weaponIds,
+          })
+        : undefined;
+      const tankActivation = selectCompanionTankAttackWeapons(attacker.definitionId, attacker.weapons);
+      if (tankActivation && !tankActivation.legal) {
+        event("ORDER_REJECTED", attacker.id, {
+          orderId: order.id,
+          actionId: action.id,
+          reasons: [tankActivation.reason ?? "The companion tank attack profile is incomplete."],
+        });
+        continue;
+      }
+      if (tankActivation && attacker.definitionId === "unit-super-heavy-tank" && action.economy !== "PRIMARY") {
+        event("ORDER_REJECTED", attacker.id, {
+          orderId: order.id,
+          actionId: action.id,
+          reasons: ["Super Heavy Tank dual-cannon fire requires one Primary Action."],
+        });
+        continue;
+      }
+      if (mechActivation && !mechActivation.legal) {
+        event("ORDER_REJECTED", attacker.id, {
+          orderId: order.id,
+          actionId: action.id,
+          reasons: mechActivation.reasons,
+        });
+        continue;
+      }
+      if ((isSpecialForcesDeployment(attacker) || isSapperDeployment(attacker)) && attacker.statuses.includes("STEALTHED")) {
+        revealSpecialForces(attacker);
+        event("INFANTRY_STEALTH_RESOLVED", attacker.id, {
+          orderId: order.id,
+          actionId: action.id,
+          revealCause: "ATTACK",
+          detected: true,
+          stealthBroken: true,
+          observerIds: [],
+        }, attacker.side === "ENEMY" ? "ENEMY" : "ALLIED");
+      }
+      const companionArtilleryDefinitionId = isCompanionArtilleryDefinitionId(attacker.definitionId)
+        ? attacker.definitionId
+        : undefined;
+      const companionArtilleryFire = selectCompanionArtilleryFire({
+        deployment: attacker,
+        targetHex: action.targetHex,
+        payloadTargetHexes: action.payload?.targetHexes,
+      });
+      if (companionArtilleryFire && companionArtilleryDefinitionId) {
+        const shotErrors = [...companionArtilleryFire.reasons];
+        const firingProfile: ArtilleryProfile = {
+          ...artilleryProfile,
+          id: "companion-artillery-public-v1",
+          fireSupplyCost: 0,
+        };
+        for (const shot of companionArtilleryFire.shots) {
+          if (!state.map.some((hex) => sameCoord(hex.coord, shot.targetHex))) {
+            shotErrors.push(`Shot ${shot.index} targets a hex outside the battlefield.`);
+            continue;
+          }
+          const range = validateCompanionArtilleryRange(
+            companionArtilleryDefinitionId,
+            attacker.position,
+            shot.targetHex,
+            hexDistance(attacker.position, shot.targetHex),
+          );
+          if (!range.legal) shotErrors.push(range.reason ?? `Shot ${shot.index} is outside the weapon's range.`);
+          const fire = validateArtilleryFire({
+            profile: firingProfile,
+            deploymentState: isCrewedCompanionArtilleryDefinitionId(attacker.definitionId) ? artilleryState(attacker) : "DEPLOYED",
+            firingUnitId: attacker.id,
+            firingSide: attacker.side,
+            firingPosition: attacker.position,
+            weapon: companionArtilleryFire.weapon,
+            target: {
+              id: `hex:${shot.targetHex.q},${shot.targetHex.r}`,
+              side: attacker.side === "ALLIED" ? "ENEMY" : "ALLIED",
+              status: "ACTIVE",
+              position: shot.targetHex,
+              domain: "GROUND",
+            },
+            map: state.map,
+            spotters: artillerySpotters(state, attacker),
+            supplyAvailable: 0,
+          });
+          if (!fire.legal) shotErrors.push(fire.reason ?? `Shot ${shot.index} has no legal spotter.`);
+        }
+        if (!companionArtilleryFire.legal || shotErrors.length > 0) {
+          event("ORDER_REJECTED", attacker.id, {
+            orderId: order.id,
+            actionId: action.id,
+            reasons: [...new Set(shotErrors)],
+          });
+          continue;
+        }
+        if (companionArtilleryFire.ammunitionAfter !== undefined) {
+          attacker.ammunition[companionArtilleryFire.weapon.id] = companionArtilleryFire.ammunitionAfter;
+        }
+        const spotterDeployments = state.deployments.filter((candidate) =>
+          candidate.id !== attacker.id &&
+          candidate.side === attacker.side &&
+          activeOnMap(candidate) &&
+          !deploymentTags(candidate).includes("CANNOT_SPOT_GROUND")
+        );
+        const activationWeapon = { ...companionArtilleryFire.weapon, ammoCapacity: undefined };
+        for (const shot of companionArtilleryFire.shots) {
+          const targets = state.deployments
+            .filter((candidate) =>
+              candidate.side !== attacker.side &&
+              activeOnMap(candidate) &&
+              deploymentTags(candidate).includes("GROUND") &&
+              sameCoord(candidate.position, shot.targetHex)
+            )
+            .sort((left, right) => left.id.localeCompare(right.id));
+          for (const target of targets) {
+            const result = resolveAttackRoll(attacker, target, activationWeapon, state.map, random, spotterDeployments, {
+              attackerEvasive: evasiveUnits.has(attacker.id),
+              targetEvasive: evasiveUnits.has(target.id),
+              targetCrewRepairing: crewRepairingUnits.has(target.id),
+            });
+            if (!result.legal || !result.roll) continue;
+            event("DICE_ROLLED", attacker.id, {
+              actionId: action.id,
+              weaponId: activationWeapon.id,
+              shotIndex: shot.index,
+              shotCount: companionArtilleryFire.shots.length,
+              targetHex: shot.targetHex,
+              targetId: target.id,
+              areaHex: true,
+              dice: activationWeapon.damage,
+              raw: result.roll.raw,
+              modified: result.roll.modified,
+              capped: result.roll.capped,
+              damageResult: result.damageResult,
+              ammunitionBefore: companionArtilleryFire.ammunitionBefore,
+              ammunitionAfter: companionArtilleryFire.ammunitionAfter,
+            });
+            const rushMultiplier = rushingUnits.has(target.id) ? 2 : 1;
+            const healthLoss = result.healthLoss * rushMultiplier;
+            event("UNIT_ATTACKED", attacker.id, {
+              actionId: action.id,
+              targetId: target.id,
+              targetHex: shot.targetHex,
+              weaponId: activationWeapon.id,
+              shotIndex: shot.index,
+              shotCount: companionArtilleryFire.shots.length,
+              areaHex: true,
+              armor: result.targetArmor,
+              coverArmor: result.coverArmor,
+              effectiveArmor: result.effectiveArmor,
+              defense: result.targetDefense,
+              threshold: result.threshold,
+              penetrated: result.penetrated,
+              healthLoss,
+              rushMultiplier,
+            });
+            if (healthLoss > 0) damage.set(target.id, (damage.get(target.id) ?? 0) + healthLoss);
+          }
+          event("ARTILLERY_BOMBARDED", attacker.id, {
+            actionId: action.id,
+            shotIndex: shot.index,
+            shotCount: companionArtilleryFire.shots.length,
+            targetHex: shot.targetHex,
+            areaHex: true,
+            targetIds: targets.map((target) => target.id),
+            weaponId: activationWeapon.id,
+            supplySpent: 0,
+          });
+        }
+        continue;
+      }
       if (isArtilleryDeployment(attacker) && !attacker.statuses.includes("DEPLOYED")) {
         event("ORDER_REJECTED", attacker.id, {
           orderId: order.id,
@@ -1688,9 +3056,16 @@ export function resolveRound(input: RoundInput): RoundOutput {
         continue;
       }
       let lightAtSpent = false;
-      for (const weapon of attacker.weapons.filter((candidate) => !isLightAtChargeStore(candidate)).sort((left, right) =>
-        left.id < right.id ? -1 : left.id > right.id ? 1 : 0
-      )) {
+      let emplacementUsed = false;
+      const selectedMechWeapons = mechActivation ? new Set(mechActivation.weaponIds) : undefined;
+      const selectedAttackWeapons = tankActivation?.weapons ?? attacker.weapons.filter((candidate) =>
+        !isLightAtChargeStore(candidate) && (!selectedMechWeapons || selectedMechWeapons.has(candidate.id))
+      ).sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+      for (const [shotIndex, fittedWeapon] of selectedAttackWeapons.entries()) {
+        const emplacement = emplacementUsed
+          ? { applied: false, weapon: fittedWeapon }
+          : applySapperWeaponEmplacement(attacker, fittedWeapon, state.map);
+        const weapon = emplacement.weapon;
         const ammunitionBefore = weapon.ammoCapacity === undefined
           ? undefined
           : attacker.ammunition[weapon.id] ?? 0;
@@ -1730,6 +3105,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
           continue;
         }
         weaponsFired += 1;
+        if (emplacement.applied) emplacementUsed = true;
         if (weapon.id === "weapon-infantry-rifle" && lightAt.charges > 0 && !lightAtSpent) {
           attacker.ammunition["weapon-light-at"] = lightAt.ammunitionAfter;
           lightAtSpent = true;
@@ -1743,9 +3119,17 @@ export function resolveRound(input: RoundInput): RoundOutput {
             sourceEquipmentId: "equipment-light-at",
           });
         }
-        if (result.ammoAfter !== undefined) {
-          attacker.ammunition[weapon.id] = result.ammoAfter;
-          if (result.ammoAfter === 0 && isAerospaceDeployment(attacker)) {
+        let ammunitionAfter = result.ammoAfter;
+        let coolingTriggered = false;
+        if (ammunitionAfter !== undefined && isPowerArmourBackWeaponId(weapon.id)) {
+          const cycle = resolvePowerArmourBackWeaponCycle(ammunitionAfter);
+          ammunitionAfter = cycle.ammunitionAfter;
+          coolingTriggered = cycle.coolingTriggered;
+          if (cycle.cooldownAfter !== undefined) attacker.cooldowns[weapon.id] = cycle.cooldownAfter;
+        }
+        if (ammunitionAfter !== undefined) {
+          attacker.ammunition[weapon.id] = ammunitionAfter;
+          if (ammunitionAfter === 0 && isAerospaceDeployment(attacker)) {
             attacker.statuses = [...new Set([...attacker.statuses, "REARM_REQUIRED"])];
           }
         }
@@ -1753,6 +3137,10 @@ export function resolveRound(input: RoundInput): RoundOutput {
         event("DICE_ROLLED", attacker.id, {
           actionId: action.id,
           weaponId: weapon.id,
+          shotIndex: tankActivation ? shotIndex + 1 : undefined,
+          shotCount: tankActivation?.shotCount,
+          attackMode: mechActivation ? "MECH_PRIMARY_MULTIWEAPON" : undefined,
+          activationWeaponIds: mechActivation?.weaponIds,
           targetId: target.id,
           dice: weapon.damage,
           raw: result.roll.raw,
@@ -1764,7 +3152,8 @@ export function resolveRound(input: RoundInput): RoundOutput {
           evasiveAttackModifier: result.evasiveAttackModifier,
           armorPiercingBonus: result.armorPiercingBonus,
           ammunitionBefore,
-          ammunitionAfter: result.ammoAfter,
+          ammunitionAfter,
+          coolingTriggered,
         });
         const rushMultiplier = rushingUnits.has(target.id) ? 2 : 1;
         const healthLoss = result.healthLoss * rushMultiplier;
@@ -1772,6 +3161,10 @@ export function resolveRound(input: RoundInput): RoundOutput {
           actionId: action.id,
           targetId: target.id,
           weaponId: weapon.id,
+          shotIndex: tankActivation ? shotIndex + 1 : undefined,
+          shotCount: tankActivation?.shotCount,
+          attackMode: mechActivation ? "MECH_PRIMARY_MULTIWEAPON" : undefined,
+          activationWeaponIds: mechActivation?.weaponIds,
           armor: result.targetArmor,
           coverArmor: result.coverArmor,
           coverSources: result.coverSources,
@@ -1792,7 +3185,9 @@ export function resolveRound(input: RoundInput): RoundOutput {
           armorPiercingBonus: result.armorPiercingBonus,
         });
         const subsystemRules = weapon.damage.count === 1
-          ? getTacticalSubsystemRules(target.definitionId)
+          ? getTacticalSubsystemRules(target.definitionId) ??
+            getCompanionTankSubsystemRules(target.definitionId) ??
+            getMechanizedInfantrySubsystemRules(target.definitionId)
           : undefined;
         if (subsystemRules) {
           const subsystemResult = resolveSubsystemDamage({
@@ -1927,7 +3322,15 @@ export function resolveRound(input: RoundInput): RoundOutput {
         position: { ...deployment.position },
         facing: deployment.facing,
         statuses: [...deployment.statuses],
+        definitionId: deployment.definitionId,
+        stats: structuredClone(deployment.stats),
+        weapons: structuredClone(deployment.weapons),
+        companionArtilleryAbandonment: structuredClone(deployment.companionArtilleryAbandonment),
+        statusEffects: structuredClone(deployment.statusEffects ?? []),
         equipmentIds: [...deployment.equipmentIds],
+        towedUnitId: deployment.towedUnitId
+          ? state.deployments.find((candidate) => candidate.id === deployment.towedUnitId)?.persistentUnitId ?? deployment.towedUnitId
+          : undefined,
         subsystems: deployment.subsystems ?? [],
         cargo: (deployment.cargo ?? []).map((item) => ({
           ...item,
@@ -1946,6 +3349,57 @@ export function resolveRound(input: RoundInput): RoundOutput {
     if (accepted && accepted.id === order.id && accepted.revision === order.revision) {
       order.lifecycle = "RESOLVED";
     }
+  }
+
+  // Forward Line is intentionally narrower than a combat Infantry tag. At
+  // round end, an operational on-map Mechanized Infantry formation contests
+  // or claims only its occupied authored objective/control hex.
+  for (const hex of [...state.map].sort((left, right) => coordKey(left.coord).localeCompare(coordKey(right.coord)))) {
+    if (!hex.objectiveId) continue;
+    const objective = state.objectives.find((candidate) => candidate.id === hex.objectiveId);
+    const mechanizedOccupants = state.deployments.filter((deployment) =>
+      isMechanizedInfantry(deployment) && sameCoord(deployment.position, hex.coord)
+    );
+    if (mechanizedOccupants.length === 0) continue;
+    const objectiveControlOccupants = state.deployments.filter((deployment) =>
+      sameCoord(deployment.position, hex.coord) && (
+        isMechanizedInfantry(deployment) ||
+        (deploymentTags(deployment).includes("INFANTRY") && deploymentTags(deployment).includes("PERSONNEL"))
+      )
+    );
+    const control = resolveForwardLineControl(objectiveControlOccupants.map((deployment) => ({
+      id: deployment.id,
+      side: deployment.side,
+      operational: activeOnMap(deployment),
+    })));
+    if (control.contested) {
+      event("OBJECTIVE_CAPTURED", undefined, {
+        objectiveId: hex.objectiveId,
+        coord: { ...hex.coord },
+        contested: true,
+        occupantIds: control.occupantIds,
+        controlAbility: "FORWARD_LINE_CONTROL",
+        owner: hex.control,
+      });
+      continue;
+    }
+    if (
+      !control.controllingSide ||
+      (control.controllingSide === hex.control && (!objective || control.controllingSide === objective.owner))
+    ) continue;
+    const previousOwner = objective?.owner ?? hex.control;
+    hex.control = control.controllingSide;
+    if (objective) objective.owner = control.controllingSide;
+    event("OBJECTIVE_CAPTURED", undefined, {
+      objectiveId: hex.objectiveId,
+      objectiveName: objective?.name,
+      coord: { ...hex.coord },
+      previousOwner,
+      owner: control.controllingSide,
+      status: "ACTIVE",
+      occupantIds: control.occupantIds,
+      controlAbility: "FORWARD_LINE_CONTROL",
+    });
   }
 
   const scenario = evaluateScenarioRoundEnd(state);

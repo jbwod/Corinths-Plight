@@ -25,6 +25,22 @@ export const PUBLIC_V1_UNIT_PRICES = Object.freeze({
   "unit-aerospace-fighter": 12,
   "unit-aerospace-bomber": 12,
   "unit-heavy-air-transport": 14,
+  "unit-power-armoured-infantry": 10,
+  "unit-irregular": 4,
+  "unit-special-forces": 8,
+  "unit-sappers": 6,
+  "unit-mechanized-infantry": 10,
+  "unit-light-battle-tank": 10,
+  "unit-heavy-battle-tank": 14,
+  "unit-super-heavy-tank": 20,
+  "unit-light-artillery": 8,
+  "unit-heavy-artillery": 12,
+  "unit-self-propelled-artillery": 10,
+  "unit-vtol-troop-airlift": 12,
+  "unit-vtol-multipurpose-airlift": 12,
+  "unit-vtol-heavy-lift": 14,
+  "unit-medium-mech": 14,
+  "unit-heavy-mech": 18,
 } as const);
 
 export type PublicV1UnitDefinitionId = keyof typeof PUBLIC_V1_UNIT_PRICES;

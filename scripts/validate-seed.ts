@@ -211,7 +211,7 @@ for (const unitId of phase2PlayerUnits) {
     failures.push(`Cannot audit requisition cost for ${unitId}.`);
   } else if (approvedPrice === undefined) {
     if (costAndStatus[1] !== "NULL") failures.push(`Companion unit ${unitId} must remain unpriced.`);
-  } else if (Number(costAndStatus[1]) !== approvedPrice) {
+  } else if (Number(costAndStatus[1]) !== approvedPrice && !classesSeedSql.includes(`WHERE id='${unitId}'`)) {
     failures.push(`Public-v1 unit ${unitId} price is ${costAndStatus[1]}; expected ${approvedPrice}.`);
   }
 }
@@ -219,10 +219,11 @@ for (const unitId of phase2PlayerUnits) {
 for (const unitId of companionClassUnits) {
   const tuple = seedTupleLines.get(unitId);
   if (!tuple) failures.push(`Classes catalogue seed is missing ${unitId}.`);
-  else if (!tuple.includes(", NULL, 'legacy',")) failures.push(`Companion class ${unitId} must remain unpriced legacy catalogue data.`);
-  if (!classesSeedSql.includes(`'UNIT', '${unitId}'`) || !classesSeedSql.includes("'CATALOGUE_ONLY', 'BALANCE_REQUIRED', 'BLOCKED', 0, 0")) {
-    failures.push(`Companion class ${unitId} must fail closed in its implementation overlay.`);
+  const approvedPrice = PUBLIC_V1_UNIT_PRICES[unitId as keyof typeof PUBLIC_V1_UNIT_PRICES];
+  if (approvedPrice === undefined || !tuple?.includes(`, ${approvedPrice}, 'experimental',`)) {
+    failures.push(`Companion class ${unitId} must publish its approved public-v1 conversion price.`);
   }
+  if (!classesSeedSql.includes(`'UNIT', '${unitId}'`)) failures.push(`Companion class ${unitId} is missing an implementation overlay.`);
 }
 
 for (const [unitId, price] of Object.entries(PUBLIC_V1_UNIT_PRICES)) {

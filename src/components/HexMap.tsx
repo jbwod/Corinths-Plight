@@ -47,9 +47,9 @@ const INTENT_VISUALS: Record<IntentVisualKind, IntentVisual> = {
   HOLD: { kind: "HOLD", color: "#e6bd68", glyph: "H", dash: [] },
 };
 
-const ASSAULT_ACTIONS = new Set(["ATTACK", "ASSAULT", "BOMBARDMENT", "AIR_SUPPORT"]);
-const SUPPORT_ACTIONS = new Set(["HEAL", "REPAIR", "CREW_REPAIR", "RESUPPLY", "RELOAD", "LOAD", "UNLOAD", "AIRDROP", "LAND", "TAKE_OFF", "REARM_AEROSPACE"]);
-const FORTIFY_ACTIONS = new Set(["DIG_IN", "ARTILLERY_DIG_IN", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "GARRISON", "SCAN", "DEPLOY_DRONE"]);
+const ASSAULT_ACTIONS = new Set(["ATTACK", "ASSAULT", "BOMBARDMENT", "AIR_SUPPORT", "PLACE_DELAYED_CHARGE", "DETONATE_DELAYED_CHARGE"]);
+const SUPPORT_ACTIONS = new Set(["RECRUIT_IRREGULAR", "HEAL", "REPAIR", "CREW_REPAIR", "RESUPPLY", "RELOAD", "LOAD", "UNLOAD", "AIRDROP", "LAND", "TAKE_OFF", "REARM_AEROSPACE"]);
+const FORTIFY_ACTIONS = new Set(["DIG_IN", "ARTILLERY_DIG_IN", "CONSTRUCT", "SAPPER_CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "GARRISON", "SCAN", "DEPLOY_DRONE"]);
 
 function intentVisual(order: UnitOrder): IntentVisual {
   const actionTypes = [...order.actions, ...order.incidentalActions].map((action) => action.type);
@@ -62,6 +62,7 @@ function intentVisual(order: UnitOrder): IntentVisual {
 
 function intentActionLabel(order: UnitOrder): string | undefined {
   const action = order.actions[0] ?? order.incidentalActions[0];
+  if (action?.type === "UNLOAD" && action.payload?.mode === "RAPPEL_GARRISON") return "RAPPEL GARRISON";
   return action?.type.replaceAll("_", " ");
 }
 

@@ -17,6 +17,16 @@ const actionTypes = new Set<ActionType>([
   "TAKE_OFF",
   "REARM_AEROSPACE",
   "ATTACK",
+  "PLACE_DELAYED_CHARGE",
+  "DETONATE_DELAYED_CHARGE",
+  "SAPPER_CONSTRUCT",
+  "RELOAD_BUILD_SUPPLY",
+  "RECRUIT_IRREGULAR",
+  "SHIELD_WALL",
+  "MOUNT_MAGNETIC_CLAMPS",
+  "DISMOUNT_MAGNETIC_CLAMPS",
+  "ABANDON_GUNS",
+  "REPLACE_GUNS",
   "ASSAULT",
   "DIG_IN",
   "ARTILLERY_DIG_IN",
@@ -37,6 +47,7 @@ const actionTypes = new Set<ActionType>([
   "HEAL",
   "ORBITAL_DROP",
   "BOMBARDMENT",
+  "FUNNEL",
   "AIR_SUPPORT",
 ]);
 const campaignPhases = new Set([
@@ -74,6 +85,16 @@ const eventTypes = new Set([
   "UNIT_DUG_IN",
   "UNIT_DUG_OUT",
   "EVASIVE_MANEUVER",
+  "INFANTRY_STEALTH_RESOLVED",
+  "DELAYED_CHARGE_PLACED",
+  "DELAYED_CHARGE_DETONATED",
+  "SAPPER_BUILD_PROGRESS",
+  "SAPPER_BUILD_SUPPLY_RELOADED",
+  "SAPPER_MINE_TRIGGERED",
+  "IRREGULAR_RECRUITED",
+  "SHIELD_WALL_FORMED",
+  "MAGNETIC_CLAMPS_MOUNTED",
+  "MAGNETIC_CLAMPS_DISMOUNTED",
   "UNIT_ATTACKED",
   "LIGHT_AT_EXPENDED",
   "WEAPON_SKIPPED",
@@ -97,6 +118,9 @@ const eventTypes = new Set([
   "ARTILLERY_DEPLOYED",
   "ARTILLERY_PACKED",
   "ARTILLERY_BOMBARDED",
+  "ARTILLERY_FUNNELLED",
+  "ARTILLERY_ABANDONED",
+  "ARTILLERY_REPLACED",
   "BOMBARDMENT_APPLIED",
   "BOMBARDMENT_RECOVERED",
   "UNIT_DESTROYED",
@@ -118,11 +142,13 @@ export interface CampaignActionIntent {
   type: ActionType;
   targetDeploymentId?: string;
   targetHex?: { q: number; r: number };
+  direction?: Facing;
   structureDefinitionId?: string;
   weaponId?: string;
   lightAtCharges?: number;
   equipmentIds?: string[];
   payload?: {
+    targetHexes?: Array<{ q: number; r: number }>;
     cargoDeploymentId?: string;
     mode?: "PARADROP";
     repairKind?: "HIT" | "SUBSYSTEM";
@@ -257,7 +283,17 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     LAND: [],
     TAKE_OFF: [],
     REARM_AEROSPACE: [],
-    ATTACK: ["targetDeploymentId", "targetHex", "weaponId", "lightAtCharges"],
+    ATTACK: ["targetDeploymentId", "targetHex", "weaponId", "lightAtCharges", "payload"],
+    PLACE_DELAYED_CHARGE: ["targetDeploymentId"],
+    DETONATE_DELAYED_CHARGE: [],
+    SAPPER_CONSTRUCT: ["targetHex", "structureDefinitionId"],
+    RELOAD_BUILD_SUPPLY: [],
+    RECRUIT_IRREGULAR: [],
+    SHIELD_WALL: [],
+    MOUNT_MAGNETIC_CLAMPS: ["targetDeploymentId"],
+    DISMOUNT_MAGNETIC_CLAMPS: ["targetDeploymentId"],
+    ABANDON_GUNS: [],
+    REPLACE_GUNS: [],
     ASSAULT: ["targetDeploymentId", "targetHex", "weaponId"],
     DIG_IN: [],
     ARTILLERY_DIG_IN: ["targetDeploymentId"],
@@ -278,6 +314,7 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     HEAL: ["targetDeploymentId"],
     ORBITAL_DROP: ["targetDeploymentId", "targetHex"],
     BOMBARDMENT: ["targetHex"],
+    FUNNEL: ["targetDeploymentId", "direction"],
     AIR_SUPPORT: ["targetHex"],
   };
   onlyKeys(value, ["type", "equipmentIds", ...fieldsByType[type]], path);
@@ -301,6 +338,12 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     requestFail(`${path}.targetDeploymentId`, "Transfer Supply requires a target deployment.");
   }
   if (value.targetHex !== undefined) parsed.targetHex = coordinate(value.targetHex, `${path}.targetHex`);
+  if (value.direction !== undefined) {
+    if (type !== "FUNNEL" || typeof value.direction !== "number" || !Number.isSafeInteger(value.direction) || value.direction < 0 || value.direction > 5) {
+      requestFail(`${path}.direction`, "Funnel direction must be an integer from zero through five.");
+    }
+    parsed.direction = value.direction as Facing;
+  }
   if (value.structureDefinitionId !== undefined) {
     parsed.structureDefinitionId = identifier(value.structureDefinitionId, `${path}.structureDefinitionId`);
   }
@@ -320,11 +363,13 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     parsed.equipmentIds = ids;
   }
   if (value.payload !== undefined) {
-    if (type !== "UNLOAD" && type !== "AIRDROP" && type !== "REPAIR" && type !== "CREW_REPAIR") requestFail(`${path}.payload`, "This action type does not accept a payload.");
+    if (type !== "ATTACK" && type !== "UNLOAD" && type !== "AIRDROP" && type !== "REPAIR" && type !== "CREW_REPAIR") requestFail(`${path}.payload`, "This action type does not accept a payload.");
     if (!isRecord(value.payload)) requestFail(`${path}.payload`, "Expected an action payload object.");
     onlyKeys(
       value.payload,
-      type === "REPAIR"
+      type === "ATTACK"
+        ? ["targetHexes"]
+        : type === "REPAIR"
         ? ["repairKind", "subsystemId"]
         : type === "CREW_REPAIR"
           ? ["subsystemId"]
@@ -334,6 +379,12 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
       `${path}.payload`,
     );
     const payload: NonNullable<CampaignActionIntent["payload"]> = {};
+    if (value.payload.targetHexes !== undefined) {
+      if (type !== "ATTACK" || !Array.isArray(value.payload.targetHexes) || value.payload.targetHexes.length < 1 || value.payload.targetHexes.length > 3) {
+        requestFail(`${path}.payload.targetHexes`, "Artillery Attack requires one to three target hexes.");
+      }
+      payload.targetHexes = value.payload.targetHexes.map((coord, index) => coordinate(coord, `${path}.payload.targetHexes[${index}]`));
+    }
     if (value.payload.cargoDeploymentId !== undefined) {
       payload.cargoDeploymentId = identifier(value.payload.cargoDeploymentId, `${path}.payload.cargoDeploymentId`);
     }
@@ -353,10 +404,13 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
     }
     parsed.payload = payload;
   }
-  if (type === "ATTACK" && !parsed.targetDeploymentId) {
-    requestFail(path, "ATTACK requires targetDeploymentId.");
+  if (type === "ATTACK" && !parsed.targetDeploymentId && !parsed.targetHex && !parsed.payload?.targetHexes) {
+    requestFail(path, "ATTACK requires a target deployment or artillery target hex declaration.");
   }
   if (type === "LOAD" && !parsed.targetDeploymentId) requestFail(path, "LOAD requires targetDeploymentId.");
+  if ((type === "MOUNT_MAGNETIC_CLAMPS" || type === "DISMOUNT_MAGNETIC_CLAMPS") && !parsed.targetDeploymentId) {
+    requestFail(path, `${type} requires targetDeploymentId.`);
+  }
   if (type === "UNLOAD" && !parsed.targetDeploymentId && !parsed.payload?.cargoDeploymentId) {
     requestFail(path, "UNLOAD requires targetDeploymentId or payload.cargoDeploymentId.");
   }
@@ -374,6 +428,9 @@ function actionIntent(value: unknown, path: string): CampaignActionIntent {
   }
   if ((type === "SCAN" || type === "DEPLOY_DRONE" || type === "BOMBARDMENT") && !parsed.targetHex) {
     requestFail(path, `${type} requires targetHex.`);
+  }
+  if (type === "FUNNEL" && (!parsed.targetDeploymentId || parsed.direction === undefined)) {
+    requestFail(path, "FUNNEL requires targetDeploymentId and direction.");
   }
   if (type === "CONSTRUCT" && (!parsed.targetHex || !parsed.structureDefinitionId)) {
     requestFail(path, "CONSTRUCT requires targetHex and structureDefinitionId.");
@@ -699,6 +756,10 @@ function validateStoredAction(value: unknown, path: string): string {
   stateStringArray(action.equipmentIds, `${path}.equipmentIds`);
   if (action.targetDeploymentId !== undefined) stateString(action.targetDeploymentId, `${path}.targetDeploymentId`);
   if (action.targetHex !== undefined) stateCoordinate(action.targetHex, `${path}.targetHex`);
+  if (action.direction !== undefined) {
+    const direction = stateInteger(action.direction, `${path}.direction`, 0);
+    if (direction > 5) stateFail(`${path}.direction`, "expected a direction from zero through five");
+  }
   if (action.structureDefinitionId !== undefined) stateString(action.structureDefinitionId, `${path}.structureDefinitionId`);
   if (action.weaponId !== undefined) stateString(action.weaponId, `${path}.weaponId`);
   if (action.weaponIds !== undefined) {
@@ -1198,7 +1259,7 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     const path = `$.pendingPersistentEffects[${index}]`;
     const effect = stateRecord(effectValue, path);
     stateString(effect.idempotencyKey, `${path}.idempotencyKey`);
-    if (!new Set(["UNIT_DESTROYED", "UNIT_DAMAGED", "UNIT_STATE_UPDATED", "REQUISITION_AWARDED", "CAMPAIGN_HISTORY", "CAMPAIGN_RESULT"]).has(effect.type as string)) {
+    if (!new Set(["UNIT_DESTROYED", "UNIT_DAMAGED", "UNIT_STATE_UPDATED", "REQUISITION_AWARDED", "REQUISITION_SPENT", "CAMPAIGN_HISTORY", "CAMPAIGN_RESULT"]).has(effect.type as string)) {
       stateFail(`${path}.type`, "invalid persistent effect type");
     }
     stateRecord(effect.payload, `${path}.payload`);

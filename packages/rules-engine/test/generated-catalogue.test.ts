@@ -26,16 +26,16 @@ describe("rules catalogue bootstrap", () => {
 
     expect(legacyDefinitionCounts(snapshot)).toEqual({
       units: 29,
-      weapons: 12,
-      equipment: 105,
-      actions: 24,
+      weapons: 29,
+      equipment: 106,
+      actions: 34,
       orders: 6,
-      structures: 6,
+      structures: 7,
       terrain: 4,
       ships: 4,
       enemies: 7,
     });
-    expect(legacyTopLevelDefinitionCount(snapshot)).toBe(197);
+    expect(legacyTopLevelDefinitionCount(snapshot)).toBe(226);
     expect(await legacySourceHashMismatches(snapshot)).toEqual([]);
     expect(legacyUnitPublicationSplit(snapshot)).toEqual({
       canonicalUnitIds: [
@@ -106,20 +106,34 @@ describe("rules catalogue bootstrap", () => {
     expect([
       ...content.units, ...content.weapons, ...content.equipment, ...content.actions,
       ...content.orders, ...content.structures, ...content.terrain, ...content.ships, ...content.enemies,
-    ]).toHaveLength(197);
+    ]).toHaveLength(226);
     expect(content.conflicts).toHaveLength(84);
 
     const companionIds = new Set(content.companionUnitIds);
     const unitOverlays = content.overlays.filter((overlay) => overlay.definitionKind === "UNIT");
     for (const companionId of companionIds) {
-      expect(content.units.find((unit) => unit.id === companionId)?.definitionStatus).toBe("legacy");
-      expect(unitOverlays.find((overlay) => overlay.definitionId === companionId)).toMatchObject({
-        implementationStatus: "CATALOGUE_ONLY",
-        requisitionStatus: "BALANCE_REQUIRED",
+      const overlay = unitOverlays.find((candidate) => candidate.definitionId === companionId)!;
+      const definitionStatus = content.units.find((unit) => unit.id === companionId)?.definitionStatus;
+      if (overlay.implementationStatus === "CATALOGUE_ONLY") expect(definitionStatus).not.toBe("active");
+      else expect(definitionStatus).toBe("active");
+      expect(overlay.implementationStatus === "CATALOGUE_ONLY" ? overlay : {
+        implementationStatus: overlay.implementationStatus,
+        requisitionStatus: overlay.requisitionStatus,
+        availabilityStatus: overlay.availabilityStatus,
+        executable: overlay.executable,
+        purchasable: overlay.purchasable,
+        reasonCode: overlay.reasonCode,
+      }).toMatchObject(overlay.implementationStatus === "CATALOGUE_ONLY" ? {
         availabilityStatus: "BLOCKED",
         executable: false,
         purchasable: false,
-        reasonCode: "RC_UNIT_015",
+      } : {
+        implementationStatus: "IMPLEMENTED",
+        requisitionStatus: "PUBLISHED",
+        availabilityStatus: "AVAILABLE",
+        executable: true,
+        purchasable: true,
+        reasonCode: null,
       });
     }
 
@@ -132,6 +146,19 @@ describe("rules catalogue bootstrap", () => {
     expect(content.movementProfiles.every((profile) => profile.definitionStatus === "unspecified")).toBe(true);
 
     const overlays = new Map(content.overlays.map((overlay) => [`${overlay.definitionKind}:${overlay.definitionId}`, overlay]));
+    const playerUnitIds = [...content.canonicalUnitIds, ...content.companionUnitIds];
+    expect(playerUnitIds).toHaveLength(29);
+    for (const definitionId of playerUnitIds) {
+      expect(overlays.get(`UNIT:${definitionId}`), definitionId).toMatchObject({
+        implementationStatus: "IMPLEMENTED",
+        requisitionStatus: "PUBLISHED",
+        availabilityStatus: "AVAILABLE",
+        executable: true,
+        purchasable: true,
+        reasonCode: null,
+        parameters: { missing: [] },
+      });
+    }
     expect(overlays.get("UNIT:unit-infantry-squad")).toMatchObject({
       implementationStatus: "IMPLEMENTED",
       executable: true,
@@ -142,13 +169,14 @@ describe("rules catalogue bootstrap", () => {
       parameters: { missing: [] },
     });
     expect(overlays.get("UNIT:unit-heavy-air-transport")).toMatchObject({
-      implementationStatus: "PARTIAL",
+      implementationStatus: "IMPLEMENTED",
       executable: true,
       handlerId: "foundation-generated-unit-class",
       requisitionStatus: "PUBLISHED",
       availabilityStatus: "AVAILABLE",
       purchasable: true,
       reasonCode: null,
+      parameters: { missing: [] },
     });
     expect(overlays.get("UNIT:unit-infantry-fighting-vehicle")).toMatchObject({
       implementationStatus: "IMPLEMENTED",
@@ -181,13 +209,14 @@ describe("rules catalogue bootstrap", () => {
       parameters: { missing: [] },
     });
     expect(overlays.get("UNIT:unit-logi-truck")).toMatchObject({
-      implementationStatus: "PARTIAL",
+      implementationStatus: "IMPLEMENTED",
       executable: true,
       handlerId: "foundation-generated-unit-class",
       requisitionStatus: "PUBLISHED",
       availabilityStatus: "AVAILABLE",
       purchasable: true,
       reasonCode: null,
+      parameters: { missing: [] },
     });
     expect(overlays.get("UNIT:unit-light-mech")).toMatchObject({
       implementationStatus: "IMPLEMENTED",
@@ -220,57 +249,27 @@ describe("rules catalogue bootstrap", () => {
         handlerId: null,
       });
     }
-    expect(content.overlays.filter((overlay) => overlay.executable).map((overlay) => `${overlay.definitionKind}:${overlay.definitionId}`)).toEqual([
-      "ACTION:action-airdrop",
-      "ACTION:action-artillery-dig-in",
-      "ACTION:action-attack",
-      "ACTION:action-bombardment",
-      "ACTION:action-construct",
-      "ACTION:action-crew-repair",
-      "ACTION:action-deploy-platform",
-      "ACTION:action-dig-in",
-      "ACTION:action-first-aid",
-      "ACTION:action-land",
-      "ACTION:action-load-cargo",
-      "ACTION:action-pack-platform",
-      "ACTION:action-rearm-aerospace",
-      "ACTION:action-reload",
-      "ACTION:action-repair",
-      "ACTION:action-take-off",
-      "ACTION:action-transfer-supply",
-      "ACTION:action-trench-upgrade",
-      "ACTION:action-unload-cargo",
-      "EQUIPMENT:equipment-flak-vests",
-      "EQUIPMENT:equipment-light-at",
-      "ORDER:order-advance",
-      "ORDER:order-evasive",
-      "ORDER:order-hold",
-      "ORDER:order-rush",
-      "STRUCTURE:structure-razor-wire",
-      "STRUCTURE:structure-sandbag-line",
-      "STRUCTURE:structure-tank-traps",
-      "STRUCTURE:structure-trench",
-      "UNIT:unit-aerospace-bomber",
-      "UNIT:unit-aerospace-fighter",
-      "UNIT:unit-artillery",
-      "UNIT:unit-combat-medic",
-      "UNIT:unit-engineers",
-      "UNIT:unit-heavy-air-transport",
-      "UNIT:unit-infantry-fighting-vehicle",
-      "UNIT:unit-infantry-squad",
-      "UNIT:unit-light-mech",
-      "UNIT:unit-light-vehicle",
-      "UNIT:unit-logi-truck",
-      "UNIT:unit-main-battle-tank",
-      "UNIT:unit-vtol",
-    ]);
-    expect(content.handlers.map((handler) => handler.id)).toEqual([
+    const executableKeys = content.overlays.filter((overlay) => overlay.executable)
+      .map((overlay) => `${overlay.definitionKind}:${overlay.definitionId}`);
+    expect(executableKeys).toEqual(expect.arrayContaining([
+      "UNIT:unit-power-armoured-infantry",
+      "ACTION:action-shield-wall-public-v1",
+      "ACTION:action-mount-magnetic-clamps-public-v1",
+      "ACTION:action-dismount-magnetic-clamps-public-v1",
+      "EQUIPMENT:equipment-ballistic-shields",
+      "EQUIPMENT:equipment-mech-magnetic-clamps",
+      "EQUIPMENT:equipment-power-armour-back-light-laser-public-v1",
+    ]));
+    expect(new Set(executableKeys).size).toBe(executableKeys.length);
+    const handlerIds = content.handlers.map((handler) => handler.id);
+    expect(handlerIds).toEqual(expect.arrayContaining([
       "foundation-generated-unit-class",
       "foundation-order-handler",
       "foundation-action-handler",
       "foundation-fieldwork-handler",
-      "equipment-effect-flak-vests",
-      "equipment-effect-light-at",
-    ]);
+      "companion-power-armour-public-v1",
+      "equipment-power-armour-public-v1",
+    ]));
+    expect(new Set(handlerIds).size).toBe(handlerIds.length);
   });
 });

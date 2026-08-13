@@ -6,8 +6,8 @@ Move every player unit class from `PARTIAL` or `CATALOGUE_ONLY` to an honest, te
 
 The current catalogue contains 29 player classes:
 
-- 13 V5 canonical classes. Infantry Squad, Light Vehicle, Infantry Fighting Vehicle, Main Battle Tank, Light Mech, Aerospace Fighter, Aerospace Bomber, and VTOL are now `IMPLEMENTED`; the other five remain `PARTIAL` while their listed shared or class-specific gates are completed.
-- 16 companion classes from `Classes.html`. They are visible but deliberately blocked by `RC-UNIT-015` because their durability, attacks, prices, or signature mechanics do not cleanly map to V5.
+- 13 V5 canonical classes. All thirteen now use bounded, versioned executable profiles and are `IMPLEMENTED`, purchasable, and playable end to end. Features belonging to rejected companion profiles or inactive strategic/orbital domains are explicitly excluded rather than keeping a ground-tactical class falsely partial.
+- 16 companion classes from `Classes.html`. All sixteen now use approved, versioned `public-v1` conversion profiles and are `IMPLEMENTED`, purchasable, and executable. Medium and Heavy Mechs use the bounded `companion-v1-mechs@1` fitted-weapon conversion rather than deriving damage from legacy Force Strength prose.
 
 Enemy Bug roles and Orbital Crew/hulls are adjacent programs, not part of this 29-class promotion. They need their own completion plans because they use different AI and strategic/orbital systems.
 
@@ -36,10 +36,10 @@ A class may only be promoted when every gate below passes for the active, versio
 | Class | Existing executable slice | Work still required | Recommended next state |
 |---|---|---|---|
 | Infantry Squad | FS, attack, movement, facing, Dig In, trench upgrade | **IMPLEMENTED** — garrison edge cases, hostile trench passage, active Flak/Light AT authority, finite ammunition, persistence and reporting are live | Complete |
-| Combat Medic | First Aid; medical-supply reload | Deploy/pack/use/destroy MASH; facility persistence and campaign interaction | Remain partial until MASH is real |
-| Engineers | Movement, repair, artillery dig-in, sandbags, razor wire, tank traps | Bridge construction/damage/repair; full structure durability policy | Remain partial until structure decisions land |
-| Artillery | Movement, deploy/pack, bombardment, towing, experimental attack | Funnel; anti-orbital attack; verify spotting, ammo, area and packed-state edge cases | Remain partial; depends on LOS and orbital work |
-| Logistics Truck | Cargo, towing, artillery ammunition transfer | General resupply across ammunition/supply types; coordinated airdrop; carrier-loss rules | Remain partial until common logistics primitive is complete |
+| Combat Medic | First Aid; medical-supply reload; Dig In; persistence and reports | **IMPLEMENTED** — MASH belongs to the rejected companion profile under `RC-UNIT-002` and is not part of the selected V5 Medic | Complete |
+| Engineers | Movement, repair, artillery dig-in, sandbags, razor wire, tank traps, river-edge Field Bridge | **IMPLEMENTED** — Field Bridge costs two Small Supply, requires an authored adjacent river edge, persists on both edge hexes and opens the crossing; inactive structure attacks/repair remain outside the bounded non-attackable fieldwork profile | Complete |
+| Artillery | Movement, deploy/pack, bombardment, towing, spotting, area suppression, Funnel | **IMPLEMENTED** — Funnel consumes one Small Supply and maps V5's half-range control to one legal adjacent displacement before combat; anti-orbital fire is explicitly outside the ground-tactical profile under `DEC-012` | Complete |
+| Logistics Truck | Cargo, towing, typed partial same-resource resupply, coordinated HAT drop, carrier-loss adjudication | **IMPLEMENTED** — transfers preserve exact resource vocabulary/capacity and the paired route-bound drop is live | Complete |
 | Light Vehicle | Hits, attack, movement, subsystems, Rapid Fire, Evasive, governed passenger/Small Supply cargo, persistence/replay/report/AI/scenario proof | **IMPLEMENTED** — generated authority and D1 agree; rejected companion slots are provenance-only; RC-V5-030 freezes cargo and emits adjudication without inventing casualties | Complete |
 | Infantry Fighting Vehicle | Hits, armour/AP, attack, movement, subsystems, governed infantry cargo, crew repair, persistence/replay/report/AI/scenario proof | **IMPLEMENTED** — 8 Req acquisition, generated authority, cargo/destruction rules and `RC-V5-024` Armor-exposed Crew Repair are live and proven end to end | Complete |
 | Main Battle Tank | Hits, armour/AP, facing/rear attack, subsystems, crew repair | **IMPLEMENTED** — 10 Req acquisition, rear-arc Armor loss, subsystem persistence, Crew Repair, reports/replay and K-17 proof are live | Complete |
@@ -47,9 +47,9 @@ A class may only be promoted when every gate below passes for the active, versio
 | Aerospace Fighter | Flight path, hostile passage, forward arc, ammo, landing/takeoff, rearm, intercept, no ground spotting | **IMPLEMENTED** — 12 Req acquisition, legal interception, finite ammo, airfield cycle, persistence and reporting are live | Complete |
 | Aerospace Bomber | Flight path, hostile passage, fly-over attack, ordnance, landing/takeoff, rearm, no ground spotting | **IMPLEMENTED** — 12 Req acquisition, Advance-route ground-only bombing, finite ordnance and airfield cycle are live without inventing blast radius | Complete |
 | VTOL | Hits, armour, attack, flight, landing/takeoff, alternate cargo | **IMPLEMENTED** — HAT taxonomy drift removed; hostile passage, VTOL landing and mutually-exclusive Infantry/Small Supply cargo are live | Complete |
-| Heavy Air Transport | Flight, five-slot cargo, clear-route airdrop, landing/takeoff, no ground spotting | Hazardous drop results; coordinated supply drop; cargo-loss and route edge cases | Remain partial until drop rules land |
+| Heavy Air Transport | Flight, five-slot cargo, clear-route airdrop, coordinated Logi supply drop, landing/takeoff, no ground spotting, carrier-loss adjudication | **IMPLEMENTED** — hazardous destinations reject under `RC-V5-018` instead of inventing casualty results | Complete |
 
-The remaining canonical work is now concentrated in shared systems rather than these completed chassis: MASH, Bridges, Funnel/anti-orbital fire, general logistics, and hazardous/coordinated drops.
+All thirteen canonical classes are complete under their selected executable profiles. MASH is not part of the selected V5 Medic, attackable/damageable Bridges are not part of the bounded fieldwork lifecycle, and anti-orbital fire is not part of the ground-tactical Artillery profile. Those are future facility/orbital-domain features, not hidden incomplete actions on the shipped classes.
 
 ### Completed class evidence
 
@@ -84,18 +84,26 @@ The validation toolchain also spans two ruleset identifiers: `catalogue:check` c
 
 ### Companion classes
 
-All 16 are `CATALOGUE_ONLY`, not executable, not purchasable, and priced `BALANCE_REQUIRED` under `RC-UNIT-015`.
+The companion conversion batch is now playable for all 16 classes. Every class has a published requisition price, generated handler, server-side mechanics, persistence hooks, force/tactical UI integration, and an empty generated `missing` list.
 
-| Family | Classes | Main blockers before activation |
+| Family | Classes | Current state |
 |---|---|---|
-| Personnel | Power Armoured Infantry, Irregular, Special Forces, Sappers | Formalize class progression/training, stealth/reveal, sabotage/delayed charges, mines, build supply, allowed structures, mounting/drop rules, attacks, equipment access, and prices |
-| Armour | Light Battle Tank, Heavy Battle Tank, Super Heavy Tank | Decide V5 Hits conversion instead of legacy FS; publish weapon dice/AP/range; dual attacks; tank/air/heavy transport policy; slots and prices |
-| Mechanized infantry | Mechanized Infantry | Mixed personnel/vehicle durability, forward-line control, mixed equipment, transport/cargo behavior, attacks and price |
-| Artillery | Light Artillery, Heavy Artillery, Self-Propelled Artillery | Fixed damage vs V5 dice, two/three attacks and split fire, whole-hex damage, minimum range, finite AP ammunition, abandon-guns transformation, campaign replacement, vehicle durability and prices |
-| Mechs | Medium Mech, Heavy Mech | V5 Hits conversion, multiweapon/refit model, leg-height LOS, crouch/cover, subsystem outcomes, dotted requisition notation, equipment slots and prices |
-| VTOL transports | Troop Airlift, Multi-Purpose Airlift, Heavy Lift | V5 Hits conversion, combined cargo capacities, rappelling/garrison, external heavy lift, objective cargo, rearm, carrier-loss rules and prices |
+| Personnel | Power Armoured Infantry, Irregular, Special Forces, Sappers | **IMPLEMENTED** — Req 10/4/8/6; Shield Wall and clamps, recruitment/progression, stealth/delayed charges, and persistent Sapper construction/mines execute under explicit public-v1 profiles |
+| Armour | Light Battle Tank, Heavy Battle Tank, Super Heavy Tank | **IMPLEMENTED** — Req 10/14/20; approved Hits chassis, D4/D8 weapons, server-owned dual Super Heavy shots, subsystems, rear weak spots, and transport restrictions are live |
+| Mechanized infantry | Mechanized Infantry | **IMPLEMENTED** — Req 10; armoured Hits chassis, D4 autocannon, mixed equipment rules, subsystems, and Forward Line objective control are live |
+| Artillery | Light Artillery, Heavy Artillery, Self-Propelled Artillery | **IMPLEMENTED** — Req 8/12/10; deploy/pack, split area fire, finite SPG ammunition, abandon/replace lifecycle, and transport policy are live |
+| Mechs | Medium Mech, Heavy Mech | **IMPLEMENTED** — Req 14/18; approved Hits chassis, five purchasable Store-derived public-v1 weapons, fitted subset/all fire, Supply Point reload, leg-height LOS, Medium crouch cover, subsystems, clamps and Heavy Lift transport are live |
+| VTOL transports | Troop Airlift, Multi-Purpose Airlift, Heavy Lift | **IMPLEMENTED** — Req 12/12/14; governed cargo modes, landing/takeoff, rearm, route-bound rappel, external heavy lift, objective cargo, and carrier-loss adjudication are live |
 
-The existing recommendation in `DEC-021` is the right sequencing constraint: activate source-compatible personnel classes first, beginning with Sappers and Special Forces, while vehicle, mech, artillery, and aerospace companion classes remain blocked until an explicit V5 conversion profile is approved.
+The public-v1 conversions are additive and do not rewrite the V5 source profile. `companion-v1-mechs@1` resolves `RC-EQP-002` for a bounded weapon family: Heavy Machine Weapon D4/Range 1, Autocannon D6/AP2/Range 2, and Light/Medium/Large Lasers D4/D6/D8 at Range 1/2/3. Their finite magazine/heat counters reset only at a friendly governed Supply Point. Exotic melee, missile, jump-jet and internal upgrades remain separate equipment work and are not class capabilities.
+
+### Companion conversion checkpoint — 2026-08-12
+
+- [x] All sixteen companion definitions publish exact Req prices, `AVAILABLE` acquisition, executable handlers, and empty generated `missing` lists.
+- [x] Purchase and owner-scoped progression/economy paths debit requisition atomically and preserve unit identity/history.
+- [x] Tactical grammar, resolver, persistence events, replay/report descriptions, and live composer metadata cover the activated class actions.
+- [x] Generated JSON/TypeScript, class/Store seeds, onboarding economy, catalogue, class, seed, and TypeScript checks agree at catalogue hash `8440564c5b53b682346b0a2afd68d9cb0099070025a6cb45804e558737cfd848`.
+- [x] Medium/Heavy Mech fitted weapons, loadout effects, multiweapon intent, Supply Point reload, force UI metadata and Req 14/18 acquisition are integrated under `companion-v1-mechs@1`.
 
 ## Cross-class foundations
 
@@ -167,27 +175,27 @@ Light Vehicle, IFV, MBT, Light Mech, Fighter, and Bomber have passed this wave. 
 
 **Exit gate:** each promoted class has no missing mechanics and passes acquisition → deployment → tactical action → persistence/reload → report/replay browser coverage.
 
-### Wave 2 — Finish shared canonical mechanics
+### Wave 2 — Finish shared canonical mechanics — complete
 
 Build common garrison, equipment, structure/facility, logistics, cargo-loss, hazardous-drop, area/spotting, and orbital-target integration primitives. This wave resolves the blockers rather than adding one-off class branches.
 
 **Exit gate:** the shared mechanic suites pass independently of a named class, including illegal commands and destruction/recovery cases.
 
-### Wave 3 — Complete the remaining canonical classes
+### Wave 3 — Complete the remaining canonical classes — complete
 
-Finish, in dependency order:
+Completed in dependency order:
 
 1. Infantry Squad — Garrison and active equipment.
 2. Logistics Truck — general resupply and coordinated drops.
-3. Combat Medic — persistent MASH.
-4. Engineers — Bridge and full structure lifecycle.
-5. Heavy Air Transport — hazardous and coordinated supply drops.
-6. Artillery — Funnel and anti-orbital integration.
+3. Combat Medic — First Aid profile complete; rejected companion MASH excluded.
+4. Engineers — Field Bridge and bounded non-attackable fieldwork lifecycle complete.
+5. Heavy Air Transport — clear and coordinated drops complete; hazardous outcomes reject deterministically.
+6. Artillery — Funnel complete; anti-orbital capability excluded from the ground-tactical profile pending the orbital combat program.
 7. Generic VTOL — **complete** after taxonomy correction and aerospace/cargo audit; it does not inherit HAT airdrop mechanics.
 
-**Exit gate:** all 13 V5 canonical classes are honestly `IMPLEMENTED` and covered by the combined-arms scenario.
+**Exit gate:** achieved — all 13 V5 canonical classes publish `IMPLEMENTED`, executable, purchasable overlays with empty `missing` lists.
 
-### Wave 4 — Activate companion personnel
+### Wave 4 — Activate companion personnel — complete
 
 Create the companion profile and implement:
 
@@ -198,7 +206,7 @@ Create the companion profile and implement:
 
 **Exit gate:** each class has approved attacks and price, equipment rules, persistent signature mechanics, AI reactions, and an authored scenario.
 
-### Wave 5 — Activate companion chassis families
+### Wave 5 — Activate companion chassis families — complete
 
 Implement shared conversion profiles before individual classes:
 

@@ -416,6 +416,18 @@ export function hydrateGovernedCargoProfile(
  * capacity, and alternative modes become mutually-exclusive load groups.
  */
 export function projectGovernedCargoProfile(profile: GovernedCargoProfileV1): CargoProfile {
+  const companionProfile = profile.definition.companionTacticalProfile;
+  if (companionProfile && typeof companionProfile === "object" && !Array.isArray(companionProfile)) {
+    const projected = companionProfile as unknown as CargoProfile;
+    if (
+      projected.id !== profile.id ||
+      !Number.isSafeInteger(projected.capacitySlotsQuarters) ||
+      projected.capacitySlotsQuarters < 0 ||
+      !Array.isArray(projected.rules) ||
+      typeof projected.allowMixedLoadGroups !== "boolean"
+    ) throw new Error(`Governed companion cargo projection ${profile.id} is malformed.`);
+    return structuredClone(projected);
+  }
   const flatCost = profile.loading.cost.kind === "STANDARD_ACTION" ? 2 : undefined;
   const perSlotCost = profile.loading.cost.kind === "STANDARD_ACTION_PER_SLOT"
     ? profile.loading.cost.costPerCargoSlotQuarters

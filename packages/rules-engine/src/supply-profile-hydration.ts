@@ -193,6 +193,7 @@ function reloadRules(value: unknown, path: string): GovernedSupplyReloadRulesV1 
     [
       "overCapacityPolicy",
       "refillToMaximum",
+      "refillResource",
       "sourceResource",
       "sourceQuantity",
       "facilityCapability",
@@ -218,6 +219,9 @@ function reloadRules(value: unknown, path: string): GovernedSupplyReloadRulesV1 
     ),
     refillToMaximum: "refillToMaximum" in parsed
       ? booleanValue(parsed.refillToMaximum, `${path}.refillToMaximum`)
+      : null,
+    refillResource: "refillResource" in parsed
+      ? resourceId(parsed.refillResource, `${path}.refillResource`)
       : null,
     sourceResource: hasSourceResource ? resourceId(parsed.sourceResource, `${path}.sourceResource`) : null,
     sourceQuantity: hasSourceQuantity ? positiveInteger(parsed.sourceQuantity, `${path}.sourceQuantity`) : null,

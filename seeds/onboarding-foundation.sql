@@ -46,7 +46,23 @@ INSERT INTO economy_unit_prices (
   ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-vtol',10,'PUBLISHED',1),
   ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-aerospace-fighter',12,'PUBLISHED',1),
   ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-aerospace-bomber',12,'PUBLISHED',1),
-  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-heavy-air-transport',14,'PUBLISHED',1)
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-heavy-air-transport',14,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-power-armoured-infantry',10,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-irregular',4,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-special-forces',8,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-sappers',6,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-mechanized-infantry',10,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-light-battle-tank',10,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-heavy-battle-tank',14,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-super-heavy-tank',20,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-light-artillery',8,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-heavy-artillery',12,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-self-propelled-artillery',10,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-vtol-troop-airlift',12,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-vtol-multipurpose-airlift',12,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-vtol-heavy-lift',14,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-medium-mech',14,'PUBLISHED',1),
+  ('public-v1-economy@1','ruleset-v5-core-curated-1','unit-heavy-mech',18,'PUBLISHED',1)
 ON CONFLICT(policy_id,definition_id) DO UPDATE SET
   requisition_cost=excluded.requisition_cost,
   status=excluded.status;

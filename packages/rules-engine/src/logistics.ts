@@ -131,7 +131,9 @@ export function synchronizeSupplyCargo(
   itemIdPrefix: string,
 ): CargoManifestItem[] {
   const next = manifest
-    .filter((item) => item.kind !== "SUPPLY")
+    // Only tactical resource rows are inventory projections. Opaque mission or
+    // companion "Supply Cargo" packages have no supplyType and must persist.
+    .filter((item) => item.kind !== "SUPPLY" || item.supplyType === undefined)
     .map((item) => structuredClone(item));
   for (const supplyType of Object.keys(supplies).sort()) {
     const quantity = supplies[supplyType] ?? 0;
@@ -414,6 +416,10 @@ export interface SupplyTransferResult {
   destination: SupplyInventory;
 }
 
+export interface PartialSupplyTransferResult extends SupplyTransferResult {
+  quantityTransferred: number;
+}
+
 export function transferProfiledSupply(input: SupplyTransferInput): SupplyTransferResult {
   const unchanged = (reason: string): SupplyTransferResult => ({
     legal: false,
@@ -440,8 +446,70 @@ export function transferProfiledSupply(input: SupplyTransferInput): SupplyTransf
   return { legal: true, source, destination };
 }
 
+/**
+ * Moves as much of one governed tactical resource as can legally fit, bounded
+ * by an optional caller maximum. This is the reusable partial-transfer
+ * primitive used by logistics handoffs; it never aliases strategic Supply
+ * sizes or converts one resource into another.
+ */
+export function transferAvailableProfiledSupply(
+  input: Omit<SupplyTransferInput, "quantity"> & { maximumQuantity?: number },
+): PartialSupplyTransferResult {
+  const unchanged = (reason: string): PartialSupplyTransferResult => ({
+    legal: false,
+    reason,
+    source: { ...input.source },
+    destination: { ...input.destination },
+    quantityTransferred: 0,
+  });
+  if (
+    input.maximumQuantity !== undefined &&
+    (!Number.isInteger(input.maximumQuantity) || input.maximumQuantity <= 0)
+  ) return unchanged("Maximum Supply transfer quantity must be a positive integer.");
+  if (
+    input.sourceProfile.capacities[input.type] === undefined ||
+    input.destinationProfile.capacities[input.type] === undefined
+  ) return unchanged("Supply type is unsupported by one or both profiles.");
+  if (
+    !input.sourceProfile.transferableTypes.includes(input.type) ||
+    !input.destinationProfile.transferableTypes.includes(input.type)
+  ) return unchanged("Supply type is not transferable for both units.");
+
+  const sourceValidation = validateSupplyInventory(input.sourceProfile, input.source, input.sourceCurrentHealth);
+  if (!sourceValidation.legal) return unchanged(sourceValidation.reasons[0] ?? "Source Supply inventory is invalid.");
+  const destinationValidation = validateSupplyInventory(
+    input.destinationProfile,
+    input.destination,
+    input.destinationCurrentHealth,
+  );
+  if (!destinationValidation.legal) {
+    return unchanged(destinationValidation.reasons[0] ?? "Destination Supply inventory is invalid.");
+  }
+  if (destinationValidation.overCapacity) return unchanged("Destination is already over capacity.");
+
+  const sourceAvailable = input.source[input.type] ?? 0;
+  if (sourceAvailable <= 0) return unchanged("Source has insufficient supply.");
+  const typeRemaining = Math.max(
+    0,
+    input.destinationProfile.capacities[input.type]! - (input.destination[input.type] ?? 0),
+  );
+  const totalRemaining = Math.max(0, destinationValidation.capacity - destinationValidation.total);
+  const quantity = Math.min(
+    sourceAvailable,
+    typeRemaining,
+    totalRemaining,
+    input.maximumQuantity ?? Number.MAX_SAFE_INTEGER,
+  );
+  if (quantity <= 0) return unchanged("Destination Supply capacity is full.");
+  const transferred = transferProfiledSupply({ ...input, quantity });
+  return transferred.legal
+    ? { ...transferred, quantityTransferred: quantity }
+    : { ...transferred, quantityTransferred: 0 };
+}
+
 export const LOGI_SMALL_SUPPLY_CAPACITY = 10;
 export const ARTILLERY_SMALL_SUPPLY_CAPACITY = 2;
+export const HAT_SMALL_SUPPLY_CAPACITY = 25;
 
 const logiSmallSupplyProfile: SupplyProfile = {
   id: "v5-logi-small-supply-cargo",
@@ -460,6 +528,65 @@ const artillerySmallSupplyProfile: SupplyProfile = {
   transferableTypes: ["SMALL_SUPPLY"],
   handlerId: "foundation-action-handler",
 };
+
+const hatSmallSupplyProfile: SupplyProfile = {
+  id: "v5-hat-small-supply-cargo",
+  capacities: { SMALL_SUPPLY: HAT_SMALL_SUPPLY_CAPACITY },
+  totalCapacity: HAT_SMALL_SUPPLY_CAPACITY,
+  retainExistingOverCapacity: true,
+  transferableTypes: ["SMALL_SUPPLY"],
+  handlerId: "foundation-action-handler",
+};
+
+export type CoordinatedSupplyDropResult =
+  | {
+      legal: true;
+      source: SupplyInventory;
+      destination: SupplyInventory;
+      resourceType: "SMALL_SUPPLY";
+      quantityTransferred: number;
+    }
+  | {
+      legal: false;
+      reason: string;
+      source: SupplyInventory;
+      destination: SupplyInventory;
+      quantityTransferred: 0;
+    };
+
+/**
+ * Source-complete inventory handoff for the Logi/HAT coordinated drop. Route,
+ * paired-action and carrier identity checks belong to the resolver boundary.
+ */
+export function transferCoordinatedSupplyDrop(
+  source: SupplyInventory,
+  destination: SupplyInventory,
+): CoordinatedSupplyDropResult {
+  const result = transferAvailableProfiledSupply({
+    sourceProfile: hatSmallSupplyProfile,
+    destinationProfile: logiSmallSupplyProfile,
+    source,
+    destination,
+    sourceCurrentHealth: 1,
+    destinationCurrentHealth: 1,
+    type: "SMALL_SUPPLY",
+  });
+  return result.legal
+    ? {
+        legal: true,
+        source: result.source,
+        destination: result.destination,
+        resourceType: "SMALL_SUPPLY",
+        quantityTransferred: result.quantityTransferred,
+      }
+    : {
+        legal: false,
+        reason: result.reason ?? "Coordinated Supply Drop is illegal.",
+        source: result.source,
+        destination: result.destination,
+        quantityTransferred: 0,
+      };
+}
 
 /**
  * The source-complete tactical logistics path: a Logi Standard Action moves
@@ -482,7 +609,7 @@ export function transferLogiArtillerySupply(
   });
 }
 
-export type FieldResupplyPurpose = "ARTILLERY_RELOAD" | "ENGINEER_STOCK" | "MEDICAL_RELOAD";
+export type FieldResupplyPurpose = "SAME_RESOURCE_TRANSFER";
 
 export type FieldResupplyResult =
   | {
@@ -490,8 +617,8 @@ export type FieldResupplyResult =
       source: SupplyInventory;
       destination: SupplyInventory;
       purpose: FieldResupplyPurpose;
-      resourceType: "SMALL_SUPPLY" | "MEDICAL_SUPPLY";
-      sourceSpent: 1;
+      resourceType: "SMALL_SUPPLY";
+      sourceSpent: number;
       quantityRestored: number;
     }
   | {
@@ -502,9 +629,9 @@ export type FieldResupplyResult =
     };
 
 /**
- * V5 Logi field resupply. The server derives the recipient resource and amount:
- * Artillery/Engineers receive one Small Supply; a Medic converts one Small
- * Supply into a full Medical Supply refill capped by its current FS.
+ * Public-v1 V5 Logi field resupply. The server moves as much SMALL_SUPPLY as
+ * both governed profiles can accept. It never converts a resource into another
+ * resource or mutates a weapon ammunition store.
  */
 export function resupplyLogiTarget(input: {
   source: SupplyInventory;
@@ -518,36 +645,37 @@ export function resupplyLogiTarget(input: {
     source: { ...input.source },
     destination: { ...input.destination },
   });
-  if ((input.source.SMALL_SUPPLY ?? 0) < 1) return unchanged("The Logi Truck has no Small Supply remaining.");
   const tags = new Set(input.destinationTags);
-  if (tags.has("MEDICAL")) {
-    const capacity = Math.max(0, input.destinationCurrentHealth);
-    const before = input.destination.MEDICAL_SUPPLY ?? 0;
-    if (before >= capacity) return unchanged("The Medic's Medical Supply is already at current Force Strength.");
-    return {
-      legal: true,
-      source: { ...input.source, SMALL_SUPPLY: (input.source.SMALL_SUPPLY ?? 0) - 1 },
-      destination: { ...input.destination, MEDICAL_SUPPLY: capacity },
-      purpose: "MEDICAL_RELOAD",
-      resourceType: "MEDICAL_SUPPLY",
-      sourceSpent: 1,
-      quantityRestored: capacity - before,
-    };
-  }
   const maximum = tags.has("ARTILLERY") ? ARTILLERY_SMALL_SUPPLY_CAPACITY
     : tags.has("ENGINEER") ? Math.max(0, input.destinationCurrentHealth)
       : undefined;
-  if (maximum === undefined) return unchanged("That unit has no supported field-resupply profile.");
-  const before = input.destination.SMALL_SUPPLY ?? 0;
-  if (before >= maximum) return unchanged("The target's Small Supply is already at capacity.");
+  if (maximum === undefined) return unchanged("That unit has no governed same-resource field-resupply profile.");
+  const destinationProfile: SupplyProfile = {
+    id: tags.has("ARTILLERY") ? "v5-artillery-small-supply-stockpile" : "v5-engineer-small-supply-stockpile",
+    capacities: { SMALL_SUPPLY: maximum },
+    totalCapacity: maximum,
+    retainExistingOverCapacity: true,
+    transferableTypes: ["SMALL_SUPPLY"],
+    handlerId: "foundation-action-handler",
+  };
+  const transferred = transferAvailableProfiledSupply({
+    sourceProfile: logiSmallSupplyProfile,
+    destinationProfile,
+    source: input.source,
+    destination: input.destination,
+    sourceCurrentHealth: 1,
+    destinationCurrentHealth: input.destinationCurrentHealth,
+    type: "SMALL_SUPPLY",
+  });
+  if (!transferred.legal) return unchanged(transferred.reason ?? "Small Supply transfer is illegal.");
   return {
     legal: true,
-    source: { ...input.source, SMALL_SUPPLY: (input.source.SMALL_SUPPLY ?? 0) - 1 },
-    destination: { ...input.destination, SMALL_SUPPLY: before + 1 },
-    purpose: tags.has("ARTILLERY") ? "ARTILLERY_RELOAD" : "ENGINEER_STOCK",
+    source: transferred.source,
+    destination: transferred.destination,
+    purpose: "SAME_RESOURCE_TRANSFER",
     resourceType: "SMALL_SUPPLY",
-    sourceSpent: 1,
-    quantityRestored: 1,
+    sourceSpent: transferred.quantityTransferred,
+    quantityRestored: transferred.quantityTransferred,
   };
 }
 

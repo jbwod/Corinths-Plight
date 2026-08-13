@@ -10,9 +10,19 @@ import type {
 } from "../../packages/domain/src";
 import {
   createRulesCatalogueRuntime,
+  getIrregularPublicV1Class,
+  getPowerArmouredInfantryPublicV1Class,
   getTacticalActionRule,
   getTacticalOrderRule,
   getTacticalUnitClass,
+  getSpecialForcesPublicV1Class,
+  getSapperPublicV1Class,
+  getPublicV1CompanionArtilleryProfile,
+  getCompanionArtilleryCrewProfile,
+  getCompanionVtolPublicV1Class,
+  isCompanionVtolTransportDefinitionId,
+  COMPANION_ARTILLERY_CREW_DEFINITION_ID,
+  isCompanionArtilleryDefinitionId,
   hydrateGovernedCargoProfile,
   hydrateGovernedSupplyProfile,
   type CatalogueRuntimeModeV1,
@@ -23,6 +33,12 @@ import {
   V5_CORE_CURATED_2_CONTENT_HASH,
   V5_CORE_CURATED_2_RULESET_VERSION,
 } from "../../packages/rules-engine/src/generated/v5-core-curated-2";
+import {
+  COMPANION_MECHANIZED_INFANTRY_HANDLER_ID,
+  COMPANION_MECHS_HANDLER_ID,
+  COMPANION_TANKS_HANDLER_ID,
+  hydrateCompanionArmourPublicV1,
+} from "./companion-armour-hydration";
 
 export const RULES_AUTHORITY_SNAPSHOT_VERSION = 1 as const;
 export const LEGACY_RULESET_ID = "ruleset-v5-core-curated-1" as const;
@@ -34,6 +50,17 @@ const callerHandlerIds = new Set([
   "foundation-order-handler",
   "equipment-effect-flak-vests",
   "equipment-effect-light-at",
+  "companion-irregular-public-v1",
+  "companion-power-armour-public-v1",
+  "companion-special-forces-public-v1",
+  "companion-sappers-public-v1",
+  "companion-artillery-public-v1",
+  "companion-vtol-transports-public-v1",
+  COMPANION_TANKS_HANDLER_ID,
+  COMPANION_MECHANIZED_INFANTRY_HANDLER_ID,
+  COMPANION_MECHS_HANDLER_ID,
+  "equipment-power-armour-public-v1",
+  "equipment-mech-weapons-public-v1",
 ]);
 
 const runtimeBuild = createRulesCatalogueRuntime(
@@ -166,6 +193,38 @@ type UnitHandlerAdapter = (definitionId: string) => UnitClassDefinition;
 
 const unitHandlerAdapters = new Map<string, UnitHandlerAdapter>([
   ["foundation-generated-unit-class", getTacticalUnitClass],
+  ["companion-power-armour-public-v1", (definitionId) => {
+    if (definitionId !== "unit-power-armoured-infantry") throw new Error(`Unsupported Power Armour definition: ${definitionId}`);
+    return getPowerArmouredInfantryPublicV1Class();
+  }],
+  ["companion-irregular-public-v1", (definitionId) => {
+    if (definitionId !== "unit-irregular") throw new Error(`Unsupported Irregular definition: ${definitionId}`);
+    return getIrregularPublicV1Class();
+  }],
+  ["companion-special-forces-public-v1", (definitionId) => {
+    if (definitionId !== "unit-special-forces") throw new Error(`Unsupported Special Forces definition: ${definitionId}`);
+    return getSpecialForcesPublicV1Class();
+  }],
+  ["companion-sappers-public-v1", (definitionId) => {
+    if (definitionId !== "unit-sappers") throw new Error(`Unsupported Sapper definition: ${definitionId}`);
+    return getSapperPublicV1Class();
+  }],
+  ["companion-artillery-public-v1", (definitionId) => {
+    if (!isCompanionArtilleryDefinitionId(definitionId)) throw new Error(`Unsupported companion Artillery definition: ${definitionId}`);
+    return getPublicV1CompanionArtilleryProfile(definitionId, 0);
+  }],
+  ["companion-vtol-transports-public-v1", (definitionId) => {
+    if (!isCompanionVtolTransportDefinitionId(definitionId)) {
+      throw new Error(`Unsupported companion VTOL definition: ${definitionId}`);
+    }
+    return getCompanionVtolPublicV1Class(definitionId, 0);
+  }],
+  [COMPANION_TANKS_HANDLER_ID, (definitionId) =>
+    hydrateCompanionArmourPublicV1(COMPANION_TANKS_HANDLER_ID, definitionId)],
+  [COMPANION_MECHANIZED_INFANTRY_HANDLER_ID, (definitionId) =>
+    hydrateCompanionArmourPublicV1(COMPANION_MECHANIZED_INFANTRY_HANDLER_ID, definitionId)],
+  [COMPANION_MECHS_HANDLER_ID, (definitionId) =>
+    hydrateCompanionArmourPublicV1(COMPANION_MECHS_HANDLER_ID, definitionId)],
 ]);
 
 export type UnitExecutionAdapterResult =
@@ -323,6 +382,16 @@ export function resolveUnitExecutionAdapter(
     return { ok: false, code: "RULESET_ADAPTER_UNSUPPORTED", message: `Ruleset ${rulesetId} has no server hydration adapter.` };
   }
   const mode = modeForEnvironment(environment);
+  if (definitionId === COMPANION_ARTILLERY_CREW_DEFINITION_ID) {
+    const legacyDefinition = getCompanionArtilleryCrewProfile(0);
+    return {
+      ok: true,
+      code: "EXECUTABLE",
+      legacyDefinition,
+      allowedActionTypes: ["REPLACE_GUNS"],
+      allowedOrderTypes: ["ADVANCE", "HOLD"],
+    };
+  }
   const decision = serverRulesCatalogueRuntime.decide("UNIT", definitionId, mode);
   if (!decision.overlay) {
     return { ok: false, code: decision.executability.code, message: `Unit ${definitionId} is absent from the governed generated catalogue.` };

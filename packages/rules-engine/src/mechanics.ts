@@ -12,6 +12,8 @@ import type {
 } from "../../domain/src";
 import { hasLineOfSight, hexDistance, isRearAttack } from "./hex";
 import { isInfantryGarrisonBuilding, resolveTacticalCover } from "./cover";
+import { mechSightHeightBonus } from "./companion-mechs";
+import { irregularDamageOutputForTags } from "./irregular-progression";
 import type { SeededRandom } from "./rng";
 
 export interface AttackRoll {
@@ -87,11 +89,16 @@ export function canTarget(
     return { legal: false, reason: "The unit's weapon systems are disabled." };
   }
   if (target.status === "DESTROYED") return { legal: false, reason: "Target is destroyed." };
+  if (target.definitionId === "unit-power-armoured-infantry" && target.locationState === "EMBARKED") {
+    return { legal: false, reason: "Mounted Power Armoured Infantry cannot be independently targeted." };
+  }
   if (attacker.side === target.side) return { legal: false, reason: "Friendly fire is not enabled." };
   if (hexDistance(attacker.position, target.position) > weapon.range) {
     return { legal: false, reason: "Target is outside weapon range." };
   }
-  if (!weapon.indirect && !hasLineOfSight(attacker.position, target.position, hexes, weapon.range)) {
+  if (!weapon.indirect && !hasLineOfSight(attacker.position, target.position, hexes, weapon.range, {
+    observerHeightBonus: mechSightHeightBonus(attacker),
+  })) {
     return { legal: false, reason: "Line of sight is blocked." };
   }
   if (
@@ -101,7 +108,9 @@ export function canTarget(
         spotter.side === attacker.side &&
         spotter.status !== "DESTROYED" &&
         spotter.status !== "WITHDRAWN" &&
-        hasLineOfSight(spotter.position, target.position, hexes, spotter.stats.sensors),
+        hasLineOfSight(spotter.position, target.position, hexes, spotter.stats.sensors, {
+          observerHeightBonus: mechSightHeightBonus(spotter),
+        }),
     )
   ) {
     return { legal: false, reason: "Indirect fire requires a friendly spotter with line of sight." };
@@ -141,7 +150,7 @@ export function resolveAttackRoll(
   const rearIgnoresDigIn = groundInfantryRear && !isInfantryGarrisonBuilding(targetHex);
   const crewRepairArmorExposed = modifiers.targetCrewRepairing === true;
   const targetArmor = crewRepairArmorExposed ? 0 : target.stats.armor;
-  const cover = resolveTacticalCover(attacker, target, hexes);
+  const cover = resolveTacticalCover(attacker, target, hexes, { directFire: !weapon.indirect });
   const armorPiercingBonus = Math.max(0, modifiers.armorPiercingBonus ?? 0);
   const effectiveArmor = groundVehicleRear ? 0 : Math.max(0, targetArmor + cover.armor - weapon.armorPiercing - armorPiercingBonus);
   const digInDefense: 0 | 2 = groundTarget && !rearIgnoresDigIn && (targetTags.has("INFANTRY") || targetTags.has("PERSONNEL")) && target.statuses.includes("DUG_IN") ? 2 : 0;
@@ -174,13 +183,15 @@ export function resolveAttackRoll(
     };
   }
 
-  const rolls = Array.from({ length: weapon.damage.count }, () => random.die(weapon.damage.sides));
+  // A D1 is the canonical fixed-damage encoding used by companion artillery.
+  const rolls = Array.from({ length: weapon.damage.count }, () => weapon.damage.sides === 1 ? 1 : random.die(weapon.damage.sides));
   const raw = rolls.reduce((total, value) => total + value, 0);
   const modified = Math.max(0, raw + (weapon.damage.modifier ?? 0) + highGroundModifier + evasiveAttackModifier);
+  const governedOutput = irregularDamageOutputForTags(modified, attacker.tags ?? []);
   const capped =
     attacker.stats.healthModel === "FORCE_STRENGTH"
-      ? Math.min(modified, attacker.currentHealth)
-      : modified;
+      ? Math.min(governedOutput, attacker.currentHealth)
+      : governedOutput;
   const damageResult = capped * rapidFireMultiplier;
   const penetrated = damageResult > threshold;
   const healthLoss = penetrated

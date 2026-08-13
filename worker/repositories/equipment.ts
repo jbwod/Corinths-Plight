@@ -5,6 +5,7 @@ export interface LoadoutContextRow {
   definition_id: string;
   unit_version: number;
   unit_status: string;
+  service_campaigns: number;
   current_health: number;
   requisition_value: number;
   ammunition_json: string;
@@ -105,7 +106,7 @@ export interface LoadoutItemRow { inventory_id: string; slot_type: string; slot_
 export async function getLoadoutContext(db: D1Database, ownerId: string, unitId: string): Promise<LoadoutContextRow | null> {
   return db.prepare(`SELECT
       units.id AS unit_id, units.owner_id, units.ruleset_id, units.definition_id,
-      units.version AS unit_version, units.status AS unit_status, units.current_health,
+      units.version AS unit_version, units.status AS unit_status, units.service_campaigns, units.current_health,
       units.requisition_value,
       units.ammunition_json, units.location_state, units.location_id,
       loadouts.id AS loadout_id, loadouts.revision AS loadout_revision,

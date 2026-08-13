@@ -123,6 +123,28 @@ function applyEvent(
         actor.statuses = [...actor.statuses.filter((status) => status !== "DEPLOYED"), "PACKED"];
       }
       break;
+    case "ARTILLERY_FUNNELLED": {
+      const destination = coord(payload.to);
+      if (target && destination) target.position = destination;
+      break;
+    }
+    case "ARTILLERY_ABANDONED":
+      if (actor) {
+        actor.definitionId = String(payload.transformedDefinitionId ?? "unit-companion-artillery-crew");
+        actor.weapons = [];
+        actor.equipmentIds = [];
+        actor.ammunition = {};
+        actor.artilleryDeployment = undefined;
+        actor.statuses = ["ARTILLERY_CREW"];
+      }
+      break;
+    case "ARTILLERY_REPLACED":
+      if (actor) {
+        actor.definitionId = String(payload.definitionId ?? actor.definitionId);
+        actor.artilleryDeployment = "PACKED";
+        actor.statuses = ["PACKED", "ARTILLERY_REPLACEMENT_USED"];
+      }
+      break;
     case "CARGO_LOADED":
       if (actor && target) {
         target.position = { ...actor.position };

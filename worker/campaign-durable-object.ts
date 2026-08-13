@@ -67,6 +67,7 @@ import type { Env } from "./env";
 import { errorResponse, json, readJson } from "./http";
 import { validateIncidentalActions } from "./order-validation";
 import { LEGACY_RULESET_ID, resolveUnitExecutionAdapter } from "./services/rules-hydration";
+import { companionArmourActionEconomy } from "./services/companion-armour-hydration";
 
 const STATE_KEY = "state/current";
 const FOUNDATION_CAMPAIGN_ID = "outpost-k17";
@@ -78,6 +79,16 @@ const allowedActionTypes = new Set([
   "TAKE_OFF",
   "REARM_AEROSPACE",
   "ATTACK",
+  "PLACE_DELAYED_CHARGE",
+  "DETONATE_DELAYED_CHARGE",
+  "SAPPER_CONSTRUCT",
+  "RELOAD_BUILD_SUPPLY",
+  "RECRUIT_IRREGULAR",
+  "SHIELD_WALL",
+  "MOUNT_MAGNETIC_CLAMPS",
+  "DISMOUNT_MAGNETIC_CLAMPS",
+  "ABANDON_GUNS",
+  "REPLACE_GUNS",
   "ASSAULT",
   "DIG_IN",
   "ARTILLERY_DIG_IN",
@@ -97,6 +108,7 @@ const allowedActionTypes = new Set([
   "HEAL",
   "ORBITAL_DROP",
   "BOMBARDMENT",
+  "FUNNEL",
   "AIR_SUPPORT",
 ]);
 
@@ -809,6 +821,44 @@ export class CampaignDurableObject extends DurableObject<Env> {
         continue;
       }
       if (!effect.unitId) throw new Error("PERSISTENT_EFFECT_INVALID");
+      if (effect.type === "REQUISITION_SPENT") {
+        const amount = Number(effect.payload.amount);
+        if (!Number.isSafeInteger(amount) || amount <= 0 || effect.payload.reasonCode !== "ARTILLERY_REPLACEMENT") {
+          throw new Error("REQUISITION_SPENT_EFFECT_INVALID");
+        }
+        const transactionId = `req:${effect.idempotencyKey}`;
+        await this.env.DB.batch([
+          this.env.DB.prepare(`INSERT INTO requisition_transactions (
+              id,user_id,amount,reason_code,description,related_entity_type,related_entity_id,idempotency_key
+            ) SELECT ?1,units.owner_id,-?2,'ARTILLERY_REPLACEMENT',
+                'Replaced abandoned artillery guns during an active campaign.',
+                'PLAYER_UNIT',units.id,?3
+              FROM player_units AS units WHERE units.id=?4
+                AND (SELECT COALESCE(SUM(amount),0) FROM requisition_transactions WHERE user_id=units.owner_id) >= ?2
+            ON CONFLICT(idempotency_key) DO NOTHING`)
+            .bind(transactionId, amount, effect.idempotencyKey, effect.unitId),
+          this.env.DB.prepare(`INSERT INTO unit_history (
+              id,player_unit_id,event_type,campaign_id,round_number,payload_json,
+              occurred_at,idempotency_key,summary,visibility
+            ) SELECT ?1,units.id,'REQUISITION_SPENT',?2,?3,?4,unixepoch(),?1,
+                'Artillery guns replaced at a friendly Supply Point.','OWNER'
+              FROM player_units AS units JOIN requisition_transactions AS ledger
+                ON ledger.id=?5 WHERE units.id=?6`)
+            .bind(`effect:${effect.idempotencyKey}`, campaignId, round, JSON.stringify(effect.payload), transactionId, effect.unitId),
+          this.env.DB.prepare(`INSERT INTO campaign_effect_receipts (
+              idempotency_key,campaign_id,round_number,effect_type,player_unit_id,payload_json
+            ) SELECT ?1,?2,?3,?4,units.id,?5
+              FROM player_units AS units JOIN requisition_transactions AS ledger
+                ON ledger.id=?6 WHERE units.id=?7`)
+            .bind(effect.idempotencyKey, campaignId, round, effect.type, JSON.stringify(effect.payload), transactionId, effect.unitId),
+        ]);
+        const applied = await this.env.DB.prepare(`SELECT 1 FROM campaign_effect_receipts
+          WHERE idempotency_key=?1 LIMIT 1`).bind(effect.idempotencyKey).first();
+        if (!applied) throw new Error("REQUISITION_INSUFFICIENT_FOR_ARTILLERY_REPLACEMENT");
+        await this.ctx.storage.delete(storageKey);
+        appliedCount += 1;
+        continue;
+      }
       const statements: D1PreparedStatement[] = [];
       if (effect.type === "UNIT_DESTROYED") {
         statements.push(this.env.DB.prepare(`UPDATE player_units SET status = 'DESTROYED',
@@ -848,11 +898,51 @@ export class CampaignDurableObject extends DurableObject<Env> {
         const facing = Number(effect.payload.facing);
         const statuses = Array.isArray(effect.payload.statuses)
           ? effect.payload.statuses.filter((status): status is string => typeof status === "string") : [];
+        const statusEffects = Array.isArray(effect.payload.statusEffects)
+          ? effect.payload.statusEffects.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+          : [];
+        const definitionId = typeof effect.payload.definitionId === "string" ? effect.payload.definitionId : undefined;
+        const stats = effect.payload.stats && typeof effect.payload.stats === "object" ? effect.payload.stats : undefined;
+        const weapons = Array.isArray(effect.payload.weapons) ? effect.payload.weapons : undefined;
+        const equipmentIds = Array.isArray(effect.payload.equipmentIds) ? effect.payload.equipmentIds : undefined;
+        const abandonment = effect.payload.companionArtilleryAbandonment && typeof effect.payload.companionArtilleryAbandonment === "object"
+          ? effect.payload.companionArtilleryAbandonment
+          : null;
         if (Number.isInteger(position?.q) && Number.isInteger(position?.r) && Number.isInteger(facing)) {
           statements.push(this.env.DB.prepare(`UPDATE deployments SET snapshot_json=json_set(
-            snapshot_json,'$.position.q',?1,'$.position.r',?2,'$.facing',?3,'$.statuses',json(?4)
-          ) WHERE campaign_id=?5 AND player_unit_id=?6 AND status IN ('READY','ACTIVE','IMMOBILISED')`)
-            .bind(position!.q, position!.r, facing, JSON.stringify(statuses), campaignId, effect.unitId));
+            snapshot_json,'$.position.q',?1,'$.position.r',?2,'$.facing',?3,'$.statuses',json(?4),
+            '$.definitionId',COALESCE(?5,json_extract(snapshot_json,'$.definitionId')),
+            '$.stats',json(COALESCE(?6,json_extract(snapshot_json,'$.stats'))),
+            '$.weapons',json(COALESCE(?7,json_extract(snapshot_json,'$.weapons'))),
+            '$.equipmentIds',json(COALESCE(?8,json_extract(snapshot_json,'$.equipmentIds'))),
+            '$.companionArtilleryAbandonment',json(?9)
+          ) WHERE campaign_id=?10 AND player_unit_id=?11 AND status IN ('READY','ACTIVE','IMMOBILISED')`)
+            .bind(position!.q, position!.r, facing, JSON.stringify(statuses), definitionId ?? null,
+              stats ? JSON.stringify(stats) : null, weapons ? JSON.stringify(weapons) : null,
+              equipmentIds ? JSON.stringify(equipmentIds) : null, JSON.stringify(abandonment), campaignId, effect.unitId));
+        }
+        for (const statusEffect of statusEffects) {
+          if (typeof statusEffect.id !== "string" || typeof statusEffect.definitionId !== "string") continue;
+          statements.push(this.env.DB.prepare(`INSERT INTO player_unit_status_effects (
+            id,player_unit_id,ruleset_id,status_effect_id,source_unit_id,campaign_id,
+            applied_round,expires_round,removed_at,state_json
+          ) SELECT ?1,id,ruleset_id,?2,?3,?4,?5,?6,
+              CASE WHEN ?7='ACTIVE' THEN NULL ELSE unixepoch() END,?8
+            FROM player_units WHERE id=?9
+          ON CONFLICT(id) DO UPDATE SET
+            expires_round=excluded.expires_round,removed_at=excluded.removed_at,
+            state_json=excluded.state_json`)
+            .bind(
+              `campaign-status:${campaignId}:${statusEffect.id}`,
+              statusEffect.definitionId,
+              typeof statusEffect.sourceId === "string" ? statusEffect.sourceId : effect.unitId,
+              campaignId,
+              Number.isInteger(statusEffect.appliedRound) ? statusEffect.appliedRound : round,
+              Number.isInteger(statusEffect.expiresRound) ? statusEffect.expiresRound : null,
+              typeof statusEffect.status === "string" ? statusEffect.status : "ACTIVE",
+              JSON.stringify(statusEffect.parameters ?? {}),
+              effect.unitId,
+            ));
         }
         for (const [weaponId, amount] of Object.entries(ammunition)) {
           statements.push(this.env.DB.prepare(`UPDATE player_unit_weapon_mounts SET current_ammo = ?1,
@@ -1341,6 +1431,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
   private sanitiseActions(
     input: CampaignActionIntent[] | undefined,
     unitId: string,
+    definitionId: string,
     deploymentWeaponIds: Set<string>,
     equipmentIds: Set<string>,
     allowedActions: Set<string>,
@@ -1364,10 +1455,11 @@ export class CampaignDurableObject extends DurableObject<Env> {
       return {
         id: `action:${unitId}:${index + 1}`,
         type: candidate.type,
-        economy: definition.economy,
+        economy: companionArmourActionEconomy(definitionId, candidate.type, definition.economy),
         speedCost: definition.speedCost,
         targetDeploymentId: candidate.targetDeploymentId,
         targetHex: candidate.targetHex,
+        direction: candidate.direction,
         structureDefinitionId: candidate.structureDefinitionId,
         // ATTACK participation is always derived from the fitted weapons. A
         // legacy client may still send weaponId, but it cannot narrow or forge
@@ -1452,10 +1544,11 @@ export class CampaignDurableObject extends DurableObject<Env> {
     let actions: StructuredAction[];
     let incidentalActions: StructuredAction[];
     try {
-      actions = this.sanitiseActions(intent.actions, deployment.id, weaponIds, equipmentIds, allowedActions, allowsMedicalReload);
+      actions = this.sanitiseActions(intent.actions, deployment.id, deployment.definitionId, weaponIds, equipmentIds, allowedActions, allowsMedicalReload);
       incidentalActions = this.sanitiseActions(
         intent.incidentalActions,
         deployment.id,
+        deployment.definitionId,
         weaponIds,
         equipmentIds,
         allowedActions,

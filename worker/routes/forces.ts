@@ -3,6 +3,7 @@ import type { Env } from "../env";
 import {
   requestHasJsonContentType,
   validatePurchaseForceCommand,
+  validateProgressIrregularCommand,
   validateReadinessCheckCommand,
   validateRenameForceCommand,
 } from "../forces-validation";
@@ -20,6 +21,7 @@ import {
   inspectFriendlyForce,
   listForceSummaries,
   purchaseForce,
+  progressIrregularForce,
   renameForce,
 } from "../services/forces";
 import { changeUnitLoadout, getUnitLoadout, previewUnitLoadout, purchaseEquipment } from "../services/equipment";
@@ -29,6 +31,7 @@ const forceDetailPath = new RegExp(`^/api/forces/${forceId}$`);
 const forceHistoryPath = new RegExp(`^/api/forces/${forceId}/history$`);
 const eligibleEquipmentPath = new RegExp(`^/api/forces/${forceId}/eligible-equipment$`);
 const forceRenamePath = new RegExp(`^/api/forces/${forceId}/rename$`);
+const forceProgressionPath = new RegExp(`^/api/forces/${forceId}/irregular-progression$`);
 const forceLoadoutPath = new RegExp(`^/api/forces/${forceId}/loadout$`);
 const forceLoadoutPreviewPath = new RegExp(`^/api/forces/${forceId}/loadout-preview$`);
 const forceLoadoutChangesPath = new RegExp(`^/api/forces/${forceId}/loadout-changes$`);
@@ -159,6 +162,13 @@ export async function routeForcesRequest(request: Request, env: Env): Promise<Re
       const parsed = validateRenameForceCommand(await body(request));
       if (!parsed.valid) validationError(parsed);
       return json(await renameForce(env, ownerId, renameMatch[1], parsed.value));
+    }
+    const progressionMatch = url.pathname.match(forceProgressionPath);
+    if (progressionMatch) {
+      if (request.method !== "POST") return methodNotAllowed(["POST"]);
+      const parsed = validateProgressIrregularCommand(await body(request));
+      if (!parsed.valid) validationError(parsed);
+      return json(await progressIrregularForce(env, ownerId, progressionMatch[1], parsed.value));
     }
     const loadoutMatch = url.pathname.match(forceLoadoutPath);
     if (loadoutMatch) {

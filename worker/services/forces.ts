@@ -14,14 +14,14 @@ import type {
   UnitClassDefinition,
   UnitStatus,
 } from "../../packages/domain/src";
-import { getTacticalUnitClass } from "../../packages/rules-engine/src";
+import { getTacticalUnitClass, IRREGULAR_PROGRESSION_TRACKS } from "../../packages/rules-engine/src";
 import {
   V5_CORE_CURATED_2_CONTENT_HASH,
   V5_CORE_CURATED_2_RULESET_VERSION,
 } from "../../packages/rules-engine/src/generated/v5-core-curated-2";
 import type { AuthenticatedIdentity } from "../auth";
 import type { Env } from "../env";
-import type { PurchaseForceCommand, ReadinessCheckCommand, RenameForceCommand } from "../forces-validation";
+import type { ProgressIrregularCommand, PurchaseForceCommand, ReadinessCheckCommand, RenameForceCommand } from "../forces-validation";
 import { commandHash } from "../forces-validation";
 import { resolveEquipmentRulesAuthority, type D1EquipmentRulesInput } from "./rules-hydration";
 import {
@@ -1147,6 +1147,82 @@ export async function renameForce(
   return committed;
 }
 
+export async function progressIrregularForce(
+  env: Env,
+  ownerId: string,
+  unitId: string,
+  command: ProgressIrregularCommand,
+): Promise<unknown> {
+  const operation = "PROGRESS_IRREGULAR";
+  const requestHash = await commandHash({ ownerId, unitId, ...command });
+  const replay = replayReceipt(await getMutationReceipt(env.DB, ownerId, command.commandId), ownerId, operation, requestHash);
+  if (replay) return replay;
+  const unit = await getForce(env.DB, ownerId, unitId);
+  if (!unit) throw new ForceServiceError(404, "UNIT_NOT_FOUND", "Persistent unit was not found.");
+  if (unit.definition_id !== "unit-irregular") throw new ForceServiceError(409, "IRREGULAR_REQUIRED", "Only a base Irregular unit may choose a progression track.");
+  if (unit.version !== command.expectedVersion) throw new ForceServiceError(409, "UNIT_VERSION_CONFLICT", "Unit changed since it was opened.");
+  if (unit.status === "DESTROYED") throw new ForceServiceError(409, "UNIT_DESTROYED", "Destroyed units cannot progress.");
+  if (unit.location_state !== "RESERVE") throw new ForceServiceError(409, "HEADQUARTERS_REQUIRED", "Irregular progression is performed from Reserve at Battalion Headquarters.");
+  const service = await getForceServiceSummary(env.DB, ownerId, unitId);
+  if ((service?.campaigns_completed ?? 0) < 2 || (service?.objectives_completed ?? 0) < 12) {
+    throw new ForceServiceError(409, "PROGRESSION_REQUIREMENTS_NOT_MET", "Irregular progression requires two completed campaigns and 12 recorded objective XP.");
+  }
+  const alreadyProgressed = (await getForceStatusEffects(env.DB, ownerId, unitId))
+    .some((effect) => effect.status_effect_id === "status-irregular-progression-public-v1");
+  if (alreadyProgressed) throw new ForceServiceError(409, "PROGRESSION_ALREADY_CHOSEN", "Irregular progression is irreversible.");
+  const track = IRREGULAR_PROGRESSION_TRACKS[command.track];
+  const cost = track.requisitionValue - 4;
+  const balance = await getRequisitionBalance(env.DB, ownerId);
+  if (balance < cost) throw new ForceServiceError(409, "REQUISITION_INSUFFICIENT", `This progression requires ${cost} Req.`);
+  const response = {
+    unitId,
+    track: command.track,
+    name: track.name,
+    requisitionSpent: cost,
+    maximumHealth: track.maxHealth,
+    armor: track.armor,
+    speed: track.speed,
+    version: command.expectedVersion + 1,
+  };
+  const effectId = `irregular-progression:${unitId}:${command.track}`;
+  try {
+    await env.DB.batch([
+      env.DB.prepare(`INSERT INTO requisition_transactions (
+        id,user_id,amount,reason_code,description,related_entity_type,related_entity_id,idempotency_key
+      ) SELECT ?1,?2,?3,'IRREGULAR_PROGRESSION',?4,'PLAYER_UNIT',?5,?1
+        WHERE ?3 < 0 AND (SELECT COALESCE(SUM(amount),0) FROM requisition_transactions WHERE user_id=?2) >= -?3`)
+        .bind(`req:irregular:${ownerId}:${command.commandId}`, ownerId, -cost, `${unit.callsign} progressed to ${track.name}.`, unitId),
+      env.DB.prepare(`UPDATE player_units SET maximum_health=?1, current_health=MIN(current_health,?1),
+        base_stats_json=json_set(base_stats_json,'$.maxHealth',?1,'$.armor',?2,'$.speed',?3),
+        requisition_value=?4, version=version+1, updated_at=unixepoch()
+        WHERE id=?5 AND owner_id=?6 AND definition_id='unit-irregular' AND version=?7
+          AND (?8=0 OR EXISTS (SELECT 1 FROM requisition_transactions WHERE id=?9 AND user_id=?6))`)
+        .bind(track.maxHealth, track.armor, track.speed, track.requisitionValue, unitId, ownerId, command.expectedVersion,
+          cost, `req:irregular:${ownerId}:${command.commandId}`),
+      env.DB.prepare(`INSERT INTO player_unit_status_effects (
+        id,player_unit_id,ruleset_id,status_effect_id,source_unit_id,state_json
+      ) SELECT ?1,id,ruleset_id,'status-irregular-progression-public-v1',id,?2
+        FROM player_units WHERE id=?3 AND owner_id=?4 AND version=?5`)
+        .bind(effectId, JSON.stringify({ track: command.track, permanent: true, damageDivisor: track.damageDivisor }), unitId, ownerId, command.expectedVersion + 1),
+      env.DB.prepare(`INSERT INTO unit_history (
+        id,player_unit_id,event_type,summary,payload_json,occurred_at,idempotency_key,actor_user_id,visibility
+      ) SELECT ?1,id,'IRREGULAR_PROGRESSED',?2,?3,unixepoch(),?4,owner_id,'OWNER'
+        FROM player_units WHERE id=?5 AND owner_id=?6 AND version=?7`)
+        .bind(`history:irregular:${ownerId}:${command.commandId}`, `${unit.callsign} became ${track.name}.`, JSON.stringify(response), `force:irregular:${ownerId}:${command.commandId}`, unitId, ownerId, command.expectedVersion + 1),
+      env.DB.prepare(`INSERT INTO force_mutation_receipts (idempotency_key,owner_id,operation,request_hash,response_json)
+        SELECT ?1,owner_id,?2,?3,?4 FROM player_units WHERE id=?5 AND owner_id=?6 AND version=?7`)
+        .bind(command.commandId, operation, requestHash, JSON.stringify(response), unitId, ownerId, command.expectedVersion + 1),
+    ]);
+  } catch (error) {
+    const afterRace = replayReceipt(await getMutationReceipt(env.DB, ownerId, command.commandId), ownerId, operation, requestHash);
+    if (afterRace) return afterRace;
+    throw error;
+  }
+  const committed = replayReceipt(await getMutationReceipt(env.DB, ownerId, command.commandId), ownerId, operation, requestHash);
+  if (!committed) throw new ForceServiceError(409, "UNIT_VERSION_CONFLICT", "Unit changed while progression was committed.");
+  return committed;
+}
+
 export async function purchaseForce(
   env: Env,
   ownerId: string,
@@ -1307,7 +1383,11 @@ export async function purchaseForce(
                   player_unit_id, resource_type,
                   current_quantity, maximum_quantity, revision
                 )
-                SELECT units.id, capacity.key, 0,
+                SELECT units.id, capacity.key,
+                       COALESCE(
+                         CAST(json_extract(supplies.definition_json, '$.initial.' || capacity.key) AS INTEGER),
+                         0
+                       ),
                        CAST(json_extract(capacity.value, '$.maximum') AS INTEGER), 1
                   FROM player_units AS units
                   JOIN unit_definition_profiles AS profiles

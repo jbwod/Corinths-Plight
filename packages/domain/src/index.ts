@@ -702,6 +702,15 @@ export interface PlayerUnit {
   towedUnitId?: string;
 }
 
+export interface CompanionArtilleryAbandonmentState {
+  originalDefinitionId: "unit-light-artillery" | "unit-heavy-artillery";
+  originalStats: UnitStats;
+  originalWeapons: WeaponProfile[];
+  originalEquipmentIds: string[];
+  originalAmmunition: Record<string, number>;
+  replacementUsed: boolean;
+}
+
 export interface CampaignDeployment {
   id: string;
   campaignId: string;
@@ -734,6 +743,8 @@ export interface CampaignDeployment {
   cargoProfile?: CargoProfile;
   artilleryDeployment?: ArtilleryDeploymentState;
   bombardmentSuppression?: BombardmentSuppressionState;
+  /** Server-authored snapshot retained while a crew has abandoned its guns. */
+  companionArtilleryAbandonment?: CompanionArtilleryAbandonmentState;
   locationState?: UnitLocationState;
   towedUnitId?: string;
 }
@@ -767,6 +778,16 @@ export interface EnemyDoctrineProfileV1 {
 }
 export type ActionType =
   | "ATTACK"
+  | "PLACE_DELAYED_CHARGE"
+  | "DETONATE_DELAYED_CHARGE"
+  | "SAPPER_CONSTRUCT"
+  | "RELOAD_BUILD_SUPPLY"
+  | "RECRUIT_IRREGULAR"
+  | "SHIELD_WALL"
+  | "MOUNT_MAGNETIC_CLAMPS"
+  | "DISMOUNT_MAGNETIC_CLAMPS"
+  | "ABANDON_GUNS"
+  | "REPLACE_GUNS"
   | "ASSAULT"
   | "DIG_IN"
   | "ARTILLERY_DIG_IN"
@@ -791,6 +812,7 @@ export type ActionType =
   | "HEAL"
   | "ORBITAL_DROP"
   | "BOMBARDMENT"
+  | "FUNNEL"
   | "AIR_SUPPORT";
 export type ActionEconomy = "STANDARD" | "PRIMARY" | "INCIDENTAL";
 
@@ -801,6 +823,8 @@ export interface StructuredAction {
   speedCost: number;
   targetDeploymentId?: string;
   targetHex?: AxialCoord;
+  /** Player-selected adjacent displacement direction for directional control actions. */
+  direction?: Facing;
   structureDefinitionId?: string;
   weaponId?: string;
   /** Server-derived fitted weapons participating in one Attack activation. */
@@ -883,6 +907,17 @@ export type CampaignEventType =
   | "UNIT_DUG_IN"
   | "UNIT_DUG_OUT"
   | "EVASIVE_MANEUVER"
+  | "INFANTRY_STEALTH_RESOLVED"
+  | "MECH_STOOD_UP"
+  | "DELAYED_CHARGE_PLACED"
+  | "DELAYED_CHARGE_DETONATED"
+  | "SAPPER_BUILD_PROGRESS"
+  | "SAPPER_BUILD_SUPPLY_RELOADED"
+  | "SAPPER_MINE_TRIGGERED"
+  | "IRREGULAR_RECRUITED"
+  | "SHIELD_WALL_FORMED"
+  | "MAGNETIC_CLAMPS_MOUNTED"
+  | "MAGNETIC_CLAMPS_DISMOUNTED"
   | "UNIT_ATTACKED"
   | "LIGHT_AT_EXPENDED"
   | "WEAPON_SKIPPED"
@@ -901,6 +936,9 @@ export type CampaignEventType =
   | "ARTILLERY_DEPLOYED"
   | "ARTILLERY_PACKED"
   | "ARTILLERY_BOMBARDED"
+  | "ARTILLERY_FUNNELLED"
+  | "ARTILLERY_ABANDONED"
+  | "ARTILLERY_REPLACED"
   | "BOMBARDMENT_APPLIED"
   | "BOMBARDMENT_RECOVERED"
   | "MEDICAL_SUPPLY_RELOADED"
@@ -1006,7 +1044,7 @@ export interface CampaignOutcome {
 
 export interface PendingPersistentEffect {
   idempotencyKey: string;
-  type: "UNIT_DESTROYED" | "UNIT_DAMAGED" | "UNIT_STATE_UPDATED" | "REQUISITION_AWARDED" | "CAMPAIGN_HISTORY" | "CAMPAIGN_RESULT";
+  type: "UNIT_DESTROYED" | "UNIT_DAMAGED" | "UNIT_STATE_UPDATED" | "REQUISITION_AWARDED" | "REQUISITION_SPENT" | "CAMPAIGN_HISTORY" | "CAMPAIGN_RESULT";
   unitId?: string;
   payload: Record<string, unknown>;
   status: "PENDING" | "APPLIED" | "FAILED";
@@ -1815,6 +1853,9 @@ export interface ShipCargoDto {
   kind: "UNIT" | "SUPPLY" | "EQUIPMENT";
   unitId?: string | null;
   definitionId?: string | null;
+  callsign?: string | null;
+  className?: string | null;
+  battlegroupName?: string | null;
   supplySize?: SupplySize | null;
   quantity: number;
   capacityUsed: number;

@@ -11,6 +11,11 @@ import type {
   WeaponProfile,
 } from "../../domain/src";
 import { hashSeed } from "./rng";
+import {
+  MECHANIZED_INFANTRY_DEFINITION_ID,
+  mechanizedInfantryEquipmentFamily,
+  validateMechanizedInfantryEquipment,
+} from "./mechanized-infantry";
 
 function compareCodePoints(left: string, right: string): number {
   const a = Array.from(left, (character) => character.codePointAt(0)!);
@@ -111,6 +116,15 @@ export function buildEffectiveUnit(input: EffectiveUnitBuildInput): EffectiveUni
   const slots = new Map(Object.entries(input.unitDefinition.slots).map(([slot, count]) => [slot.toUpperCase(), count]));
   const occupied = new Set<string>();
   const equipmentIds = new Set<string>();
+  if (input.unitDefinition.id === MECHANIZED_INFANTRY_DEFINITION_ID) {
+    const mixedEquipment = validateMechanizedInfantryEquipment(input.equipment.map((selected) => ({
+      equipment: { ...selected.definition, slotType: selected.slotType },
+      slotIndex: selected.slotIndex,
+    })));
+    for (const reason of mixedEquipment.reasons) {
+      errors.push(issue("MECHANIZED_EQUIPMENT_INELIGIBLE", reason, input.playerUnit?.id));
+    }
+  }
   for (const selected of input.equipment) {
     const slotType = selected.slotType.toUpperCase();
     const slotKey = `${slotType}:${selected.slotIndex}`;
@@ -126,7 +140,13 @@ export function buildEffectiveUnit(input: EffectiveUnitBuildInput): EffectiveUni
       errors.push(issue("EQUIPMENT_DUPLICATE", `${selected.definition.name} is selected more than once.`, selected.instanceId));
     }
     equipmentIds.add(selected.definition.id);
-    if (selected.definition.allowedClasses.length > 0 && !selected.definition.allowedClasses.includes(input.unitDefinition.id)) {
+    const mechanizedMixedEligibility = input.unitDefinition.id === MECHANIZED_INFANTRY_DEFINITION_ID &&
+      mechanizedInfantryEquipmentFamily(selected.definition) !== "UNSUPPORTED";
+    if (
+      !mechanizedMixedEligibility &&
+      selected.definition.allowedClasses.length > 0 &&
+      !selected.definition.allowedClasses.includes(input.unitDefinition.id)
+    ) {
       errors.push(issue("EQUIPMENT_INELIGIBLE", `${selected.definition.name} is unavailable to this class.`, selected.instanceId));
     }
     for (const required of selected.definition.requiredEquipment) {

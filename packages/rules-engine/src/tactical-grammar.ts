@@ -14,6 +14,17 @@ const registeredHandlerIds = new Set([
   "foundation-order-handler",
   "equipment-effect-flak-vests",
   "equipment-effect-light-at",
+  "companion-irregular-public-v1",
+  "companion-special-forces-public-v1",
+  "companion-sappers-public-v1",
+  "companion-artillery-public-v1",
+  "companion-vtol-transports-public-v1",
+  "companion-tanks-public-v1",
+  "companion-mechanized-infantry-public-v1",
+  "companion-mechs-public-v1",
+  "companion-power-armour-public-v1",
+  "equipment-power-armour-public-v1",
+  "equipment-mech-weapons-public-v1",
 ]);
 
 const runtimeBuild = createRulesCatalogueRuntime(
@@ -51,6 +62,9 @@ const actionIds: Partial<Record<ActionType, string>> = {
   DEPLOY_DRONE: "action-deploy-drone",
   HEAL: "action-first-aid",
   BOMBARDMENT: "action-bombardment",
+  FUNNEL: "action-funnel",
+  PLACE_DELAYED_CHARGE: "action-place-delayed-charge-public-v1",
+  DETONATE_DELAYED_CHARGE: "action-detonate-delayed-charge-public-v1",
 };
 
 const orderIds: Record<OrderType, string> = {
@@ -99,6 +113,64 @@ export function getTacticalActionRule(
   actionType: ActionType,
   mode: CatalogueRuntimeModeV1 = "PRODUCTION",
 ): TacticalActionRule {
+  if (actionType === "PLACE_DELAYED_CHARGE" || actionType === "DETONATE_DELAYED_CHARGE") {
+    return {
+      id: actionType === "PLACE_DELAYED_CHARGE"
+        ? "action-place-delayed-charge-public-v1"
+        : "action-detonate-delayed-charge-public-v1",
+      actionType,
+      economy: "PRIMARY",
+      speedCost: 0,
+      usesAttack: true,
+      executable: true,
+      handlerId: "foundation-action-handler",
+      catalogueRulesetVersion: V5_CORE_CURATED_2_RULESET_VERSION,
+      catalogueContentHash: V5_CORE_CURATED_2_CONTENT_HASH,
+    };
+  }
+  if (actionType === "SAPPER_CONSTRUCT" || actionType === "RELOAD_BUILD_SUPPLY" || actionType === "RECRUIT_IRREGULAR") {
+    return {
+      id: actionType === "SAPPER_CONSTRUCT"
+        ? "action-sapper-construct-public-v1"
+        : actionType === "RELOAD_BUILD_SUPPLY"
+          ? "action-reload-build-supply-public-v1"
+          : "action-recruit-irregular-public-v1",
+      actionType,
+      economy: "PRIMARY",
+      speedCost: 0,
+      usesAttack: true,
+      executable: true,
+      handlerId: "foundation-action-handler",
+      catalogueRulesetVersion: V5_CORE_CURATED_2_RULESET_VERSION,
+      catalogueContentHash: V5_CORE_CURATED_2_CONTENT_HASH,
+    };
+  }
+  if (actionType === "ABANDON_GUNS" || actionType === "REPLACE_GUNS") {
+    return {
+      id: actionType === "ABANDON_GUNS" ? "action-abandon-guns-public-v1" : "action-replace-guns-public-v1",
+      actionType,
+      economy: "PRIMARY",
+      speedCost: 0,
+      usesAttack: true,
+      executable: true,
+      handlerId: "foundation-action-handler",
+      catalogueRulesetVersion: V5_CORE_CURATED_2_RULESET_VERSION,
+      catalogueContentHash: V5_CORE_CURATED_2_CONTENT_HASH,
+    };
+  }
+  if (actionType === "SHIELD_WALL" || actionType === "MOUNT_MAGNETIC_CLAMPS" || actionType === "DISMOUNT_MAGNETIC_CLAMPS") {
+    return {
+      id: `action-${actionType.toLowerCase().replaceAll("_", "-")}-public-v1`,
+      actionType,
+      economy: actionType === "MOUNT_MAGNETIC_CLAMPS" ? "PRIMARY" : "STANDARD",
+      speedCost: actionType === "SHIELD_WALL" ? 1 : actionType === "DISMOUNT_MAGNETIC_CLAMPS" ? 0.5 : 0,
+      usesAttack: actionType === "MOUNT_MAGNETIC_CLAMPS",
+      executable: true,
+      handlerId: "foundation-action-handler",
+      catalogueRulesetVersion: V5_CORE_CURATED_2_RULESET_VERSION,
+      catalogueContentHash: V5_CORE_CURATED_2_CONTENT_HASH,
+    };
+  }
   const id = actionIds[actionType];
   if (!id) throw new Error(`Unknown action type: ${actionType}`);
   const lookup = tacticalRulesCatalogueRuntime.lookupDefinition("ACTION", id);
@@ -127,6 +199,16 @@ export function getTacticalOrderRule(
   orderType: OrderType,
   mode: CatalogueRuntimeModeV1 = "PRODUCTION",
 ): TacticalOrderRule {
+  if (orderType === "STEALTH") {
+    return {
+      id: orderIds.STEALTH,
+      orderType,
+      executable: true,
+      handlerId: "foundation-order-handler",
+      catalogueRulesetVersion: V5_CORE_CURATED_2_RULESET_VERSION,
+      catalogueContentHash: V5_CORE_CURATED_2_CONTENT_HASH,
+    };
+  }
   const id = orderIds[orderType];
   const lookup = tacticalRulesCatalogueRuntime.lookupDefinition("ORDER", id);
   if (!lookup.found) throw new Error(`TACTICAL_GRAMMAR_DEFINITION_MISSING:${id}`);

@@ -17,6 +17,8 @@ describe("canonical tactical supply resources", () => {
       "LARGE_SUPPLY",
       "MEDICAL_SUPPLY",
       "MAIN_AMMUNITION",
+      "BUILD_SUPPLY",
+      "GENERAL_SUPPLY",
     ]);
     for (const resourceId of TACTICAL_SUPPLY_RESOURCE_IDS) {
       expect(isTacticalSupplyResourceId(resourceId)).toBe(true);

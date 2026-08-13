@@ -21,6 +21,7 @@ describe("governed supply-profile hydration", () => {
         reloadRules: {
           overCapacityPolicy: null,
           refillToMaximum: null,
+          refillResource: null,
           sourceResource: null,
           sourceQuantity: null,
           facilityCapability: "REARM_AEROSPACE",
@@ -47,6 +48,7 @@ describe("governed supply-profile hydration", () => {
         reloadRules: {
           overCapacityPolicy: null,
           refillToMaximum: null,
+          refillResource: null,
           sourceResource: null,
           sourceQuantity: null,
           facilityCapability: null,
@@ -73,6 +75,7 @@ describe("governed supply-profile hydration", () => {
         reloadRules: {
           overCapacityPolicy: "RETAIN_AND_BLOCK_LOADING",
           refillToMaximum: null,
+          refillResource: null,
           sourceResource: null,
           sourceQuantity: null,
           facilityCapability: null,
@@ -99,6 +102,7 @@ describe("governed supply-profile hydration", () => {
         reloadRules: {
           overCapacityPolicy: "RETAIN_AND_BLOCK_LOADING",
           refillToMaximum: true,
+          refillResource: null,
           sourceResource: "SMALL_SUPPLY",
           sourceQuantity: 1,
           facilityCapability: null,
@@ -116,7 +120,7 @@ describe("governed supply-profile hydration", () => {
   it("hydrates every generated @2 supply profile", () => {
     expect(V5_CORE_CURATED_2_CATALOGUE.content.supplyProfiles.map((definition) =>
       hydrateGovernedSupplyProfile({ id: definition.id, parameters: definition.parameters }).ok,
-    )).toEqual([true, true, true, true]);
+    )).toEqual([true, true, true, true, true]);
   });
 
   it.each([

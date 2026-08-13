@@ -590,7 +590,7 @@ describe("equipment and transport actions", () => {
     })).toMatchObject({ legal: false, reasons: expect.arrayContaining(["The Artillery unit must already be deployed."]) });
   });
 
-  it("moves one Small Supply from a co-located Logi Truck into Artillery stock", () => {
+  it("moves the maximum same-resource partial transfer into Artillery stock", () => {
     const base = createDemoCampaignState(1_000);
     const logi = base.deployments.find((deployment) => deployment.definitionId === "unit-logi-truck")!;
     const artillery = base.deployments.find((deployment) => deployment.definitionId === "unit-artillery")!;
@@ -619,8 +619,8 @@ describe("equipment and transport actions", () => {
         quantity: 1,
         sourceRemaining: 4,
         targetAfter: 2,
-        purpose: "ARTILLERY_RELOAD",
-        conflictId: "RC-SUP-001",
+        purpose: "SAME_RESOURCE_TRANSFER",
+        applicationRule: "SAME_RESOURCE_PARTIAL_TRANSFER_NO_AMMO_CONVERSION",
       }),
     }));
 
@@ -633,7 +633,7 @@ describe("equipment and transport actions", () => {
     expect(rejected.events).toContainEqual(expect.objectContaining({
       type: "ORDER_REJECTED",
       actor: fullLogi.id,
-      payload: expect.objectContaining({ reasons: ["The target's Small Supply is already at capacity."] }),
+      payload: expect.objectContaining({ reasons: ["Destination Supply capacity is full."] }),
     }));
   });
 

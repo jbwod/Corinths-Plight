@@ -44,6 +44,7 @@ import { StrategicWorkspace, type StrategicView } from "./components/StrategicWo
 import { AuthGateway } from "./components/AuthGateway";
 import { CampaignReports } from "./components/CampaignReports";
 import { UnitPortrait } from "./components/UnitVisual";
+import { companionArmourIntentSummary, getCompanionArmourUiProfile } from "./companion-armour-ui";
 
 const DEMO_USER = "demo-user";
 const DEFAULT_DEVELOPMENT_CAMPAIGN_ID = "outpost-k17";
@@ -109,10 +110,18 @@ interface CampaignDirectoryEntry {
 }
 const campaignCanOpen = (entry: CampaignDirectoryEntry): boolean => entry.canEnter || entry.outcome !== undefined;
 type Notice = { tone: "info" | "success" | "danger"; message: string };
-type ComposerActionMode = "NONE" | "ATTACK" | "DIG_IN" | "ARTILLERY_DIG_IN" | "RELOAD" | "RESUPPLY" | "LOAD" | "UNLOAD" | "AIRDROP" | "LAND" | "TAKE_OFF" | "REARM_AEROSPACE" | "HEAL" | "REPAIR" | "CREW_REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT";
+type ComposerActionMode = "NONE" | "ATTACK" | "RECRUIT_IRREGULAR" | "PLACE_DELAYED_CHARGE" | "DETONATE_DELAYED_CHARGE" | "SAPPER_CONSTRUCT" | "RELOAD_BUILD_SUPPLY" | "SHIELD_WALL" | "MOUNT_MAGNETIC_CLAMPS" | "DISMOUNT_MAGNETIC_CLAMPS" | "ABANDON_GUNS" | "REPLACE_GUNS" | "DIG_IN" | "ARTILLERY_DIG_IN" | "RELOAD" | "RESUPPLY" | "LOAD" | "UNLOAD" | "AIRDROP" | "LAND" | "TAKE_OFF" | "REARM_AEROSPACE" | "HEAL" | "REPAIR" | "CREW_REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "DEPLOY" | "PACK_UP" | "BOMBARDMENT" | "FUNNEL";
 type RepairKind = "HIT" | "SUBSYSTEM";
-const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "DIG_IN", "ARTILLERY_DIG_IN", "RELOAD", "RESUPPLY", "LOAD", "UNLOAD", "AIRDROP", "LAND", "TAKE_OFF", "REARM_AEROSPACE", "HEAL", "REPAIR", "CREW_REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "BOMBARDMENT"];
+const composerActionModes: Exclude<ComposerActionMode, "NONE">[] = ["ATTACK", "RECRUIT_IRREGULAR", "PLACE_DELAYED_CHARGE", "DETONATE_DELAYED_CHARGE", "SAPPER_CONSTRUCT", "RELOAD_BUILD_SUPPLY", "SHIELD_WALL", "MOUNT_MAGNETIC_CLAMPS", "DISMOUNT_MAGNETIC_CLAMPS", "ABANDON_GUNS", "REPLACE_GUNS", "DIG_IN", "ARTILLERY_DIG_IN", "RELOAD", "RESUPPLY", "LOAD", "UNLOAD", "AIRDROP", "LAND", "TAKE_OFF", "REARM_AEROSPACE", "HEAL", "REPAIR", "CREW_REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "DEPLOY", "PACK_UP", "BOMBARDMENT", "FUNNEL"];
 const constructibleFieldworks = CONSTRUCTIBLE_FIELDWORK_IDS.map(getFieldworkDefinition);
+const sapperStructures = [
+  ["structure-trench", "Trench"],
+  ["structure-road", "Road Edge"],
+  ["structure-sensor-tower", "Sensor Tower"],
+  ["structure-sapper-weapon-emplacement", "Weapon Emplacement"],
+  ["structure-sapper-minefield", "Minefield"],
+  ["structure-sapper-at-minefield", "Anti-tank Minefield"],
+] as const;
 
 function initialCampaign(): CampaignView {
   const now = Date.now();
@@ -160,6 +169,18 @@ function formatEvent(event: CampaignEvent): string {
     ? `${event.actor ?? "Unit"} completed an Evasive maneuver for +3 Defense and −2 outgoing attacks.`
     : `${event.actor ?? "Unit"} was stopped before completing its Evasive maneuver.`;
   if (event.type === "UNIT_ATTACKED") return `${event.actor ?? "Unit"} engaged ${String(payload.targetId ?? "a hostile")}${payload.evasiveAttackModifier === -2 ? "; Evasive fire applied −2" : ""}${payload.coverArmor === 1 ? "; cover added +1 Armor" : ""}${payload.digInDefense === 2 ? "; Dig In added +2 Defense" : ""}${payload.evasiveDefenseModifier === 3 ? "; target Evasive added +3 Defense" : ""}${payload.crewRepairArmorExposed === true ? "; exposed crew received no Armor benefit" : ""}.`;
+  if (event.type === "DELAYED_CHARGE_PLACED") return `${event.actor ?? "Special Forces"} planted a delayed charge on ${String(payload.targetId ?? "a hostile target")}; it arms next round.`;
+  if (event.type === "DELAYED_CHARGE_DETONATED") return `${event.actor ?? "Special Forces"} detonated its charge on ${String(payload.targetId ?? "a hostile target")} for ${String(payload.loss ?? payload.damage ?? "?")} damage.`;
+  if (event.type === "INFANTRY_STEALTH_RESOLVED") return payload.active === true
+    ? `${event.actor ?? "Special Forces"} completed its route under Infantry Stealth.`
+    : `${event.actor ?? "Special Forces"} was revealed.`;
+  if (event.type === "IRREGULAR_RECRUITED") return `${event.actor ?? "Irregulars"} recruited at ${String(payload.populationCenterKey ?? "a Population Center")}; maximum FS increased from ${String(payload.maximumForceStrengthBefore ?? "?")} to ${String(payload.maximumForceStrengthAfter ?? "?")}.`;
+  if (event.type === "SAPPER_BUILD_PROGRESS") return `${event.actor ?? "Sappers"} added ${String(payload.progressAdded ?? 3)} progress to ${String(payload.structureDefinitionId ?? "a field project")}; ${String(payload.buildSupplyAfter ?? "?")} Build Supply remains.`;
+  if (event.type === "SAPPER_BUILD_SUPPLY_RELOADED") return `${event.actor ?? "Sappers"} consumed one General Supply and restored Build Supply to ${String(payload.buildSupplyAfter ?? 6)}.`;
+  if (event.type === "SAPPER_MINE_TRIGGERED") return `${event.actor ?? "A hostile"} triggered ${String(payload.mineDefinitionId ?? "a Sapper minefield")} for ${String(payload.healthLoss ?? "?")} damage.`;
+  if (event.type === "SHIELD_WALL_FORMED") return `${event.actor ?? "Power Armour"} formed a Shield Wall: Cover Armor 1 against direct fire until movement.`;
+  if (event.type === "MAGNETIC_CLAMPS_MOUNTED") return `${String(payload.riderDeploymentId ?? "Power Armour")} mounted ${String(payload.carrierDeploymentId ?? "a mech")} using Magnetic Clamps.`;
+  if (event.type === "MAGNETIC_CLAMPS_DISMOUNTED") return `${String(payload.riderDeploymentId ?? "Power Armour")} dismounted from ${String(payload.carrierDeploymentId ?? "a mech")}.`;
   if (event.type === "LIGHT_AT_EXPENDED") return `${event.actor ?? "Infantry"} spent ${String(payload.chargesSpent ?? "?")} Light AT charge${payload.chargesSpent === 1 ? "" : "s"} for +${String(payload.armorPiercingBonus ?? "?")} AP; ${String(payload.ammunitionAfter ?? "?")} remain.`;
   if (event.type === "WEAPON_SKIPPED") return `${event.actor ?? "Unit"}'s ${String(payload.weaponId ?? "weapon")} did not fire: ${String(payload.reason ?? "not eligible")}.`;
   if (event.type === "DAMAGE_APPLIED") return `${event.actor ?? "Unit"} lost ${String(payload.loss ?? "?")} strength.`;
@@ -177,6 +198,9 @@ function formatEvent(event: CampaignEvent): string {
   if (event.type === "ARTILLERY_DEPLOYED") return `${event.actor ?? "Artillery"} deployed and is ready to fire.`;
   if (event.type === "ARTILLERY_PACKED") return `${event.actor ?? "Artillery"} packed up for movement.`;
   if (event.type === "ARTILLERY_BOMBARDED") return `${event.actor ?? "Artillery"} fired a suppression mission.`;
+  if (event.type === "ARTILLERY_FUNNELLED") return `${event.actor ?? "Artillery"} displaced ${String(payload.targetId ?? "a hostile unit")} with Funnel.`;
+  if (event.type === "ARTILLERY_ABANDONED") return `${event.actor ?? "Artillery"} abandoned its guns and withdrew as an unarmed crew.`;
+  if (event.type === "ARTILLERY_REPLACED") return `${event.actor ?? "Artillery crew"} replaced its guns for ${String(payload.requisitionSpent ?? "?")} Req.`;
   if (event.type === "BOMBARDMENT_APPLIED") return `${String(payload.targetId ?? "Hostile unit")} lost Defense under bombardment.`;
   if (event.type === "BOMBARDMENT_RECOVERED") return `${event.actor ?? "Unit"} recovered one Defense from bombardment.`;
   if (event.type === "AIR_DROP_COMPLETED") return `${event.actor ?? "Heavy Air Transport"} dropped ${String(payload.cargoDeploymentId ?? "cargo")} at ${String((payload.targetHex as AxialCoord | undefined)?.q ?? "?")}.${String((payload.targetHex as AxialCoord | undefined)?.r ?? "?")}.`;
@@ -191,6 +215,14 @@ function formatEvent(event: CampaignEvent): string {
     const cargo = Array.isArray(payload.cargo) ? payload.cargo : [];
     return `${event.actor ?? "Transport"}'s ${cargo.length} carried load${cargo.length === 1 ? " is" : "s are"} frozen pending command adjudication (${String(payload.conflictId ?? "RC-V5-030")}).`;
   }
+  if (event.type === "CARGO_LOADED") return payload.transportMode === "EXTERNAL"
+    ? `${event.actor ?? "VTOL Heavy Lift"} secured ${String(payload.cargoDeploymentId ?? "an external load")}.`
+    : `${event.actor ?? "Transport"} embarked ${String(payload.cargoDeploymentId ?? "cargo")}.`;
+  if (event.type === "CARGO_UNLOADED") return payload.mode === "RAPPEL_GARRISON"
+    ? `${event.actor ?? "VTOL Troop Airlift"} rappelled ${String(payload.cargoDeploymentId ?? "Infantry")} into the garrison at ${String((payload.targetHex as AxialCoord | undefined)?.q ?? "?")}.${String((payload.targetHex as AxialCoord | undefined)?.r ?? "?")}.`
+    : payload.transportMode === "EXTERNAL"
+      ? `${event.actor ?? "VTOL Heavy Lift"} released ${String(payload.cargoDeploymentId ?? "its external load")}.`
+      : `${event.actor ?? "Transport"} disembarked ${String(payload.cargoDeploymentId ?? "cargo")}.`;
   if (event.type === "ROUND_FINISHED") return `Round ${event.round} resolved and archived.`;
   return event.type.replaceAll("_", " ").toLowerCase();
 }
@@ -248,13 +280,18 @@ function GameApp() {
   const [draftedRoute, setDraftedRoute] = useState<AxialCoord[]>([{ q: -3, r: 1 }]);
   const [draftedFacing, setDraftedFacing] = useState<Facing>(2);
   const [targetUnitId, setTargetUnitId] = useState<string>();
+  const [funnelDirection, setFunnelDirection] = useState<Facing>(0);
   const [supportTargetUnitId, setSupportTargetUnitId] = useState<string>();
   const [actionMode, setActionMode] = useState<ComposerActionMode>("NONE");
+  const [rappelGarrison, setRappelGarrison] = useState(false);
+  const [rappelTargetHex, setRappelTargetHex] = useState<AxialCoord>();
   const [repairKind, setRepairKind] = useState<RepairKind>("HIT");
   const [repairSubsystemId, setRepairSubsystemId] = useState<string>();
   const [bombardmentTargetHex, setBombardmentTargetHex] = useState<AxialCoord>();
+  const [artilleryTargetHexes, setArtilleryTargetHexes] = useState<AxialCoord[]>([]);
   const [constructionTargetHex, setConstructionTargetHex] = useState<AxialCoord>();
   const [constructionDefinitionId, setConstructionDefinitionId] = useState<ConstructibleFieldworkId>("structure-sandbag-line");
+  const [sapperStructureDefinitionId, setSapperStructureDefinitionId] = useState<(typeof sapperStructures)[number][0]>("structure-trench");
   const [selectedWeaponId, setSelectedWeaponId] = useState<string>();
   const [lightAtCharges, setLightAtCharges] = useState(0);
   const [scheduledRound, setScheduledRound] = useState(18);
@@ -423,11 +460,15 @@ function GameApp() {
   const selectedUnit =
     ownUnits.find((deployment) => deployment.id === selectedUnitId) ?? ownUnits.find((unit) => unit.status !== "DESTROYED");
   const selectedDefinition = selectedUnit ? getUnitClass(selectedUnit.definitionId) : undefined;
+  const selectedArmourProfile = selectedUnit ? getCompanionArmourUiProfile(selectedUnit.definitionId) : undefined;
   const selectedAllowedOrders = selectedUnit?.allowedOrders ?? selectedDefinition?.allowedOrders ?? [];
   const selectedAllowedActions = selectedUnit?.allowedActions ?? selectedDefinition?.allowedActions ?? [];
   const isMedicalUnit = selectedDefinition?.tags.includes("MEDICAL") ?? false;
   const isEngineerUnit = selectedDefinition?.tags.includes("ENGINEER") ?? false;
   const isArtilleryUnit = selectedDefinition?.tags.includes("ARTILLERY") ?? false;
+  const isCompanionArtillery = selectedUnit ? ["unit-light-artillery", "unit-heavy-artillery", "unit-self-propelled-artillery"].includes(selectedUnit.definitionId) : false;
+  const isCompanionVtol = selectedUnit ? ["unit-vtol-troop-airlift", "unit-vtol-multipurpose-airlift", "unit-vtol-heavy-lift"].includes(selectedUnit.definitionId) : false;
+  const isTroopAirlift = selectedUnit?.definitionId === "unit-vtol-troop-airlift";
   const disabledSubsystems = selectedUnit?.subsystems?.filter((subsystem) => subsystem.state === "DISABLED") ?? [];
   const weaponSystemsDisabled = disabledSubsystems.some((subsystem) => subsystem.subsystemId.toUpperCase() === "WEAPONS");
   const mobilityDisabled = disabledSubsystems.some((subsystem) => subsystem.subsystemId.toUpperCase() === "MOBILITY");
@@ -446,12 +487,20 @@ function GameApp() {
     (type !== "DEPLOY" || !artilleryDeployed) &&
     (type !== "PACK_UP" || artilleryDeployed) &&
     (type !== "BOMBARDMENT" || artilleryDeployed) &&
+    (type !== "FUNNEL" || artilleryDeployed) &&
     (type !== "DIG_IN" || !dugIn) &&
     (type !== "LAND" || !aerospaceLanded) &&
     (type !== "TAKE_OFF" || aerospaceLanded) &&
     (type !== "REARM_AEROSPACE" || aerospaceLanded),
   );
   const targetUnit = campaign.deployments.find((deployment) => deployment.id === targetUnitId);
+  const funnelTargets = selectedUnit ? campaign.deployments.filter((deployment) =>
+    deployment.side !== selectedUnit.side && deployment.side !== "NEUTRAL" &&
+    deployment.status !== "DESTROYED" && deployment.status !== "WITHDRAWN" &&
+    (deployment.locationState ?? "ON_MAP") === "ON_MAP" &&
+    hexDistance(selectedUnit.position, deployment.position) >= 1 &&
+    hexDistance(selectedUnit.position, deployment.position) <= 4
+  ) : [];
   const targetIsHorde = targetUnit?.tags?.includes("HORDE") === true;
   const reloadableWeapons = selectedUnit?.weapons.filter((weapon) =>
     weapon.ammoCapacity !== undefined &&
@@ -578,6 +627,22 @@ function GameApp() {
     ) &&
     coordinatesEqual(deployment.position, draftedRoute.at(-1) ?? selectedUnit.position)
   ) : [];
+  const magneticClampTargets = selectedUnit ? campaign.deployments.filter((deployment) => {
+    if (deployment.id === selectedUnit.id || deployment.side !== selectedUnit.side || deployment.status === "DESTROYED") return false;
+    if (actionMode === "MOUNT_MAGNETIC_CLAMPS") {
+      const carrier = selectedUnit.definitionId === "unit-power-armoured-infantry" ? deployment : selectedUnit;
+      const rider = carrier.id === selectedUnit.id ? deployment : selectedUnit;
+      return rider.definitionId === "unit-power-armoured-infantry" &&
+        ["unit-medium-mech", "unit-heavy-mech"].includes(carrier.definitionId) &&
+        carrier.equipmentIds.includes("equipment-mech-magnetic-clamps") &&
+        coordinatesEqual(rider.position, carrier.position) &&
+        !(carrier.cargo ?? []).some((item) => item.tags.includes("MAGNETIC_CLAMP_RIDER"));
+    }
+    const carrier = selectedUnit.definitionId === "unit-power-armoured-infantry" ? deployment : selectedUnit;
+    const rider = carrier.id === selectedUnit.id ? deployment : selectedUnit;
+    return rider.definitionId === "unit-power-armoured-infantry" && rider.locationState === "EMBARKED" &&
+      (carrier.cargo ?? []).some((item) => item.unitId === rider.id && item.tags.includes("MAGNETIC_CLAMP_RIDER"));
+  }) : [];
   const supportTargets = actionMode === "LOAD"
     ? loadTargets
     : actionMode === "UNLOAD" || actionMode === "AIRDROP"
@@ -590,6 +655,8 @@ function GameApp() {
           ? artilleryDigInTargets
         : actionMode === "RESUPPLY"
           ? resupplyTargets
+        : actionMode === "MOUNT_MAGNETIC_CLAMPS" || actionMode === "DISMOUNT_MAGNETIC_CLAMPS"
+          ? magneticClampTargets
         : [];
   const supportTarget = supportTargets.find((deployment) => deployment.id === supportTargetUnitId) ?? supportTargets[0];
   const cargoPairIsTow = Boolean(
@@ -606,7 +673,8 @@ function GameApp() {
   const bombardmentHexes = selectedUnit && artilleryWeapon ? campaign.map
     .filter((hex) => {
       const distance = hexDistance(selectedUnit.position, hex.coord);
-      return hex.visibility !== "UNKNOWN" && distance >= 1 && distance <= artilleryWeapon.range;
+      const minimumRange = selectedUnit.definitionId === "unit-self-propelled-artillery" ? 2 : 1;
+      return hex.visibility !== "UNKNOWN" && distance >= minimumRange && distance <= artilleryWeapon.range;
     })
     .sort((left, right) => {
       const hostileCount = (coord: AxialCoord) => campaign.deployments.filter((deployment) =>
@@ -621,6 +689,11 @@ function GameApp() {
   const selectedBombardmentHex = bombardmentHexes.find((hex) =>
     bombardmentTargetHex && coordinatesEqual(hex.coord, bombardmentTargetHex)
   )?.coord ?? bombardmentHexes[0]?.coord;
+  const companionArtilleryShotCount = selectedUnit?.definitionId === "unit-heavy-artillery"
+    ? 3
+    : selectedUnit?.definitionId === "unit-light-artillery"
+      ? 2
+      : 1;
   const selectedConstructionFieldwork = getFieldworkDefinition(constructionDefinitionId);
   const constructionHexes = selectedUnit ? campaign.map
     .filter((hex) =>
@@ -640,6 +713,14 @@ function GameApp() {
   const plannedFacilityHex = plannedEndHex
     ? campaign.map.find((hex) => coordinatesEqual(hex.coord, plannedEndHex))
     : undefined;
+  const rappelHexes = isTroopAirlift
+    ? draftedRoute.flatMap((coord) => {
+        const hex = campaign.map.find((candidate) => coordinatesEqual(candidate.coord, coord));
+        return hex?.environment.includes(INFANTRY_GARRISON_BUILDING) ? [hex] : [];
+      })
+    : [];
+  const selectedRappelHex = rappelHexes.find((hex) => rappelTargetHex && coordinatesEqual(hex.coord, rappelTargetHex))
+    ?? rappelHexes[0];
   const plannedFacilityFriendly = Boolean(selectedUnit && plannedFacilityHex && (
     plannedFacilityHex.control === selectedUnit.side || (
       plannedFacilityHex.objectiveId !== undefined &&
@@ -713,9 +794,36 @@ function GameApp() {
   const evasiveRouteIncomplete = orderType === "EVASIVE" && evasiveDisplacement < evasiveMinimumDisplacement;
   const deployedArtilleryMoving = Boolean(isArtilleryUnit && artilleryDeployed && draftedRoute.length > 1);
   const noEligibleAttackWeapon = actionMode === "ATTACK" && Boolean(targetUnit) && participatingWeapons.length === 0;
+  const delayedChargeTarget = targetUnit && hexDistance(plannedEndHex ?? selectedUnit?.position ?? targetUnit.position, targetUnit.position) === 1
+    ? targetUnit
+    : undefined;
+  const activeDelayedCharge = selectedUnit?.statusEffects?.find((effect) =>
+    effect.definitionId === "status-special-forces-delayed-charge-public-v1" && effect.status === "ACTIVE"
+  );
+  const canRecruitIrregular = selectedUnit?.definitionId === "unit-irregular" &&
+    selectedUnit.equipmentIds.includes("equipment-charismatic-commander") &&
+    Boolean(plannedFacilityHex?.environment.includes("POPULATION_CENTER") && plannedFacilityHex.control === "ALLIED" && draftedRoute.length > 1);
   const actionReady =
     actionMode === "NONE" ||
-    (actionMode === "ATTACK" && Boolean(targetUnit && participatingWeapons.length > 0 && orderType !== "RUSH" && !weaponSystemsDisabled && lightAtPreview?.legal !== false)) ||
+    (actionMode === "RECRUIT_IRREGULAR" && canRecruitIrregular) ||
+    (actionMode === "ATTACK" && Boolean(
+      isCompanionArtillery
+        ? selectedBombardmentHex && (!isArtilleryUnit || selectedUnit?.definitionId === "unit-self-propelled-artillery" || artilleryDeployed)
+        : targetUnit && participatingWeapons.length > 0 && orderType !== "RUSH" && !weaponSystemsDisabled && lightAtPreview?.legal !== false
+    )) ||
+    (actionMode === "PLACE_DELAYED_CHARGE" && Boolean(delayedChargeTarget && !activeDelayedCharge)) ||
+    (actionMode === "DETONATE_DELAYED_CHARGE" && Boolean(activeDelayedCharge)) ||
+    (actionMode === "SAPPER_CONSTRUCT" && Boolean(
+      selectedConstructionHex && (selectedUnit?.supplies?.BUILD_SUPPLY ?? 0) >= 3
+    )) ||
+    (actionMode === "RELOAD_BUILD_SUPPLY" && Boolean(
+      (selectedUnit?.supplies?.GENERAL_SUPPLY ?? 0) >= 1 && (selectedUnit?.supplies?.BUILD_SUPPLY ?? 0) < 6
+    )) ||
+    (actionMode === "SHIELD_WALL" && Boolean(
+      selectedUnit?.definitionId === "unit-power-armoured-infantry" &&
+      selectedUnit.equipmentIds.includes("equipment-ballistic-shields") && draftedRoute.length === 1
+    )) ||
+    ((actionMode === "MOUNT_MAGNETIC_CLAMPS" || actionMode === "DISMOUNT_MAGNETIC_CLAMPS") && Boolean(supportTarget)) ||
     (actionMode === "RELOAD" && Boolean(
       (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0 &&
       (isMedicalUnit
@@ -744,15 +852,30 @@ function GameApp() {
     (actionMode === "DIG_IN" && !dugIn && orderType === "HOLD" && draftedRoute.length === 1) ||
     (actionMode === "DEPLOY" && isArtilleryUnit && !artilleryDeployed) ||
     (actionMode === "PACK_UP" && isArtilleryUnit && artilleryDeployed) ||
+    (actionMode === "ABANDON_GUNS" && isCompanionArtillery && selectedUnit?.definitionId !== "unit-self-propelled-artillery" && artilleryDeployed) ||
+    (actionMode === "REPLACE_GUNS" && selectedUnit?.definitionId === "unit-companion-artillery-crew" && plannedFacilityFriendly && plannedFacilityHex?.environment.includes("SUPPLY_POINT")) ||
     (actionMode === "BOMBARDMENT" && Boolean(
       isArtilleryUnit && artilleryDeployed && selectedBombardmentHex && (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0,
+    )) ||
+    (actionMode === "FUNNEL" && Boolean(
+      isArtilleryUnit && artilleryDeployed && targetUnit && funnelTargets.some((target) => target.id === targetUnit.id) &&
+      (selectedUnit?.supplies?.SMALL_SUPPLY ?? 0) > 0,
     )) ||
     (actionMode === "LAND" && Boolean(isAerospaceUnit && !aerospaceLanded && canLandAtPlannedEnd)) ||
     (actionMode === "TAKE_OFF" && Boolean(isAerospaceUnit && aerospaceLanded)) ||
     (actionMode === "REARM_AEROSPACE" && Boolean(
       isAerospaceUnit && aerospaceLanded && canRearmAtPlannedEnd && aerospaceNeedsRearm,
     )) ||
-    ((actionMode === "LOAD" || actionMode === "UNLOAD" || actionMode === "AIRDROP") && Boolean(supportTarget));
+    (actionMode === "LOAD" && Boolean(supportTarget && (!isCompanionVtol || aerospaceLanded))) ||
+    (actionMode === "UNLOAD" && Boolean(
+      supportTarget && (
+        !isCompanionVtol ||
+        (rappelGarrison
+          ? isTroopAirlift && !aerospaceLanded && selectedRappelHex
+          : aerospaceLanded)
+      )
+    )) ||
+    (actionMode === "AIRDROP" && Boolean(supportTarget));
   const canSubmit = Boolean(
     selectedUnit &&
       selectedDefinition &&
@@ -766,7 +889,25 @@ function GameApp() {
       actionReady,
   );
   const actionSummary = actionMode === "ATTACK" && targetUnit && participatingWeapons.length > 0
-    ? `engage ${targetUnit.callsign} with ${participatingWeapons.map((weapon) => weapon.name).join(" + ")}${lightAtCharges > 0 ? ` using ${lightAtCharges} Light AT charge${lightAtCharges === 1 ? "" : "s"} (+${lightAtCharges} AP)` : ""}`
+    ? companionArmourIntentSummary(selectedUnit?.definitionId ?? "", targetUnit.callsign) ?? `engage ${targetUnit.callsign} with ${participatingWeapons.map((weapon) => weapon.name).join(" + ")}${lightAtCharges > 0 ? ` using ${lightAtCharges} Light AT charge${lightAtCharges === 1 ? "" : "s"} (+${lightAtCharges} AP)` : ""}`
+    : actionMode === "RECRUIT_IRREGULAR"
+      ? "recruit at the entered Allied Population Center (+3 maximum FS, cap 15)"
+    : actionMode === "ATTACK" && isCompanionArtillery && selectedBombardmentHex
+      ? `fire ${selectedUnit?.definitionId === "unit-heavy-artillery" ? 3 : selectedUnit?.definitionId === "unit-light-artillery" ? 2 : 1} area shot${selectedUnit?.definitionId === "unit-self-propelled-artillery" ? "" : "s"} at hex ${selectedBombardmentHex.q}.${selectedBombardmentHex.r}`
+    : actionMode === "PLACE_DELAYED_CHARGE" && delayedChargeTarget
+      ? `place an armed delayed charge on ${delayedChargeTarget.callsign}`
+      : actionMode === "DETONATE_DELAYED_CHARGE"
+        ? "detonate the team's armed delayed charge"
+      : actionMode === "SAPPER_CONSTRUCT" && selectedConstructionHex
+        ? `advance ${sapperStructures.find(([id]) => id === sapperStructureDefinitionId)?.[1] ?? "a Sapper project"} at ${selectedConstructionHex.q}.${selectedConstructionHex.r}`
+      : actionMode === "RELOAD_BUILD_SUPPLY"
+        ? "consume one General Supply and refill Build Supply"
+      : actionMode === "SHIELD_WALL"
+        ? "form a Ballistic Shield Wall against direct fire"
+      : actionMode === "MOUNT_MAGNETIC_CLAMPS" && supportTarget
+        ? `mount with ${supportTarget.callsign} using paired Magnetic Clamp actions`
+      : actionMode === "DISMOUNT_MAGNETIC_CLAMPS" && supportTarget
+        ? `dismount with ${supportTarget.callsign} into the mech hex`
     : actionMode === "RELOAD" && isMedicalUnit
       ? "restore Medical Supply using one Small Supply"
       : actionMode === "RELOAD" && selectedWeapon
@@ -774,7 +915,9 @@ function GameApp() {
       : actionMode === "LOAD" && supportTarget
         ? `${cargoPairIsTow ? "hitch for towing" : "coordinate loading"} with ${supportTarget.callsign}`
         : actionMode === "UNLOAD" && supportTarget
-          ? `${cargoPairIsTow ? "unhitch" : "coordinate unloading"} with ${supportTarget.callsign}`
+          ? rappelGarrison && selectedRappelHex
+            ? `rappel ${supportTarget.callsign} into the garrison at ${selectedRappelHex.coord.q}.${selectedRappelHex.coord.r}`
+            : `${cargoPairIsTow ? "unhitch" : "coordinate unloading"} with ${supportTarget.callsign}`
           : actionMode === "AIRDROP" && supportTarget
             ? `air drop ${supportTarget.callsign} at ${draftedRoute.at(-1)?.q}.${draftedRoute.at(-1)?.r}`
           : actionMode === "HEAL" && supportTarget
@@ -799,8 +942,14 @@ function GameApp() {
             ? "deploy and unhitch the artillery platform"
           : actionMode === "PACK_UP"
             ? "pack and hitch the artillery platform"
+          : actionMode === "ABANDON_GUNS"
+            ? "abandon the guns and continue as an unarmed 1FS crew"
+          : actionMode === "REPLACE_GUNS"
+            ? "replace the original guns at this Supply Point"
           : actionMode === "BOMBARDMENT" && selectedBombardmentHex
             ? `bombard hex ${selectedBombardmentHex.q}.${selectedBombardmentHex.r}`
+          : actionMode === "FUNNEL" && targetUnit
+            ? `funnel ${targetUnit.callsign} toward ${["N", "NE", "SE", "S", "SW", "NW"][funnelDirection]}`
           : actionMode === "LAND"
             ? `land at the friendly airfield on hex ${plannedEndHex?.q}.${plannedEndHex?.r}`
           : actionMode === "TAKE_OFF"
@@ -827,7 +976,10 @@ function GameApp() {
       ? storedAction.type as ComposerActionMode
       : "NONE";
     setActionMode(storedMode);
-    setTargetUnitId(storedAction?.type === "ATTACK" ? storedAction.targetDeploymentId : undefined);
+    setRappelGarrison(storedAction?.type === "UNLOAD" && storedAction.payload?.mode === "RAPPEL_GARRISON");
+    setRappelTargetHex(storedAction?.type === "UNLOAD" && storedAction.payload?.mode === "RAPPEL_GARRISON" ? storedAction.targetHex : undefined);
+    setTargetUnitId(storedAction?.type === "ATTACK" || storedAction?.type === "FUNNEL" ? storedAction.targetDeploymentId : undefined);
+    setFunnelDirection(storedAction?.type === "FUNNEL" && storedAction.direction !== undefined ? storedAction.direction : 0);
     setSupportTargetUnitId(
       storedAction?.type === "LOAD" || storedAction?.type === "UNLOAD" || storedAction?.type === "AIRDROP" || storedAction?.type === "HEAL" || storedAction?.type === "REPAIR" || storedAction?.type === "ARTILLERY_DIG_IN"
         ? storedAction.targetDeploymentId ?? (typeof storedAction.payload?.cargoDeploymentId === "string" ? storedAction.payload.cargoDeploymentId : undefined)
@@ -839,7 +991,13 @@ function GameApp() {
         ? storedAction.payload.subsystemId
         : undefined,
     );
-    setBombardmentTargetHex(storedAction?.type === "BOMBARDMENT" ? storedAction.targetHex : undefined);
+    const storedArtilleryHexes = storedAction?.type === "ATTACK" && Array.isArray(storedAction.payload?.targetHexes)
+      ? storedAction.payload.targetHexes.filter((coord): coord is AxialCoord => Boolean(
+          coord && typeof coord === "object" && Number.isInteger((coord as AxialCoord).q) && Number.isInteger((coord as AxialCoord).r)
+        ))
+      : [];
+    setArtilleryTargetHexes(storedArtilleryHexes);
+    setBombardmentTargetHex(storedArtilleryHexes[0] ?? (storedAction?.type === "BOMBARDMENT" || storedAction?.type === "ATTACK" ? storedAction.targetHex : undefined));
     setConstructionTargetHex(storedAction?.type === "CONSTRUCT" ? storedAction.targetHex : undefined);
     if (storedAction?.type === "CONSTRUCT" && CONSTRUCTIBLE_FIELDWORK_IDS.includes(storedAction.structureDefinitionId as ConstructibleFieldworkId)) {
       setConstructionDefinitionId(storedAction.structureDefinitionId as ConstructibleFieldworkId);
@@ -879,11 +1037,26 @@ function GameApp() {
       setNotice({ tone: "info", message: `Hex ${coord.q}.${coord.r} designated for suppression fire.` });
       return;
     }
+    if (actionMode === "ATTACK" && isCompanionArtillery && executableComposerActions.includes("ATTACK")) {
+      setBombardmentTargetHex(coord);
+      setArtilleryTargetHexes([coord]);
+      setNotice({ tone: "info", message: `Hex ${coord.q}.${coord.r} designated for all artillery shots; use the shot selectors to split fire.` });
+      return;
+    }
     if (unit?.ownerId === campaign.viewer.userId) {
       selectUnit(unit);
       return;
     }
     if (unit?.side === "ENEMY") {
+      if (actionMode === "FUNNEL" && executableComposerActions.includes("FUNNEL")) {
+        if (!funnelTargets.some((candidate) => candidate.id === unit.id)) {
+          setNotice({ tone: "danger", message: "Funnel requires a visible hostile at Artillery Range 1–4." });
+          return;
+        }
+        setTargetUnitId(unit.id);
+        setNotice({ tone: "info", message: `${unit.callsign} designated for Funnel if it moves this round.` });
+        return;
+      }
       if (!executableComposerActions.includes("ATTACK")) {
         setNotice({ tone: "danger", message: `${selectedUnit?.callsign ?? "This unit"} cannot perform an Attack action.` });
         return;
@@ -1032,7 +1205,15 @@ function GameApp() {
   async function submitOrder(lifecycle: "DRAFT" | "SUBMITTED" = "SUBMITTED") {
     if (!campaignId || !selectedUnit || (lifecycle === "SUBMITTED" && !canSubmit)) return;
     const actions: Array<Partial<StructuredAction>> = [];
-    if (actionMode === "ATTACK" && targetUnit && participatingWeapons.length > 0 && orderType !== "RUSH") {
+    if (actionMode === "ATTACK" && isCompanionArtillery && selectedBombardmentHex && orderType !== "RUSH") {
+      const declaredHexes = artilleryTargetHexes.length > 1 ? artilleryTargetHexes.slice(0, companionArtilleryShotCount) : undefined;
+      actions.push({
+        type: "ATTACK",
+        targetHex: selectedBombardmentHex,
+        equipmentIds: [],
+        payload: declaredHexes ? { targetHexes: declaredHexes } : undefined,
+      });
+    } else if (actionMode === "ATTACK" && targetUnit && participatingWeapons.length > 0 && orderType !== "RUSH") {
       actions.push({
         type: "ATTACK",
         targetDeploymentId: targetUnit.id,
@@ -1040,6 +1221,22 @@ function GameApp() {
         equipmentIds: [],
         lightAtCharges: lightAtCharges > 0 ? lightAtCharges : undefined,
       });
+    } else if (actionMode === "RECRUIT_IRREGULAR") {
+      actions.push({ type: "RECRUIT_IRREGULAR", equipmentIds: ["equipment-charismatic-commander"] });
+    } else if (actionMode === "PLACE_DELAYED_CHARGE" && delayedChargeTarget) {
+      actions.push({ type: "PLACE_DELAYED_CHARGE", targetDeploymentId: delayedChargeTarget.id, equipmentIds: [] });
+    } else if (actionMode === "DETONATE_DELAYED_CHARGE") {
+      actions.push({ type: "DETONATE_DELAYED_CHARGE", equipmentIds: [] });
+    } else if (actionMode === "SAPPER_CONSTRUCT" && selectedConstructionHex) {
+      actions.push({ type: "SAPPER_CONSTRUCT", targetHex: selectedConstructionHex, structureDefinitionId: sapperStructureDefinitionId, equipmentIds: [] });
+    } else if (actionMode === "RELOAD_BUILD_SUPPLY") {
+      actions.push({ type: "RELOAD_BUILD_SUPPLY", equipmentIds: [] });
+    } else if (actionMode === "SHIELD_WALL") {
+      actions.push({ type: "SHIELD_WALL", equipmentIds: ["equipment-ballistic-shields"] });
+    } else if ((actionMode === "MOUNT_MAGNETIC_CLAMPS" || actionMode === "DISMOUNT_MAGNETIC_CLAMPS") && supportTarget) {
+      actions.push({ type: actionMode, targetDeploymentId: supportTarget.id, equipmentIds: ["equipment-mech-magnetic-clamps"] });
+    } else if (actionMode === "ABANDON_GUNS" || actionMode === "REPLACE_GUNS") {
+      actions.push({ type: actionMode, equipmentIds: [] });
     } else if (actionMode === "RELOAD" && isMedicalUnit) {
       actions.push({ type: "RELOAD", equipmentIds: [] });
     } else if (actionMode === "RELOAD" && selectedWeapon) {
@@ -1050,8 +1247,11 @@ function GameApp() {
       actions.push({
         type: "UNLOAD",
         targetDeploymentId: supportTarget.id,
-        targetHex: selectedUnit.cargoProfile ? draftedRoute.at(-1) ?? selectedUnit.position : undefined,
+        targetHex: rappelGarrison && selectedRappelHex
+          ? selectedRappelHex.coord
+          : selectedUnit.cargoProfile ? draftedRoute.at(-1) ?? selectedUnit.position : undefined,
         equipmentIds: [],
+        payload: rappelGarrison ? { mode: "RAPPEL_GARRISON", cargoDeploymentId: supportTarget.id } : undefined,
       });
     } else if (actionMode === "AIRDROP" && supportTarget) {
       actions.push({
@@ -1097,6 +1297,8 @@ function GameApp() {
       actions.push({ type: actionMode, equipmentIds: [] });
     } else if (actionMode === "BOMBARDMENT" && selectedBombardmentHex) {
       actions.push({ type: "BOMBARDMENT", targetHex: selectedBombardmentHex, equipmentIds: [] });
+    } else if (actionMode === "FUNNEL" && targetUnit) {
+      actions.push({ type: "FUNNEL", targetDeploymentId: targetUnit.id, direction: funnelDirection, equipmentIds: [] });
     } else if (actionMode === "LAND" || actionMode === "TAKE_OFF" || actionMode === "REARM_AEROSPACE") {
       actions.push({ type: actionMode, equipmentIds: [] });
     }
@@ -1614,7 +1816,7 @@ function GameApp() {
             draftedRoute={draftedRoute}
             draftedFacing={draftedFacing}
             targetUnitId={targetUnitId}
-            targetHex={actionMode === "BOMBARDMENT" ? selectedBombardmentHex : actionMode === "CONSTRUCT" ? selectedConstructionHex : undefined}
+            targetHex={actionMode === "BOMBARDMENT" || (actionMode === "ATTACK" && isCompanionArtillery) ? selectedBombardmentHex : actionMode === "CONSTRUCT" ? selectedConstructionHex : actionMode === "UNLOAD" && rappelGarrison ? selectedRappelHex?.coord : undefined}
             onMapClick={(coord, unit) => markerMode ? void placeCampaignMarker(coord) : planDestination(coord, unit)}
             onRemoveMarker={(markerId) => void removeCampaignMarker(markerId)}
             onHover={(coord, unit) => setHovered({ coord, unit })}
@@ -1657,6 +1859,11 @@ function GameApp() {
                   <span><small>SENSORS</small><b>{selectedUnit.stats.sensors}</b></span>
                   <span><small>FACING</small><b>{FACING_LABELS[selectedUnit.facing]}</b></span>
                 </div>
+                {selectedArmourProfile && (
+                  <p className="validation">
+                    {selectedArmourProfile.attackLabel} · {selectedArmourProfile.capabilityLabel} · REQ {selectedArmourProfile.requisitionCost}
+                  </p>
+                )}
                 {selectedCargoValidation && (
                   <p className={`validation ${selectedCargoValidation.legal ? "" : "danger"}`}>
                     CARGO {selectedCargoValidation.slotsUsedQuarters / 4}/{selectedCargoValidation.capacitySlotsQuarters / 4} SLOTS
@@ -1744,7 +1951,7 @@ function GameApp() {
                       disabled={type === "ATTACK" && (orderType === "RUSH" || weaponSystemsDisabled)}
                       onClick={() => {
                         setActionMode(type);
-                        if (type === "DIG_IN") {
+                        if (type === "DIG_IN" || type === "SHIELD_WALL") {
                           setOrderType("HOLD");
                           setDraftedRoute([{ ...selectedUnit.position }]);
                         }
@@ -1753,10 +1960,17 @@ function GameApp() {
                           setDraftedRoute([{ ...selectedUnit.position }]);
                           setRepairSubsystemId(crewRepairableSubsystems[0]?.subsystemId);
                         }
-                        if (type !== "ATTACK") setTargetUnitId(undefined);
+                        if (type !== "ATTACK" && type !== "PLACE_DELAYED_CHARGE" && type !== "FUNNEL") setTargetUnitId(undefined);
+                        if (type === "FUNNEL") setTargetUnitId(funnelTargets[0]?.id);
+                        if (type !== "UNLOAD") {
+                          setRappelGarrison(false);
+                          setRappelTargetHex(undefined);
+                        }
                         if (type === "RELOAD") setSelectedWeaponId(reloadableWeapons[0]?.id);
                         setSupportTargetUnitId(
-                          type === "LOAD"
+                          type === "MOUNT_MAGNETIC_CLAMPS" || type === "DISMOUNT_MAGNETIC_CLAMPS"
+                            ? magneticClampTargets[0]?.id
+                          : type === "LOAD"
                             ? loadTargets[0]?.id
                             : type === "UNLOAD"
                               ? unloadTargets[0]?.id
@@ -1776,13 +1990,55 @@ function GameApp() {
                           setRepairKind(target && target.currentHealth < target.stats.maxHealth ? "HIT" : "SUBSYSTEM");
                           setRepairSubsystemId(damagedSubsystem?.subsystemId);
                         }
-                        if (type === "CONSTRUCT") setConstructionTargetHex(constructionHexes[0]?.coord);
-                        if (type === "BOMBARDMENT") setBombardmentTargetHex(bombardmentHexes[0]?.coord);
+                        if (type === "CONSTRUCT" || type === "SAPPER_CONSTRUCT") setConstructionTargetHex(constructionHexes[0]?.coord);
+                        if (type === "BOMBARDMENT" || (type === "ATTACK" && isCompanionArtillery)) {
+                          setBombardmentTargetHex(bombardmentHexes[0]?.coord);
+                          setArtilleryTargetHexes(bombardmentHexes[0] ? [bombardmentHexes[0].coord] : []);
+                        }
                       }}
                     >{type === "ARTILLERY_DIG_IN" ? "DIG IN ARTILLERY" : type === "CREW_REPAIR" ? "CREW REPAIR" : type}</button>
                   ))}
                 </div>
-                {actionMode === "ATTACK" && selectedUnit.weapons.length > 0 ? (
+                {actionMode === "ATTACK" && isCompanionArtillery ? (
+                  <>
+                    <label className="field-label" htmlFor="companion-artillery-target">AREA FIRE TARGET HEX</label>
+                    {Array.from({ length: companionArtilleryShotCount }, (_, shotIndex) => {
+                      const selected = artilleryTargetHexes[shotIndex] ?? artilleryTargetHexes[0] ?? selectedBombardmentHex;
+                      return (
+                        <div key={shotIndex}>
+                          <label className="field-label" htmlFor={`companion-artillery-target-${shotIndex}`}>SHOT {shotIndex + 1}</label>
+                          <select
+                            id={`companion-artillery-target-${shotIndex}`}
+                            aria-label={`AREA FIRE SHOT ${shotIndex + 1}`}
+                            value={selected ? `${selected.q},${selected.r}` : ""}
+                            onChange={(event) => {
+                              const [q, r] = event.target.value.split(",").map(Number);
+                              const next = Array.from({ length: companionArtilleryShotCount }, (_, index) => artilleryTargetHexes[index] ?? artilleryTargetHexes[0] ?? selectedBombardmentHex ?? { q, r });
+                              next[shotIndex] = { q, r };
+                              setArtilleryTargetHexes(next);
+                              setBombardmentTargetHex(next[0]);
+                            }}
+                            disabled={bombardmentHexes.length === 0}
+                          >
+                            {bombardmentHexes.map((hex) => {
+                              const affected = campaign.deployments.filter((deployment) =>
+                                deployment.side !== selectedUnit.side && deployment.tags?.includes("GROUND") &&
+                                deployment.status !== "DESTROYED" && coordinatesEqual(deployment.position, hex.coord)
+                              ).length;
+                              return <option value={`${hex.coord.q},${hex.coord.r}`} key={`${hex.coord.q},${hex.coord.r}`}>HEX {hex.coord.q}.{hex.coord.r} · RANGE {hexDistance(selectedUnit.position, hex.coord)} · {affected} GROUND HOSTILE{affected === 1 ? "" : "S"}</option>;
+                            })}
+                          </select>
+                        </div>
+                      );
+                    })}
+                    <p className="validation">
+                      {selectedUnit.definitionId === "unit-heavy-artillery" ? "3" : selectedUnit.definitionId === "unit-light-artillery" ? "2" : "1"} SERVER-OWNED AREA SHOT{selectedUnit.definitionId === "unit-self-propelled-artillery" ? "" : "S"} · all ground hostiles in the target hex are attacked · friendly spotting required.
+                    </p>
+                    {selectedUnit.definitionId === "unit-self-propelled-artillery" && <p className="validation">AP ROUNDS: {selectedUnit.ammunition[artilleryWeapon?.id ?? ""] ?? 0}/5 · RANGE 2–4</p>}
+                    {selectedUnit.definitionId !== "unit-self-propelled-artillery" && !artilleryDeployed && <p className="validation danger">Deploy this battery before firing.</p>}
+                    {bombardmentHexes.length === 0 && <p className="validation danger">No known hex is in the governed firing envelope.</p>}
+                  </>
+                ) : actionMode === "ATTACK" && selectedUnit.weapons.length > 0 ? (
                   <>
                     <label className="field-label">WEAPONS IN ACTIVATION</label>
                     <div className="weapon-activation-list" aria-label="Attack weapon participation">
@@ -1833,6 +2089,77 @@ function GameApp() {
                   </>
                 ) : actionMode === "ATTACK" ? (
                   <p className="validation danger">This unit has no executable weapon profile.</p>
+                ) : actionMode === "RECRUIT_IRREGULAR" ? (
+                  <>
+                    <p className="validation">Recruitment is a Primary action and replaces the unit's attack. It permanently adds +3 maximum FS, up to 15, without healing current FS.</p>
+                    <p className={`validation ${canRecruitIrregular ? "" : "danger"}`}>
+                      {canRecruitIrregular
+                        ? "READY · entered an Allied Population Center with Charismatic Commander fitted."
+                        : "Requires Charismatic Commander and a route that enters an Allied-controlled Population Center this round."}
+                    </p>
+                  </>
+                ) : actionMode === "PLACE_DELAYED_CHARGE" ? (
+                  <>
+                    <div className={`target-card ${delayedChargeTarget ? "acquired" : ""}`}>
+                      <Glyph name="target" size={18} />
+                      {delayedChargeTarget
+                        ? <div><strong>{delayedChargeTarget.callsign}</strong><small>ADJACENT HOSTILE · CHARGE ARMS NEXT ROUND</small></div>
+                        : <div><strong>NO LEGAL CHARGE TARGET</strong><small>Click an adjacent hostile unit or attackable structure</small></div>}
+                    </div>
+                    {activeDelayedCharge && <p className="validation danger">This team already has an active delayed charge.</p>}
+                  </>
+                ) : actionMode === "DETONATE_DELAYED_CHARGE" ? (
+                  <p className={`validation ${activeDelayedCharge ? "" : "danger"}`}>
+                    {activeDelayedCharge
+                      ? `ARMED CHARGE · target ${String(activeDelayedCharge.parameters?.targetDeploymentId ?? "unknown")} · D6 AP2`
+                      : "This team has no armed delayed charge."}
+                  </p>
+                ) : actionMode === "SAPPER_CONSTRUCT" ? (
+                  <>
+                    <label className="field-label" htmlFor="sapper-structure">SAPPER PROJECT</label>
+                    <select id="sapper-structure" value={sapperStructureDefinitionId} onChange={(event) => setSapperStructureDefinitionId(event.target.value as typeof sapperStructureDefinitionId)}>
+                      {sapperStructures.map(([id, name]) => <option value={id} key={id}>{name}</option>)}
+                    </select>
+                    <label className="field-label" htmlFor="sapper-target">TARGET HEX</label>
+                    <select
+                      id="sapper-target"
+                      value={selectedConstructionHex ? `${selectedConstructionHex.q},${selectedConstructionHex.r}` : ""}
+                      onChange={(event) => {
+                        const [q, r] = event.target.value.split(",").map(Number);
+                        setConstructionTargetHex({ q, r });
+                      }}
+                      disabled={constructionHexes.length === 0}
+                    >
+                      {constructionHexes.map((hex) => <option value={`${hex.coord.q},${hex.coord.r}`} key={`${hex.coord.q},${hex.coord.r}`}>HEX {hex.coord.q}.{hex.coord.r}</option>)}
+                    </select>
+                    <p className={`validation ${(selectedUnit.supplies?.BUILD_SUPPLY ?? 0) < 3 ? "danger" : ""}`}>
+                      BUILD SUPPLY: {selectedUnit.supplies?.BUILD_SUPPLY ?? 0}/6 · this Primary action spends 3 and adds 3 persistent progress
+                    </p>
+                    <p className="validation">Construction remains quiet. Mines arm next round and trigger once on the first legal hostile entrant.</p>
+                  </>
+                ) : actionMode === "RELOAD_BUILD_SUPPLY" ? (
+                  <>
+                    <p className={`validation ${(selectedUnit.supplies?.GENERAL_SUPPLY ?? 0) < 1 ? "danger" : ""}`}>
+                      GENERAL SUPPLY: {selectedUnit.supplies?.GENERAL_SUPPLY ?? 0} · reload consumes 1
+                    </p>
+                    <p className={`validation ${(selectedUnit.supplies?.BUILD_SUPPLY ?? 0) >= 6 ? "danger" : ""}`}>
+                      BUILD SUPPLY: {selectedUnit.supplies?.BUILD_SUPPLY ?? 0}/6 · Primary action refills to 6
+                    </p>
+                  </>
+                ) : actionMode === "SHIELD_WALL" ? (
+                  <>
+                    <p className="validation">STANDARD ACTION · ALL SPEED · non-stacking Cover Armor 1 against direct fire until this unit moves.</p>
+                    {!selectedUnit.equipmentIds.includes("equipment-ballistic-shields") && <p className="validation danger">Fit Ballistic Shields before issuing Shield Wall.</p>}
+                  </>
+                ) : actionMode === "MOUNT_MAGNETIC_CLAMPS" || actionMode === "DISMOUNT_MAGNETIC_CLAMPS" ? (
+                  <>
+                    <label className="field-label" htmlFor="magnetic-clamp-partner">MATCHING POWER ARMOUR / MECH PARTNER</label>
+                    <select id="magnetic-clamp-partner" value={supportTarget?.id ?? ""} onChange={(event) => setSupportTargetUnitId(event.target.value)} disabled={magneticClampTargets.length === 0}>
+                      {magneticClampTargets.map((deployment) => <option value={deployment.id} key={deployment.id}>{deployment.callsign} · {definitionLabel(deployment)}</option>)}
+                    </select>
+                    <p className="validation">{actionMode === "MOUNT_MAGNETIC_CLAMPS" ? "PRIMARY ACTION from both co-located units. One rider per fitted Medium/Heavy Mech." : "STANDARD ACTION from both units. Rider arrives in the mech hex."}</p>
+                    {magneticClampTargets.length === 0 && <p className="validation danger">No eligible matching partner is available.</p>}
+                  </>
                 ) : actionMode === "RELOAD" && isMedicalUnit ? (
                   <>
                     <p className={`validation ${(selectedUnit.supplies?.SMALL_SUPPLY ?? 0) < 1 ? "danger" : ""}`}>
@@ -2066,6 +2393,15 @@ function GameApp() {
                     <p className="validation">STANDARD ACTION · ALL SPEED · ends after this unit actually moves from the position.</p>
                     {dugIn && <p className="validation danger">This unit is already dug in.</p>}
                   </>
+                ) : actionMode === "ABANDON_GUNS" || actionMode === "REPLACE_GUNS" ? (
+                  <>
+                    <p className="validation">
+                      {actionMode === "ABANDON_GUNS"
+                        ? "PRIMARY ACTION · deployed Light/Heavy Artillery becomes an unarmed 1FS CREW at this hex."
+                        : "PRIMARY ACTION · restore the original class and loadout, packed, for half its Req rounded up."}
+                    </p>
+                    {actionMode === "REPLACE_GUNS" && <p className={`validation ${plannedFacilityFriendly && plannedFacilityHex?.environment.includes("SUPPLY_POINT") ? "" : "danger"}`}>A friendly SUPPLY POINT is required. Replacement is available once per campaign.</p>}
+                  </>
                 ) : actionMode === "DEPLOY" || actionMode === "PACK_UP" ? (
                   <>
                     <p className="validation">
@@ -2107,6 +2443,27 @@ function GameApp() {
                     <p className="validation">PRIMARY ACTION · Radius 1 · hostile Defense −1 per active stack · requires a friendly spotter.</p>
                     {bombardmentHexes.length === 0 && <p className="validation danger">No known hex is within Artillery range.</p>}
                   </>
+                ) : actionMode === "FUNNEL" ? (
+                  <>
+                    <label className="field-label" htmlFor="funnel-target">MOVING HOSTILE TARGET</label>
+                    <select
+                      id="funnel-target"
+                      value={targetUnit?.id ?? ""}
+                      onChange={(event) => setTargetUnitId(event.target.value || undefined)}
+                      disabled={funnelTargets.length === 0}
+                    >
+                      {funnelTargets.map((target) => (
+                        <option value={target.id} key={target.id}>{target.callsign} · RANGE {hexDistance(selectedUnit.position, target.position)}</option>
+                      ))}
+                    </select>
+                    <label className="field-label" htmlFor="funnel-direction">DISPLACEMENT DIRECTION</label>
+                    <select id="funnel-direction" value={funnelDirection} onChange={(event) => setFunnelDirection(Number(event.target.value) as Facing)}>
+                      {(["N", "NE", "SE", "S", "SW", "NW"] as const).map((label, direction) => <option value={direction} key={label}>{label}</option>)}
+                    </select>
+                    <p className={`validation ${(selectedUnit.supplies?.SMALL_SUPPLY ?? 0) < 1 ? "danger" : ""}`}>SMALL SUPPLY: {selectedUnit.supplies?.SMALL_SUPPLY ?? 0} · Funnel consumes 1</p>
+                    <p className="validation">PRIMARY ACTION · the target must actually move this round · V5 0.5-range control resolves as one open adjacent hex before combat.</p>
+                    {funnelTargets.length === 0 && <p className="validation danger">No hostile is within Artillery Range 1–4.</p>}
+                  </>
                 ) : actionMode === "LAND" || actionMode === "TAKE_OFF" || actionMode === "REARM_AEROSPACE" ? (
                   <>
                     <p className="validation">
@@ -2138,16 +2495,58 @@ function GameApp() {
                         </option>
                       ))}
                     </select>
+                    {actionMode === "UNLOAD" && isTroopAirlift && (
+                      <>
+                        <label className="field-label" htmlFor="vtol-rappel-mode">TROOP AIRLIFT UNLOAD MODE</label>
+                        <select
+                          id="vtol-rappel-mode"
+                          value={rappelGarrison ? "RAPPEL_GARRISON" : "NORMAL"}
+                          onChange={(event) => {
+                            const enabled = event.target.value === "RAPPEL_GARRISON";
+                            setRappelGarrison(enabled);
+                            setRappelTargetHex(enabled ? rappelHexes[0]?.coord : undefined);
+                          }}
+                        >
+                          <option value="NORMAL">NORMAL LANDED UNLOAD</option>
+                          <option value="RAPPEL_GARRISON">RAPPEL GARRISON</option>
+                        </select>
+                        {rappelGarrison && (
+                          <>
+                            <label className="field-label" htmlFor="vtol-rappel-target">AUTHORED BUILDING ON FLIGHT PATH</label>
+                            <select
+                              id="vtol-rappel-target"
+                              value={selectedRappelHex ? `${selectedRappelHex.coord.q},${selectedRappelHex.coord.r}` : ""}
+                              onChange={(event) => {
+                                const [q, r] = event.target.value.split(",").map(Number);
+                                setRappelTargetHex({ q, r });
+                              }}
+                              disabled={rappelHexes.length === 0}
+                            >
+                              {rappelHexes.map((hex) => <option key={`${hex.coord.q},${hex.coord.r}`} value={`${hex.coord.q},${hex.coord.r}`}>HEX {hex.coord.q}.{hex.coord.r}</option>)}
+                            </select>
+                            <p className="validation">STANDARD ACTION · carrier remains airborne · passenger submits no paired action · Infantry arrives GARRISONED.</p>
+                            {aerospaceLanded && <p className="validation danger">Take off before using Rappel Garrison.</p>}
+                            {rappelHexes.length === 0 && <p className="validation danger">Plot a flight path through an authored Infantry garrison building.</p>}
+                          </>
+                        )}
+                      </>
+                    )}
                     <p className="validation">
                       {actionMode === "AIRDROP"
                         ? "The selected Infantry or Light Vehicle exits at the route endpoint for no Speed cost. The flight path must be straight and the destination clear; hazardous drops fail closed."
                         : actionMode === "LOAD"
                         ? cargoPairIsTow
                           ? "Packed Artillery and Logi must be co-located and both submit matching Load actions to hitch. Towing uses no cargo slot."
-                          : "Carrier and cargo must be co-located and both submit matching Load actions."
+                          : isCompanionVtol
+                            ? "The companion VTOL must be landed; carrier and unit cargo submit matching Load actions. Passive mission or Supply packages do not submit an action."
+                            : "Carrier and cargo must be co-located and both submit matching Load actions."
                         : cargoPairIsTow
                           ? "Logi and towed Artillery must both submit matching Unload actions to unhitch in the carrier hex."
-                          : "Carrier and embarked cargo must both submit matching Unload actions before lock."}
+                          : isCompanionVtol
+                            ? rappelGarrison
+                              ? "The Troop Airlift crosses the selected authored building and rappels its manifested Infantry without landing."
+                              : "The companion VTOL must be landed; carrier and unit cargo submit matching Unload actions. Passive mission or Supply packages do not submit an action."
+                            : "Carrier and embarked cargo must both submit matching Unload actions before lock."}
                     </p>
                     {supportTargets.length === 0 && (
                       <p className="validation danger">

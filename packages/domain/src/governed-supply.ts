@@ -30,6 +30,7 @@ export type GovernedSupplyResourceQuantityV1 = number | "SCENARIO_DEFINED";
 export interface GovernedSupplyReloadRulesV1 {
   overCapacityPolicy: GovernedSupplyOverCapacityPolicyV1 | null;
   refillToMaximum: boolean | null;
+  refillResource: TacticalSupplyResourceId | null;
   sourceResource: TacticalSupplyResourceId | null;
   sourceQuantity: number | null;
   facilityCapability: GovernedSupplyFacilityCapabilityV1 | null;

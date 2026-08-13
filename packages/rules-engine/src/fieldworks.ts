@@ -4,12 +4,14 @@ import { tacticalRulesCatalogueRuntime } from "./tactical-grammar";
 export const EXECUTABLE_FIELDWORK_IDS = [
   "structure-razor-wire",
   "structure-sandbag-line",
+  "structure-bridge",
   "structure-tank-traps",
   "structure-trench",
 ] as const;
 
 export const CONSTRUCTIBLE_FIELDWORK_IDS = [
   "structure-sandbag-line",
+  "structure-bridge",
   "structure-razor-wire",
   "structure-tank-traps",
 ] as const;
@@ -21,7 +23,7 @@ export interface FieldworkDefinition {
   id: ExecutableFieldworkId;
   name: string;
   smallSupplyCost: number;
-  constructRange: "ADJACENT_OR_CURRENT" | null;
+  constructRange: "ADJACENT_OR_CURRENT" | "ADJACENT_RIVER_EDGE" | null;
   movementPenalty: { unitTag: "INFANTRY" | "VEHICLE"; speed: number } | null;
 }
 
@@ -58,7 +60,9 @@ export function getFieldworkDefinition(id: ExecutableFieldworkId): FieldworkDefi
     ? null
     : definition.constructRange === "ADJACENT_OR_CURRENT"
       ? definition.constructRange
-      : (() => { throw new Error(`FIELDWORK_DEFINITION_INVALID:${id}:constructRange`); })();
+      : definition.constructRange === "ADJACENT_RIVER_EDGE"
+        ? definition.constructRange
+        : (() => { throw new Error(`FIELDWORK_DEFINITION_INVALID:${id}:constructRange`); })();
   let movementPenalty: FieldworkDefinition["movementPenalty"] = null;
   if (definition.movementPenalty !== undefined) {
     const value = record(definition.movementPenalty, `${id}:movementPenalty`);

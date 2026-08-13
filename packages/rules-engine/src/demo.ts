@@ -47,6 +47,8 @@ function makeHex(q: number, r: number): BattlefieldHex {
       ...(q === 0 && r === 0 ? [INFANTRY_COVER_ARMOR_1, INFANTRY_GARRISON_BUILDING] : []),
       ...(q === -2 && r === -3 ? ["LAND_AEROSPACE", "REARM_AEROSPACE"] : []),
       ...(q === -3 && r === -2 ? ["LAND_VTOL"] : []),
+      ...(q === -4 && r === 1 ? ["HEADQUARTERS", "SUPPLY_POINT"] : []),
+      ...(q === -2 && r === 1 ? ["POPULATION_CENTER"] : []),
     ],
     visibility: q <= 1 ? "OBSERVED" : "UNKNOWN",
   };

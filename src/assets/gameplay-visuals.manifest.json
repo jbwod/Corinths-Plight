@@ -446,6 +446,13 @@
       "status": "ACTIVE"
     },
     {
+      "key": "equipment.power-armour-back-light-laser-public-v1",
+      "path": "src/assets/equipment-art/generated/mech-light-laser.png",
+      "sha256": "ff165625615f70e8b334417975d639c2b1255539dd32e1c6e42d3b9bda9e5a0a",
+      "source": "Reuses the governed Light Laser visual for the Power Armour back mount",
+      "status": "ACTIVE"
+    },
+    {
       "key": "equipment.mech-lrm",
       "path": "src/assets/equipment-art/generated/mech-lrm.png",
       "sha256": "f671cc2787b7cf405c3915f29b601b8dda35cb41e74d2202596a85c330a262d2",

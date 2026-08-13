@@ -22,9 +22,9 @@ describe("public-v1 economy policy", () => {
     expect(publicV1CampaignReward("DEFEAT")).toEqual({ mission: 5, campaign: 0, total: 5 });
   });
 
-  it("prices exactly the thirteen canonical non-orbital classes", () => {
+  it("prices every canonical and companion public-v1 class", () => {
     expect(Object.keys(PUBLIC_V1_UNIT_PRICES).sort()).toEqual(
-      [...V5_CORE_CURATED_2_CATALOGUE.content.canonicalUnitIds].sort(),
+      [...V5_CORE_CURATED_2_CATALOGUE.content.canonicalUnitIds, ...V5_CORE_CURATED_2_CATALOGUE.content.companionUnitIds].sort(),
     );
     expect(PUBLIC_V1_UNIT_PRICES).toMatchObject({
       "unit-infantry-squad": 4,
@@ -45,12 +45,8 @@ describe("public-v1 economy policy", () => {
 
     for (const [definitionId, price] of Object.entries(PUBLIC_V1_UNIT_PRICES)) {
       expect(definitions.get(definitionId)?.sourcedNumbers.requisitionCost).toEqual({ status: "PUBLISHED", value: price });
-      expect(overlays.get(definitionId)).toMatchObject({
-        requisitionStatus: "PUBLISHED",
-        availabilityStatus: "AVAILABLE",
-        purchasable: true,
-        executable: true,
-      });
+      const overlay = overlays.get(definitionId);
+      expect(overlay).toMatchObject({ requisitionStatus: "PUBLISHED", availabilityStatus: "AVAILABLE", purchasable: true, executable: true });
     }
   });
 });

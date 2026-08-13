@@ -184,16 +184,21 @@ export function hasLineOfSight(
   end: AxialCoord,
   hexes: BattlefieldHex[],
   maximumRange: number,
+  options: { observerHeightBonus?: number } = {},
 ): boolean {
   if (hexDistance(start, end) > maximumRange) return false;
   const index = createHexIndex(hexes);
   const line = hexLine(start, end);
-  const startHeight = index.get(coordKey(start))?.elevation ?? 0;
+  const startHeight = (index.get(coordKey(start))?.elevation ?? 0) + Math.max(0, options.observerHeightBonus ?? 0);
   const endHeight = index.get(coordKey(end))?.elevation ?? 0;
   const sightCeiling = Math.max(startHeight, endHeight) + 1;
   return line.slice(1, -1).every((coord) => {
     const hex = index.get(coordKey(coord));
-    return Boolean(hex && !hex.blocksLineOfSight && hex.elevation <= sightCeiling);
+    return Boolean(
+      hex &&
+      hex.elevation <= sightCeiling &&
+      (!hex.blocksLineOfSight || Math.max(1, hex.elevation) < sightCeiling),
+    );
   });
 }
 
@@ -204,8 +209,9 @@ export function visibleHexes(
   const visible = new Set<string>();
   for (const observer of observers) {
     if (observer.status === "DESTROYED") continue;
+    const observerHeightBonus = observer.tags?.includes("MECH_LEG_HEIGHT_1") ? 1 : 0;
     for (const hex of hexes) {
-      if (hasLineOfSight(observer.position, hex.coord, hexes, observer.stats.sensors)) {
+      if (hasLineOfSight(observer.position, hex.coord, hexes, observer.stats.sensors, { observerHeightBonus })) {
         visible.add(coordKey(hex.coord));
       }
     }

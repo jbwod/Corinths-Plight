@@ -1075,6 +1075,7 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
   const [equipmentCatalogueOpen, setEquipmentCatalogueOpen] = useState(false);
   const [loadoutOpen, setLoadoutOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
+  const [progressingIrregular, setProgressingIrregular] = useState(false);
   const [battlegroupOpen, setBattlegroupOpen] = useState(false);
   const [requisitionBalance, setRequisitionBalance] = useState<number | null>(null);
   const [registryNote, setRegistryNote] = useState("Connecting to the owner-scoped force registry…");
@@ -1153,6 +1154,28 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
       onNotice({ tone: "danger", message: reason instanceof Error ? reason.message : "Unit inspection failed." });
     } finally {
       setDetailLoading(false);
+    }
+  }
+
+  async function progressIrregular(track: "MILITIA_VETERAN" | "RAIDER" | "REVOLUTIONARY_GUARD") {
+    if (!selectedUnit || mode !== "LIVE") return;
+    setProgressingIrregular(true);
+    try {
+      const response = await fetch(`/api/forces/${encodeURIComponent(selectedUnit.unitId)}/irregular-progression`, {
+        method: "POST",
+        headers: { ...DEMO_HEADERS, "content-type": "application/json" },
+        body: JSON.stringify({ commandId: `irregular-progress-${crypto.randomUUID()}`, expectedVersion: selectedUnit.version, track }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({})) as { error?: { message?: string } };
+        throw new Error(payload.error?.message ?? errorMessage(response.status));
+      }
+      await loadForces(true);
+      onNotice({ tone: "success", message: `${selectedUnit.callsign} progression committed.` });
+    } catch (reason) {
+      onNotice({ tone: "danger", message: reason instanceof Error ? reason.message : "Irregular progression failed." });
+    } finally {
+      setProgressingIrregular(false);
     }
   }
 
@@ -1284,6 +1307,15 @@ export function ForcesView({ onNotice }: ForcesViewProps) {
                       {selectedUnit.abilities.map((ability) => <article key={ability.id}><i className={ability.status.toLowerCase()} /><div><strong>{ability.name}</strong><p>{ability.description}</p></div><span>{ability.status === "CATALOGUE_ONLY" ? "FOUNDATION ONLY" : ability.status.replaceAll("_", " ")}</span></article>)}
                       {!selectedUnit.abilities.length && <p className="section-empty">No specialised abilities recorded.</p>}
                     </div>
+                    {selectedUnit.definitionId === "unit-irregular" && !selectedUnit.statusEffects.some((effect) => effect.definitionId === "status-irregular-progression-public-v1") && (
+                      <div className="irregular-progression-controls">
+                        <span className="eyebrow">IRREVERSIBLE HQ PROGRESSION</span>
+                        <p>Requires Reserve at Battalion HQ, two completed campaigns and 12 objective XP. The server validates service and debits only the Req difference.</p>
+                        <button disabled={progressingIrregular || selectedUnit.locationState !== "RESERVE"} onClick={() => void progressIrregular("MILITIA_VETERAN")}>MILITIA VETERAN · 0 REQ</button>
+                        <button disabled={progressingIrregular || selectedUnit.locationState !== "RESERVE"} onClick={() => void progressIrregular("RAIDER")}>RAIDER · 2 REQ</button>
+                        <button disabled={progressingIrregular || selectedUnit.locationState !== "RESERVE"} onClick={() => void progressIrregular("REVOLUTIONARY_GUARD")}>REVOLUTIONARY GUARD · 4 REQ</button>
+                      </div>
+                    )}
                   </section>
                   <section className="inspection-section equipment-section">
                     <header><div><span className="eyebrow">PERSISTENT OWNERSHIP</span><h3>Equipment</h3></div><span className="equipment-header-actions"><b>{selectedUnit.equipment.length}</b><button disabled={mode !== "LIVE" || !["RESERVE", "ON_SHIP"].includes(selectedUnit.locationState)} onClick={() => setLoadoutOpen(true)}>MANAGE LOADOUT</button></span></header>

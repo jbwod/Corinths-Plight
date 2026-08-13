@@ -70,6 +70,10 @@ export interface ArtilleryTarget {
   domain: TargetDomain;
 }
 
+export function areArtillerySidesHostile(left: FactionSide, right: FactionSide): boolean {
+  return (left === "ALLIED" && right === "ENEMY") || (left === "ENEMY" && right === "ALLIED");
+}
+
 export function isEligibleSpotter(
   candidate: SpotterCandidate,
   firingUnitId: string,
@@ -104,6 +108,8 @@ export interface ArtilleryFireInput {
   map: BattlefieldHex[];
   spotters: SpotterCandidate[];
   supplyAvailable: number;
+  minimumRange?: number;
+  maximumRange?: number;
 }
 
 export interface ArtilleryFireResult {
@@ -154,6 +160,14 @@ export function validateArtilleryFire(input: ArtilleryFireInput): ArtilleryFireR
   if (!Number.isInteger(input.profile.fireSupplyCost) || input.profile.fireSupplyCost < 0) {
     return rejected("Artillery supply cost must be a non-negative integer.");
   }
+  const minimumRange = input.minimumRange ?? 0;
+  if (!Number.isInteger(minimumRange) || minimumRange < 0) {
+    return rejected("Artillery minimum range must be a non-negative integer.");
+  }
+  const maximumRange = input.maximumRange ?? input.weapon.range;
+  if (!Number.isInteger(maximumRange) || maximumRange < minimumRange || maximumRange > input.weapon.range) {
+    return rejected("Artillery maximum range must be an integer within the fitted weapon range.");
+  }
   if (!Number.isFinite(input.weapon.range) || input.weapon.range < 0) return rejected("Artillery weapon range is invalid.");
   if (
     !input.map.some((hex) => sameCoord(hex.coord, input.firingPosition)) ||
@@ -161,9 +175,14 @@ export function validateArtilleryFire(input: ArtilleryFireInput): ArtilleryFireR
   ) {
     return rejected("Artillery firing unit and target must be on the battlefield.");
   }
-  if (input.target.status === "DESTROYED") return rejected("Target is destroyed.");
-  if (input.target.side === input.firingSide) return rejected("Friendly fire is not enabled.");
-  if (hexDistance(input.firingPosition, input.target.position) > input.weapon.range) return rejected("Target is outside artillery range.");
+  if (input.target.status === "DESTROYED" || input.target.status === "WITHDRAWN") {
+    return rejected("Target is not operational.");
+  }
+  if (!areArtillerySidesHostile(input.firingSide, input.target.side)) {
+    return rejected("Artillery control fire requires a hostile target.");
+  }
+  const distance = hexDistance(input.firingPosition, input.target.position);
+  if (distance < minimumRange || distance > maximumRange) return rejected("Target is outside artillery range.");
   if (input.weapon.indirect && input.profile.mustBeDeployedForIndirectFire && input.deploymentState !== "DEPLOYED") {
     return rejected("Artillery must be deployed for indirect fire.");
   }
@@ -553,7 +572,9 @@ export function validateHatClearAirDrop(input: Omit<AirDropInput, "profile">): A
   });
   const eligible =
     (input.cargo.kind === "PERSONNEL" && input.cargo.tags.includes("INFANTRY")) ||
-    (input.cargo.kind === "VEHICLE" && input.cargo.tags.includes("LIGHT_VEHICLE"));
+    (input.cargo.kind === "VEHICLE" && (
+      input.cargo.tags.includes("LIGHT_VEHICLE") || input.cargo.tags.includes("LIGHT_ARTILLERY_AIRDROP")
+    ));
   return eligible
     ? validation
     : { ...validation, legal: false, reasons: [...validation.reasons, "Only Infantry and Light Vehicles may air drop from a Heavy Air Transport."] };

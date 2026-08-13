@@ -9,13 +9,15 @@ import {
   reloadAmmunition,
   resupplyLogiTarget,
   synchronizeSupplyCargo,
+  transferAvailableProfiledSupply,
+  transferCoordinatedSupplyDrop,
   transferProfiledSupply,
   validateCargoManifest,
   validateSupplyInventory,
 } from "../src";
 
 describe("Logi field resupply", () => {
-  it("derives Engineer and Medic resources without client-authored quantities", () => {
+  it("partially transfers the same governed resource without client-authored quantities", () => {
     expect(resupplyLogiTarget({
       source: { SMALL_SUPPLY: 3 },
       destination: { SMALL_SUPPLY: 1 },
@@ -23,26 +25,14 @@ describe("Logi field resupply", () => {
       destinationCurrentHealth: 3,
     })).toMatchObject({
       legal: true,
-      source: { SMALL_SUPPLY: 2 },
-      destination: { SMALL_SUPPLY: 2 },
-      purpose: "ENGINEER_STOCK",
-      quantityRestored: 1,
-    });
-    expect(resupplyLogiTarget({
-      source: { SMALL_SUPPLY: 3 },
-      destination: { MEDICAL_SUPPLY: 1 },
-      destinationTags: ["MEDICAL"],
-      destinationCurrentHealth: 3,
-    })).toMatchObject({
-      legal: true,
-      source: { SMALL_SUPPLY: 2 },
-      destination: { MEDICAL_SUPPLY: 3 },
-      purpose: "MEDICAL_RELOAD",
+      source: { SMALL_SUPPLY: 1 },
+      destination: { SMALL_SUPPLY: 3 },
+      purpose: "SAME_RESOURCE_TRANSFER",
       quantityRestored: 2,
     });
   });
 
-  it("fails closed for full or unsupported recipients", () => {
+  it("fails closed for full, unsupported, or cross-resource recipients", () => {
     expect(resupplyLogiTarget({
       source: { SMALL_SUPPLY: 1 },
       destination: { SMALL_SUPPLY: 3 },
@@ -54,7 +44,13 @@ describe("Logi field resupply", () => {
       destination: {},
       destinationTags: ["INFANTRY"],
       destinationCurrentHealth: 3,
-    })).toMatchObject({ legal: false, reason: expect.stringContaining("no supported") });
+    })).toMatchObject({ legal: false, reason: expect.stringContaining("no governed") });
+    expect(resupplyLogiTarget({
+      source: { SMALL_SUPPLY: 1 },
+      destination: { MEDICAL_SUPPLY: 0 },
+      destinationTags: ["MEDICAL"],
+      destinationCurrentHealth: 3,
+    })).toMatchObject({ legal: false, reason: expect.stringContaining("no governed") });
   });
 });
 
@@ -190,6 +186,60 @@ const healthLinkedSupply: SupplyProfile = {
 };
 
 describe("profiled Supply and reload", () => {
+  it("partially transfers any shared canonical tactical resource up to destination capacity", () => {
+    const ammunitionSource: SupplyProfile = {
+      id: "ammo-source",
+      capacities: { MAIN_AMMUNITION: 6 },
+      totalCapacity: 6,
+      retainExistingOverCapacity: true,
+      transferableTypes: ["MAIN_AMMUNITION"],
+    };
+    const ammunitionDestination: SupplyProfile = {
+      id: "ammo-destination",
+      capacities: { MAIN_AMMUNITION: 3 },
+      totalCapacity: 3,
+      retainExistingOverCapacity: true,
+      transferableTypes: ["MAIN_AMMUNITION"],
+    };
+
+    expect(transferAvailableProfiledSupply({
+      sourceProfile: ammunitionSource,
+      destinationProfile: ammunitionDestination,
+      source: { MAIN_AMMUNITION: 5 },
+      destination: { MAIN_AMMUNITION: 1 },
+      sourceCurrentHealth: 1,
+      destinationCurrentHealth: 1,
+      type: "MAIN_AMMUNITION",
+      maximumQuantity: 4,
+    })).toEqual({
+      legal: true,
+      source: { MAIN_AMMUNITION: 3 },
+      destination: { MAIN_AMMUNITION: 3 },
+      quantityTransferred: 2,
+    });
+  });
+
+  it("fills only the Logi Truck's remaining Small Supply capacity during a coordinated drop", () => {
+    expect(transferCoordinatedSupplyDrop(
+      { SMALL_SUPPLY: 8 },
+      { SMALL_SUPPLY: 6 },
+    )).toEqual({
+      legal: true,
+      source: { SMALL_SUPPLY: 4 },
+      destination: { SMALL_SUPPLY: 10 },
+      resourceType: "SMALL_SUPPLY",
+      quantityTransferred: 4,
+    });
+    expect(transferCoordinatedSupplyDrop(
+      { MEDIUM_SUPPLY: 1 },
+      { SMALL_SUPPLY: 0 },
+    )).toMatchObject({
+      legal: false,
+      reason: "MEDIUM_SUPPLY supply is unsupported by this profile.",
+      quantityTransferred: 0,
+    });
+  });
+
   it("retains casualty-created excess but prohibits loading more", () => {
     expect(validateSupplyInventory(healthLinkedSupply, { SMALL_SUPPLY: 4 }, 2)).toMatchObject({
       legal: true,

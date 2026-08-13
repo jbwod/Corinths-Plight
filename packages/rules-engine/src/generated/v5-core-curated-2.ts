@@ -18,7 +18,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 const snapshot = {
   "schemaVersion": 1,
   "contentType": "application/vnd.corinths-plight.rules-catalogue+json",
-  "contentHash": "13578835f58b074a039ff8fb2363865faf948620b5a2dc6c6e19038449e00ba6",
+  "contentHash": "8440564c5b53b682346b0a2afd68d9cb0099070025a6cb45804e558737cfd848",
   "content": {
     "schemaVersion": 1,
     "ruleset": {
@@ -1325,6 +1325,7 @@ const snapshot = {
               "DEPLOY",
               "PACK_UP",
               "BOMBARDMENT",
+              "FUNNEL",
               "RELOAD"
             ],
             "weaponIds": [
@@ -1335,6 +1336,7 @@ const snapshot = {
             "allowedActions": [
               "ATTACK",
               "BOMBARDMENT",
+              "FUNNEL",
               "DEPLOY",
               "PACK_UP",
               "RELOAD",
@@ -1605,11 +1607,11 @@ const snapshot = {
         "id": "unit-heavy-artillery",
         "kind": "UNIT",
         "name": "Heavy Artillery",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
-        "sourceLocator": "Classes.html row 20 / Heavy Artillery",
-        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourceLocator": "Classes.html row 20 / Heavy Artillery; public-v1-companion-classes@1",
+        "notes": "Source values are preserved in definition_json; executable durability, attack and Req values come from the named companion application profile.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -1624,8 +1626,8 @@ const snapshot = {
             "value": 3
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 12
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -1636,10 +1638,76 @@ const snapshot = {
             "value": 0
           }
         },
-        "references": [],
+        "references": [
+          {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-heavy-artillery-public-v1"
+          }
+        ],
         "parameters": {
           "category": "SUPPORT",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "ATTACK",
+                "DEPLOY",
+                "PACK_UP"
+              ],
+              "allowedOrders": [
+                "HOLD"
+              ],
+              "armor": 0,
+              "category": "ARTILLERY",
+              "decisionReferences": [
+                "DEC-021",
+                "public-v1-companion-classes@1"
+              ],
+              "healthModel": "FORCE_STRENGTH",
+              "id": "unit-heavy-artillery",
+              "maximumHealth": 3,
+              "name": "Heavy Artillery",
+              "requisitionCost": 12,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "DEPLOYED_FIRE",
+                "SPLIT_FIRE_THREE",
+                "ABANDON_GUNS",
+                "ONE_CAMPAIGN_REPLACEMENT"
+              ],
+              "slots": {
+                "INTERNAL": 2,
+                "SECONDARY": 1
+              },
+              "speed": 0,
+              "tags": [
+                "GROUND",
+                "PERSONNEL",
+                "ARTILLERY",
+                "INDIRECT",
+                "DEPLOYABLE",
+                "HEAVY"
+              ],
+              "transportPolicy": [
+                "GROUND",
+                "HAT_CARGO"
+              ],
+              "weapons": [
+                {
+                  "areaHex": true,
+                  "armorPiercing": 0,
+                  "attacksPerActivation": 3,
+                  "damage": {
+                    "count": 1,
+                    "modifier": 2,
+                    "sides": 1
+                  },
+                  "id": "weapon-heavy-artillery-public-v1",
+                  "indirect": true,
+                  "name": "Heavy Artillery Battery",
+                  "range": 8
+                }
+              ]
+            },
             "canonicalActivation": "CATALOGUED",
             "conflictIds": [
               "RC-UNIT-015",
@@ -1676,11 +1744,11 @@ const snapshot = {
         "id": "unit-heavy-battle-tank",
         "kind": "UNIT",
         "name": "Heavy Battle Tank",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
-        "sourceLocator": "Classes.html row 16 / Heavy Battle Tank",
-        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourceLocator": "Classes.html row 16 / Heavy Battle Tank; public-v1-companion-classes@1",
+        "notes": "Source values are preserved in definition_json; executable durability, attack and Req values come from the named companion application profile.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -1695,8 +1763,8 @@ const snapshot = {
             "value": 3
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 14
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -1707,10 +1775,70 @@ const snapshot = {
             "value": 8
           }
         },
-        "references": [],
+        "references": [
+          {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-heavy-battle-tank-cannon-public-v1"
+          }
+        ],
         "parameters": {
           "category": "ARMOUR",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "ATTACK"
+              ],
+              "allowedOrders": [
+                "HOLD",
+                "ADVANCE",
+                "RUSH"
+              ],
+              "armor": 4,
+              "category": "ARMOUR",
+              "decisionReferences": [
+                "DEC-021",
+                "public-v1-companion-classes@1"
+              ],
+              "healthModel": "HITS",
+              "id": "unit-heavy-battle-tank",
+              "maximumHealth": 3,
+              "name": "Heavy Battle Tank",
+              "requisitionCost": 14,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "REAR_WEAK_SPOT",
+                "HEAVY_CHASSIS"
+              ],
+              "slots": {
+                "INTERNAL": 1,
+                "SECONDARY": 1
+              },
+              "speed": 2,
+              "tags": [
+                "GROUND",
+                "VEHICLE",
+                "ARMOURED",
+                "HEAVY",
+                "SUBSYSTEMS",
+                "REAR_WEAK_SPOT"
+              ],
+              "transportPolicy": [
+                "GROUND",
+                "NO_HAT"
+              ],
+              "weapons": [
+                {
+                  "armorPiercing": 2,
+                  "damage": {
+                    "count": 1,
+                    "sides": 8
+                  },
+                  "id": "weapon-heavy-battle-tank-cannon-public-v1",
+                  "name": "Long Heavy Cannon",
+                  "range": 3
+                }
+              ]
+            },
             "canonicalActivation": "CATALOGUED",
             "conflictIds": [
               "RC-UNIT-015",
@@ -1737,7 +1865,7 @@ const snapshot = {
             "specialRules": "AP 2 Armor Weak Spot - Rear Hex Wall Upgrades 1 Secondary 1 Internal"
           },
           "execution": null,
-          "healthModel": "FORCE_STRENGTH",
+          "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
       },
@@ -1745,11 +1873,11 @@ const snapshot = {
         "id": "unit-heavy-mech",
         "kind": "UNIT",
         "name": "Heavy Mech",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
-        "sourceLocator": "Classes.html row 32 / Heavy Mech",
-        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourceLocator": "Classes.html row 32 / Heavy Mech; public-v1-companion-classes@1",
+        "notes": "Source values are preserved in definition_json; executable durability, attack and Req values come from the named companion application profile.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -1764,8 +1892,8 @@ const snapshot = {
             "value": 5
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 18
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -1780,6 +1908,68 @@ const snapshot = {
         "parameters": {
           "category": "MECH",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "ATTACK",
+                "RELOAD",
+                "LOAD",
+                "UNLOAD"
+              ],
+              "allowedOrders": [
+                "HOLD",
+                "ADVANCE",
+                "RUSH"
+              ],
+              "armor": 3,
+              "category": "MECH",
+              "decisionReferences": [
+                "DEC-021",
+                "public-v1-companion-classes@1"
+              ],
+              "healthModel": "HITS",
+              "id": "unit-heavy-mech",
+              "maximumHealth": 5,
+              "name": "Heavy Mech",
+              "requisitionCost": 18,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "FIRE_ALL_FITTED_WEAPONS",
+                "SUPPLY_POINT_RELOAD",
+                "LEG_HEIGHT_ONE"
+              ],
+              "slots": {
+                "EXTERNAL": 3,
+                "INTERNAL": 4
+              },
+              "speed": 2,
+              "tags": [
+                "GROUND",
+                "VEHICLE",
+                "ARMOURED",
+                "MECH",
+                "SUBSYSTEMS",
+                "LEGGED",
+                "HEAVY"
+              ],
+              "transportPolicy": [
+                "GROUND",
+                "MAGNETIC_CLAMP_CARRIER",
+                "VTOL_HEAVY_LIFT"
+              ],
+              "weapons": [
+                {
+                  "armorPiercing": 0,
+                  "damage": {
+                    "count": 0,
+                    "sides": 0
+                  },
+                  "fittedOnly": true,
+                  "id": "fitted-mech-weapons",
+                  "name": "Fitted Mech Weapons",
+                  "range": 0
+                }
+              ]
+            },
             "canonicalActivation": "CATALOGUED",
             "conflictIds": [
               "RC-UNIT-015",
@@ -1807,7 +1997,7 @@ const snapshot = {
             "specialRules": "3/4 Can't reload there weapons without being at a supply point due to the scale of the weapon systems. This mech comes with No Weapons. You can transfer your prior Mechs Weapons Mechs can fire all weapons at once or 1 at a time. Legged - Can see over Terrain at lvl 1 higher."
           },
           "execution": null,
-          "healthModel": "FORCE_STRENGTH",
+          "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
       },
@@ -1986,11 +2176,11 @@ const snapshot = {
         "id": "unit-irregular",
         "kind": "UNIT",
         "name": "Irregular Unit",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
         "sourceLocator": "Classes.html row 5 / Irregular Unit",
-        "notes": "Companion-only under RC-UNIT-015. Training/class evolution is retained as catalogue data; price is absent.",
+        "notes": "Executable values are supplied by public-v1-companion-classes@1; source values remain in definition_json.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -2005,8 +2195,8 @@ const snapshot = {
             "value": 10
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 4
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -2017,10 +2207,75 @@ const snapshot = {
             "value": 4
           }
         },
-        "references": [],
+        "references": [
+          {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-irregular-small-arms-public-v1"
+          }
+        ],
         "parameters": {
           "category": "INFANTRY",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "ATTACK",
+                "RECRUIT_IRREGULAR"
+              ],
+              "allowedOrders": [
+                "HOLD",
+                "ADVANCE",
+                "RUSH"
+              ],
+              "armor": 0,
+              "category": "INFANTRY",
+              "decisionReferences": [
+                "DEC-021",
+                "public-v1-companion-classes@1"
+              ],
+              "healthModel": "FORCE_STRENGTH",
+              "id": "unit-irregular",
+              "maximumHealth": 10,
+              "name": "Irregular Unit",
+              "requisitionCost": 4,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "QUARTER_DAMAGE_ROUND_UP",
+                "POPULATION_RECRUITMENT",
+                "CLASS_PROGRESSION"
+              ],
+              "slots": {
+                "HIGH_RISK_ARMS": 2,
+                "LOW_TECH_MELEE": 1
+              },
+              "speed": 1,
+              "tags": [
+                "GROUND",
+                "PERSONNEL",
+                "INFANTRY",
+                "IRREGULAR"
+              ],
+              "transportPolicy": [
+                "GROUND",
+                "PERSONNEL_CARGO"
+              ],
+              "weapons": [
+                {
+                  "armorPiercing": 0,
+                  "damage": {
+                    "count": 1,
+                    "sides": 6
+                  },
+                  "id": "weapon-irregular-small-arms-public-v1",
+                  "name": "Irregular Small Arms",
+                  "outputMultiplier": {
+                    "denominator": 4,
+                    "numerator": 1,
+                    "rounding": "UP"
+                  },
+                  "range": 1
+                }
+              ]
+            },
             "conflictIds": [
               "RC-UNIT-015",
               "RC-V5-014"
@@ -2049,11 +2304,11 @@ const snapshot = {
         "id": "unit-light-artillery",
         "kind": "UNIT",
         "name": "Light Artillery",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
-        "sourceLocator": "Classes.html row 19 / Light Artillery",
-        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourceLocator": "Classes.html row 19 / Light Artillery; public-v1-companion-classes@1",
+        "notes": "Source values are preserved in definition_json; executable durability, attack and Req values come from the named companion application profile.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -2068,8 +2323,8 @@ const snapshot = {
             "value": 2
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 8
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -2080,10 +2335,77 @@ const snapshot = {
             "value": 4
           }
         },
-        "references": [],
+        "references": [
+          {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-light-artillery-public-v1"
+          }
+        ],
         "parameters": {
           "category": "SUPPORT",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "ATTACK",
+                "DEPLOY",
+                "PACK_UP"
+              ],
+              "allowedOrders": [
+                "HOLD",
+                "ADVANCE"
+              ],
+              "armor": 0,
+              "category": "ARTILLERY",
+              "decisionReferences": [
+                "DEC-021",
+                "public-v1-companion-classes@1"
+              ],
+              "healthModel": "FORCE_STRENGTH",
+              "id": "unit-light-artillery",
+              "maximumHealth": 2,
+              "name": "Light Artillery",
+              "requisitionCost": 8,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "DEPLOYED_FIRE",
+                "SPLIT_FIRE_TWO",
+                "ABANDON_GUNS",
+                "ONE_CAMPAIGN_REPLACEMENT"
+              ],
+              "slots": {
+                "INTERNAL": 2,
+                "SECONDARY": 1
+              },
+              "speed": 1,
+              "tags": [
+                "GROUND",
+                "PERSONNEL",
+                "ARTILLERY",
+                "INDIRECT",
+                "DEPLOYABLE"
+              ],
+              "transportPolicy": [
+                "GROUND",
+                "HAT_AIRDROP",
+                "HEAVY_DROP_POD"
+              ],
+              "weapons": [
+                {
+                  "areaHex": true,
+                  "armorPiercing": 0,
+                  "attacksPerActivation": 2,
+                  "damage": {
+                    "count": 1,
+                    "modifier": 1,
+                    "sides": 1
+                  },
+                  "id": "weapon-light-artillery-public-v1",
+                  "indirect": true,
+                  "name": "Light Artillery Battery",
+                  "range": 5
+                }
+              ]
+            },
             "canonicalActivation": "CATALOGUED",
             "conflictIds": [
               "RC-UNIT-015",
@@ -2120,11 +2442,11 @@ const snapshot = {
         "id": "unit-light-battle-tank",
         "kind": "UNIT",
         "name": "Light Battle Tank",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
-        "sourceLocator": "Classes.html row 14 / Light Battle Tank",
-        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourceLocator": "Classes.html row 14 / Light Battle Tank; public-v1-companion-classes@1",
+        "notes": "Source values are preserved in definition_json; executable durability, attack and Req values come from the named companion application profile.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -2139,8 +2461,8 @@ const snapshot = {
             "value": 3
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 10
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -2151,10 +2473,74 @@ const snapshot = {
             "value": 12
           }
         },
-        "references": [],
+        "references": [
+          {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-light-battle-tank-cannon-public-v1"
+          }
+        ],
         "parameters": {
           "category": "ARMOUR",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "ATTACK",
+                "RELOAD",
+                "LOAD",
+                "UNLOAD"
+              ],
+              "allowedOrders": [
+                "HOLD",
+                "ADVANCE",
+                "RUSH"
+              ],
+              "armor": 2,
+              "category": "ARMOUR",
+              "decisionReferences": [
+                "DEC-009",
+                "DEC-021",
+                "public-v1-companion-classes@1"
+              ],
+              "healthModel": "HITS",
+              "id": "unit-light-battle-tank",
+              "maximumHealth": 3,
+              "name": "Light Battle Tank",
+              "requisitionCost": 10,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "REAR_WEAK_SPOT",
+                "HAT_LIGHT_TANK_AIRDROP"
+              ],
+              "slots": {
+                "INTERNAL": 1,
+                "SECONDARY": 1
+              },
+              "speed": 3,
+              "tags": [
+                "GROUND",
+                "VEHICLE",
+                "ARMOURED",
+                "LIGHT",
+                "SUBSYSTEMS",
+                "REAR_WEAK_SPOT"
+              ],
+              "transportPolicy": [
+                "GROUND",
+                "HAT_AIRDROP"
+              ],
+              "weapons": [
+                {
+                  "armorPiercing": 2,
+                  "damage": {
+                    "count": 1,
+                    "sides": 4
+                  },
+                  "id": "weapon-light-battle-tank-cannon-public-v1",
+                  "name": "Light Tank Cannon",
+                  "range": 2
+                }
+              ]
+            },
             "canonicalActivation": "CATALOGUED",
             "conflictIds": [
               "RC-UNIT-015",
@@ -2181,7 +2567,7 @@ const snapshot = {
             "specialRules": "AP 2 Fits Inside and be air dropped out of a Heavy Air Transport Armor Weak Spot - Rear Hex Wall Upgrades 1 Secondary 1 Internal"
           },
           "execution": null,
-          "healthModel": "FORCE_STRENGTH",
+          "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
       },
@@ -2510,11 +2896,11 @@ const snapshot = {
         "id": "unit-mechanized-infantry",
         "kind": "UNIT",
         "name": "Mechanized Infantry",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
-        "sourceLocator": "Classes.html row 10 / Mechanized Infantry",
-        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourceLocator": "Classes.html row 10 / Mechanized Infantry; public-v1-companion-classes@1",
+        "notes": "Source values are preserved in definition_json; executable durability, attack and Req values come from the named companion application profile.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -2529,8 +2915,8 @@ const snapshot = {
             "value": 3
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 10
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -2541,10 +2927,70 @@ const snapshot = {
             "value": 12
           }
         },
-        "references": [],
+        "references": [
+          {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-mechanized-autocannon-public-v1"
+          }
+        ],
         "parameters": {
           "category": "ARMOUR",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "ATTACK",
+                "DIG_IN"
+              ],
+              "allowedOrders": [
+                "HOLD",
+                "ADVANCE",
+                "RUSH"
+              ],
+              "armor": 2,
+              "category": "ARMOUR",
+              "decisionReferences": [
+                "DEC-021",
+                "public-v1-companion-classes@1"
+              ],
+              "healthModel": "HITS",
+              "id": "unit-mechanized-infantry",
+              "maximumHealth": 3,
+              "name": "Mechanized Infantry",
+              "requisitionCost": 10,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "FORWARD_LINE_CONTROL",
+                "MIXED_INFANTRY_VEHICLE_EQUIPMENT"
+              ],
+              "slots": {
+                "INTERNAL": 1,
+                "PRIMARY": 1,
+                "SECONDARY": 1
+              },
+              "speed": 3,
+              "tags": [
+                "GROUND",
+                "VEHICLE",
+                "ARMOURED",
+                "INFANTRY",
+                "MECHANISED"
+              ],
+              "transportPolicy": [
+                "GROUND"
+              ],
+              "weapons": [
+                {
+                  "armorPiercing": 0,
+                  "damage": {
+                    "count": 1,
+                    "sides": 4
+                  },
+                  "id": "weapon-mechanized-autocannon-public-v1",
+                  "name": "Mechanized Autocannon",
+                  "range": 2
+                }
+              ]
+            },
             "canonicalActivation": "CATALOGUED",
             "conflictIds": [
               "RC-UNIT-015",
@@ -2572,7 +3018,7 @@ const snapshot = {
             "specialRules": "Can Hold a Center Hex Line Like Infantry. Has the range and speed of a vehicle without the AP of a tank. Can take upgrades from both infantry and vehicle lists. All AP, Armor and Speed upgrades must come from the vehicle list. 1 Primary, 1 Secondary, 1 Internal slot."
           },
           "execution": null,
-          "healthModel": "FORCE_STRENGTH",
+          "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
       },
@@ -2580,11 +3026,11 @@ const snapshot = {
         "id": "unit-medium-mech",
         "kind": "UNIT",
         "name": "Medium Mech",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
-        "sourceLocator": "Classes.html row 31 / Medium Mech",
-        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourceLocator": "Classes.html row 31 / Medium Mech; public-v1-companion-classes@1",
+        "notes": "Source values are preserved in definition_json; executable durability, attack and Req values come from the named companion application profile.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -2599,8 +3045,8 @@ const snapshot = {
             "value": 4
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 14
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -2615,6 +3061,69 @@ const snapshot = {
         "parameters": {
           "category": "MECH",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "ATTACK",
+                "RELOAD",
+                "LOAD",
+                "UNLOAD",
+                "DIG_IN"
+              ],
+              "allowedOrders": [
+                "HOLD",
+                "ADVANCE",
+                "RUSH"
+              ],
+              "armor": 2,
+              "category": "MECH",
+              "decisionReferences": [
+                "DEC-021",
+                "public-v1-companion-classes@1"
+              ],
+              "healthModel": "HITS",
+              "id": "unit-medium-mech",
+              "maximumHealth": 4,
+              "name": "Medium Mech",
+              "requisitionCost": 14,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "FIRE_ALL_FITTED_WEAPONS",
+                "SUPPLY_POINT_RELOAD",
+                "LEG_HEIGHT_ONE",
+                "CROUCH_COVER"
+              ],
+              "slots": {
+                "EXTERNAL": 2,
+                "INTERNAL": 4
+              },
+              "speed": 3,
+              "tags": [
+                "GROUND",
+                "VEHICLE",
+                "ARMOURED",
+                "MECH",
+                "SUBSYSTEMS",
+                "LEGGED"
+              ],
+              "transportPolicy": [
+                "GROUND",
+                "MAGNETIC_CLAMP_CARRIER",
+                "VTOL_HEAVY_LIFT"
+              ],
+              "weapons": [
+                {
+                  "armorPiercing": 0,
+                  "damage": {
+                    "count": 0,
+                    "sides": 0
+                  },
+                  "fittedOnly": true,
+                  "id": "fitted-mech-weapons",
+                  "name": "Fitted Mech Weapons",
+                  "range": 0
+                }
+              ]
+            },
             "canonicalActivation": "CATALOGUED",
             "conflictIds": [
               "RC-UNIT-015",
@@ -2643,7 +3152,7 @@ const snapshot = {
             "specialRules": "2/4 Can't reload there weapons without being at a supply point due to the scale of the weapon systems. This mech comes with No Weapons. You can transfer your prior Mechs Weapon Mechs can fire all weapons at once or 1 at a time. Legged - Can see over Terrain at lvl 1 higher. Can Crouch to use lvl 1 terrain as cover from direct weapons if blocking LOS."
           },
           "execution": null,
-          "healthModel": "FORCE_STRENGTH",
+          "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
       },
@@ -2651,11 +3160,11 @@ const snapshot = {
         "id": "unit-power-armoured-infantry",
         "kind": "UNIT",
         "name": "Power Armoured Infantry",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
         "sourceLocator": "Classes.html row 3 / Power Armored Infantry",
-        "notes": "Companion-only under RC-UNIT-015. Orbital Drop and mech-mount concepts are catalogued; price is absent.",
+        "notes": "Executable values are supplied by public-v1-companion-classes@1; source values remain in definition_json.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -2670,8 +3179,8 @@ const snapshot = {
             "value": 3
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 10
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -2682,10 +3191,76 @@ const snapshot = {
             "value": 4
           }
         },
-        "references": [],
+        "references": [
+          {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-infantry-rifle"
+          }
+        ],
         "parameters": {
           "category": "INFANTRY",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "ATTACK",
+                "DIG_IN",
+                "SHIELD_WALL",
+                "MOUNT_MAGNETIC_CLAMPS",
+                "DISMOUNT_MAGNETIC_CLAMPS"
+              ],
+              "allowedOrders": [
+                "HOLD",
+                "ADVANCE",
+                "RUSH"
+              ],
+              "armor": 2,
+              "category": "INFANTRY",
+              "decisionReferences": [
+                "DEC-021",
+                "public-v1-power-armoured-infantry@1"
+              ],
+              "healthModel": "FORCE_STRENGTH",
+              "id": "unit-power-armoured-infantry",
+              "maximumHealth": 3,
+              "name": "Power Armoured Infantry",
+              "requisitionCost": 10,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "DIG_IN",
+                "SHIELD_WALL",
+                "MAGNETIC_CLAMP_RIDER",
+                "HEAVY_DROP_POD_INSERTION",
+                "UNLOCKABLE_BACK_LIGHT_LASER"
+              ],
+              "slots": {
+                "MECH_WEAPON": 1,
+                "PRIMARY": 2
+              },
+              "speed": 1,
+              "tags": [
+                "GROUND",
+                "PERSONNEL",
+                "INFANTRY",
+                "ARMOURED",
+                "POWER_ARMOUR"
+              ],
+              "transportPolicy": [
+                "GROUND",
+                "HEAVY_DROP_POD"
+              ],
+              "weapons": [
+                {
+                  "armorPiercing": 0,
+                  "damage": {
+                    "count": 1,
+                    "sides": 6
+                  },
+                  "id": "weapon-infantry-rifle",
+                  "name": "Squad Small Arms",
+                  "range": 1
+                }
+              ]
+            },
             "conflictIds": [
               "RC-UNIT-015",
               "RC-V5-014"
@@ -2717,11 +3292,11 @@ const snapshot = {
         "id": "unit-sappers",
         "kind": "UNIT",
         "name": "Sappers",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
-        "sourceLocator": "Classes.html row 8 / Sappers",
-        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourceLocator": "Classes.html row 8 / Sappers; public-v1-companion-classes@1",
+        "notes": "Source values are preserved in definition_json; executable durability, attack and Req values come from the named companion application profile.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -2736,8 +3311,8 @@ const snapshot = {
             "value": 2
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 6
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -2748,10 +3323,77 @@ const snapshot = {
             "value": 4
           }
         },
-        "references": [],
+        "references": [
+          {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-sapper-carbine-public-v1"
+          }
+        ],
         "parameters": {
           "category": "SUPPORT",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "ATTACK",
+                "SAPPER_CONSTRUCT",
+                "RELOAD_BUILD_SUPPLY"
+              ],
+              "allowedOrders": [
+                "HOLD",
+                "ADVANCE",
+                "RUSH",
+                "STEALTH"
+              ],
+              "armor": 0,
+              "category": "SUPPORT",
+              "decisionReferences": [
+                "DEC-006",
+                "DEC-021",
+                "public-v1-companion-classes@1"
+              ],
+              "healthModel": "FORCE_STRENGTH",
+              "id": "unit-sappers",
+              "maximumHealth": 2,
+              "name": "Sappers",
+              "requisitionCost": 6,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "INFANTRY_STEALTH",
+                "BUILD_SUPPLY_6",
+                "MINES",
+                "SENSOR_TOWER",
+                "WEAPON_EMPLACEMENT"
+              ],
+              "slots": {
+                "PRIMARY": 1,
+                "SECONDARY": 1
+              },
+              "speed": 1,
+              "tags": [
+                "GROUND",
+                "PERSONNEL",
+                "INFANTRY",
+                "INFANTRY_STEALTH",
+                "ENGINEER",
+                "SAPPER"
+              ],
+              "transportPolicy": [
+                "GROUND",
+                "PERSONNEL_CARGO"
+              ],
+              "weapons": [
+                {
+                  "armorPiercing": 0,
+                  "damage": {
+                    "count": 1,
+                    "sides": 4
+                  },
+                  "id": "weapon-sapper-carbine-public-v1",
+                  "name": "Sapper Carbine",
+                  "range": 1
+                }
+              ]
+            },
             "canonicalActivation": "CATALOGUED",
             "conflictIds": [
               "RC-UNIT-015",
@@ -2778,7 +3420,29 @@ const snapshot = {
             "sourceRow": 8,
             "specialRules": "Stealth Engineers - Can Build and Repair Structures and Repair Vehicles at 2FS per Repair Action. Can Build Limited Structures. Can Take Limited SF Equipment. Has Stealth Each Build Action makes 3 Building Progress on the project using up 3 Building Supply. Building Supply can be reloaded for 1 General Supply crate. Sappers Have 6/6 Build Supply and come with mines. Mines - Can set mines. Explodes on enemy contact. Structures - Sensor Tower: Build in a hex, reveal area 1 hex out around Sensor Tower. Weapon Emplacement Equipment Upgrades Primary Equipment Slot 1 Secondary Equipment Slot 1"
           },
-          "execution": null,
+          "execution": {
+            "allowedActions": [
+              "ATTACK",
+              "SAPPER_CONSTRUCT",
+              "RELOAD_BUILD_SUPPLY"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "RUSH",
+              "STEALTH"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "PERSONNEL",
+              "INFANTRY",
+              "ENGINEER",
+              "SAPPER",
+              "INFANTRY_STEALTH",
+              "BUILD_SUPPLY"
+            ]
+          },
           "healthModel": "FORCE_STRENGTH",
           "legacyProjectionSensorRange": 0
         }
@@ -2787,11 +3451,11 @@ const snapshot = {
         "id": "unit-self-propelled-artillery",
         "kind": "UNIT",
         "name": "Self-Propelled Artillery",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
-        "sourceLocator": "Classes.html row 21 / Self-Propelled Artillery",
-        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourceLocator": "Classes.html row 21 / Self-Propelled Artillery; public-v1-companion-classes@1",
+        "notes": "Source values are preserved in definition_json; executable durability, attack and Req values come from the named companion application profile.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -2806,8 +3470,8 @@ const snapshot = {
             "value": 2
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 10
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -2818,10 +3482,72 @@ const snapshot = {
             "value": 8
           }
         },
-        "references": [],
+        "references": [
+          {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-self-propelled-artillery-public-v1"
+          }
+        ],
         "parameters": {
           "category": "SUPPORT",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "ATTACK"
+              ],
+              "allowedOrders": [
+                "HOLD",
+                "ADVANCE"
+              ],
+              "armor": 2,
+              "category": "ARTILLERY",
+              "decisionReferences": [
+                "DEC-021",
+                "public-v1-companion-classes@1"
+              ],
+              "healthModel": "HITS",
+              "id": "unit-self-propelled-artillery",
+              "maximumHealth": 2,
+              "name": "Self-Propelled Artillery",
+              "requisitionCost": 10,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "MINIMUM_RANGE_TWO",
+                "FIVE_FINITE_AP_ROUNDS"
+              ],
+              "slots": {
+                "INTERNAL": 2,
+                "SECONDARY": 1
+              },
+              "speed": 2,
+              "tags": [
+                "GROUND",
+                "VEHICLE",
+                "ARMOURED",
+                "ARTILLERY",
+                "INDIRECT",
+                "SUBSYSTEMS"
+              ],
+              "transportPolicy": [
+                "GROUND"
+              ],
+              "weapons": [
+                {
+                  "ammunitionCapacity": 5,
+                  "areaHex": true,
+                  "armorPiercing": 0,
+                  "damage": {
+                    "count": 1,
+                    "sides": 6
+                  },
+                  "id": "weapon-self-propelled-artillery-public-v1",
+                  "indirect": true,
+                  "minimumRange": 2,
+                  "name": "Self-propelled Howitzer",
+                  "range": 4
+                }
+              ]
+            },
             "canonicalActivation": "CATALOGUED",
             "conflictIds": [
               "RC-UNIT-015",
@@ -2850,7 +3576,7 @@ const snapshot = {
             "specialRules": "Minimum Range 2, Choose Wheeled or Tracked. (Comes with (5) AP Rounds, Gift from Haven. Once Used they are gone forever) Indirect Fire - Doesn't need direct LOS to fire on hostiles and hits all units in HEX targeted. Upgrades 1 Secondary 2 Internal"
           },
           "execution": null,
-          "healthModel": "FORCE_STRENGTH",
+          "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
       },
@@ -2858,11 +3584,11 @@ const snapshot = {
         "id": "unit-special-forces",
         "kind": "UNIT",
         "name": "Special Forces",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
         "sourceLocator": "Classes.html row 6 / Special Forces; phase2-forces.md slice 1",
-        "notes": "Companion-only profile under RC-UNIT-015. Stealth, delayed charges and sabotage need Phase 2 server enforcement.",
+        "notes": "Executable values are supplied by public-v1-companion-classes@1; source values remain in definition_json.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -2877,8 +3603,8 @@ const snapshot = {
             "value": 3
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 8
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -2889,10 +3615,72 @@ const snapshot = {
             "value": 8
           }
         },
-        "references": [],
+        "references": [
+          {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-special-forces-quiet-rifle-public-v1"
+          }
+        ],
         "parameters": {
           "category": "INFANTRY",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "ATTACK",
+                "PLACE_DELAYED_CHARGE",
+                "DETONATE_DELAYED_CHARGE"
+              ],
+              "allowedOrders": [
+                "HOLD",
+                "ADVANCE",
+                "RUSH",
+                "STEALTH"
+              ],
+              "armor": 0,
+              "category": "INFANTRY",
+              "decisionReferences": [
+                "DEC-021",
+                "public-v1-companion-classes@1"
+              ],
+              "healthModel": "FORCE_STRENGTH",
+              "id": "unit-special-forces",
+              "maximumHealth": 3,
+              "name": "Special Forces",
+              "requisitionCost": 8,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "INFANTRY_STEALTH",
+                "DELAYED_CHARGE"
+              ],
+              "slots": {
+                "PRIMARY": 2,
+                "SECONDARY": 2
+              },
+              "speed": 2,
+              "tags": [
+                "GROUND",
+                "PERSONNEL",
+                "INFANTRY",
+                "INFANTRY_STEALTH",
+                "SPECIAL_FORCES"
+              ],
+              "transportPolicy": [
+                "GROUND",
+                "PERSONNEL_CARGO"
+              ],
+              "weapons": [
+                {
+                  "armorPiercing": 0,
+                  "damage": {
+                    "count": 1,
+                    "sides": 4
+                  },
+                  "id": "weapon-special-forces-quiet-rifle-public-v1",
+                  "name": "Quiet Rifle",
+                  "range": 1
+                }
+              ]
+            },
             "conflictIds": [
               "RC-UNIT-015",
               "RC-V5-014"
@@ -2914,7 +3702,27 @@ const snapshot = {
               "INFANTRY_STEALTH"
             ]
           },
-          "execution": null,
+          "execution": {
+            "allowedActions": [
+              "ATTACK",
+              "PLACE_DELAYED_CHARGE",
+              "DETONATE_DELAYED_CHARGE"
+            ],
+            "allowedOrders": [
+              "HOLD",
+              "ADVANCE",
+              "RUSH",
+              "STEALTH"
+            ],
+            "capacity": 1,
+            "tags": [
+              "GROUND",
+              "PERSONNEL",
+              "INFANTRY",
+              "SPECIAL_FORCES",
+              "INFANTRY_STEALTH"
+            ]
+          },
           "healthModel": "FORCE_STRENGTH",
           "legacyProjectionSensorRange": 0
         }
@@ -2923,11 +3731,11 @@ const snapshot = {
         "id": "unit-super-heavy-tank",
         "kind": "UNIT",
         "name": "Super Heavy Tank",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
-        "sourceLocator": "Classes.html row 17 / Super Heavy Tank",
-        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourceLocator": "Classes.html row 17 / Super Heavy Tank; public-v1-companion-classes@1",
+        "notes": "Source values are preserved in definition_json; executable durability, attack and Req values come from the named companion application profile.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -2942,8 +3750,8 @@ const snapshot = {
             "value": 4
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 20
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -2954,10 +3762,70 @@ const snapshot = {
             "value": 4
           }
         },
-        "references": [],
+        "references": [
+          {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-super-heavy-dual-cannon-public-v1"
+          }
+        ],
         "parameters": {
           "category": "ARMOUR",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "ATTACK"
+              ],
+              "allowedOrders": [
+                "HOLD",
+                "ADVANCE"
+              ],
+              "armor": 5,
+              "category": "ARMOUR",
+              "decisionReferences": [
+                "DEC-021",
+                "public-v1-companion-classes@1"
+              ],
+              "healthModel": "HITS",
+              "id": "unit-super-heavy-tank",
+              "maximumHealth": 4,
+              "name": "Super Heavy Tank",
+              "requisitionCost": 20,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "REAR_WEAK_SPOT",
+                "TWO_ATTACKS_PER_ACTIVATION"
+              ],
+              "slots": {
+                "INTERNAL": 2,
+                "SECONDARY": 2
+              },
+              "speed": 1,
+              "tags": [
+                "GROUND",
+                "VEHICLE",
+                "ARMOURED",
+                "SUPER_HEAVY",
+                "SUBSYSTEMS",
+                "REAR_WEAK_SPOT"
+              ],
+              "transportPolicy": [
+                "GROUND",
+                "VTOL_HEAVY_LIFT_ONLY"
+              ],
+              "weapons": [
+                {
+                  "armorPiercing": 5,
+                  "attacksPerActivation": 2,
+                  "damage": {
+                    "count": 1,
+                    "sides": 8
+                  },
+                  "id": "weapon-super-heavy-dual-cannon-public-v1",
+                  "name": "Dual Super-heavy Cannons",
+                  "range": 3
+                }
+              ]
+            },
             "canonicalActivation": "CATALOGUED",
             "conflictIds": [
               "RC-UNIT-015",
@@ -2985,7 +3853,7 @@ const snapshot = {
             "specialRules": "AP 5 Fires TWICE with each action. Armor Weak Spot - Rear Hex Wall Upgrades 2 Secondary 2 Internal"
           },
           "execution": null,
-          "healthModel": "FORCE_STRENGTH",
+          "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
       },
@@ -3076,11 +3944,11 @@ const snapshot = {
         "id": "unit-vtol-heavy-lift",
         "kind": "UNIT",
         "name": "VTOL Heavy Lift",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
-        "sourceLocator": "Classes.html row 26 / VTOL Heavy Lift",
-        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourceLocator": "Classes.html row 26 / VTOL Heavy Lift; public-v1-companion-classes@1",
+        "notes": "Source values are preserved in definition_json; executable durability, attack and Req values come from the named companion application profile.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -3095,8 +3963,8 @@ const snapshot = {
             "value": 3
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 14
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -3111,6 +3979,52 @@ const snapshot = {
         "parameters": {
           "category": "AEROSPACE",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "LOAD",
+                "UNLOAD",
+                "LAND",
+                "TAKE_OFF"
+              ],
+              "allowedOrders": [
+                "HOLD",
+                "ADVANCE"
+              ],
+              "armor": 3,
+              "category": "AEROSPACE",
+              "decisionReferences": [
+                "DEC-021",
+                "public-v1-companion-classes@1"
+              ],
+              "healthModel": "HITS",
+              "id": "unit-vtol-heavy-lift",
+              "maximumHealth": 3,
+              "name": "VTOL Heavy Lift",
+              "requisitionCost": 14,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "EXTERNAL_HEAVY_LIFT",
+                "OBJECTIVE_CARGO"
+              ],
+              "slots": {
+                "INTERNAL": 1,
+                "LIGHT": 1
+              },
+              "speed": 5,
+              "tags": [
+                "AEROSPACE",
+                "VTOL",
+                "VEHICLE",
+                "ARMOURED",
+                "TRANSPORT",
+                "HEAVY_LIFT"
+              ],
+              "transportPolicy": [
+                "VTOL",
+                "ONE_HEAVY_EXTERNAL_LOAD"
+              ],
+              "weapons": []
+            },
             "canonicalActivation": "CATALOGUED",
             "conflictIds": [
               "RC-UNIT-015",
@@ -3138,7 +4052,7 @@ const snapshot = {
             "specialRules": "VTOL Craft No Weapon Can move a single Mech or a Single SHBT, or a Heavy Tank Unit Hollow Mid Section for Lifting Massive Equipment. Can lift 1 Supply Cargo Upgrades - 1 Light Weapon Mounts 1 Internal Upgrades"
           },
           "execution": null,
-          "healthModel": "FORCE_STRENGTH",
+          "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
       },
@@ -3146,11 +4060,11 @@ const snapshot = {
         "id": "unit-vtol-multipurpose-airlift",
         "kind": "UNIT",
         "name": "VTOL Multi-Purpose Airlift",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
-        "sourceLocator": "Classes.html row 25 / VTOL Multi-Purpose Airlift",
-        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourceLocator": "Classes.html row 25 / VTOL Multi-Purpose Airlift; public-v1-companion-classes@1",
+        "notes": "Source values are preserved in definition_json; executable durability, attack and Req values come from the named companion application profile.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -3165,8 +4079,8 @@ const snapshot = {
             "value": 3
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 12
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -3177,10 +4091,74 @@ const snapshot = {
             "value": 20
           }
         },
-        "references": [],
+        "references": [
+          {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-vtol-light-gun-public-v1"
+          }
+        ],
         "parameters": {
           "category": "AEROSPACE",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "ATTACK",
+                "LOAD",
+                "UNLOAD",
+                "LAND",
+                "TAKE_OFF",
+                "REARM_AEROSPACE"
+              ],
+              "allowedOrders": [
+                "HOLD",
+                "ADVANCE"
+              ],
+              "armor": 1,
+              "category": "AEROSPACE",
+              "decisionReferences": [
+                "DEC-021",
+                "public-v1-companion-classes@1"
+              ],
+              "healthModel": "HITS",
+              "id": "unit-vtol-multipurpose-airlift",
+              "maximumHealth": 3,
+              "name": "VTOL Multi-Purpose Airlift",
+              "requisitionCost": 12,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "INFANTRY_OR_SUPPLY_PLUS_LIGHT_VEHICLE",
+                "REARM_AFTER_ATTACK"
+              ],
+              "slots": {
+                "INTERNAL": 1,
+                "LIGHT": 1
+              },
+              "speed": 5,
+              "tags": [
+                "AEROSPACE",
+                "VTOL",
+                "VEHICLE",
+                "ARMOURED",
+                "TRANSPORT"
+              ],
+              "transportPolicy": [
+                "VTOL",
+                "MIXED_PERSONNEL_VEHICLE"
+              ],
+              "weapons": [
+                {
+                  "ammunitionCapacity": 1,
+                  "armorPiercing": 0,
+                  "damage": {
+                    "count": 1,
+                    "sides": 2
+                  },
+                  "id": "weapon-vtol-light-gun-public-v1",
+                  "name": "VTOL Light Gun",
+                  "range": 1
+                }
+              ]
+            },
             "canonicalActivation": "CATALOGUED",
             "conflictIds": [
               "RC-UNIT-015",
@@ -3207,7 +4185,7 @@ const snapshot = {
             "specialRules": "1 Infantry Unit Capacity or one supply cargo and 1 Light Vehicle Unit Capacity Rearm after every FS based Attack Upgrades - 1 Light Weapon Mounts 1 Internal Upgrades"
           },
           "execution": null,
-          "healthModel": "FORCE_STRENGTH",
+          "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
       },
@@ -3215,11 +4193,11 @@ const snapshot = {
         "id": "unit-vtol-troop-airlift",
         "kind": "UNIT",
         "name": "VTOL Heavy Troop Airlift",
-        "definitionStatus": "legacy",
+        "definitionStatus": "active",
         "sourceId": "source-classes",
         "sourcePath": null,
-        "sourceLocator": "Classes.html row 24 / VTOL Heavy Troop Airlift",
-        "notes": "Companion class preserved exactly; gameplay and requisition remain blocked by RC-UNIT-015.",
+        "sourceLocator": "Classes.html row 24 / VTOL Heavy Troop Airlift; public-v1-companion-classes@1",
+        "notes": "Source values are preserved in definition_json; executable durability, attack and Req values come from the named companion application profile.",
         "sourcedNumbers": {
           "armor": {
             "status": "PUBLISHED",
@@ -3234,8 +4212,8 @@ const snapshot = {
             "value": 3
           },
           "requisitionCost": {
-            "status": "BALANCE_REQUIRED",
-            "value": null
+            "status": "PUBLISHED",
+            "value": 12
           },
           "sensorRange": {
             "status": "SCENARIO_DEFINED",
@@ -3246,10 +4224,75 @@ const snapshot = {
             "value": 20
           }
         },
-        "references": [],
+        "references": [
+          {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-vtol-light-gun-public-v1"
+          }
+        ],
         "parameters": {
           "category": "AEROSPACE",
           "definition": {
+            "applicationPolicy": {
+              "allowedActions": [
+                "ATTACK",
+                "LOAD",
+                "UNLOAD",
+                "LAND",
+                "TAKE_OFF",
+                "REARM_AEROSPACE"
+              ],
+              "allowedOrders": [
+                "HOLD",
+                "ADVANCE"
+              ],
+              "armor": 1,
+              "category": "AEROSPACE",
+              "decisionReferences": [
+                "DEC-021",
+                "public-v1-companion-classes@1"
+              ],
+              "healthModel": "HITS",
+              "id": "unit-vtol-troop-airlift",
+              "maximumHealth": 3,
+              "name": "VTOL Heavy Troop Airlift",
+              "requisitionCost": 12,
+              "sensorRange": "SCENARIO_DEFINED",
+              "signatureMechanics": [
+                "TWO_INFANTRY_OR_SUPPLY",
+                "RAPPEL_GARRISON",
+                "REARM_AFTER_ATTACK"
+              ],
+              "slots": {
+                "INTERNAL": 1,
+                "LIGHT": 1
+              },
+              "speed": 5,
+              "tags": [
+                "AEROSPACE",
+                "VTOL",
+                "VEHICLE",
+                "ARMOURED",
+                "TRANSPORT"
+              ],
+              "transportPolicy": [
+                "VTOL",
+                "PERSONNEL_OR_SUPPLY"
+              ],
+              "weapons": [
+                {
+                  "ammunitionCapacity": 1,
+                  "armorPiercing": 0,
+                  "damage": {
+                    "count": 1,
+                    "sides": 2
+                  },
+                  "id": "weapon-vtol-light-gun-public-v1",
+                  "name": "VTOL Light Gun",
+                  "range": 1
+                }
+              ]
+            },
             "canonicalActivation": "CATALOGUED",
             "conflictIds": [
               "RC-UNIT-015",
@@ -3277,7 +4320,7 @@ const snapshot = {
             "specialRules": "2 Infantry Unit Capactiy or 1 Supply Cargo Rearm after every FS based Attack Comes with Repelling gear allowing infantry to drop from the VTOL and garrison a building without using an action or requiring the VTOL to land. Upgrades - 1 Light Weapon Mounts 1 Internal Upgrades"
           },
           "execution": null,
-          "healthModel": "FORCE_STRENGTH",
+          "healthModel": "HITS",
           "legacyProjectionSensorRange": 0
         }
       }
@@ -3540,6 +4583,108 @@ const snapshot = {
         }
       },
       {
+        "id": "weapon-heavy-artillery-public-v1",
+        "kind": "WEAPON",
+        "name": "Heavy Artillery Battery",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Heavy Artillery + public-v1 companion policy",
+        "notes": "Three fixed-damage area shots per activation.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 2
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 8
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "attacksPerActivation": 3,
+            "fixedDamage": 3,
+            "tags": [
+              "INDIRECT",
+              "AREA_HEX"
+            ]
+          },
+          "indirect": true
+        }
+      },
+      {
+        "id": "weapon-heavy-battle-tank-cannon-public-v1",
+        "kind": "WEAPON",
+        "name": "Long Heavy Cannon",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Heavy Battle Tank + owner-approved public-v1 conversion",
+        "notes": "One governed direct-fire cannon shot per attack activation.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 2
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 8
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 3
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "tags": [
+              "DIRECT",
+              "MAIN_WEAPON"
+            ]
+          },
+          "indirect": false
+        }
+      },
+      {
         "id": "weapon-ifv-snub-autocannon",
         "kind": "WEAPON",
         "name": "Snub Auto-Cannon",
@@ -3640,6 +4785,109 @@ const snapshot = {
         }
       },
       {
+        "id": "weapon-irregular-small-arms-public-v1",
+        "kind": "WEAPON",
+        "name": "Irregular Small Arms",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Irregular Unit + public-v1 companion policy",
+        "notes": "Rolled damage is quartered and rounded up before the current Force Strength cap.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 6
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "tags": [
+              "PERSONNEL",
+              "FS_CAPPED",
+              "IRREGULAR_DAMAGE_QUARTER"
+            ]
+          },
+          "indirect": false
+        }
+      },
+      {
+        "id": "weapon-light-artillery-public-v1",
+        "kind": "WEAPON",
+        "name": "Light Artillery Battery",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Light Artillery + public-v1 companion policy",
+        "notes": "Two fixed-damage area shots per activation.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 2
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 5
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "attacksPerActivation": 2,
+            "fixedDamage": 2,
+            "tags": [
+              "INDIRECT",
+              "AREA_HEX"
+            ]
+          },
+          "indirect": true
+        }
+      },
+      {
         "id": "weapon-light-at",
         "kind": "WEAPON",
         "name": "Lightweight Anti-armour Weapon",
@@ -3693,6 +4941,56 @@ const snapshot = {
               "CHARGE_STORE",
               "EQUIPMENT",
               "FS_CAPPED"
+            ]
+          },
+          "indirect": false
+        }
+      },
+      {
+        "id": "weapon-light-battle-tank-cannon-public-v1",
+        "kind": "WEAPON",
+        "name": "Light Tank Cannon",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Light Battle Tank + owner-approved public-v1 conversion",
+        "notes": "One governed direct-fire cannon shot per attack activation.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 2
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 4
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "tags": [
+              "DIRECT",
+              "MAIN_WEAPON"
             ]
           },
           "indirect": false
@@ -3841,6 +5139,623 @@ const snapshot = {
           "definition": {
             "tags": [
               "ANTI_ARMOUR"
+            ]
+          },
+          "indirect": false
+        }
+      },
+      {
+        "id": "weapon-mech-autocannon-public-v1",
+        "kind": "WEAPON",
+        "name": "Mech Autocannon",
+        "definitionStatus": "active",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 60 + companion-v1-mechs@1",
+        "notes": "Two-round magazine; Supply Point reload.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "PUBLISHED",
+            "value": 2
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 2
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 6
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "tags": [
+              "DIRECT",
+              "MECH_WEAPON",
+              "AUTOCANNON"
+            ]
+          },
+          "indirect": false
+        }
+      },
+      {
+        "id": "weapon-mech-heavy-machine-public-v1",
+        "kind": "WEAPON",
+        "name": "Heavy Machine Weapon",
+        "definitionStatus": "active",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 59 + companion-v1-mechs@1",
+        "notes": "Four-round magazine; Supply Point reload.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "PUBLISHED",
+            "value": 4
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 4
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "tags": [
+              "DIRECT",
+              "MECH_WEAPON",
+              "BURST_FIRE"
+            ]
+          },
+          "indirect": false
+        }
+      },
+      {
+        "id": "weapon-mech-large-laser-public-v1",
+        "kind": "WEAPON",
+        "name": "Large Laser",
+        "definitionStatus": "active",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 65 + companion-v1-mechs@1",
+        "notes": "One shot before cooling; Supply Point reset.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 8
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 3
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "tags": [
+              "DIRECT",
+              "MECH_WEAPON",
+              "ENERGY",
+              "COOLING_1"
+            ]
+          },
+          "indirect": false
+        }
+      },
+      {
+        "id": "weapon-mech-light-laser-public-v1",
+        "kind": "WEAPON",
+        "name": "Light Laser",
+        "definitionStatus": "active",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 63 + companion-v1-mechs@1",
+        "notes": "Three shots before cooling; Supply Point reset.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "PUBLISHED",
+            "value": 3
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 4
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "tags": [
+              "DIRECT",
+              "MECH_WEAPON",
+              "ENERGY",
+              "COOLING_3"
+            ]
+          },
+          "indirect": false
+        }
+      },
+      {
+        "id": "weapon-mech-medium-laser-public-v1",
+        "kind": "WEAPON",
+        "name": "Medium Laser",
+        "definitionStatus": "active",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store row 64 + companion-v1-mechs@1",
+        "notes": "Two shots before cooling; Supply Point reset.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "PUBLISHED",
+            "value": 2
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 6
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "tags": [
+              "DIRECT",
+              "MECH_WEAPON",
+              "ENERGY",
+              "COOLING_2"
+            ]
+          },
+          "indirect": false
+        }
+      },
+      {
+        "id": "weapon-mechanized-autocannon-public-v1",
+        "kind": "WEAPON",
+        "name": "Mechanized Autocannon",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Mechanized Infantry + public-v1 companion policy",
+        "notes": "Vehicle autocannon without tank AP; the formation retains Forward Line control.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 4
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "tags": [
+              "DIRECT",
+              "AUTOCANNON"
+            ]
+          },
+          "indirect": false
+        }
+      },
+      {
+        "id": "weapon-power-armour-back-light-laser-public-v1",
+        "kind": "WEAPON",
+        "name": "Power Armour Back-mounted Light Laser",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Power Armoured Infantry + public-v1 companion policy",
+        "notes": "Three-shot persisted heat capacity; after the third shot it cools automatically for the next round.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "PUBLISHED",
+            "value": 3
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "cooldownRounds": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 4
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "coolingRounds": 1,
+            "heatCapacity": 3,
+            "tags": [
+              "POWER_ARMOUR_BACK_MOUNT",
+              "ENERGY"
+            ]
+          },
+          "indirect": false
+        }
+      },
+      {
+        "id": "weapon-sapper-carbine-public-v1",
+        "kind": "WEAPON",
+        "name": "Sapper Carbine",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Sappers + public-v1 companion policy",
+        "notes": "Damage is capped by current Force Strength; firing reveals the team.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 4
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "tags": [
+              "PERSONNEL",
+              "FS_CAPPED",
+              "QUIET"
+            ]
+          },
+          "indirect": false
+        }
+      },
+      {
+        "id": "weapon-self-propelled-artillery-public-v1",
+        "kind": "WEAPON",
+        "name": "Self-propelled Howitzer",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Self-Propelled Artillery + public-v1 companion policy",
+        "notes": "Range 2-4; five finite AP rounds.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "PUBLISHED",
+            "value": 5
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 6
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 4
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "minimumRange": 2,
+            "tags": [
+              "INDIRECT",
+              "AREA_HEX",
+              "MINIMUM_RANGE_2"
+            ]
+          },
+          "indirect": true
+        }
+      },
+      {
+        "id": "weapon-special-forces-quiet-rifle-public-v1",
+        "kind": "WEAPON",
+        "name": "Special Forces Quiet Rifle",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Special Forces + public-v1 companion policy",
+        "notes": "Damage is capped by current Force Strength and firing reveals the team.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 4
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "tags": [
+              "PERSONNEL",
+              "FS_CAPPED",
+              "QUIET"
+            ]
+          },
+          "indirect": false
+        }
+      },
+      {
+        "id": "weapon-super-heavy-dual-cannon-public-v1",
+        "kind": "WEAPON",
+        "name": "Dual Super-heavy Cannons",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Super Heavy Tank + owner-approved public-v1 conversion",
+        "notes": "The resolver repeats this fitted cannon twice in one Primary attack activation.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 5
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 8
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 3
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "attacksPerActivation": 2,
+            "tags": [
+              "DIRECT",
+              "MAIN_WEAPON",
+              "SUPER_HEAVY_DUAL_CANNON"
+            ]
+          },
+          "indirect": false
+        }
+      },
+      {
+        "id": "weapon-vtol-light-gun-public-v1",
+        "kind": "WEAPON",
+        "name": "VTOL Light Gun",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / VTOL Heavy Troop Airlift and Multi-Purpose Airlift + public-v1 companion policy",
+        "notes": "One-shot nose gun; rearm only while landed at a governed aerospace supply facility.",
+        "sourcedNumbers": {
+          "ammoCapacity": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "armorPiercing": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "cooldownRounds": {
+            "status": "NOT_APPLICABLE",
+            "value": null
+          },
+          "damageDiceCount": {
+            "status": "PUBLISHED",
+            "value": 1
+          },
+          "damageDieSides": {
+            "status": "PUBLISHED",
+            "value": 2
+          },
+          "damageModifier": {
+            "status": "PUBLISHED",
+            "value": 0
+          },
+          "rangeHexes": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "tags": [
+              "DIRECT",
+              "NOSE_GUN",
+              "REARM_REQUIRED"
             ]
           },
           "indirect": false
@@ -4480,11 +6395,11 @@ const snapshot = {
         "id": "equipment-ballistic-shields",
         "kind": "EQUIPMENT",
         "name": "Ballistic Shields",
-        "definitionStatus": "experimental",
+        "definitionStatus": "active",
         "sourceId": "source-store",
         "sourcePath": null,
         "sourceLocator": "The Store row 16",
-        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "notes": "Executable through the public-v1 Power Armour resolver.",
         "sourcedNumbers": {
           "requisitionCost": {
             "status": "PUBLISHED",
@@ -4497,7 +6412,7 @@ const snapshot = {
           "consumable": false,
           "definition": {
             "storeCatalogue": {
-              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "effectStatus": "PUBLIC_V1_POWER_ARMOUR_HANDLER",
               "rulesText": "Heavy Energy or Physical shields made for Power Armor Troops capable of holding off substantial direct fire. Action: Shield Wall Unit is immoble and the effect ends when you move. Add +1 Armor when the full unit deploys shields in a wall formation against direct weapons. Does not Stack with any other Cover.",
               "sourceName": "Ballistic Shields",
               "sourceSlot": "Primary",
@@ -5710,11 +7625,11 @@ const snapshot = {
         "id": "equipment-mech-autocannon",
         "kind": "EQUIPMENT",
         "name": "Autocannon Weapon System",
-        "definitionStatus": "experimental",
+        "definitionStatus": "active",
         "sourceId": "source-store",
         "sourcePath": null,
         "sourceLocator": "The Store row 60",
-        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "notes": "Executable through the public-v1 Power Armour resolver.",
         "sourcedNumbers": {
           "requisitionCost": {
             "status": "PUBLISHED",
@@ -5727,7 +7642,7 @@ const snapshot = {
           "consumable": false,
           "definition": {
             "storeCatalogue": {
-              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "effectStatus": "PUBLIC_V1_MECH_WEAPON_HANDLER",
               "rulesText": "Its a Big Close Range Cannon",
               "sourceName": "Auto-Cannon Weapon System (AC)",
               "sourceSlot": "External",
@@ -5876,11 +7791,11 @@ const snapshot = {
         "id": "equipment-mech-heavy-machine-weapon",
         "kind": "EQUIPMENT",
         "name": "Heavy Machine Weapon System",
-        "definitionStatus": "experimental",
+        "definitionStatus": "active",
         "sourceId": "source-store",
         "sourcePath": null,
         "sourceLocator": "The Store row 59",
-        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "notes": "Executable through the public-v1 Power Armour resolver.",
         "sourcedNumbers": {
           "requisitionCost": {
             "status": "PUBLISHED",
@@ -5893,7 +7808,7 @@ const snapshot = {
           "consumable": false,
           "definition": {
             "storeCatalogue": {
-              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "effectStatus": "PUBLIC_V1_MECH_WEAPON_HANDLER",
               "rulesText": "Can burst fire 2 shots at a time.",
               "sourceName": "Heavy Machine Weapon System (HMGS)",
               "sourceSlot": "External",
@@ -5940,11 +7855,11 @@ const snapshot = {
         "id": "equipment-mech-large-laser",
         "kind": "EQUIPMENT",
         "name": "Large Laser Setup",
-        "definitionStatus": "experimental",
+        "definitionStatus": "active",
         "sourceId": "source-store",
         "sourcePath": null,
         "sourceLocator": "The Store row 65",
-        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "notes": "Executable through the public-v1 Power Armour resolver.",
         "sourcedNumbers": {
           "requisitionCost": {
             "status": "PUBLISHED",
@@ -5957,7 +7872,7 @@ const snapshot = {
           "consumable": false,
           "definition": {
             "storeCatalogue": {
-              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "effectStatus": "PUBLIC_V1_MECH_WEAPON_HANDLER",
               "rulesText": "No Ammo, Uses FS -1 for Damage, No AP, Range 3 Every 1 shot requires a round for cooling\"",
               "sourceName": "Large Laser Setup (1/∞)",
               "sourceSlot": "External",
@@ -5972,7 +7887,7 @@ const snapshot = {
         "id": "equipment-mech-light-laser",
         "kind": "EQUIPMENT",
         "name": "Light Laser Setup",
-        "definitionStatus": "experimental",
+        "definitionStatus": "active",
         "sourceId": "source-store",
         "sourcePath": null,
         "sourceLocator": "The Store row 63",
@@ -5997,7 +7912,7 @@ const snapshot = {
             ],
             "shotsBeforeCooling": 3,
             "storeCatalogue": {
-              "effectStatus": "SEE_IMPLEMENTATION_OVERLAY",
+              "effectStatus": "PUBLIC_V1_MECH_WEAPON_HANDLER",
               "rulesText": "No Ammo, Uses FS -1 for Damage, No AP, Range 1 Every 3 shots requires a round for cooling",
               "sourceName": "Light Laser Setup (3/∞)",
               "sourceSlot": "External",
@@ -6044,11 +7959,11 @@ const snapshot = {
         "id": "equipment-mech-magnetic-clamps",
         "kind": "EQUIPMENT",
         "name": "Magnetic Clamps",
-        "definitionStatus": "experimental",
+        "definitionStatus": "active",
         "sourceId": "source-store",
         "sourcePath": null,
         "sourceLocator": "The Store row 68",
-        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "notes": "Executable through the public-v1 Power Armour resolver.",
         "sourcedNumbers": {
           "requisitionCost": {
             "status": "PUBLISHED",
@@ -6061,7 +7976,7 @@ const snapshot = {
           "consumable": false,
           "definition": {
             "storeCatalogue": {
-              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "effectStatus": "PUBLIC_V1_POWER_ARMOUR_HANDLER",
               "rulesText": "Power armor can grab onto this friendly Medium or larger mechs and move with them.",
               "sourceName": "Magnetic Clamps",
               "sourceSlot": "Internal",
@@ -6076,11 +7991,11 @@ const snapshot = {
         "id": "equipment-mech-medium-laser",
         "kind": "EQUIPMENT",
         "name": "Medium Laser Setup",
-        "definitionStatus": "experimental",
+        "definitionStatus": "active",
         "sourceId": "source-store",
         "sourcePath": null,
         "sourceLocator": "The Store row 64",
-        "notes": "Source-exact catalogue entry; execution remains gated until its effect handler is implemented.",
+        "notes": "Executable through the public-v1 Power Armour resolver.",
         "sourcedNumbers": {
           "requisitionCost": {
             "status": "PUBLISHED",
@@ -6093,7 +8008,7 @@ const snapshot = {
           "consumable": false,
           "definition": {
             "storeCatalogue": {
-              "effectStatus": "SOURCE_EXACT_HANDLER_DEFERRED",
+              "effectStatus": "PUBLIC_V1_MECH_WEAPON_HANDLER",
               "rulesText": "No Ammo, Uses FS -1 for Damage, No AP, Range 2 Every 2 shots requires a round for cooling\"",
               "sourceName": "Medium Laser Setup (2/∞)",
               "sourceSlot": "External",
@@ -6713,6 +8628,39 @@ const snapshot = {
             }
           },
           "slotType": "internal"
+        }
+      },
+      {
+        "id": "equipment-power-armour-back-light-laser-public-v1",
+        "kind": "EQUIPMENT",
+        "name": "Power Armour Back-mounted Light Laser",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Power Armoured Infantry + public-v1 companion policy",
+        "notes": "Unlocks after one completed mission; installs in the dedicated Power Armour mech-weapon slot.",
+        "sourcedNumbers": {
+          "requisitionCost": {
+            "status": "PUBLISHED",
+            "value": 1
+          }
+        },
+        "references": [
+          {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-power-armoured-infantry"
+          }
+        ],
+        "parameters": {
+          "category": "MECH_WEAPON",
+          "consumable": false,
+          "definition": {
+            "allowedClasses": [
+              "unit-power-armoured-infantry"
+            ],
+            "unlockCompletedMissions": 1
+          },
+          "slotType": "mech_weapon"
         }
       },
       {
@@ -7479,6 +9427,31 @@ const snapshot = {
     ],
     "actions": [
       {
+        "id": "action-abandon-guns-public-v1",
+        "kind": "ACTION",
+        "name": "Abandon Guns",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Light and Heavy Artillery + public-v1 companion policy",
+        "notes": "Transforms deployed crewed artillery into an unarmed 1FS CREW at the same hex.",
+        "sourcedNumbers": {
+          "speedCostQuarters": {
+            "status": "PUBLISHED",
+            "value": 0
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "replacementLimit": "ONCE_PER_CAMPAIGN",
+            "requiresDeployed": true,
+            "usesAttack": true
+          },
+          "economy": "PRIMARY"
+        }
+      },
+      {
         "id": "action-airdrop",
         "kind": "ACTION",
         "name": "Airdrop",
@@ -7723,6 +9696,32 @@ const snapshot = {
         }
       },
       {
+        "id": "action-detonate-delayed-charge-public-v1",
+        "kind": "ACTION",
+        "name": "Detonate Delayed Charge",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Special Forces + public-v1 companion policy",
+        "notes": "Remote D6 AP2 detonation of the team's armed charge.",
+        "sourcedNumbers": {
+          "speedCostQuarters": {
+            "status": "PUBLISHED",
+            "value": 0
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "armorPiercing": 2,
+            "damage": "D6",
+            "revealsActor": true,
+            "usesAttack": true
+          },
+          "economy": "PRIMARY"
+        }
+      },
+      {
         "id": "action-dig-in",
         "kind": "ACTION",
         "name": "Dig In",
@@ -7742,6 +9741,31 @@ const snapshot = {
           "definition": {
             "defenseModifier": 2,
             "endsOnMove": true
+          },
+          "economy": "STANDARD"
+        }
+      },
+      {
+        "id": "action-dismount-magnetic-clamps-public-v1",
+        "kind": "ACTION",
+        "name": "Dismount Magnetic Clamps",
+        "definitionStatus": "active",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store / Magnetic Clamps + public-v1 Power Armour policy",
+        "notes": "Matching Standard actions dismount the Power Armour rider into the mech hex.",
+        "sourcedNumbers": {
+          "speedCostQuarters": {
+            "status": "PUBLISHED",
+            "value": 2
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "destination": "CARRIER_HEX",
+            "requiresMatchingAction": true,
+            "usesAttack": false
           },
           "economy": "STANDARD"
         }
@@ -7880,6 +9904,31 @@ const snapshot = {
         }
       },
       {
+        "id": "action-mount-magnetic-clamps-public-v1",
+        "kind": "ACTION",
+        "name": "Mount Magnetic Clamps",
+        "definitionStatus": "active",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store / Magnetic Clamps + public-v1 Power Armour policy",
+        "notes": "Matching co-located Primary actions mount one Power Armour rider on a fitted Medium or Heavy Mech.",
+        "sourcedNumbers": {
+          "speedCostQuarters": {
+            "status": "PUBLISHED",
+            "value": 0
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "maximumRiders": 1,
+            "requiresMatchingAction": true,
+            "usesAttack": true
+          },
+          "economy": "PRIMARY"
+        }
+      },
+      {
         "id": "action-pack-platform",
         "kind": "ACTION",
         "name": "Pack Up Platform",
@@ -7904,6 +9953,31 @@ const snapshot = {
             "toStatus": "PACKED"
           },
           "economy": "STANDARD"
+        }
+      },
+      {
+        "id": "action-place-delayed-charge-public-v1",
+        "kind": "ACTION",
+        "name": "Place Delayed Charge",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Special Forces + public-v1 companion policy",
+        "notes": "Adjacent hostile unit or attackable structure; one active charge per team; arms next round.",
+        "sourcedNumbers": {
+          "speedCostQuarters": {
+            "status": "PUBLISHED",
+            "value": 0
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "maximumRange": 1,
+            "revealsActor": true,
+            "usesAttack": true
+          },
+          "economy": "PRIMARY"
         }
       },
       {
@@ -7934,6 +10008,38 @@ const snapshot = {
         }
       },
       {
+        "id": "action-recruit-irregular-public-v1",
+        "kind": "ACTION",
+        "name": "Recruit Irregulars",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Irregular Unit + Store Charismatic Commander + public-v1 companion policy",
+        "notes": "Enter an Allied Population Center with Charismatic Commander to permanently raise maximum FS by 3, capped at 15; each center recruits once per campaign.",
+        "sourcedNumbers": {
+          "speedCostQuarters": {
+            "status": "PUBLISHED",
+            "value": 0
+          }
+        },
+        "references": [
+          {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-charismatic-commander"
+          }
+        ],
+        "parameters": {
+          "definition": {
+            "maximumForceStrengthCap": 15,
+            "maximumForceStrengthGain": 3,
+            "requiresEnvironment": "POPULATION_CENTER",
+            "requiresEquipment": "equipment-charismatic-commander",
+            "usesAttack": true
+          },
+          "economy": "PRIMARY"
+        }
+      },
+      {
         "id": "action-reload",
         "kind": "ACTION",
         "name": "Reload",
@@ -7954,6 +10060,35 @@ const snapshot = {
             "requiresSupply": true
           },
           "economy": "STANDARD"
+        }
+      },
+      {
+        "id": "action-reload-build-supply-public-v1",
+        "kind": "ACTION",
+        "name": "Reload Build Supply",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Sappers + public-v1 companion policy",
+        "notes": "Consumes one General Supply crate and refills Build Supply to 6.",
+        "sourcedNumbers": {
+          "speedCostQuarters": {
+            "status": "PUBLISHED",
+            "value": 0
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "refill": {
+              "BUILD_SUPPLY": 6
+            },
+            "sourceResourceCost": {
+              "GENERAL_SUPPLY": 1
+            },
+            "usesAttack": true
+          },
+          "economy": "PRIMARY"
         }
       },
       {
@@ -7978,6 +10113,31 @@ const snapshot = {
             "smallSupplyCost": 1
           },
           "economy": "STANDARD"
+        }
+      },
+      {
+        "id": "action-replace-guns-public-v1",
+        "kind": "ACTION",
+        "name": "Replace Guns",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Light and Heavy Artillery + public-v1 companion policy",
+        "notes": "At a friendly Supply Point, restores the original gun class and loadout for half Req rounded up.",
+        "sourcedNumbers": {
+          "speedCostQuarters": {
+            "status": "PUBLISHED",
+            "value": 0
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "cost": "HALF_CLASS_REQ_ROUND_UP",
+            "requiresFriendlySupplyPoint": true,
+            "usesAttack": true
+          },
+          "economy": "PRIMARY"
         }
       },
       {
@@ -8011,6 +10171,34 @@ const snapshot = {
         }
       },
       {
+        "id": "action-sapper-construct-public-v1",
+        "kind": "ACTION",
+        "name": "Sapper Construct",
+        "definitionStatus": "active",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Classes.html / Sappers + public-v1 companion policy",
+        "notes": "Spends 3 Build Supply and adds 3 persistent progress to a bounded Sapper project.",
+        "sourcedNumbers": {
+          "speedCostQuarters": {
+            "status": "PUBLISHED",
+            "value": 0
+          }
+        },
+        "references": [],
+        "parameters": {
+          "definition": {
+            "maximumRange": 1,
+            "progress": 3,
+            "resourceCost": {
+              "BUILD_SUPPLY": 3
+            },
+            "usesAttack": true
+          },
+          "economy": "PRIMARY"
+        }
+      },
+      {
         "id": "action-scan",
         "kind": "ACTION",
         "name": "Scan",
@@ -8035,6 +10223,37 @@ const snapshot = {
           "definition": {
             "handlerId": "SCAN",
             "requiredEquipment": "equipment-vehicle-optics"
+          },
+          "economy": "STANDARD"
+        }
+      },
+      {
+        "id": "action-shield-wall-public-v1",
+        "kind": "ACTION",
+        "name": "Shield Wall",
+        "definitionStatus": "active",
+        "sourceId": "source-store",
+        "sourcePath": null,
+        "sourceLocator": "The Store / Ballistic Shields + public-v1 Power Armour policy",
+        "notes": "Consumes the unit's full Speed; grants non-stacking Cover Armor 1 against direct fire until movement.",
+        "sourcedNumbers": {
+          "speedCostQuarters": {
+            "status": "PUBLISHED",
+            "value": 4
+          }
+        },
+        "references": [
+          {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-ballistic-shields"
+          }
+        ],
+        "parameters": {
+          "definition": {
+            "clearsOnMovement": true,
+            "directFireCoverArmor": 1,
+            "requiresEquipment": "equipment-ballistic-shields",
+            "usesAttack": false
           },
           "economy": "STANDARD"
         }
@@ -8285,6 +10504,37 @@ const snapshot = {
       }
     ],
     "structures": [
+      {
+        "id": "structure-bridge",
+        "kind": "STRUCTURE",
+        "name": "Field Bridge",
+        "definitionStatus": "active",
+        "sourceId": "source-v5-core",
+        "sourcePath": null,
+        "sourceLocator": "V5 / Engineers / Construct: Bridge",
+        "notes": "Immediate public-v1 river-edge crossing; combat damage lifecycle remains separately governed.",
+        "sourcedNumbers": {
+          "buildPoints": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          },
+          "health": {
+            "status": "BALANCE_REQUIRED",
+            "value": null
+          }
+        },
+        "references": [],
+        "parameters": {
+          "buildCost": {
+            "smallSupply": 2
+          },
+          "definition": {
+            "applicationProfileId": "public-v1-engineer-bridge@1",
+            "constructRange": "ADJACENT_RIVER_EDGE",
+            "edgeCrossing": true
+          }
+        }
+      },
       {
         "id": "structure-razor-wire",
         "kind": "STRUCTURE",
@@ -9251,6 +11501,269 @@ const snapshot = {
     ],
     "cargoProfiles": [
       {
+        "id": "cargo-companion-vtol-heavy-lift-public-v1",
+        "kind": "CARGO_PROFILE",
+        "name": "Companion VTOL Heavy Lift External Cargo",
+        "definitionStatus": "unspecified",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "VTOL Heavy Lift / row 26",
+        "notes": "",
+        "sourcedNumbers": {},
+        "references": [],
+        "parameters": {
+          "capacity": {
+            "conversions": [
+              {
+                "itemTagsAny": [
+                  "MECH"
+                ],
+                "slotCostQuarters": 4
+              },
+              {
+                "itemTagsAny": [
+                  "HEAVY"
+                ],
+                "slotCostQuarters": 4
+              },
+              {
+                "itemTagsAny": [
+                  "OBJECTIVE_CARGO"
+                ],
+                "slotCostQuarters": 4
+              },
+              {
+                "itemTagsAny": [
+                  "SUPPLY_CARGO"
+                ],
+                "slotCostQuarters": 4
+              }
+            ],
+            "slotCapacityQuarters": 4
+          },
+          "definition": {
+            "applicationProfileId": "public-v1-companion-vtol-transports@1",
+            "companionTacticalProfile": {
+              "allowMixedLoadGroups": false,
+              "capacitySlotsQuarters": 4,
+              "disembarkFlatSpeedCostQuarters": 2,
+              "embarkFlatSpeedCostQuarters": 2,
+              "id": "cargo-companion-vtol-heavy-lift-public-v1",
+              "rules": [
+                {
+                  "cargoKind": "VEHICLE",
+                  "id": "heavy-lift-one-heavy-unit",
+                  "loadGroup": "EXTERNAL_LOAD",
+                  "requiredTags": [
+                    "COMPANION_VTOL_UNIT_CARGO",
+                    "EXTERNAL_HEAVY_LIFT"
+                  ],
+                  "slotsPerItemQuarters": 4
+                },
+                {
+                  "cargoKind": "OTHER",
+                  "id": "heavy-lift-one-objective-cargo",
+                  "loadGroup": "EXTERNAL_LOAD",
+                  "requiredTags": [
+                    "OBJECTIVE_CARGO",
+                    "EXTERNAL_HEAVY_LIFT"
+                  ],
+                  "slotsPerItemQuarters": 4
+                },
+                {
+                  "cargoKind": "SUPPLY",
+                  "id": "heavy-lift-one-opaque-supply-cargo",
+                  "loadGroup": "EXTERNAL_LOAD",
+                  "requiredTags": [
+                    "SUPPLY_CARGO",
+                    "EXTERNAL_HEAVY_LIFT"
+                  ],
+                  "slotsPerItemQuarters": 4
+                }
+              ]
+            }
+          },
+          "loadingRules": {
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-030"
+            ],
+            "requiresPermissionForForeignUnit": true,
+            "standardAction": true
+          }
+        }
+      },
+      {
+        "id": "cargo-companion-vtol-multipurpose-airlift-public-v1",
+        "kind": "CARGO_PROFILE",
+        "name": "Companion VTOL Multi-Purpose Cargo",
+        "definitionStatus": "unspecified",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "VTOL Multi-Purpose Airlift / row 25",
+        "notes": "",
+        "sourcedNumbers": {},
+        "references": [],
+        "parameters": {
+          "capacity": {
+            "conversions": [
+              {
+                "itemTagsAny": [
+                  "INFANTRY"
+                ],
+                "slotCostQuarters": 4
+              },
+              {
+                "itemTagsAny": [
+                  "SUPPLY_CARGO"
+                ],
+                "slotCostQuarters": 4
+              },
+              {
+                "itemTagsAny": [
+                  "LIGHT_VEHICLE"
+                ],
+                "slotCostQuarters": 4
+              }
+            ],
+            "slotCapacityQuarters": 8
+          },
+          "definition": {
+            "applicationProfileId": "public-v1-companion-vtol-transports@1",
+            "companionTacticalProfile": {
+              "allowMixedLoadGroups": true,
+              "capacitySlotsQuarters": 8,
+              "disembarkFlatSpeedCostQuarters": 2,
+              "embarkFlatSpeedCostQuarters": 2,
+              "id": "cargo-companion-vtol-multipurpose-airlift-public-v1",
+              "rules": [
+                {
+                  "cargoKind": "PERSONNEL",
+                  "id": "multipurpose-one-infantry-unit",
+                  "loadGroup": "PERSONNEL_OR_SUPPLY",
+                  "prohibitedTags": [
+                    "VEHICLE"
+                  ],
+                  "requiredTags": [
+                    "INFANTRY",
+                    "PERSONNEL",
+                    "COMPANION_VTOL_UNIT_CARGO"
+                  ],
+                  "slotsPerItemQuarters": 4
+                },
+                {
+                  "cargoKind": "SUPPLY",
+                  "id": "multipurpose-one-opaque-supply-cargo",
+                  "loadGroup": "PERSONNEL_OR_SUPPLY",
+                  "requiredTags": [
+                    "SUPPLY_CARGO"
+                  ],
+                  "slotsPerItemQuarters": 4
+                },
+                {
+                  "cargoKind": "VEHICLE",
+                  "id": "multipurpose-one-light-vehicle",
+                  "loadGroup": "LIGHT_VEHICLE",
+                  "prohibitedTags": [
+                    "MECH",
+                    "HEAVY",
+                    "SUPER_HEAVY"
+                  ],
+                  "requiredTags": [
+                    "VEHICLE",
+                    "LIGHT_VEHICLE",
+                    "COMPANION_VTOL_UNIT_CARGO"
+                  ],
+                  "slotsPerItemQuarters": 4
+                }
+              ]
+            }
+          },
+          "loadingRules": {
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-030"
+            ],
+            "requiresPermissionForForeignUnit": true,
+            "standardAction": true
+          }
+        }
+      },
+      {
+        "id": "cargo-companion-vtol-troop-airlift-public-v1",
+        "kind": "CARGO_PROFILE",
+        "name": "Companion VTOL Troop Airlift Cargo",
+        "definitionStatus": "unspecified",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "VTOL Heavy Troop Airlift / row 24",
+        "notes": "",
+        "sourcedNumbers": {},
+        "references": [],
+        "parameters": {
+          "capacity": {
+            "conversions": [
+              {
+                "itemTagsAny": [
+                  "INFANTRY"
+                ],
+                "slotCostQuarters": 4
+              },
+              {
+                "itemTagsAny": [
+                  "SUPPLY_CARGO"
+                ],
+                "slotCostQuarters": 8
+              }
+            ],
+            "slotCapacityQuarters": 8
+          },
+          "definition": {
+            "applicationProfileId": "public-v1-companion-vtol-transports@1",
+            "companionTacticalProfile": {
+              "allowMixedLoadGroups": false,
+              "capacitySlotsQuarters": 8,
+              "disembarkFlatSpeedCostQuarters": 2,
+              "embarkFlatSpeedCostQuarters": 2,
+              "id": "cargo-companion-vtol-troop-airlift-public-v1",
+              "rules": [
+                {
+                  "cargoKind": "PERSONNEL",
+                  "id": "troop-airlift-infantry-unit",
+                  "loadGroup": "PERSONNEL",
+                  "prohibitedTags": [
+                    "VEHICLE"
+                  ],
+                  "requiredTags": [
+                    "INFANTRY",
+                    "PERSONNEL",
+                    "COMPANION_VTOL_UNIT_CARGO"
+                  ],
+                  "slotsPerItemQuarters": 4
+                },
+                {
+                  "cargoKind": "SUPPLY",
+                  "id": "troop-airlift-one-opaque-supply-cargo",
+                  "loadGroup": "SUPPLY",
+                  "requiredTags": [
+                    "SUPPLY_CARGO"
+                  ],
+                  "slotsPerItemQuarters": 8
+                }
+              ]
+            }
+          },
+          "loadingRules": {
+            "conflictIds": [
+              "RC-UNIT-015",
+              "RC-V5-030"
+            ],
+            "requiresPermissionForForeignUnit": true,
+            "standardAction": true
+          }
+        }
+      },
+      {
         "id": "cargo-hat-five-slot",
         "kind": "CARGO_PROFILE",
         "name": "Heavy Air Transport Five-Slot Cargo",
@@ -9556,6 +12069,42 @@ const snapshot = {
             "refillToMaximum": true,
             "sourceQuantity": 1,
             "sourceResource": "SMALL_SUPPLY"
+          }
+        }
+      },
+      {
+        "id": "supply-sapper-public-v1",
+        "kind": "SUPPLY_PROFILE",
+        "name": "Sapper Build Supply",
+        "definitionStatus": "unspecified",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Sappers / row 8",
+        "notes": "",
+        "sourcedNumbers": {},
+        "references": [],
+        "parameters": {
+          "capacities": {
+            "BUILD_SUPPLY": {
+              "maximum": 6
+            },
+            "GENERAL_SUPPLY": {
+              "maximum": 1
+            }
+          },
+          "definition": {
+            "applicationProfileId": "public-v1-sappers@1",
+            "initial": {
+              "BUILD_SUPPLY": 6,
+              "GENERAL_SUPPLY": 0
+            }
+          },
+          "reloadRules": {
+            "economy": "PRIMARY",
+            "refillResource": "BUILD_SUPPLY",
+            "refillToMaximum": true,
+            "sourceQuantity": 1,
+            "sourceResource": "GENERAL_SUPPLY"
           }
         }
       }
@@ -11136,6 +13685,51 @@ const snapshot = {
         }
       },
       {
+        "id": "status-irregular-progression-public-v1",
+        "kind": "STATUS",
+        "name": "Irregular Progression",
+        "definitionStatus": "unspecified",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Irregular Unit / Evolution",
+        "notes": "",
+        "sourcedNumbers": {},
+        "references": [],
+        "parameters": {
+          "definition": {
+            "applicationProfileId": "public-v1-irregular@1",
+            "permanent": true,
+            "tracks": [
+              "MILITIA_VETERAN",
+              "RAIDER",
+              "REVOLUTIONARY_GUARD"
+            ]
+          },
+          "stackingRule": "UNIQUE",
+          "visibility": "PUBLIC"
+        }
+      },
+      {
+        "id": "status-irregular-recruitment-history-public-v1",
+        "kind": "STATUS",
+        "name": "Irregular Recruitment History",
+        "definitionStatus": "unspecified",
+        "sourceId": "source-classes",
+        "sourcePath": null,
+        "sourceLocator": "Irregular Unit / Recruiter",
+        "notes": "",
+        "sourcedNumbers": {},
+        "references": [],
+        "parameters": {
+          "definition": {
+            "applicationProfileId": "public-v1-irregular@1",
+            "permanent": true
+          },
+          "stackingRule": "STACK",
+          "visibility": "OWNER"
+        }
+      },
+      {
         "id": "status-landed",
         "kind": "STATUS",
         "name": "Landed",
@@ -11565,6 +14159,124 @@ const snapshot = {
         }
       },
       {
+        "id": "companion-tanks-public-v1",
+        "kind": "UNIT",
+        "evidence": {
+          "definitionIds": [
+            "unit-light-battle-tank",
+            "unit-heavy-battle-tank",
+            "unit-super-heavy-tank"
+          ],
+          "resolverPath": "packages/rules-engine/src/resolver.ts",
+          "sourcePath": "packages/rules-engine/src/companion-tanks.ts"
+        }
+      },
+      {
+        "id": "companion-mechanized-infantry-public-v1",
+        "kind": "UNIT",
+        "evidence": {
+          "definitionIds": [
+            "unit-mechanized-infantry"
+          ],
+          "resolverPath": "packages/rules-engine/src/resolver.ts",
+          "sourcePath": "packages/rules-engine/src/mechanized-infantry.ts"
+        }
+      },
+      {
+        "id": "companion-mechs-public-v1",
+        "kind": "UNIT",
+        "evidence": {
+          "definitionIds": [
+            "unit-medium-mech",
+            "unit-heavy-mech"
+          ],
+          "resolverPath": "packages/rules-engine/src/resolver.ts",
+          "sourcePath": "packages/rules-engine/src/companion-mechs.ts"
+        }
+      },
+      {
+        "id": "companion-irregular-public-v1",
+        "kind": "UNIT",
+        "evidence": {
+          "definitionIds": [
+            "unit-irregular"
+          ],
+          "resolverPath": "packages/rules-engine/src/resolver.ts",
+          "sourcePath": "packages/rules-engine/src/irregular-progression.ts"
+        }
+      },
+      {
+        "id": "companion-power-armour-public-v1",
+        "kind": "UNIT",
+        "evidence": {
+          "definitionIds": [
+            "unit-power-armoured-infantry"
+          ],
+          "resolverPath": "packages/rules-engine/src/resolver.ts",
+          "sourcePath": "packages/rules-engine/src/power-armoured-infantry.ts"
+        }
+      },
+      {
+        "id": "companion-special-forces-public-v1",
+        "kind": "UNIT",
+        "evidence": {
+          "definitionIds": [
+            "unit-irregular",
+            "unit-special-forces",
+            "unit-sappers",
+            "unit-light-artillery",
+            "unit-heavy-artillery",
+            "unit-self-propelled-artillery",
+            "unit-vtol-troop-airlift",
+            "unit-vtol-multipurpose-airlift",
+            "unit-vtol-heavy-lift",
+            "unit-mechanized-infantry",
+            "unit-light-battle-tank",
+            "unit-heavy-battle-tank",
+            "unit-super-heavy-tank"
+          ],
+          "resolverPath": "packages/rules-engine/src/resolver.ts",
+          "sourcePath": "packages/rules-engine/src/special-forces.ts"
+        }
+      },
+      {
+        "id": "companion-sappers-public-v1",
+        "kind": "UNIT",
+        "evidence": {
+          "definitionIds": [
+            "unit-sappers"
+          ],
+          "resolverPath": "packages/rules-engine/src/resolver.ts",
+          "sourcePath": "packages/rules-engine/src/sapper-construction.ts"
+        }
+      },
+      {
+        "id": "companion-artillery-public-v1",
+        "kind": "UNIT",
+        "evidence": {
+          "definitionIds": [
+            "unit-light-artillery",
+            "unit-heavy-artillery",
+            "unit-self-propelled-artillery"
+          ],
+          "resolverPath": "packages/rules-engine/src/resolver.ts",
+          "sourcePath": "packages/rules-engine/src/companion-artillery.ts"
+        }
+      },
+      {
+        "id": "companion-vtol-transports-public-v1",
+        "kind": "UNIT",
+        "evidence": {
+          "definitionIds": [
+            "unit-vtol-troop-airlift",
+            "unit-vtol-multipurpose-airlift",
+            "unit-vtol-heavy-lift"
+          ],
+          "resolverPath": "packages/rules-engine/src/resolver.ts",
+          "sourcePath": "packages/rules-engine/src/companion-vtol-transports.ts"
+        }
+      },
+      {
         "id": "foundation-order-handler",
         "kind": "ORDER",
         "evidence": {
@@ -11587,6 +14299,7 @@ const snapshot = {
             "action-attack",
             "action-artillery-dig-in",
             "action-bombardment",
+            "action-funnel",
             "action-construct",
             "action-crew-repair",
             "action-deploy-platform",
@@ -11601,7 +14314,17 @@ const snapshot = {
             "action-reload",
             "action-rearm-aerospace",
             "action-take-off",
-            "action-unload-cargo"
+            "action-unload-cargo",
+            "action-place-delayed-charge-public-v1",
+            "action-detonate-delayed-charge-public-v1",
+            "action-sapper-construct-public-v1",
+            "action-reload-build-supply-public-v1",
+            "action-recruit-irregular-public-v1",
+            "action-abandon-guns-public-v1",
+            "action-replace-guns-public-v1",
+            "action-shield-wall-public-v1",
+            "action-mount-magnetic-clamps-public-v1",
+            "action-dismount-magnetic-clamps-public-v1"
           ],
           "resolverPath": "packages/rules-engine/src/resolver.ts",
           "sourcePath": "packages/rules-engine/src/catalogue.ts"
@@ -11612,6 +14335,7 @@ const snapshot = {
         "kind": "STRUCTURE",
         "evidence": {
           "definitionIds": [
+            "structure-bridge",
             "structure-razor-wire",
             "structure-sandbag-line",
             "structure-tank-traps",
@@ -11643,9 +14367,51 @@ const snapshot = {
           ],
           "sourcePath": "packages/rules-engine/src/light-at.ts"
         }
+      },
+      {
+        "id": "equipment-power-armour-public-v1",
+        "kind": "EQUIPMENT",
+        "evidence": {
+          "definitionIds": [
+            "equipment-ballistic-shields",
+            "equipment-mech-magnetic-clamps",
+            "equipment-power-armour-back-light-laser-public-v1"
+          ],
+          "sourcePath": "packages/rules-engine/src/power-armoured-infantry.ts"
+        }
+      },
+      {
+        "id": "equipment-mech-weapons-public-v1",
+        "kind": "EQUIPMENT",
+        "evidence": {
+          "definitionIds": [
+            "equipment-mech-heavy-machine-weapon",
+            "equipment-mech-autocannon",
+            "equipment-mech-light-laser",
+            "equipment-mech-medium-laser",
+            "equipment-mech-large-laser"
+          ],
+          "sourcePath": "packages/rules-engine/src/companion-mechs.ts"
+        }
       }
     ],
     "overlays": [
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-abandon-guns-public-v1",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
       {
         "definitionKind": "ACTION",
         "definitionId": "action-airdrop",
@@ -11760,6 +14526,22 @@ const snapshot = {
       },
       {
         "definitionKind": "ACTION",
+        "definitionId": "action-detonate-delayed-charge-public-v1",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
         "definitionId": "action-dig-in",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
@@ -11776,7 +14558,39 @@ const snapshot = {
       },
       {
         "definitionKind": "ACTION",
+        "definitionId": "action-dismount-magnetic-clamps-public-v1",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
         "definitionId": "action-first-aid",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-funnel",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
         "availabilityStatus": "AVAILABLE",
@@ -11824,7 +14638,39 @@ const snapshot = {
       },
       {
         "definitionKind": "ACTION",
+        "definitionId": "action-mount-magnetic-clamps-public-v1",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
         "definitionId": "action-pack-platform",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-place-delayed-charge-public-v1",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
         "availabilityStatus": "AVAILABLE",
@@ -11856,6 +14702,22 @@ const snapshot = {
       },
       {
         "definitionKind": "ACTION",
+        "definitionId": "action-recruit-irregular-public-v1",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
         "definitionId": "action-reload",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
@@ -11872,7 +14734,71 @@ const snapshot = {
       },
       {
         "definitionKind": "ACTION",
+        "definitionId": "action-reload-build-supply-public-v1",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
         "definitionId": "action-repair",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-replace-guns-public-v1",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-sapper-construct-public-v1",
+        "implementationStatus": "PARTIAL",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-action-handler",
+        "reasonCode": "FOUNDATION_PARTIAL_HANDLER",
+        "sourcePath": "packages/rules-engine/src/catalogue.ts",
+        "sourceLocator": "actionProfiles",
+        "parameters": {
+          "runtimeEvidence": "Existing deterministic resolver grammar; visibility-only no-op actions are excluded."
+        }
+      },
+      {
+        "definitionKind": "ACTION",
+        "definitionId": "action-shield-wall-public-v1",
         "implementationStatus": "PARTIAL",
         "requisitionStatus": "NOT_APPLICABLE",
         "availabilityStatus": "AVAILABLE",
@@ -12255,16 +15181,29 @@ const snapshot = {
       {
         "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-ballistic-shields",
-        "implementationStatus": "CATALOGUE_ONLY",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "equipment-power-armour-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/The Store - Equipment List.html",
         "sourceLocator": "row 16",
         "parameters": {
+          "applicationProfileId": "public-v1-power-armoured-infantry@1",
+          "effect": "SHIELD_WALL",
+          "publicationCorrection": {
+            "reason": "Ballistic Shields grant the executable full-movement Shield Wall action to Power Armoured Infantry.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true,
           "storeRow": 16
         }
@@ -12751,16 +15690,29 @@ const snapshot = {
       {
         "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-mech-autocannon",
-        "implementationStatus": "CATALOGUE_ONLY",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "equipment-mech-weapons-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/The Store - Equipment List.html",
         "sourceLocator": "row 60",
         "parameters": {
+          "applicationProfileId": "companion-v1-mechs@1",
+          "effect": "FITTED_MECH_WEAPON",
+          "publicationCorrection": {
+            "reason": "The Store weapon is materialized through the bounded public-v1 mech weapon conversion and fitted only to approved mech external slots.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true,
           "storeRow": 60
         }
@@ -12819,16 +15771,29 @@ const snapshot = {
       {
         "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-mech-heavy-machine-weapon",
-        "implementationStatus": "CATALOGUE_ONLY",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "equipment-mech-weapons-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/The Store - Equipment List.html",
         "sourceLocator": "row 59",
         "parameters": {
+          "applicationProfileId": "companion-v1-mechs@1",
+          "effect": "FITTED_MECH_WEAPON",
+          "publicationCorrection": {
+            "reason": "The Store weapon is materialized through the bounded public-v1 mech weapon conversion and fitted only to approved mech external slots.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true,
           "storeRow": 59
         }
@@ -12853,16 +15818,29 @@ const snapshot = {
       {
         "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-mech-large-laser",
-        "implementationStatus": "CATALOGUE_ONLY",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "equipment-mech-weapons-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/The Store - Equipment List.html",
         "sourceLocator": "row 65",
         "parameters": {
+          "applicationProfileId": "companion-v1-mechs@1",
+          "effect": "FITTED_MECH_WEAPON",
+          "publicationCorrection": {
+            "reason": "The Store weapon is materialized through the bounded public-v1 mech weapon conversion and fitted only to approved mech external slots.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true,
           "storeRow": 65
         }
@@ -12870,19 +15848,32 @@ const snapshot = {
       {
         "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-mech-light-laser",
-        "implementationStatus": "CATALOGUE_ONLY",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_EQP_002",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "equipment-mech-weapons-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/The Store - Equipment List.html",
         "sourceLocator": "row 63",
         "parameters": {
+          "applicationProfileId": "companion-v1-mechs@1",
           "conflictIds": [
             "RC-EQP-002"
-          ]
+          ],
+          "effect": "FITTED_MECH_WEAPON",
+          "publicationCorrection": {
+            "reason": "The Store weapon is materialized through the bounded public-v1 mech weapon conversion and fitted only to approved mech external slots.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          }
         }
       },
       {
@@ -12905,16 +15896,29 @@ const snapshot = {
       {
         "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-mech-magnetic-clamps",
-        "implementationStatus": "CATALOGUE_ONLY",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "equipment-power-armour-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/The Store - Equipment List.html",
         "sourceLocator": "row 68",
         "parameters": {
+          "applicationProfileId": "public-v1-power-armoured-infantry@1",
+          "effect": "MAGNETIC_CLAMP_CARRIER",
+          "publicationCorrection": {
+            "reason": "Magnetic Clamps execute the paired one-rider lifecycle on Medium and Heavy Mechs.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true,
           "storeRow": 68
         }
@@ -12922,16 +15926,29 @@ const snapshot = {
       {
         "definitionKind": "EQUIPMENT",
         "definitionId": "equipment-mech-medium-laser",
-        "implementationStatus": "CATALOGUE_ONLY",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "EFFECT_HANDLER_NOT_IMPLEMENTED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "equipment-mech-weapons-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/The Store - Equipment List.html",
         "sourceLocator": "row 64",
         "parameters": {
+          "applicationProfileId": "companion-v1-mechs@1",
+          "effect": "FITTED_MECH_WEAPON",
+          "publicationCorrection": {
+            "reason": "The Store weapon is materialized through the bounded public-v1 mech weapon conversion and fitted only to approved mech external slots.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true,
           "storeRow": 64
         }
@@ -13087,6 +16104,34 @@ const snapshot = {
         "parameters": {
           "deploymentExecution": false,
           "effectiveUnitMutation": true
+        }
+      },
+      {
+        "definitionKind": "EQUIPMENT",
+        "definitionId": "equipment-power-armour-back-light-laser-public-v1",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "equipment-power-armour-public-v1",
+        "reasonCode": null,
+        "sourcePath": "packages/rules-engine/src/power-armoured-infantry.ts",
+        "sourceLocator": "public-v1 back weapon",
+        "parameters": {
+          "applicationProfileId": "public-v1-power-armoured-infantry@1",
+          "minimumCompletedMissions": 1,
+          "publicationCorrection": {
+            "reason": "The D4 back-mounted Light Laser becomes requisitionable for Req 1 after one completed mission and persists its heat/cooldown state.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          }
         }
       },
       {
@@ -13830,6 +16875,23 @@ const snapshot = {
       },
       {
         "definitionKind": "STRUCTURE",
+        "definitionId": "structure-bridge",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "NOT_APPLICABLE",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": false,
+        "handlerId": "foundation-fieldwork-handler",
+        "reasonCode": null,
+        "sourcePath": "rules/Meta - Core Rules (V5).md",
+        "sourceLocator": "Engineers / Bridge",
+        "parameters": {
+          "applicationProfileId": "public-v1-engineer-bridge@1",
+          "durability": "NON_ATTACKABLE_PUBLIC_V1"
+        }
+      },
+      {
+        "definitionKind": "STRUCTURE",
         "definitionId": "structure-razor-wire",
         "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "NOT_APPLICABLE",
@@ -13976,7 +17038,7 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-artillery",
-        "implementationStatus": "PARTIAL",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
         "availabilityStatus": "AVAILABLE",
         "executable": true,
@@ -13987,24 +17049,24 @@ const snapshot = {
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
           "economyPolicyId": "public-v1-economy@1",
+          "excludedByProfile": [
+            "ANTI_ORBITAL"
+          ],
           "implementedSubset": [
             "FS",
             "MOVEMENT",
             "DEPLOY_PACK_STATE",
             "BOMBARDMENT",
-            "TOWING",
-            "EXPERIMENTAL_ATTACK"
-          ],
-          "missing": [
             "FUNNEL",
-            "ANTI_ORBITAL"
+            "TOWING"
           ],
+          "missing": [],
           "publicationCorrection": {
-            "reason": "Artillery can deploy/pack and use the V5 Bombardment defense-suppression action while Funnel remains deferred.",
+            "reason": "The ground-tactical Artillery profile executes deploy/pack, Bombardment and the public-v1 whole-hex Funnel displacement. Anti-orbital fire is excluded from this profile under DEC-012 until orbital hull combat is activated; the unsupported experimental direct ground Attack is not advertised.",
             "seedOverlay": {
               "availabilityStatus": "AVAILABLE",
               "executable": true,
-              "implementationStatus": "PARTIAL",
+              "implementationStatus": "IMPLEMENTED",
               "purchasable": true,
               "reasonCode": null,
               "requisitionStatus": "PUBLISHED"
@@ -14015,7 +17077,7 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-combat-medic",
-        "implementationStatus": "PARTIAL",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
         "availabilityStatus": "AVAILABLE",
         "executable": true,
@@ -14026,19 +17088,39 @@ const snapshot = {
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
           "economyPolicyId": "public-v1-economy@1",
-          "implementedSubset": [
-            "FIRST_AID",
-            "MEDICAL_SUPPLY_RELOAD"
-          ],
-          "missing": [
+          "excludedByProfile": [
             "MASH"
-          ]
+          ],
+          "excludedCompanionMechanics": [
+            "MASH"
+          ],
+          "implementedSubset": [
+            "FS",
+            "NON_COMBAT",
+            "FIRST_AID",
+            "MEDICAL_SUPPLY_CURRENT_FS",
+            "SMALL_SUPPLY_RELOAD",
+            "DIG_IN",
+            "PERSISTENCE"
+          ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "The selected V5 Combat Medic profile executes D6/current-FS-capped First Aid, exact Medical Supply consumption/refill, Dig In, persistence and reports. MASH belongs to the rejected companion profile under RC-UNIT-002 and is not a missing V5 class mechanic.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          }
         }
       },
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-engineers",
-        "implementationStatus": "PARTIAL",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
         "availabilityStatus": "AVAILABLE",
         "executable": true,
@@ -14056,17 +17138,16 @@ const snapshot = {
             "ARTILLERY_DIG_IN",
             "SANDBAG_LINE_CONSTRUCTION",
             "RAZOR_WIRE",
-            "TANK_TRAPS"
+            "TANK_TRAPS",
+            "RIVER_EDGE_BRIDGE"
           ],
-          "missing": [
-            "BRIDGES"
-          ],
+          "missing": [],
           "publicationCorrection": {
-            "reason": "Engineer Repair, adjacent deployed-Artillery Dig In, and the source-complete V5 Sandbag, Razor Wire, and Tank Trap fieldworks execute end to end; Bridge remains gated.",
+            "reason": "Engineer Repair, deployed-Artillery Dig In, Sandbags, Razor Wire, Tank Traps and the Req-free two-Small-Supply river-edge Field Bridge execute and persist. Bridge durability remains non-attackable under the bounded public-v1 lifecycle.",
             "seedOverlay": {
               "availabilityStatus": "AVAILABLE",
               "executable": true,
-              "implementationStatus": "PARTIAL",
+              "implementationStatus": "IMPLEMENTED",
               "purchasable": true,
               "reasonCode": null,
               "requisitionStatus": "PUBLISHED"
@@ -14077,7 +17158,7 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-heavy-air-transport",
-        "implementationStatus": "PARTIAL",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
         "availabilityStatus": "AVAILABLE",
         "executable": true,
@@ -14088,6 +17169,9 @@ const snapshot = {
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
           "economyPolicyId": "public-v1-economy@1",
+          "failClosed": [
+            "HAZARDOUS_DROP_DESTINATION"
+          ],
           "handlers": [
             "LOAD",
             "UNLOAD",
@@ -14099,15 +17183,14 @@ const snapshot = {
             "HOSTILE_PASSAGE",
             "FIVE_SLOT_CARGO",
             "CLEAR_ROUTE_AIRDROP",
+            "COORDINATED_SUPPLY_DROP",
             "LAND_TAKEOFF_STATE",
-            "NO_GROUND_SPOTTING"
+            "NO_GROUND_SPOTTING",
+            "CARRIER_LOSS_ADJUDICATION"
           ],
-          "missing": [
-            "HAZARDOUS_DROP_RESULTS",
-            "COORDINATED_SUPPLY_DROP"
-          ],
+          "missing": [],
           "publicationCorrection": {
-            "reason": "The V5 Heavy Air Transport executes its chassis, five-slot conversion table, terrain-independent flight, loading, friendly-airfield landing state, and no-cost clear route-bound Infantry/Light Vehicle airdrop. Hazardous outcomes and coordinated Supply drops remain gated.",
+            "reason": "The V5 Heavy Air Transport executes its chassis, five-slot conversion table, flight, loading, clear route-bound Infantry/Light Vehicle drops, paired Logi Supply drops, landing state, no-ground spotting and carrier-loss adjudication. RC-V5-018 deliberately rejects hazardous destinations instead of inventing casualty results.",
             "seedOverlay": {
               "availabilityStatus": "AVAILABLE",
               "executable": true,
@@ -14123,75 +17206,131 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-heavy-artillery",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-artillery-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/Classes.html",
         "sourceLocator": "Heavy Artillery / row 20",
         "parameters": {
+          "applicationProfileId": "public-v1-companion-artillery@1",
           "conflictIds": [
             "RC-UNIT-015"
           ],
-          "gameplayGaps": [
-            "FIXED_DAMAGE",
-            "THREE_ATTACK_SPLIT_FIRE",
-            "AREA_HEX_DAMAGE",
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "FORCE_STRENGTH",
+            "DEPLOY_PACK",
+            "THREE_AREA_SHOTS",
+            "SPLIT_TARGETS",
             "ABANDON_GUNS",
-            "CAMPAIGN_REPLACEMENT"
+            "ONE_REPLACEMENT",
+            "HAT_CARGO",
+            "REQUISITION"
           ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "Heavy Artillery executes its fixed-damage three-shot area fire, platform state, abandonment/replacement lifecycle, HAT cargo, and Req 12 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true
         }
       },
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-heavy-battle-tank",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-tanks-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/Classes.html",
         "sourceLocator": "Heavy Battle Tank / row 16",
         "parameters": {
+          "applicationProfileId": "public-v1-companion-classes@1",
           "conflictIds": [
             "RC-UNIT-015"
           ],
-          "gameplayGaps": [
-            "FS_VEHICLE_DAMAGE_MODEL",
-            "WEAPON_DAMAGE_PROFILE",
-            "HEAVY_TRANSPORT_POLICY"
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "HITS",
+            "D8_AP2_RANGE3",
+            "REAR_WEAK_SPOT",
+            "SUBSYSTEMS",
+            "NO_HAT",
+            "HEAVY_LIFT",
+            "REQUISITION"
           ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "Heavy Battle Tank executes its approved 3-Hit chassis, D8 AP2 long cannon, rear weak spot, subsystem damage, Heavy-Lift-only air transport, and Req 14 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true
         }
       },
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-heavy-mech",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-mechs-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/Classes.html",
         "sourceLocator": "Heavy Mech / row 32",
         "parameters": {
+          "applicationProfileId": "companion-v1-mechs@1",
           "conflictIds": [
             "RC-UNIT-015"
           ],
-          "gameplayGaps": [
-            "FS_MECH_DAMAGE_MODEL",
-            "MULTIWEAPON_REFIT",
-            "LEG_HEIGHT_LOS",
-            "DOTTED_REQUISITION_COST"
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "HITS",
+            "FITTED_MULTIWEAPON",
+            "SUPPLY_POINT_RELOAD",
+            "LEG_HEIGHT_ONE",
+            "SUBSYSTEMS",
+            "MAGNETIC_CLAMPS",
+            "HEAVY_LIFT",
+            "REQUISITION"
           ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "Heavy Mech executes its approved 5-Hit chassis, fitted public-v1 weapon subset, Primary multiweapon fire, Supply Point reload, leg-height LOS, transport links, and Req 18 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true
         }
       },
@@ -14281,68 +17420,127 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-irregular",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-irregular-public-v1",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "applicationProfileId": "public-v1-irregular@1",
           "conflictIds": [
             "RC-UNIT-015"
-          ]
+          ],
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "FS",
+            "QUARTER_DAMAGE",
+            "RECRUITMENT",
+            "PROGRESSION",
+            "REQUISITION"
+          ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "The public-v1 Irregular profile executes quartered damage, Population Center recruitment, persistent progression authority, and Req 4 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          }
         }
       },
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-light-artillery",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-artillery-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/Classes.html",
         "sourceLocator": "Light Artillery / row 19",
         "parameters": {
+          "applicationProfileId": "public-v1-companion-artillery@1",
           "conflictIds": [
             "RC-UNIT-015"
           ],
-          "gameplayGaps": [
-            "FIXED_DAMAGE",
-            "TWO_ATTACK_SPLIT_FIRE",
-            "AREA_HEX_DAMAGE",
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "FORCE_STRENGTH",
+            "DEPLOY_PACK",
+            "TWO_AREA_SHOTS",
+            "SPLIT_TARGETS",
             "ABANDON_GUNS",
-            "CAMPAIGN_REPLACEMENT"
+            "ONE_REPLACEMENT",
+            "HAT_AIRDROP",
+            "REQUISITION"
           ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "Light Artillery executes its fixed-damage two-shot area fire, platform state, abandonment/replacement lifecycle, HAT airdrop, and Req 8 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true
         }
       },
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-light-battle-tank",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-tanks-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/Classes.html",
         "sourceLocator": "Light Battle Tank / row 14",
         "parameters": {
+          "applicationProfileId": "public-v1-companion-classes@1",
           "conflictIds": [
             "RC-UNIT-015"
           ],
-          "gameplayGaps": [
-            "FS_VEHICLE_DAMAGE_MODEL",
-            "WEAPON_DAMAGE_PROFILE",
-            "HAT_TANK_AIRDROP"
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "HITS",
+            "D4_AP2_RANGE2",
+            "REAR_WEAK_SPOT",
+            "SUBSYSTEMS",
+            "HAT_CLEAR_AIRDROP",
+            "HEAVY_LIFT",
+            "REQUISITION"
           ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "Light Battle Tank executes its approved 3-Hit chassis, D4 AP2 cannon, rear weak spot, subsystem damage, clear HAT airdrop, Heavy Lift transport, and Req 10 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true
         }
       },
@@ -14423,7 +17621,7 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-logi-truck",
-        "implementationStatus": "PARTIAL",
+        "implementationStatus": "IMPLEMENTED",
         "requisitionStatus": "PUBLISHED",
         "availabilityStatus": "AVAILABLE",
         "executable": true,
@@ -14442,17 +17640,16 @@ const snapshot = {
           "implementedSubset": [
             "HITS",
             "MOVEMENT",
-            "ARTILLERY_SMALL_SUPPLY_TRANSFER",
+            "TYPED_PARTIAL_SAME_RESOURCE_TRANSFER",
+            "COORDINATED_AIRDROP",
             "SUPPLY_CARGO",
             "PASSENGER_CARGO",
-            "ARTILLERY_TOWING"
+            "ARTILLERY_TOWING",
+            "CARRIER_LOSS_ADJUDICATION"
           ],
-          "missing": [
-            "COORDINATED_AIRDROP",
-            "GENERAL_RESUPPLY"
-          ],
+          "missing": [],
           "publicationCorrection": {
-            "reason": "The generated tactical handler executes the V5 Logi chassis, capacity-counted Small Supply and unit cargo, packed Artillery towing, and the narrow one-crate Artillery reload path; wider logistics remain gated.",
+            "reason": "The generated tactical handler executes the V5 Logi chassis, typed capacity-bounded same-resource transfer, paired route-bound HAT Supply drop, unit/Supply cargo, packed Artillery towing and carrier-loss adjudication without resource aliasing.",
             "seedOverlay": {
               "availabilityStatus": "AVAILABLE",
               "executable": true,
@@ -14505,162 +17702,300 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-mechanized-infantry",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-mechanized-infantry-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/Classes.html",
         "sourceLocator": "Mechanized Infantry / row 10",
         "parameters": {
+          "applicationProfileId": "public-v1-companion-classes@1",
           "conflictIds": [
             "RC-UNIT-015"
           ],
-          "gameplayGaps": [
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "HITS",
+            "ARMOURED_VEHICLE",
+            "AUTOCANNON",
             "FORWARD_LINE_CONTROL",
-            "MIXED_EQUIPMENT_POLICY",
-            "FS_VEHICLE_DAMAGE_MODEL"
+            "MIXED_INFANTRY_VEHICLE_EQUIPMENT",
+            "SUBSYSTEMS",
+            "REQUISITION"
           ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "Mechanized Infantry executes its armoured Hits chassis, D4 autocannon, mixed equipment exception, vehicle subsystem damage, occupied-objective Forward Line control, and Req 10 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true
         }
       },
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-medium-mech",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-mechs-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/Classes.html",
         "sourceLocator": "Medium Mech / row 31",
         "parameters": {
+          "applicationProfileId": "companion-v1-mechs@1",
           "conflictIds": [
             "RC-UNIT-015"
           ],
-          "gameplayGaps": [
-            "FS_MECH_DAMAGE_MODEL",
-            "MULTIWEAPON_REFIT",
-            "LEG_HEIGHT_LOS",
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "HITS",
+            "FITTED_MULTIWEAPON",
+            "SUPPLY_POINT_RELOAD",
+            "LEG_HEIGHT_ONE",
             "CROUCH_COVER",
-            "DOTTED_REQUISITION_COST"
+            "SUBSYSTEMS",
+            "MAGNETIC_CLAMPS",
+            "HEAVY_LIFT",
+            "REQUISITION"
           ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "Medium Mech executes its approved 4-Hit chassis, fitted public-v1 weapon subset, Primary multiweapon fire, Supply Point reload, leg-height LOS, crouch cover, transport links, and Req 14 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true
         }
       },
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-power-armoured-infantry",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-power-armour-public-v1",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "applicationProfileId": "public-v1-power-armoured-infantry@1",
           "conflictIds": [
             "RC-UNIT-015"
-          ]
+          ],
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "FORCE_STRENGTH",
+            "ARMOR_TWO",
+            "DIG_IN",
+            "SHIELD_WALL",
+            "MAGNETIC_CLAMPS",
+            "HEAVY_DROP_POD",
+            "BACK_LIGHT_LASER",
+            "REQUISITION"
+          ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "Power Armoured Infantry executes its armoured FS profile, Shield Wall, paired Magnetic Clamp ride lifecycle, Heavy Drop Pod insertion, persistent back-laser unlock, and Req 10 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          }
         }
       },
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-sappers",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-sappers-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/Classes.html",
         "sourceLocator": "Sappers / row 8",
         "parameters": {
+          "applicationProfileId": "public-v1-sappers@1",
           "conflictIds": [
             "RC-UNIT-015"
           ],
-          "gameplayGaps": [
-            "SAPPER_STRUCTURE_LIST",
-            "MINES",
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "FS",
+            "QUIET_CARBINE",
+            "INFANTRY_STEALTH",
             "BUILD_SUPPLY",
-            "STEALTH_CONSTRUCTION"
+            "PERSISTENT_PROJECTS",
+            "MINES",
+            "SENSOR_TOWER",
+            "WEAPON_EMPLACEMENT",
+            "REQUISITION"
           ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "The public-v1 Sapper profile executes quiet construction, persistent projects, its bounded fieldworks/mines, separate Build Supply economy, and Req 6 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true
         }
       },
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-self-propelled-artillery",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-artillery-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/Classes.html",
         "sourceLocator": "Self-Propelled Artillery / row 21",
         "parameters": {
+          "applicationProfileId": "public-v1-companion-artillery@1",
           "conflictIds": [
             "RC-UNIT-015"
           ],
-          "gameplayGaps": [
-            "FS_VEHICLE_DAMAGE_MODEL",
-            "FIXED_DAMAGE",
-            "MINIMUM_RANGE",
-            "FINITE_AP_ROUNDS",
-            "AREA_HEX_DAMAGE"
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "HITS",
+            "ARMOURED",
+            "AREA_FIRE",
+            "MINIMUM_RANGE_TWO",
+            "FIVE_FINITE_ROUNDS",
+            "REQUISITION"
           ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "Self-Propelled Artillery executes mobile D6 area fire at Range 2-4 with five finite rounds and Req 10 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true
         }
       },
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-special-forces",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-special-forces-public-v1",
+        "reasonCode": null,
         "sourcePath": "phase2-forces.md",
         "sourceLocator": "Persistent force catalogue",
         "parameters": {
+          "applicationProfileId": "public-v1-special-forces@1",
           "conflictIds": [
             "RC-UNIT-015"
-          ]
+          ],
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "FS",
+            "QUIET_RIFLE",
+            "INFANTRY_STEALTH",
+            "DELAYED_CHARGE",
+            "REQUISITION"
+          ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "The approved public-v1 Special Forces profile executes stealth, its D4 quiet rifle, persistent delayed-charge placement/detonation, and Req 8 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          }
         }
       },
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-super-heavy-tank",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-tanks-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/Classes.html",
         "sourceLocator": "Super Heavy Tank / row 17",
         "parameters": {
+          "applicationProfileId": "public-v1-companion-classes@1",
           "conflictIds": [
             "RC-UNIT-015"
           ],
-          "gameplayGaps": [
-            "FS_VEHICLE_DAMAGE_MODEL",
-            "DUAL_CANNON_ATTACK",
-            "WEAPON_DAMAGE_PROFILE",
-            "SPECIAL_TRANSPORT_POLICY"
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "HITS",
+            "TWO_D8_AP5_RANGE3_PRIMARY_SHOTS",
+            "REAR_WEAK_SPOT",
+            "SUBSYSTEMS",
+            "HEAVY_LIFT_ONLY",
+            "REQUISITION"
           ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "Super Heavy Tank executes its approved 4-Hit chassis, two server-owned D8 AP5 shots in one Primary activation, rear weak spot, subsystem damage, Heavy Lift transport, and Req 20 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true
         }
       },
@@ -14711,74 +18046,133 @@ const snapshot = {
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-vtol-heavy-lift",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-vtol-transports-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/Classes.html",
         "sourceLocator": "VTOL Heavy Lift / row 26",
         "parameters": {
+          "applicationProfileId": "public-v1-companion-vtol-transports@1",
           "conflictIds": [
             "RC-UNIT-015"
           ],
-          "gameplayGaps": [
-            "FS_AEROSPACE_DAMAGE_MODEL",
-            "EXTERNAL_HEAVY_LIFT",
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "HITS",
+            "VTOL_FLIGHT",
+            "ONE_EXTERNAL_HEAVY_LOAD",
             "OBJECTIVE_CARGO",
-            "HEAVY_TRANSPORT_CAPACITY"
+            "SUPPLY_CARGO",
+            "LAND_TAKEOFF",
+            "CARRIER_LOSS",
+            "REQUISITION"
           ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "The companion Heavy Lift executes its armoured VTOL chassis, one governed external heavy/objective/Supply load, carrier-loss adjudication, and Req 14 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true
         }
       },
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-vtol-multipurpose-airlift",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-vtol-transports-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/Classes.html",
         "sourceLocator": "VTOL Multi-Purpose Airlift / row 25",
         "parameters": {
+          "applicationProfileId": "public-v1-companion-vtol-transports@1",
           "conflictIds": [
             "RC-UNIT-015"
           ],
-          "gameplayGaps": [
-            "FS_AEROSPACE_DAMAGE_MODEL",
-            "SIMULTANEOUS_PERSONNEL_AND_VEHICLE_CARGO",
-            "FS_BASED_REARM"
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "HITS",
+            "VTOL_FLIGHT",
+            "ONE_SHOT_LIGHT_GUN",
+            "INFANTRY_OR_SUPPLY_PLUS_LIGHT_VEHICLE",
+            "LAND_TAKEOFF",
+            "REARM",
+            "CARRIER_LOSS",
+            "REQUISITION"
           ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "The companion Multi-Purpose Airlift executes VTOL flight, its one-shot gun, simultaneous personnel-or-Supply plus Light Vehicle cargo, carrier-loss adjudication, and Req 12 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true
         }
       },
       {
         "definitionKind": "UNIT",
         "definitionId": "unit-vtol-troop-airlift",
-        "implementationStatus": "CATALOGUE_ONLY",
-        "requisitionStatus": "BALANCE_REQUIRED",
-        "availabilityStatus": "BLOCKED",
-        "executable": false,
-        "purchasable": false,
-        "handlerId": null,
-        "reasonCode": "RC_UNIT_015",
+        "implementationStatus": "IMPLEMENTED",
+        "requisitionStatus": "PUBLISHED",
+        "availabilityStatus": "AVAILABLE",
+        "executable": true,
+        "purchasable": true,
+        "handlerId": "companion-vtol-transports-public-v1",
+        "reasonCode": null,
         "sourcePath": "rules/Classes.html",
         "sourceLocator": "VTOL Heavy Troop Airlift / row 24",
         "parameters": {
+          "applicationProfileId": "public-v1-companion-vtol-transports@1",
           "conflictIds": [
             "RC-UNIT-015"
           ],
-          "gameplayGaps": [
-            "FS_AEROSPACE_DAMAGE_MODEL",
-            "TROOP_OR_SUPPLY_CAPACITY",
-            "RAPPELLING_GARRISON",
-            "FS_BASED_REARM"
+          "economyPolicyId": "public-v1-companion-classes@1",
+          "gameplayGaps": [],
+          "implementedSubset": [
+            "HITS",
+            "VTOL_FLIGHT",
+            "ONE_SHOT_LIGHT_GUN",
+            "TWO_INFANTRY_OR_SUPPLY",
+            "RAPPEL_GARRISON",
+            "LAND_TAKEOFF",
+            "REARM",
+            "CARRIER_LOSS",
+            "REQUISITION"
           ],
+          "missing": [],
+          "publicationCorrection": {
+            "reason": "The companion Troop Airlift executes VTOL flight, its one-shot gun, two-Infantry-or-one-Supply cargo, route-bound authored-building rappel, carrier-loss adjudication, and Req 12 acquisition.",
+            "seedOverlay": {
+              "availabilityStatus": "AVAILABLE",
+              "executable": true,
+              "implementationStatus": "IMPLEMENTED",
+              "purchasable": true,
+              "reasonCode": null,
+              "requisitionStatus": "PUBLISHED"
+            }
+          },
           "sourceExact": true
         }
       }
@@ -15307,7 +18701,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -15333,7 +18728,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -15359,7 +18755,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -15385,7 +18782,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -15402,7 +18800,7 @@ const snapshot = {
           },
           "to": {
             "definitionKind": "DURABILITY_PROFILE",
-            "definitionId": "durability-personnel-fs"
+            "definitionId": "durability-vehicle-hits"
           },
           "ordinal": null,
           "sourceId": null,
@@ -15411,7 +18809,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -15437,7 +18836,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -15463,7 +18863,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -15480,7 +18881,7 @@ const snapshot = {
           },
           "to": {
             "definitionKind": "DURABILITY_PROFILE",
-            "definitionId": "durability-personnel-fs"
+            "definitionId": "durability-vehicle-hits"
           },
           "ordinal": null,
           "sourceId": null,
@@ -15489,7 +18890,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -15515,7 +18917,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -15757,7 +19160,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -15783,7 +19187,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -15809,7 +19214,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -15835,7 +19241,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -15852,7 +19259,7 @@ const snapshot = {
           },
           "to": {
             "definitionKind": "DURABILITY_PROFILE",
-            "definitionId": "durability-personnel-fs"
+            "definitionId": "durability-vehicle-hits"
           },
           "ordinal": null,
           "sourceId": null,
@@ -15861,7 +19268,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -15887,7 +19295,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16207,7 +19616,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16224,7 +19634,7 @@ const snapshot = {
           },
           "to": {
             "definitionKind": "DURABILITY_PROFILE",
-            "definitionId": "durability-personnel-fs"
+            "definitionId": "durability-vehicle-hits"
           },
           "ordinal": null,
           "sourceId": null,
@@ -16233,7 +19643,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16259,7 +19670,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16285,7 +19697,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16302,7 +19715,7 @@ const snapshot = {
           },
           "to": {
             "definitionKind": "DURABILITY_PROFILE",
-            "definitionId": "durability-personnel-fs"
+            "definitionId": "durability-vehicle-hits"
           },
           "ordinal": null,
           "sourceId": null,
@@ -16311,7 +19724,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16337,7 +19751,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16432,7 +19847,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16458,12 +19874,40 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
             },
             "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-sappers:supply",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-sappers"
+          },
+          "to": {
+            "definitionKind": "SUPPLY_PROFILE",
+            "definitionId": "supply-sapper-public-v1"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "supply"
           }
         },
         {
@@ -16484,7 +19928,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16510,7 +19955,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16527,7 +19973,7 @@ const snapshot = {
           },
           "to": {
             "definitionKind": "DURABILITY_PROFILE",
-            "definitionId": "durability-personnel-fs"
+            "definitionId": "durability-vehicle-hits"
           },
           "ordinal": null,
           "sourceId": null,
@@ -16536,7 +19982,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16562,7 +20009,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16657,7 +20105,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16674,7 +20123,7 @@ const snapshot = {
           },
           "to": {
             "definitionKind": "DURABILITY_PROFILE",
-            "definitionId": "durability-personnel-fs"
+            "definitionId": "durability-vehicle-hits"
           },
           "ordinal": null,
           "sourceId": null,
@@ -16683,7 +20132,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16709,7 +20159,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16819,7 +20270,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16836,7 +20288,7 @@ const snapshot = {
           },
           "to": {
             "definitionKind": "DURABILITY_PROFILE",
-            "definitionId": "durability-personnel-fs"
+            "definitionId": "durability-vehicle-hits"
           },
           "ordinal": null,
           "sourceId": null,
@@ -16845,12 +20297,40 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
             },
             "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-vtol-heavy-lift:cargo",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-heavy-lift"
+          },
+          "to": {
+            "definitionKind": "CARGO_PROFILE",
+            "definitionId": "cargo-companion-vtol-heavy-lift-public-v1"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "cargo"
           }
         },
         {
@@ -16871,7 +20351,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16897,7 +20378,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16914,7 +20396,7 @@ const snapshot = {
           },
           "to": {
             "definitionKind": "DURABILITY_PROFILE",
-            "definitionId": "durability-personnel-fs"
+            "definitionId": "durability-vehicle-hits"
           },
           "ordinal": null,
           "sourceId": null,
@@ -16923,12 +20405,40 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
             },
             "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-vtol-multipurpose-airlift:cargo",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-multipurpose-airlift"
+          },
+          "to": {
+            "definitionKind": "CARGO_PROFILE",
+            "definitionId": "cargo-companion-vtol-multipurpose-airlift-public-v1"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "cargo"
           }
         },
         {
@@ -16949,7 +20459,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16975,7 +20486,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -16992,7 +20504,7 @@ const snapshot = {
           },
           "to": {
             "definitionKind": "DURABILITY_PROFILE",
-            "definitionId": "durability-personnel-fs"
+            "definitionId": "durability-vehicle-hits"
           },
           "ordinal": null,
           "sourceId": null,
@@ -17001,12 +20513,40 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
             },
             "profileRole": "durability"
+          }
+        },
+        {
+          "id": "unit-profile:unit-vtol-troop-airlift:cargo",
+          "kind": "UNIT_PROFILE",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-troop-airlift"
+          },
+          "to": {
+            "definitionKind": "CARGO_PROFILE",
+            "definitionId": "cargo-companion-vtol-troop-airlift-public-v1"
+          },
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "profile": {
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
+              "conflictIds": [
+                "RC-UNIT-015"
+              ]
+            },
+            "profileRole": "cargo"
           }
         },
         {
@@ -17027,7 +20567,8 @@ const snapshot = {
           "sourcedNumbers": {},
           "parameters": {
             "profile": {
-              "canonicalActivation": "CATALOGUED",
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "canonicalActivation": "EXECUTABLE",
               "conflictIds": [
                 "RC-UNIT-015"
               ]
@@ -18694,7 +22235,7 @@ const snapshot = {
           "parameters": {}
         },
         {
-          "id": "unit-tag:unit-vtol-heavy-lift:tag-atmo-flight",
+          "id": "unit-tag:unit-vtol-heavy-lift:tag-armoured",
           "kind": "UNIT_TAG",
           "from": {
             "definitionKind": "UNIT",
@@ -18702,7 +22243,7 @@ const snapshot = {
           },
           "to": {
             "definitionKind": "TAG",
-            "definitionId": "tag-atmo-flight"
+            "definitionId": "tag-armoured"
           },
           "ordinal": null,
           "sourceId": null,
@@ -18820,7 +22361,7 @@ const snapshot = {
           "parameters": {}
         },
         {
-          "id": "unit-tag:unit-vtol-multipurpose-airlift:tag-atmo-flight",
+          "id": "unit-tag:unit-vtol-multipurpose-airlift:tag-armoured",
           "kind": "UNIT_TAG",
           "from": {
             "definitionKind": "UNIT",
@@ -18828,7 +22369,7 @@ const snapshot = {
           },
           "to": {
             "definitionKind": "TAG",
-            "definitionId": "tag-atmo-flight"
+            "definitionId": "tag-armoured"
           },
           "ordinal": null,
           "sourceId": null,
@@ -18910,7 +22451,7 @@ const snapshot = {
           "parameters": {}
         },
         {
-          "id": "unit-tag:unit-vtol-troop-airlift:tag-atmo-flight",
+          "id": "unit-tag:unit-vtol-troop-airlift:tag-armoured",
           "kind": "UNIT_TAG",
           "from": {
             "definitionKind": "UNIT",
@@ -18918,7 +22459,7 @@ const snapshot = {
           },
           "to": {
             "definitionKind": "TAG",
-            "definitionId": "tag-atmo-flight"
+            "definitionId": "tag-armoured"
           },
           "ordinal": null,
           "sourceId": null,
@@ -20155,6 +23696,52 @@ const snapshot = {
           }
         },
         {
+          "id": "unit-weapon:unit-heavy-artillery:primary:0",
+          "kind": "UNIT_WEAPON",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-artillery"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-heavy-artillery-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "mountRole": "PRIMARY",
+            "state": {
+              "applicationProfileId": "public-v1-companion-artillery@1"
+            }
+          }
+        },
+        {
+          "id": "unit-weapon:unit-heavy-battle-tank:primary:0",
+          "kind": "UNIT_WEAPON",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-heavy-battle-tank"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-heavy-battle-tank-cannon-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "mountRole": "PRIMARY",
+            "state": {
+              "applicationProfileId": "public-v1-companion-classes@1"
+            }
+          }
+        },
+        {
           "id": "unit-weapon:unit-infantry-fighting-vehicle:primary:0",
           "kind": "UNIT_WEAPON",
           "from": {
@@ -20205,7 +23792,7 @@ const snapshot = {
           },
           "to": {
             "definitionKind": "WEAPON",
-            "definitionId": "weapon-infantry-rifle"
+            "definitionId": "weapon-irregular-small-arms-public-v1"
           },
           "ordinal": 0,
           "sourceId": null,
@@ -20215,8 +23802,53 @@ const snapshot = {
           "parameters": {
             "mountRole": "PRIMARY",
             "state": {
-              "canonicalActivation": "CATALOGUED",
-              "outputFormula": "ONE_QUARTER_ROUND_UP"
+              "applicationProfileId": "public-v1-irregular@1"
+            }
+          }
+        },
+        {
+          "id": "unit-weapon:unit-light-artillery:primary:0",
+          "kind": "UNIT_WEAPON",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-artillery"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-light-artillery-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "mountRole": "PRIMARY",
+            "state": {
+              "applicationProfileId": "public-v1-companion-artillery@1"
+            }
+          }
+        },
+        {
+          "id": "unit-weapon:unit-light-battle-tank:primary:0",
+          "kind": "UNIT_WEAPON",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-light-battle-tank"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-light-battle-tank-cannon-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "mountRole": "PRIMARY",
+            "state": {
+              "applicationProfileId": "public-v1-companion-classes@1"
             }
           }
         },
@@ -20284,6 +23916,29 @@ const snapshot = {
           }
         },
         {
+          "id": "unit-weapon:unit-mechanized-infantry:primary:0",
+          "kind": "UNIT_WEAPON",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-mechanized-infantry"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-mechanized-autocannon-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "mountRole": "PRIMARY",
+            "state": {
+              "applicationProfileId": "public-v1-companion-classes@1"
+            }
+          }
+        },
+        {
           "id": "unit-weapon:unit-power-armoured-infantry:primary:0",
           "kind": "UNIT_WEAPON",
           "from": {
@@ -20307,15 +23962,15 @@ const snapshot = {
           }
         },
         {
-          "id": "unit-weapon:unit-special-forces:primary:0",
+          "id": "unit-weapon:unit-sappers:primary:0",
           "kind": "UNIT_WEAPON",
           "from": {
             "definitionKind": "UNIT",
-            "definitionId": "unit-special-forces"
+            "definitionId": "unit-sappers"
           },
           "to": {
             "definitionKind": "WEAPON",
-            "definitionId": "weapon-infantry-rifle"
+            "definitionId": "weapon-sapper-carbine-public-v1"
           },
           "ordinal": 0,
           "sourceId": null,
@@ -20325,7 +23980,78 @@ const snapshot = {
           "parameters": {
             "mountRole": "PRIMARY",
             "state": {
-              "canonicalActivation": "CATALOGUED"
+              "applicationProfileId": "public-v1-sappers@1"
+            }
+          }
+        },
+        {
+          "id": "unit-weapon:unit-self-propelled-artillery:primary:0",
+          "kind": "UNIT_WEAPON",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-self-propelled-artillery"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-self-propelled-artillery-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "mountRole": "PRIMARY",
+            "state": {
+              "applicationProfileId": "public-v1-companion-artillery@1",
+              "initialAmmunition": 5
+            }
+          }
+        },
+        {
+          "id": "unit-weapon:unit-special-forces:primary:0",
+          "kind": "UNIT_WEAPON",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-special-forces"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-special-forces-quiet-rifle-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "mountRole": "PRIMARY",
+            "state": {
+              "applicationProfileId": "public-v1-special-forces@1"
+            }
+          }
+        },
+        {
+          "id": "unit-weapon:unit-super-heavy-tank:primary:0",
+          "kind": "UNIT_WEAPON",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-super-heavy-tank"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-super-heavy-dual-cannon-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "mountRole": "PRIMARY",
+            "state": {
+              "applicationProfileId": "public-v1-companion-classes@1",
+              "attacksPerActivation": 2
             }
           }
         },
@@ -20348,6 +24074,54 @@ const snapshot = {
           "parameters": {
             "mountRole": "PRIMARY",
             "state": {}
+          }
+        },
+        {
+          "id": "unit-weapon:unit-vtol-multipurpose-airlift:primary:0",
+          "kind": "UNIT_WEAPON",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-multipurpose-airlift"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-vtol-light-gun-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "mountRole": "PRIMARY",
+            "state": {
+              "applicationProfileId": "public-v1-companion-vtol-transports@1",
+              "initialAmmunition": 1
+            }
+          }
+        },
+        {
+          "id": "unit-weapon:unit-vtol-troop-airlift:primary:0",
+          "kind": "UNIT_WEAPON",
+          "from": {
+            "definitionKind": "UNIT",
+            "definitionId": "unit-vtol-troop-airlift"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-vtol-light-gun-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": null,
+          "sourcePath": null,
+          "sourceLocator": null,
+          "sourcedNumbers": {},
+          "parameters": {
+            "mountRole": "PRIMARY",
+            "state": {
+              "applicationProfileId": "public-v1-companion-vtol-transports@1",
+              "initialAmmunition": 1
+            }
           }
         }
       ],
@@ -24184,6 +27958,41 @@ const snapshot = {
           }
         },
         {
+          "id": "equipment-eligibility:equipment-power-armour-back-light-laser-public-v1",
+          "kind": "EQUIPMENT_ELIGIBILITY",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-power-armour-back-light-laser-public-v1"
+          },
+          "to": null,
+          "ordinal": null,
+          "sourceId": null,
+          "sourcePath": "packages/rules-engine/src/power-armoured-infantry.ts",
+          "sourceLocator": "public-v1 back weapon",
+          "sourcedNumbers": {
+            "maximumEquipped": {
+              "status": "PUBLISHED",
+              "value": 1
+            }
+          },
+          "parameters": {
+            "allowedUnitDefinitions": [
+              "unit-power-armoured-infantry"
+            ],
+            "forbiddenTags": [],
+            "requiredTagsAll": [
+              "tag-infantry"
+            ],
+            "requiredTagsAny": [],
+            "rule": {
+              "minimumCompletedMissions": 1
+            },
+            "slotTypes": [
+              "MECH_WEAPON"
+            ]
+          }
+        },
+        {
           "id": "equipment-eligibility:equipment-powered-chainblades",
           "kind": "EQUIPMENT_ELIGIBILITY",
           "from": {
@@ -25071,6 +28880,126 @@ const snapshot = {
           }
         },
         {
+          "id": "equipment-effect:equipment-mech-autocannon:0",
+          "kind": "EQUIPMENT_EFFECT",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-autocannon"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-mech-autocannon-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "row 60",
+          "sourcedNumbers": {},
+          "parameters": {
+            "effect": {
+              "type": "WEAPON_GRANT",
+              "weaponId": "weapon-mech-autocannon-public-v1"
+            },
+            "effectType": "WEAPON_GRANT"
+          }
+        },
+        {
+          "id": "equipment-effect:equipment-mech-heavy-machine-weapon:0",
+          "kind": "EQUIPMENT_EFFECT",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-heavy-machine-weapon"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-mech-heavy-machine-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "row 59",
+          "sourcedNumbers": {},
+          "parameters": {
+            "effect": {
+              "type": "WEAPON_GRANT",
+              "weaponId": "weapon-mech-heavy-machine-public-v1"
+            },
+            "effectType": "WEAPON_GRANT"
+          }
+        },
+        {
+          "id": "equipment-effect:equipment-mech-large-laser:0",
+          "kind": "EQUIPMENT_EFFECT",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-large-laser"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-mech-large-laser-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "row 65",
+          "sourcedNumbers": {},
+          "parameters": {
+            "effect": {
+              "type": "WEAPON_GRANT",
+              "weaponId": "weapon-mech-large-laser-public-v1"
+            },
+            "effectType": "WEAPON_GRANT"
+          }
+        },
+        {
+          "id": "equipment-effect:equipment-mech-light-laser:0",
+          "kind": "EQUIPMENT_EFFECT",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-light-laser"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-mech-light-laser-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "row 63",
+          "sourcedNumbers": {},
+          "parameters": {
+            "effect": {
+              "type": "WEAPON_GRANT",
+              "weaponId": "weapon-mech-light-laser-public-v1"
+            },
+            "effectType": "WEAPON_GRANT"
+          }
+        },
+        {
+          "id": "equipment-effect:equipment-mech-medium-laser:0",
+          "kind": "EQUIPMENT_EFFECT",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-mech-medium-laser"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-mech-medium-laser-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": "source-store",
+          "sourcePath": null,
+          "sourceLocator": "row 64",
+          "sourcedNumbers": {},
+          "parameters": {
+            "effect": {
+              "type": "WEAPON_GRANT",
+              "weaponId": "weapon-mech-medium-laser-public-v1"
+            },
+            "effectType": "WEAPON_GRANT"
+          }
+        },
+        {
           "id": "equipment-effect:equipment-orbital-drop-training:0",
           "kind": "EQUIPMENT_EFFECT",
           "from": {
@@ -25111,6 +29040,29 @@ const snapshot = {
               "type": "DEPLOYMENT_GRANT"
             },
             "effectType": "DEPLOYMENT_GRANT"
+          }
+        },
+        {
+          "id": "equipment-effect:equipment-power-armour-back-light-laser-public-v1:0",
+          "kind": "EQUIPMENT_EFFECT",
+          "from": {
+            "definitionKind": "EQUIPMENT",
+            "definitionId": "equipment-power-armour-back-light-laser-public-v1"
+          },
+          "to": {
+            "definitionKind": "WEAPON",
+            "definitionId": "weapon-power-armour-back-light-laser-public-v1"
+          },
+          "ordinal": 0,
+          "sourceId": null,
+          "sourcePath": "packages/rules-engine/src/power-armoured-infantry.ts",
+          "sourceLocator": "public-v1 back weapon",
+          "sourcedNumbers": {},
+          "parameters": {
+            "effect": {
+              "weaponId": "weapon-power-armour-back-light-laser-public-v1"
+            },
+            "effectType": "WEAPON_GRANT"
           }
         },
         {
@@ -25723,5 +29675,5 @@ const snapshot = {
 } as const satisfies RulesCatalogueEnvelopeV1;
 
 export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
-export const V5_CORE_CURATED_2_CONTENT_HASH = "13578835f58b074a039ff8fb2363865faf948620b5a2dc6c6e19038449e00ba6" as const;
+export const V5_CORE_CURATED_2_CONTENT_HASH = "8440564c5b53b682346b0a2afd68d9cb0099070025a6cb45804e558737cfd848" as const;
 export const V5_CORE_CURATED_2_RULESET_VERSION = "v5-core-curated@2" as const;

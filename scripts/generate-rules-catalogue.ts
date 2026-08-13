@@ -223,9 +223,17 @@ export function legacyUnitPublicationSplit(snapshot: LegacyCatalogueSnapshot): {
 } {
   const canonicalUnitIds: string[] = [];
   const companionUnitIds: string[] = [];
+  const companionIds = new Set([
+    "unit-power-armoured-infantry", "unit-irregular", "unit-special-forces", "unit-sappers",
+    "unit-mechanized-infantry", "unit-light-battle-tank", "unit-heavy-battle-tank", "unit-super-heavy-tank",
+    "unit-light-artillery", "unit-heavy-artillery", "unit-self-propelled-artillery",
+    "unit-vtol-troop-airlift", "unit-vtol-multipurpose-airlift", "unit-vtol-heavy-lift",
+    "unit-medium-mech", "unit-heavy-mech",
+  ]);
   for (const unit of snapshot.tables.unit_class_definitions) {
     const id = String(unit.id);
-    if (unit.definition_status === "active") canonicalUnitIds.push(id);
+    if (companionIds.has(id)) companionUnitIds.push(id);
+    else if (unit.definition_status === "active") canonicalUnitIds.push(id);
     else if (unit.definition_status === "legacy") companionUnitIds.push(id);
     else throw new Error(`${id} has no canonical/companion publication classification.`);
   }
@@ -474,7 +482,7 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     capacity: 1,
     tags: ["GROUND", "PERSONNEL", "ARTILLERY", "INDIRECT", "DEPLOYABLE"],
     allowedOrders: ["HOLD", "ADVANCE"],
-    allowedActions: ["ATTACK", "BOMBARDMENT", "DEPLOY", "PACK_UP", "RELOAD", "LOAD", "UNLOAD"],
+    allowedActions: ["ATTACK", "BOMBARDMENT", "FUNNEL", "DEPLOY", "PACK_UP", "RELOAD", "LOAD", "UNLOAD"],
   },
   "unit-combat-medic": {
     capacity: 1,
@@ -535,6 +543,18 @@ const foundationUnitExecution: Record<string, JsonObject> = {
     tags: ["AEROSPACE", "VTOL", "VEHICLE", "ARMOURED", "TRANSPORT", "CANNOT_SPOT_GROUND"],
     allowedOrders: ["HOLD", "ADVANCE"],
     allowedActions: ["ATTACK", "LOAD", "UNLOAD", "LAND", "TAKE_OFF"],
+  },
+  "unit-special-forces": {
+    capacity: 1,
+    tags: ["GROUND", "PERSONNEL", "INFANTRY", "SPECIAL_FORCES", "INFANTRY_STEALTH"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH", "STEALTH"],
+    allowedActions: ["ATTACK", "PLACE_DELAYED_CHARGE", "DETONATE_DELAYED_CHARGE"],
+  },
+  "unit-sappers": {
+    capacity: 1,
+    tags: ["GROUND", "PERSONNEL", "INFANTRY", "ENGINEER", "SAPPER", "INFANTRY_STEALTH", "BUILD_SUPPLY"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH", "STEALTH"],
+    allowedActions: ["ATTACK", "SAPPER_CONSTRUCT", "RELOAD_BUILD_SUPPLY"],
   },
 };
 
@@ -821,6 +841,22 @@ const foundationUnitIds = [
   "unit-vtol",
 ] as const;
 
+const companionExecutableUnitIds = [
+  "unit-irregular",
+  "unit-special-forces",
+  "unit-sappers",
+  "unit-light-artillery",
+  "unit-heavy-artillery",
+  "unit-self-propelled-artillery",
+  "unit-vtol-troop-airlift",
+  "unit-vtol-multipurpose-airlift",
+  "unit-vtol-heavy-lift",
+  "unit-mechanized-infantry",
+  "unit-light-battle-tank",
+  "unit-heavy-battle-tank",
+  "unit-super-heavy-tank",
+] as const;
+
 const foundationOrderIds = [
   "order-advance",
   "order-evasive",
@@ -833,6 +869,7 @@ const foundationActionIds = [
   "action-attack",
   "action-artillery-dig-in",
   "action-bombardment",
+  "action-funnel",
   "action-construct",
   "action-crew-repair",
   "action-deploy-platform",
@@ -848,17 +885,248 @@ const foundationActionIds = [
   "action-rearm-aerospace",
   "action-take-off",
   "action-unload-cargo",
+  "action-place-delayed-charge-public-v1",
+  "action-detonate-delayed-charge-public-v1",
+  "action-sapper-construct-public-v1",
+  "action-reload-build-supply-public-v1",
+  "action-recruit-irregular-public-v1",
+  "action-abandon-guns-public-v1",
+  "action-replace-guns-public-v1",
+  "action-shield-wall-public-v1",
+  "action-mount-magnetic-clamps-public-v1",
+  "action-dismount-magnetic-clamps-public-v1",
 ] as const;
 
 const implementationCorrections: Record<string, Partial<RuleImplementationOverlayV1> & { explanation: string }> = {
-  "UNIT:unit-heavy-air-transport": {
-    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
-    reasonCode: "MISSING_CANONICAL_PRICE",
+  "UNIT:unit-combat-medic": {
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class", reasonCode: null,
     parameters: {
-      implementedSubset: ["HITS", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "FIVE_SLOT_CARGO", "CLEAR_ROUTE_AIRDROP", "LAND_TAKEOFF_STATE", "NO_GROUND_SPOTTING"],
-      missing: ["HAZARDOUS_DROP_RESULTS", "COORDINATED_SUPPLY_DROP"],
+      implementedSubset: ["FS", "NON_COMBAT", "FIRST_AID", "MEDICAL_SUPPLY_CURRENT_FS", "SMALL_SUPPLY_RELOAD", "DIG_IN", "PERSISTENCE"],
+      missing: [],
+      excludedCompanionMechanics: ["MASH"],
     },
-    explanation: "The V5 Heavy Air Transport executes its chassis, five-slot conversion table, terrain-independent flight, loading, friendly-airfield landing state, and no-cost clear route-bound Infantry/Light Vehicle airdrop. Hazardous outcomes and coordinated Supply drops remain gated.",
+    explanation: "The selected V5 Combat Medic profile executes D6/current-FS-capped First Aid, exact Medical Supply consumption/refill, Dig In, persistence and reports. MASH belongs to the rejected companion profile under RC-UNIT-002 and is not a missing V5 class mechanic.",
+  },
+  "UNIT:unit-mechanized-infantry": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-mechanized-infantry-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-classes@1",
+      implementedSubset: ["HITS", "ARMOURED_VEHICLE", "AUTOCANNON", "FORWARD_LINE_CONTROL", "MIXED_INFANTRY_VEHICLE_EQUIPMENT", "SUBSYSTEMS", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Mechanized Infantry executes its armoured Hits chassis, D4 autocannon, mixed equipment exception, vehicle subsystem damage, occupied-objective Forward Line control, and Req 10 acquisition.",
+  },
+  "UNIT:unit-light-battle-tank": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-tanks-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-classes@1",
+      implementedSubset: ["HITS", "D4_AP2_RANGE2", "REAR_WEAK_SPOT", "SUBSYSTEMS", "HAT_CLEAR_AIRDROP", "HEAVY_LIFT", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Light Battle Tank executes its approved 3-Hit chassis, D4 AP2 cannon, rear weak spot, subsystem damage, clear HAT airdrop, Heavy Lift transport, and Req 10 acquisition.",
+  },
+  "UNIT:unit-heavy-battle-tank": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-tanks-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-classes@1",
+      implementedSubset: ["HITS", "D8_AP2_RANGE3", "REAR_WEAK_SPOT", "SUBSYSTEMS", "NO_HAT", "HEAVY_LIFT", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Heavy Battle Tank executes its approved 3-Hit chassis, D8 AP2 long cannon, rear weak spot, subsystem damage, Heavy-Lift-only air transport, and Req 14 acquisition.",
+  },
+  "UNIT:unit-super-heavy-tank": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-tanks-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-classes@1",
+      implementedSubset: ["HITS", "TWO_D8_AP5_RANGE3_PRIMARY_SHOTS", "REAR_WEAK_SPOT", "SUBSYSTEMS", "HEAVY_LIFT_ONLY", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Super Heavy Tank executes its approved 4-Hit chassis, two server-owned D8 AP5 shots in one Primary activation, rear weak spot, subsystem damage, Heavy Lift transport, and Req 20 acquisition.",
+  },
+  "UNIT:unit-power-armoured-infantry": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-power-armour-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-power-armoured-infantry@1",
+      implementedSubset: ["FORCE_STRENGTH", "ARMOR_TWO", "DIG_IN", "SHIELD_WALL", "MAGNETIC_CLAMPS", "HEAVY_DROP_POD", "BACK_LIGHT_LASER", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Power Armoured Infantry executes its armoured FS profile, Shield Wall, paired Magnetic Clamp ride lifecycle, Heavy Drop Pod insertion, persistent back-laser unlock, and Req 10 acquisition.",
+  },
+  "UNIT:unit-medium-mech": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-mechs-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "companion-v1-mechs@1",
+      implementedSubset: ["HITS", "FITTED_MULTIWEAPON", "SUPPLY_POINT_RELOAD", "LEG_HEIGHT_ONE", "CROUCH_COVER", "SUBSYSTEMS", "MAGNETIC_CLAMPS", "HEAVY_LIFT", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Medium Mech executes its approved 4-Hit chassis, fitted public-v1 weapon subset, Primary multiweapon fire, Supply Point reload, leg-height LOS, crouch cover, transport links, and Req 14 acquisition.",
+  },
+  "UNIT:unit-heavy-mech": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-mechs-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "companion-v1-mechs@1",
+      implementedSubset: ["HITS", "FITTED_MULTIWEAPON", "SUPPLY_POINT_RELOAD", "LEG_HEIGHT_ONE", "SUBSYSTEMS", "MAGNETIC_CLAMPS", "HEAVY_LIFT", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Heavy Mech executes its approved 5-Hit chassis, fitted public-v1 weapon subset, Primary multiweapon fire, Supply Point reload, leg-height LOS, transport links, and Req 18 acquisition.",
+  },
+  ...Object.fromEntries([
+    "equipment-mech-heavy-machine-weapon",
+    "equipment-mech-autocannon",
+    "equipment-mech-light-laser",
+    "equipment-mech-medium-laser",
+    "equipment-mech-large-laser",
+  ].map((id) => [`EQUIPMENT:${id}`, {
+    implementationStatus: "IMPLEMENTED" as const, requisitionStatus: "PUBLISHED" as const,
+    availabilityStatus: "AVAILABLE" as const, executable: true, purchasable: true,
+    handlerId: "equipment-mech-weapons-public-v1", reasonCode: null,
+    parameters: { applicationProfileId: "companion-v1-mechs@1", effect: "FITTED_MECH_WEAPON" },
+    explanation: "The Store weapon is materialized through the bounded public-v1 mech weapon conversion and fitted only to approved mech external slots.",
+  }])),
+  "EQUIPMENT:equipment-ballistic-shields": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "equipment-power-armour-public-v1", reasonCode: null,
+    parameters: { applicationProfileId: "public-v1-power-armoured-infantry@1", effect: "SHIELD_WALL" },
+    explanation: "Ballistic Shields grant the executable full-movement Shield Wall action to Power Armoured Infantry.",
+  },
+  "EQUIPMENT:equipment-mech-magnetic-clamps": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "equipment-power-armour-public-v1", reasonCode: null,
+    parameters: { applicationProfileId: "public-v1-power-armoured-infantry@1", effect: "MAGNETIC_CLAMP_CARRIER" },
+    explanation: "Magnetic Clamps execute the paired one-rider lifecycle on Medium and Heavy Mechs.",
+  },
+  "EQUIPMENT:equipment-power-armour-back-light-laser-public-v1": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "equipment-power-armour-public-v1", reasonCode: null,
+    parameters: { applicationProfileId: "public-v1-power-armoured-infantry@1", minimumCompletedMissions: 1 },
+    explanation: "The D4 back-mounted Light Laser becomes requisitionable for Req 1 after one completed mission and persists its heat/cooldown state.",
+  },
+  "UNIT:unit-irregular": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-irregular-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-irregular@1",
+      implementedSubset: ["FS", "QUARTER_DAMAGE", "RECRUITMENT", "PROGRESSION", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "The public-v1 Irregular profile executes quartered damage, Population Center recruitment, persistent progression authority, and Req 4 acquisition.",
+  },
+  "UNIT:unit-special-forces": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-special-forces-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-special-forces@1",
+      implementedSubset: ["FS", "QUIET_RIFLE", "INFANTRY_STEALTH", "DELAYED_CHARGE", "REQUISITION"],
+      missing: [],
+      economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "The approved public-v1 Special Forces profile executes stealth, its D4 quiet rifle, persistent delayed-charge placement/detonation, and Req 8 acquisition.",
+  },
+  "UNIT:unit-sappers": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-sappers-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-sappers@1",
+      implementedSubset: ["FS", "QUIET_CARBINE", "INFANTRY_STEALTH", "BUILD_SUPPLY", "PERSISTENT_PROJECTS", "MINES", "SENSOR_TOWER", "WEAPON_EMPLACEMENT", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "The public-v1 Sapper profile executes quiet construction, persistent projects, its bounded fieldworks/mines, separate Build Supply economy, and Req 6 acquisition.",
+  },
+  "UNIT:unit-light-artillery": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-artillery-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-artillery@1",
+      implementedSubset: ["FORCE_STRENGTH", "DEPLOY_PACK", "TWO_AREA_SHOTS", "SPLIT_TARGETS", "ABANDON_GUNS", "ONE_REPLACEMENT", "HAT_AIRDROP", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Light Artillery executes its fixed-damage two-shot area fire, platform state, abandonment/replacement lifecycle, HAT airdrop, and Req 8 acquisition.",
+  },
+  "UNIT:unit-heavy-artillery": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-artillery-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-artillery@1",
+      implementedSubset: ["FORCE_STRENGTH", "DEPLOY_PACK", "THREE_AREA_SHOTS", "SPLIT_TARGETS", "ABANDON_GUNS", "ONE_REPLACEMENT", "HAT_CARGO", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Heavy Artillery executes its fixed-damage three-shot area fire, platform state, abandonment/replacement lifecycle, HAT cargo, and Req 12 acquisition.",
+  },
+  "UNIT:unit-self-propelled-artillery": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-artillery-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-artillery@1",
+      implementedSubset: ["HITS", "ARMOURED", "AREA_FIRE", "MINIMUM_RANGE_TWO", "FIVE_FINITE_ROUNDS", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Self-Propelled Artillery executes mobile D6 area fire at Range 2-4 with five finite rounds and Req 10 acquisition.",
+  },
+  "UNIT:unit-vtol-troop-airlift": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-vtol-transports-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-vtol-transports@1",
+      implementedSubset: ["HITS", "VTOL_FLIGHT", "ONE_SHOT_LIGHT_GUN", "TWO_INFANTRY_OR_SUPPLY", "RAPPEL_GARRISON", "LAND_TAKEOFF", "REARM", "CARRIER_LOSS", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "The companion Troop Airlift executes VTOL flight, its one-shot gun, two-Infantry-or-one-Supply cargo, route-bound authored-building rappel, carrier-loss adjudication, and Req 12 acquisition.",
+  },
+  "UNIT:unit-vtol-multipurpose-airlift": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-vtol-transports-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-vtol-transports@1",
+      implementedSubset: ["HITS", "VTOL_FLIGHT", "ONE_SHOT_LIGHT_GUN", "INFANTRY_OR_SUPPLY_PLUS_LIGHT_VEHICLE", "LAND_TAKEOFF", "REARM", "CARRIER_LOSS", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "The companion Multi-Purpose Airlift executes VTOL flight, its one-shot gun, simultaneous personnel-or-Supply plus Light Vehicle cargo, carrier-loss adjudication, and Req 12 acquisition.",
+  },
+  "UNIT:unit-vtol-heavy-lift": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-vtol-transports-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-vtol-transports@1",
+      implementedSubset: ["HITS", "VTOL_FLIGHT", "ONE_EXTERNAL_HEAVY_LOAD", "OBJECTIVE_CARGO", "SUPPLY_CARGO", "LAND_TAKEOFF", "CARRIER_LOSS", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "The companion Heavy Lift executes its armoured VTOL chassis, one governed external heavy/objective/Supply load, carrier-loss adjudication, and Req 14 acquisition.",
+  },
+  "UNIT:unit-heavy-air-transport": {
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
+    parameters: {
+      implementedSubset: ["HITS", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "FIVE_SLOT_CARGO", "CLEAR_ROUTE_AIRDROP", "COORDINATED_SUPPLY_DROP", "LAND_TAKEOFF_STATE", "NO_GROUND_SPOTTING", "CARRIER_LOSS_ADJUDICATION"],
+      missing: [],
+      failClosed: ["HAZARDOUS_DROP_DESTINATION"],
+    },
+    explanation: "The V5 Heavy Air Transport executes its chassis, five-slot conversion table, flight, loading, clear route-bound Infantry/Light Vehicle drops, paired Logi Supply drops, landing state, no-ground spotting and carrier-loss adjudication. RC-V5-018 deliberately rejects hazardous destinations instead of inventing casualty results.",
   },
   "UNIT:unit-aerospace-bomber": {
     implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
@@ -879,13 +1147,14 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     explanation: "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc, friendly-airfield landing/takeoff, Primary rearm, Aerospace Interceptor target restriction, and no-ground-spotting rule.",
   },
   "UNIT:unit-artillery": {
-    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
-    reasonCode: "EXPERIMENTAL_DAMAGE_PROFILE",
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
     parameters: {
-      implementedSubset: ["FS", "MOVEMENT", "DEPLOY_PACK_STATE", "BOMBARDMENT", "TOWING", "EXPERIMENTAL_ATTACK"],
-      missing: ["FUNNEL", "ANTI_ORBITAL"],
+      implementedSubset: ["FS", "MOVEMENT", "DEPLOY_PACK_STATE", "BOMBARDMENT", "FUNNEL", "TOWING"],
+      missing: [],
+      excludedByProfile: ["ANTI_ORBITAL"],
     },
-    explanation: "Artillery can deploy/pack and use the V5 Bombardment defense-suppression action while Funnel remains deferred.",
+    explanation: "The ground-tactical Artillery profile executes deploy/pack, Bombardment and the public-v1 whole-hex Funnel displacement. Anti-orbital fire is excluded from this profile under DEC-012 until orbital hull combat is activated; the unsupported experimental direct ground Attack is not advertised.",
   },
   "UNIT:unit-infantry-squad": {
     implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
@@ -897,13 +1166,13 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     explanation: "V5 Dig In, Sandbag-to-Trench upgrade, movement-derived building garrison, Flak Vests, and Lightweight Anti-armour execute. Light AT spends one to three fitted charges at Range 1 to add the same amount of AP to the Infantry rifle's single attack die.",
   },
   "UNIT:unit-engineers": {
-    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
-    reasonCode: "MISSING_CANONICAL_PRICE",
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
     parameters: {
-      implementedSubset: ["FS", "MOVEMENT", "REPAIR_ACTION", "ARTILLERY_DIG_IN", "SANDBAG_LINE_CONSTRUCTION", "RAZOR_WIRE", "TANK_TRAPS"],
-      missing: ["BRIDGES"],
+      implementedSubset: ["FS", "MOVEMENT", "REPAIR_ACTION", "ARTILLERY_DIG_IN", "SANDBAG_LINE_CONSTRUCTION", "RAZOR_WIRE", "TANK_TRAPS", "RIVER_EDGE_BRIDGE"],
+      missing: [],
     },
-    explanation: "Engineer Repair, adjacent deployed-Artillery Dig In, and the source-complete V5 Sandbag, Razor Wire, and Tank Trap fieldworks execute end to end; Bridge remains gated.",
+    explanation: "Engineer Repair, deployed-Artillery Dig In, Sandbags, Razor Wire, Tank Traps and the Req-free two-Small-Supply river-edge Field Bridge execute and persist. Bridge durability remains non-attackable under the bounded public-v1 lifecycle.",
   },
   "UNIT:unit-infantry-fighting-vehicle": {
     implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
@@ -915,13 +1184,13 @@ const implementationCorrections: Record<string, Partial<RuleImplementationOverla
     explanation: "The V5 Infantry Fighting Vehicle is playable end to end: acquisition, deployment, Snub Auto-Cannon combat, six-FS infantry cargo, subsystem consequences, stationary Armor-exposed Crew Repair, persistence, replay, reports, AI response and visual presentation are active.",
   },
   "UNIT:unit-logi-truck": {
-    implementationStatus: "PARTIAL", executable: true, handlerId: "foundation-generated-unit-class",
-    reasonCode: "MISSING_CANONICAL_PRICE",
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
     parameters: {
-      implementedSubset: ["HITS", "MOVEMENT", "ARTILLERY_SMALL_SUPPLY_TRANSFER", "SUPPLY_CARGO", "PASSENGER_CARGO", "ARTILLERY_TOWING"],
-      missing: ["COORDINATED_AIRDROP", "GENERAL_RESUPPLY"],
+      implementedSubset: ["HITS", "MOVEMENT", "TYPED_PARTIAL_SAME_RESOURCE_TRANSFER", "COORDINATED_AIRDROP", "SUPPLY_CARGO", "PASSENGER_CARGO", "ARTILLERY_TOWING", "CARRIER_LOSS_ADJUDICATION"],
+      missing: [],
     },
-    explanation: "The generated tactical handler executes the V5 Logi chassis, capacity-counted Small Supply and unit cargo, packed Artillery towing, and the narrow one-crate Artillery reload path; wider logistics remain gated.",
+    explanation: "The generated tactical handler executes the V5 Logi chassis, typed capacity-bounded same-resource transfer, paired route-bound HAT Supply drop, unit/Supply cargo, packed Artillery towing and carrier-loss adjudication without resource aliasing.",
   },
   "UNIT:unit-light-vehicle": {
     implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
@@ -983,6 +1252,87 @@ function buildHandlers(): RuleEngineHandlerV1[] {
       },
     },
     {
+      id: "companion-tanks-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/companion-tanks.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-light-battle-tank", "unit-heavy-battle-tank", "unit-super-heavy-tank"],
+      },
+    },
+    {
+      id: "companion-mechanized-infantry-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/mechanized-infantry.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-mechanized-infantry"],
+      },
+    },
+    {
+      id: "companion-mechs-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/companion-mechs.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-medium-mech", "unit-heavy-mech"],
+      },
+    },
+    {
+      id: "companion-irregular-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/irregular-progression.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-irregular"],
+      },
+    },
+    {
+      id: "companion-power-armour-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/power-armoured-infantry.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-power-armoured-infantry"],
+      },
+    },
+    {
+      id: "companion-special-forces-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/special-forces.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: [...companionExecutableUnitIds],
+      },
+    },
+    {
+      id: "companion-sappers-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/sapper-construction.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-sappers"],
+      },
+    },
+    {
+      id: "companion-artillery-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/companion-artillery.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-light-artillery", "unit-heavy-artillery", "unit-self-propelled-artillery"],
+      },
+    },
+    {
+      id: "companion-vtol-transports-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/companion-vtol-transports.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-vtol-troop-airlift", "unit-vtol-multipurpose-airlift", "unit-vtol-heavy-lift"],
+      },
+    },
+    {
       id: "foundation-order-handler",
       kind: "ORDER",
       evidence: {
@@ -1006,7 +1356,7 @@ function buildHandlers(): RuleEngineHandlerV1[] {
       evidence: {
         sourcePath: "packages/rules-engine/src/fieldworks.ts",
         resolverPath: "packages/rules-engine/src/resolver.ts",
-        definitionIds: ["structure-razor-wire", "structure-sandbag-line", "structure-tank-traps", "structure-trench"],
+        definitionIds: ["structure-bridge", "structure-razor-wire", "structure-sandbag-line", "structure-tank-traps", "structure-trench"],
       },
     },
     {
@@ -1027,14 +1377,41 @@ function buildHandlers(): RuleEngineHandlerV1[] {
         effectTypes: ["ATTACK_AP_MODIFIER", "AMMO_GRANT"],
       },
     },
+    {
+      id: "equipment-power-armour-public-v1",
+      kind: "EQUIPMENT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/power-armoured-infantry.ts",
+        definitionIds: ["equipment-ballistic-shields", "equipment-mech-magnetic-clamps", "equipment-power-armour-back-light-laser-public-v1"],
+      },
+    },
+    {
+      id: "equipment-mech-weapons-public-v1",
+      kind: "EQUIPMENT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/companion-mechs.ts",
+        definitionIds: ["equipment-mech-heavy-machine-weapon", "equipment-mech-autocannon", "equipment-mech-light-laser", "equipment-mech-medium-laser", "equipment-mech-large-laser"],
+      },
+    },
   ];
 }
 
 function handlerForOverlay(kind: string, id: string): string | null {
   if (kind === "UNIT" && foundationUnitIds.includes(id as (typeof foundationUnitIds)[number])) return "foundation-generated-unit-class";
-  if (kind === "STRUCTURE" && ["structure-razor-wire", "structure-sandbag-line", "structure-tank-traps", "structure-trench"].includes(id)) return "foundation-fieldwork-handler";
+  if (kind === "UNIT" && id === "unit-irregular") return "companion-irregular-public-v1";
+  if (kind === "UNIT" && id === "unit-power-armoured-infantry") return "companion-power-armour-public-v1";
+  if (kind === "UNIT" && id === "unit-mechanized-infantry") return "companion-mechanized-infantry-public-v1";
+  if (kind === "UNIT" && ["unit-medium-mech", "unit-heavy-mech"].includes(id)) return "companion-mechs-public-v1";
+  if (kind === "UNIT" && ["unit-light-battle-tank", "unit-heavy-battle-tank", "unit-super-heavy-tank"].includes(id)) return "companion-tanks-public-v1";
+  if (kind === "UNIT" && id === "unit-special-forces") return "companion-special-forces-public-v1";
+  if (kind === "UNIT" && id === "unit-sappers") return "companion-sappers-public-v1";
+  if (kind === "UNIT" && ["unit-light-artillery", "unit-heavy-artillery", "unit-self-propelled-artillery"].includes(id)) return "companion-artillery-public-v1";
+  if (kind === "UNIT" && ["unit-vtol-troop-airlift", "unit-vtol-multipurpose-airlift", "unit-vtol-heavy-lift"].includes(id)) return "companion-vtol-transports-public-v1";
+  if (kind === "STRUCTURE" && ["structure-bridge", "structure-razor-wire", "structure-sandbag-line", "structure-tank-traps", "structure-trench"].includes(id)) return "foundation-fieldwork-handler";
   if (kind === "EQUIPMENT" && id === "equipment-flak-vests") return "equipment-effect-flak-vests";
   if (kind === "EQUIPMENT" && id === "equipment-light-at") return "equipment-effect-light-at";
+  if (kind === "EQUIPMENT" && ["equipment-ballistic-shields", "equipment-mech-magnetic-clamps", "equipment-power-armour-back-light-laser-public-v1"].includes(id)) return "equipment-power-armour-public-v1";
+  if (kind === "EQUIPMENT" && ["equipment-mech-heavy-machine-weapon", "equipment-mech-autocannon", "equipment-mech-light-laser", "equipment-mech-medium-laser", "equipment-mech-large-laser"].includes(id)) return "equipment-mech-weapons-public-v1";
   return null;
 }
 
@@ -1090,7 +1467,9 @@ function buildOverlays(snapshot: LegacyCatalogueSnapshot): RuleImplementationOve
         },
         ...(definitionKind === "UNIT" && foundationUnitIds.includes(definitionId as (typeof foundationUnitIds)[number])
           ? { economyPolicyId: "public-v1-economy@1" }
-          : {}),
+          : definitionKind === "UNIT" && companionExecutableUnitIds.includes(definitionId as (typeof companionExecutableUnitIds)[number])
+            ? { economyPolicyId: "public-v1-companion-classes@1" }
+            : {}),
       },
     };
   });
@@ -1263,7 +1642,8 @@ export async function buildCanonicalCatalogueEnvelope(root = repositoryRoot): Pr
     readLegacyCatalogueSnapshot(root),
     readCanonicalConflictRegister(root),
   ]);
-  if (legacyTopLevelDefinitionCount(snapshot) !== 197) throw new Error("The final seed snapshot must contain exactly 197 top-level definitions.");
+  const topLevelDefinitionCount = legacyTopLevelDefinitionCount(snapshot);
+  if (topLevelDefinitionCount !== 226) throw new Error(`The final seed snapshot must contain exactly 226 top-level definitions; received ${topLevelDefinitionCount}.`);
   if (canonicalConflicts.length !== 72) throw new Error("The canonical conflict register must contain exactly 72 records.");
   const sourceMismatches = await legacySourceHashMismatches(snapshot, root);
   if (sourceMismatches.length > 0) throw new Error(`Rules source hashes drifted: ${canonicalJson(sourceMismatches)}`);
@@ -1311,14 +1691,19 @@ export async function buildCanonicalCatalogueEnvelope(root = repositoryRoot): Pr
     overlays: buildOverlays(snapshot),
     relations: buildRelations(snapshot),
   };
+  const registeredHandlers = new Set(content.handlers.map((handler) => `${handler.kind}:${handler.id}`));
+  const missingExecutableHandlers = content.overlays
+    .filter((overlay) => overlay.executable && (overlay.handlerId === null || !registeredHandlers.has(`${overlay.definitionKind}:${overlay.handlerId}`)))
+    .map((overlay) => `${overlay.definitionKind}:${overlay.definitionId}:${overlay.handlerId ?? "NONE"}`);
+  if (missingExecutableHandlers.length) throw new Error(`Executable overlays missing handlers: ${missingExecutableHandlers.join(", ")}`);
   return createRulesCatalogueEnvelope(content);
 }
 
 async function bootstrapLegacySnapshot(destination: string): Promise<void> {
   const snapshot = await readLegacyCatalogueSnapshot();
   const topLevelDefinitions = legacyTopLevelDefinitionCount(snapshot);
-  if (topLevelDefinitions !== 197) {
-    throw new Error(`Expected 197 final seeded top-level definitions; received ${topLevelDefinitions}.`);
+  if (topLevelDefinitions !== 226) {
+    throw new Error(`Expected 226 final seeded top-level definitions; received ${topLevelDefinitions}.`);
   }
   await writeFile(destination, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
   console.log(`Bootstrapped ${topLevelDefinitions} definitions to ${relative(repositoryRoot, destination)}.`);

@@ -18,6 +18,7 @@ const assetNameOverrides: Readonly<Record<string, string>> = {
   "equipment-silent-smgs": "silent-smgs-v2",
   "equipment-sponson-machine-gun-turret": "sponson-mg-turret",
   "equipment-grab-handles-and-side-skirts": "grab-handles-side-skirts",
+  "equipment-power-armour-back-light-laser-public-v1": "mech-light-laser",
 };
 
 function assetName(definitionId: string): string {

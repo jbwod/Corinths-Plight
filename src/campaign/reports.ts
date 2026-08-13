@@ -22,7 +22,7 @@ export const CAMPAIGN_REPORT_GROUPS: CampaignReportGroup[] = [
 ];
 
 const movementEvents = new Set(["UNIT_MOVED", "UNIT_BLOCKED", "UNIT_GARRISONED", "UNIT_LEFT_GARRISON", "UNIT_DUG_IN", "UNIT_DUG_OUT", "EVASIVE_MANEUVER", "AEROSPACE_LANDED", "AEROSPACE_TOOK_OFF"]);
-const combatEvents = new Set(["DICE_ROLLED", "UNIT_ATTACKED", "LIGHT_AT_EXPENDED", "WEAPON_SKIPPED", "SUBSYSTEM_MALFUNCTIONED", "DAMAGE_APPLIED", "UNIT_DESTROYED"]);
+const combatEvents = new Set(["DICE_ROLLED", "UNIT_ATTACKED", "DELAYED_CHARGE_PLACED", "DELAYED_CHARGE_DETONATED", "LIGHT_AT_EXPENDED", "WEAPON_SKIPPED", "SUBSYSTEM_MALFUNCTIONED", "DAMAGE_APPLIED", "UNIT_DESTROYED"]);
 const supportEvents = new Set([
   "CARGO_LOADED",
   "CARGO_UNLOADED",
@@ -36,12 +36,18 @@ const supportEvents = new Set([
   "ARTILLERY_DEPLOYED",
   "ARTILLERY_PACKED",
   "ARTILLERY_BOMBARDED",
+  "ARTILLERY_FUNNELLED",
+  "ARTILLERY_ABANDONED",
+  "ARTILLERY_REPLACED",
   "BOMBARDMENT_APPLIED",
   "BOMBARDMENT_RECOVERED",
   "HEX_SCANNED",
   "DRONE_DEPLOYED",
   "STRUCTURE_COMPLETED",
   "STRUCTURE_UPGRADED",
+  "SAPPER_BUILD_PROGRESS",
+  "SAPPER_BUILD_SUPPLY_RELOADED",
+  "SAPPER_MINE_TRIGGERED",
   "SUPPLY_TRANSFERRED",
   "AEROSPACE_REARMED",
   "AEROSPACE_INTERCEPTED",
@@ -187,6 +193,14 @@ export function describeCampaignReportEvent(
     }
     case "UNIT_ATTACKED":
       return `${actor} attacked ${target}: ${numberValue(payload.healthLoss)} damage${payload.rearAttack === true ? ", direct rear attack ignored vehicle Armor" : ""}${numberValue(payload.armorPiercingBonus) > 0 ? `, Light AT added +${numberValue(payload.armorPiercingBonus)} AP` : ""}${payload.highGroundModifier === 1 ? ", high ground added +1" : ""}${payload.evasiveAttackModifier === -2 ? ", Evasive fire applied −2" : ""}${payload.coverArmor === 1 ? ", cover added +1 Armor" : ""}${payload.digInDefense === 2 ? ", Dig In added +2 Defense" : ""}${payload.evasiveDefenseModifier === 3 ? ", target Evasive added +3 Defense" : ""}${payload.rapidFireMultiplier === 2 ? ", Rapid Fire doubled the damage result" : ""}${payload.penetrated === true ? ", armour penetrated" : ""}.`;
+    case "DELAYED_CHARGE_PLACED":
+      return `${actor} planted a delayed charge on ${target}; it arms next round and the team is revealed.`;
+    case "DELAYED_CHARGE_DETONATED":
+      return `${actor} remotely detonated its armed charge on ${target} for ${numberValue(payload.loss ?? payload.damage)} damage at AP ${numberValue(payload.armorPiercing ?? 2)}.`;
+    case "INFANTRY_STEALTH_RESOLVED":
+      return payload.active === true
+        ? `${actor} completed its movement under Infantry Stealth.`
+        : `${actor} was revealed during its action.`;
     case "LIGHT_AT_EXPENDED":
       return `${actor} spent ${numberValue(payload.chargesSpent)} Light AT charge${numberValue(payload.chargesSpent) === 1 ? "" : "s"} for +${numberValue(payload.armorPiercingBonus)} AP against ${target} (${numberValue(payload.ammunitionAfter)} remaining).`;
     case "WEAPON_SKIPPED":
@@ -209,10 +223,16 @@ export function describeCampaignReportEvent(
     case "CARGO_LOADED":
       return payload.transportMode === "TOWED"
         ? `${actor} hitched ${String(payload.cargoDeploymentId ?? "artillery")} for towing.`
+        : payload.transportMode === "EXTERNAL"
+          ? `${actor} secured ${String(payload.cargoDeploymentId ?? "a heavy load")} on its external lift rig.`
         : `${actor} embarked ${String(payload.cargoDeploymentId ?? "cargo")}.`;
     case "CARGO_UNLOADED":
-      return payload.transportMode === "TOWED"
+      return payload.mode === "RAPPEL_GARRISON"
+        ? `${actor} rappelled ${String(payload.cargoDeploymentId ?? "Infantry")} into the authored garrison at hex ${coordLabel(payload.targetHex) ?? "unknown"}; the carrier remained airborne.`
+        : payload.transportMode === "TOWED"
         ? `${actor} unhitched ${String(payload.cargoDeploymentId ?? "artillery")}.`
+        : payload.transportMode === "EXTERNAL"
+          ? `${actor} released ${String(payload.cargoDeploymentId ?? "its heavy load")} from the external lift rig.`
         : `${actor} disembarked ${String(payload.cargoDeploymentId ?? "cargo")}.`;
     case "AIR_DROP_COMPLETED":
       return `${actor} completed an air drop.`;
@@ -235,12 +255,32 @@ export function describeCampaignReportEvent(
       return `${actor} completed ${String(payload.structureName ?? "a fieldwork")} at hex ${coordLabel(payload.targetHex) ?? "unknown"}, spending ${numberValue(payload.smallSupplySpent)} Small Supply.`;
     case "STRUCTURE_UPGRADED":
       return `${actor} upgraded the Sandbag Line at hex ${coordLabel(payload.targetHex) ?? "unknown"} into a Trench.`;
+    case "SAPPER_BUILD_PROGRESS":
+      return `${actor} added ${numberValue(payload.progressAdded)} progress to ${String(payload.structureDefinitionId ?? "a Sapper project")} at hex ${coordLabel(payload.targetHex) ?? "unknown"}; ${numberValue(payload.buildSupplyAfter)} Build Supply remains.`;
+    case "SAPPER_BUILD_SUPPLY_RELOADED":
+      return `${actor} consumed one General Supply and restored Build Supply to ${numberValue(payload.buildSupplyAfter)}.`;
+    case "SAPPER_MINE_TRIGGERED":
+      return `${actor} triggered ${String(payload.mineDefinitionId ?? "a Sapper minefield")} for ${numberValue(payload.healthLoss)} damage.`;
+    case "SHIELD_WALL_FORMED":
+      return `${actor} formed a Ballistic Shield Wall at hex ${coordLabel(payload.position) ?? "unknown"}, gaining non-stacking Cover Armor 1 against direct fire until movement.`;
+    case "MAGNETIC_CLAMPS_MOUNTED":
+      return `${String(payload.riderDeploymentId ?? actor)} mounted ${String(payload.carrierDeploymentId ?? "a mech")} using Magnetic Clamps.`;
+    case "MAGNETIC_CLAMPS_DISMOUNTED":
+      return `${String(payload.riderDeploymentId ?? actor)} dismounted from ${String(payload.carrierDeploymentId ?? "a mech")} at hex ${coordLabel(payload.position) ?? "unknown"}.`;
     case "ARTILLERY_DEPLOYED":
       return `${actor} deployed and unhitched the artillery platform.`;
     case "ARTILLERY_PACKED":
       return `${actor} packed and hitched the artillery platform.`;
     case "ARTILLERY_BOMBARDED":
-      return `${actor} fired a radius-one suppression mission at hex ${coordLabel(payload.targetHex) ?? "unknown"}, spending one Small Supply.`;
+      return payload.areaHex === true
+        ? `${actor} fired area shot ${numberValue(payload.shotIndex)}/${numberValue(payload.shotCount)} at hex ${coordLabel(payload.targetHex) ?? "unknown"}, engaging ${Array.isArray(payload.targetIds) ? payload.targetIds.length : 0} ground target(s).`
+        : `${actor} fired a radius-one suppression mission at hex ${coordLabel(payload.targetHex) ?? "unknown"}, spending one Small Supply.`;
+    case "ARTILLERY_FUNNELLED":
+      return `${actor} funnelled ${target} from hex ${coordLabel(payload.from) ?? "unknown"} to ${coordLabel(payload.to) ?? "unknown"}, spending one Small Supply.`;
+    case "ARTILLERY_ABANDONED":
+      return `${actor} abandoned ${String(payload.originalDefinitionId ?? "its artillery")} and withdrew as an unarmed 1FS crew; one governed replacement remains available.`;
+    case "ARTILLERY_REPLACED":
+      return `${actor} restored ${String(payload.definitionId ?? "its artillery")} at a friendly Supply Point for ${numberValue(payload.requisitionSpent)} Req.`;
     case "BOMBARDMENT_APPLIED":
       return `${target} now has ${numberValue(payload.stacksAfter)} bombardment suppression stack${numberValue(payload.stacksAfter) === 1 ? "" : "s"} (Defense ${numberValue(payload.defenseAfter)}).`;
     case "BOMBARDMENT_RECOVERED":

@@ -148,6 +148,33 @@ describe("campaign order request contracts", () => {
     }).actions).toEqual([{ type: "RELOAD" }]);
   });
 
+  it("accepts strict Power Armour stance and paired Magnetic Clamp intents", () => {
+    expect(parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-power-armour",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{ type: "SHIELD_WALL" }],
+    }).actions).toEqual([{ type: "SHIELD_WALL" }]);
+    expect(parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-power-armour",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{ type: "MOUNT_MAGNETIC_CLAMPS", targetDeploymentId: "deployment-medium-mech" }],
+    }).actions).toEqual([{
+      type: "MOUNT_MAGNETIC_CLAMPS",
+      targetDeploymentId: "deployment-medium-mech",
+    }]);
+    expect(() => parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-power-armour",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{ type: "DISMOUNT_MAGNETIC_CLAMPS" }],
+    })).toThrow(CampaignRequestContractError);
+  });
+
   it("accepts only the explicit Engineer Repair choices", () => {
     expect(parseCampaignOrderIntent({
       ...ORDER_COMMAND,
@@ -262,6 +289,30 @@ describe("campaign order request contracts", () => {
       orderType: "HOLD",
       facing: 2,
       actions: [{ type: "TRENCH_UPGRADE" }],
+    })).toThrow(CampaignRequestContractError);
+  });
+
+  it("accepts only a target and hex direction for Funnel", () => {
+    expect(parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-allied-artillery",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{ type: "FUNNEL", targetDeploymentId: "deployment-enemy-moving", direction: 5 }],
+    }).actions).toEqual([{ type: "FUNNEL", targetDeploymentId: "deployment-enemy-moving", direction: 5 }]);
+    expect(() => parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-allied-artillery",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{ type: "FUNNEL", targetDeploymentId: "deployment-enemy-moving", direction: 6 }],
+    })).toThrow(CampaignRequestContractError);
+    expect(() => parseCampaignOrderIntent({
+      ...ORDER_COMMAND,
+      unitId: "deployment-allied-artillery",
+      orderType: "HOLD",
+      facing: 2,
+      actions: [{ type: "FUNNEL", targetDeploymentId: "deployment-enemy-moving", direction: 1, damage: 99 }],
     })).toThrow(CampaignRequestContractError);
   });
 

@@ -120,7 +120,7 @@ describe("governed cargo hydration", () => {
   it("hydrates every generated @2 cargo profile", () => {
     expect(V5_CORE_CURATED_2_CATALOGUE.content.cargoProfiles.map((definition) =>
       hydrateGovernedCargoProfile({ id: definition.id, parameters: definition.parameters }).ok,
-    )).toEqual([true, true, true, true, true]);
+    )).toEqual([true, true, true, true, true, true, true, true]);
   });
 
   it.each([

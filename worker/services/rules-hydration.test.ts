@@ -237,6 +237,88 @@ describe("server rules hydration", () => {
     });
   });
 
+  test("hydrates all three executable public-v1 companion artillery classes", () => {
+    const expectations = [
+      ["unit-light-artillery", 8, ["ABANDON_GUNS", "ATTACK", "DEPLOY", "PACK_UP"]],
+      ["unit-heavy-artillery", 12, ["ABANDON_GUNS", "ATTACK", "DEPLOY", "PACK_UP"]],
+      ["unit-self-propelled-artillery", 10, ["ATTACK"]],
+    ] as const;
+    for (const [definitionId, requisitionCost, allowedActionTypes] of expectations) {
+      const result = resolveUnitRulesAuthority({
+        ...unitInput(definitionId),
+        sensorRange: 0,
+        requisitionCost,
+        implementationStatus: "IMPLEMENTED",
+        requisitionStatus: "PUBLISHED",
+        availabilityStatus: "AVAILABLE",
+        executable: true,
+        purchasable: true,
+        reasonCode: null,
+      }, "production");
+      expect(result).toMatchObject({
+        ok: true,
+        authority: {
+          status: {
+            implementationStatus: "IMPLEMENTED",
+            availabilityStatus: "AVAILABLE",
+            executable: true,
+            purchasable: true,
+            handlerId: "companion-artillery-public-v1",
+          },
+          sourcedNumbers: { requisitionCost: { status: "PUBLISHED", value: requisitionCost } },
+          links: { allowedActionTypes },
+        },
+        legacyDefinition: { id: definitionId, requisitionCost },
+      });
+    }
+  });
+
+  test("hydrates all three public-v1 companion VTOL transports with exact cargo and requisition authority", () => {
+    const expectations = [
+      ["unit-vtol-troop-airlift", 12, "cargo-companion-vtol-troop-airlift-public-v1", ["ATTACK", "LAND", "LOAD", "REARM_AEROSPACE", "TAKE_OFF", "UNLOAD"]],
+      ["unit-vtol-multipurpose-airlift", 12, "cargo-companion-vtol-multipurpose-airlift-public-v1", ["ATTACK", "LAND", "LOAD", "REARM_AEROSPACE", "TAKE_OFF", "UNLOAD"]],
+      ["unit-vtol-heavy-lift", 14, "cargo-companion-vtol-heavy-lift-public-v1", ["LAND", "LOAD", "TAKE_OFF", "UNLOAD"]],
+    ] as const;
+    for (const [definitionId, requisitionCost, cargoProfileId, allowedActionTypes] of expectations) {
+      const result = resolveUnitRulesAuthority({
+        ...unitInput(definitionId),
+        sensorRange: 0,
+        requisitionCost,
+        implementationStatus: "IMPLEMENTED",
+        requisitionStatus: "PUBLISHED",
+        availabilityStatus: "AVAILABLE",
+        executable: true,
+        purchasable: true,
+        reasonCode: null,
+      }, "production");
+      expect(result).toMatchObject({
+        ok: true,
+        authority: {
+          status: {
+            implementationStatus: "IMPLEMENTED",
+            availabilityStatus: "AVAILABLE",
+            executable: true,
+            purchasable: true,
+            handlerId: "companion-vtol-transports-public-v1",
+          },
+          sourcedNumbers: { requisitionCost: { status: "PUBLISHED", value: requisitionCost } },
+          links: { allowedActionTypes },
+          profiles: {
+            cargoProfile: {
+              id: cargoProfileId,
+              definition: { applicationProfileId: "public-v1-companion-vtol-transports@1" },
+            },
+          },
+        },
+        legacyDefinition: {
+          id: definitionId,
+          requisitionCost,
+          stats: { healthModel: "HITS", maxHealth: 3, speed: 5 },
+        },
+      });
+    }
+  });
+
   test("fails closed when D1 profile bindings drift from generated authority", () => {
     expect(resolveUnitRulesAuthority({
       ...unitInput(),
@@ -248,9 +330,23 @@ describe("server rules hydration", () => {
     });
   });
 
-  test("fails closed for catalogue-only and non-legacy D1 definitions", () => {
+  test("hydrates the executable Power Armour adapter and rejects non-legacy D1 rulesets", () => {
     expect(resolveUnitRulesAuthority(unitInput("unit-power-armoured-infantry"), "development"))
-      .toMatchObject({ ok: false, code: "CATALOGUE_ONLY" });
+      .toMatchObject({
+        ok: true,
+        authority: {
+          status: {
+            implementationStatus: "IMPLEMENTED",
+            availabilityStatus: "AVAILABLE",
+            executable: true,
+            purchasable: true,
+            handlerId: "companion-power-armour-public-v1",
+          },
+          sourcedNumbers: { requisitionCost: { status: "PUBLISHED", value: 10 } },
+          links: { allowedActionTypes: expect.arrayContaining(["SHIELD_WALL", "MOUNT_MAGNETIC_CLAMPS", "DISMOUNT_MAGNETIC_CLAMPS"]) },
+        },
+        legacyDefinition: { id: "unit-power-armoured-infantry", requisitionCost: 10 },
+      });
     expect(resolveUnitRulesAuthority(
       { ...unitInput(), rulesetId: "ruleset-v5-core-curated-2" },
       "development",

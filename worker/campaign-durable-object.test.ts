@@ -782,12 +782,12 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(await pause.json()).toMatchObject({ error: { code: "CAMPAIGN_REQUEST_INVALID" } });
   });
 
-  it("fails closed before reading or mutating allied state with no executable @2 adapter", async () => {
+  it("fails closed before reading or mutating allied state with an unknown unit definition", async () => {
     const { campaign, storage } = campaignObject();
     expect((await campaign.fetch(request("/state"))).status).toBe(200);
     const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
     const originalOrderCount = seeded.orders.length;
-    seeded.deployments.find((deployment) => deployment.id === UNIT_ID)!.definitionId = "unit-special-forces";
+    seeded.deployments.find((deployment) => deployment.id === UNIT_ID)!.definitionId = "unit-unknown-test-chassis";
     storage.values.set("state/current", encodeCampaignStoredState(seeded));
 
     const before = storage.values.get("state/current");
@@ -796,7 +796,7 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(await stateResponse.json()).toMatchObject({
       error: {
         code: "CAMPAIGN_ERROR",
-        details: { message: "CAMPAIGN_UNIT_DEFINITION_NOT_EXECUTABLE:unit-special-forces:CATALOGUE_ONLY" },
+        details: { message: "CAMPAIGN_UNIT_DEFINITION_NOT_EXECUTABLE:unit-unknown-test-chassis:DEFINITION_NOT_FOUND" },
       },
     });
     expect(storage.values.get("state/current")).toBe(before);

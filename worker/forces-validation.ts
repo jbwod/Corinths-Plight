@@ -14,6 +14,12 @@ export interface PurchaseForceCommand {
   callsign: string;
 }
 
+export interface ProgressIrregularCommand {
+  commandId: string;
+  expectedVersion: number;
+  track: "MILITIA_VETERAN" | "RAIDER" | "REVOLUTIONARY_GUARD";
+}
+
 export interface ReadinessCheckCommand {
   unitIds: string[];
   shipId?: string;
@@ -106,6 +112,23 @@ export function validatePurchaseForceCommand(value: unknown): ValidationResult<P
       callsign: value.callsign.trim().toUpperCase(),
     },
   };
+}
+
+export function validateProgressIrregularCommand(value: unknown): ValidationResult<ProgressIrregularCommand> {
+  if (!isRecord(value) || !hasOnlyKeys(value, ["commandId", "expectedVersion", "track"])) {
+    return { valid: false, code: "COMMAND_INVALID", message: "Irregular progression command contains unsupported fields." };
+  }
+  if (typeof value.commandId !== "string" || !commandIdPattern.test(value.commandId)) {
+    return { valid: false, code: "COMMAND_ID_INVALID", message: "commandId must be 16–128 safe characters." };
+  }
+  if (!Number.isInteger(value.expectedVersion) || (value.expectedVersion as number) < 1) {
+    return { valid: false, code: "VERSION_INVALID", message: "expectedVersion must be a positive integer." };
+  }
+  const tracks = new Set(["MILITIA_VETERAN", "RAIDER", "REVOLUTIONARY_GUARD"]);
+  if (typeof value.track !== "string" || !tracks.has(value.track)) {
+    return { valid: false, code: "TRACK_INVALID", message: "Choose Militia Veteran, Raider, or Revolutionary Guard." };
+  }
+  return { valid: true, value: { commandId: value.commandId, expectedVersion: value.expectedVersion as number, track: value.track as ProgressIrregularCommand["track"] } };
 }
 
 export function validateReadinessCheckCommand(value: unknown): ValidationResult<ReadinessCheckCommand> {
