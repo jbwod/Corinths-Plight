@@ -1,6 +1,6 @@
-# Equipment and Deployment Rule Interpretations
+# Corinth's Plight Rule Interpretations
 
-This document records the narrow decisions used by the equipment/loadout/deployment vertical slice. It does not silently activate the wider companion catalogue.
+This document records narrow project interpretations used by implemented vertical slices. It does not silently activate the wider companion catalogue or promote application policy to canonical V5.
 
 ## Active interpretations
 
@@ -41,3 +41,18 @@ This document records the narrow decisions used by the equipment/loadout/deploym
 - tactical cryptographic PREPARED/result journal and acknowledgement-gated next-round transition.
 
 These items must remain visible blockers or catalogue-only states until a source-backed deterministic rule is adopted.
+
+## Game Master custom-map terrain application
+
+The following is the owner-approved Corinth application profile `corinth-custom-map-terrain-application@2`. It supplies deterministic custom-map behavior where V5 is silent; it is not promoted to canonical V5 and does not silently change older authored scenario profiles.
+
+1. Every `admin-map-vocabulary@2` biome stores one explicit mechanical profile. Runtime movement reads materialized mechanics, never a visual-biome substring.
+2. Deep/Open Water, Ocean, and Sea block all ground traversal. Shallow/Fresh Water and Rapids allow only an explicit `AMPHIBIOUS` or `WATER_TRAVERSAL` tag. Actually airborne Aerospace, Atmo Flight, and VTOL movement passes over water; `LANDED` units remain ground-bound unless the current Take Off action supplies the override. Frozen Lake/Ice Water is passable at `1.5`; Coast/Beach is passable at `1.25`.
+3. Forest, Dense Forest, and Jungle cost `1.25`, `1.5`, and `1.75`; Wetland, Marsh, Swamp, and Bog cost `1.25`, `1.5`, `1.75`, and `2`. Their LOS, cover, and capacity are part of the stored profiles. Rough, urban, highland, arid, cold, and glacier variants likewise use fixed quarter-increment profiles.
+4. Mountain, Mountain Peak, Volcano, and Cliffs block ordinary ground traversal. Only the explicit `MOUNTAIN_TRAVERSAL` tag is exempt; no current unit is assumed to have it. Actually airborne traversal may pass.
+5. Crossing a River edge adds `1` Speed. An exact Bridge retains the River but waives that surcharge. A Road and Path multiply ground terrain cost by `0.5` and `0.75`; Road wins when both exist. A Wall blocks ground traversal and LOS across its exact edge.
+6. City, Town, and Outpost materialize stable garrison/cover structures with capacity `8`, `5`, and `4`; Outpost also carries a supply-point tag. Airfield has capacity `6` and landing/rearm tags. RADAR materializes a minimum-elevation sensor-array structure. Trench uses the governed trench and infantry-cover definition.
+7. The route finder is deterministic and cost-aware, so it may prefer a legal bridge, road, or path to a slower river crossing. Player validation, simultaneous resolution, and enemy route budgeting consume the same mechanics.
+8. An Engineer's bounded Field Bridge construction spends the published two Small Supply, joins its hex to one adjacent River-crossing hex, marks the bridge bidirectionally, and does not remove the River. Bridge attack/damage/repair/destruction remains unresolved.
+
+All current generator vocabulary entries are therefore publication-governed. Older `@1` map documents do not inherit these decisions and fail exact-version validation until explicitly regenerated or migrated.

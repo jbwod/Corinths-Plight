@@ -309,6 +309,8 @@ export interface DeploymentAuthorityRow {
   campaign_id: string;
   campaign_status: string;
   campaign_ruleset_id: string;
+  game_master_map_revision_id: string | null;
+  game_master_scenario_available: number;
   side: string;
   campaign_role: string;
   operation_id: string | null;
@@ -328,6 +330,19 @@ export async function getDeploymentAuthority(
   return db.prepare(`SELECT battalion_memberships.battalion_id, battalion_memberships.command_role,
       campaigns.id AS campaign_id, campaigns.status AS campaign_status,
       campaigns.ruleset_id AS campaign_ruleset_id,
+      campaigns.game_master_map_revision_id,
+      EXISTS (SELECT 1 FROM game_master_campaign_scenarios AS custom
+        JOIN game_master_map_revisions AS revisions ON revisions.id=custom.map_revision_id
+        JOIN game_master_maps AS maps ON maps.id=revisions.map_id
+        WHERE custom.campaign_id=campaigns.id
+          AND custom.scenario_id='scenario-' || campaigns.id
+          AND custom.scenario_version=1
+          AND custom.scenario_content_key=campaigns.scenario_content_key
+          AND custom.map_revision_id=campaigns.game_master_map_revision_id
+          AND custom.map_content_hash=revisions.content_hash
+          AND campaigns.map_source_key='admin-map/' || maps.id || '@' || revisions.revision || ':' || revisions.content_hash
+          AND maps.status='PUBLISHED' AND maps.revision=revisions.revision
+          AND maps.content_hash=revisions.content_hash) AS game_master_scenario_available,
       campaign_memberships.side, campaign_memberships.role AS campaign_role,
       operations.id AS operation_id, operations.node_id AS operation_node_id,
       operations.status AS operation_status, campaigns.strategic_node_id AS campaign_node_id

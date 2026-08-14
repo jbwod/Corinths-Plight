@@ -26,9 +26,10 @@ This is the live release checklist. A checked local build item is not permission
 | Auth retention/session operations/invite abuse controls | partial P0 | Local migration `0008` adds bounded cleanup, invitation limits/audit and a durable background delivery outbox; it is not deployed, and idle/device/revoke/opt-out/monitoring work remains. |
 | Observability, diagnostics, SLOs and release manifest | open P0 | No journal/schedule/effect/socket operational dashboard or alerts. |
 | Backup/restore/rollback rehearsal | open P0 | No recorded RPO/RTO or coordinated D1/DO recovery proof. |
-| Browser E2E/accessibility/performance/security suites | partial P0 | Four local Playwright canaries and CI evidence retention exist; no production-like multi-user scenario, Axe/manual accessibility, performance or load proof. |
+| Browser E2E/accessibility/performance/security suites | partial P0 | Twenty local Playwright journeys and CI evidence retention exist; no production-like multi-user scenario, Axe/manual accessibility, performance or load proof. |
 | Privacy/terms/support/security/data-rights/asset licensing | blocked P0 | Owner/legal decisions and per-asset evidence absent. |
 | Unresolved Req/travel/slots/cargo/ship rules | decision blockers | See `RULE_DECISIONS_REQUIRED.md`; unavailable values must remain blocked. |
+| Game Master/map publication completion | partial P1 / release-sensitive | Global-grant-scoped live controls, five deterministic `@2` presets, complete biome/feature mechanics, immutable publication, and exact-pinned recruiting custom-campaign bootstrap are audited locally. Revive, custom victory/reward closure, grant administration/MFA, rate/alert policy, early-rejection auditing, cross-store diagnostics, production migration, and preview evidence remain blocked. |
 
 ## Current local command evidence
 
@@ -37,14 +38,14 @@ This is the live release checklist. A checked local build item is not permission
 | `npm run seed:check` | macOS local, Node project toolchain | PASS | 49 definitions; 43 active; 225 SQL definitions; 13 canonical and 16 Phase-2 allied classes; 7 enemy roles; 4 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
 | `npm run typecheck` | local | PASS | TypeScript 6.0.3. |
 | `npm run lint` | local | PASS | ESLint 10.8.1. |
-| `npm test` | local | PASS | Vitest 4.1.10; 96 files / 736 tests. |
+| `npm test` | local | PASS | Vitest 4.1.10; 105 files / 834 tests. |
 | `npm run build` | local development config | PASS | Worker 2,053.02 kB; client JS 1,920.16 kB; CSS 218.38 kB. The explicit manifest bundles 29 active tactical sheets (7.77 MiB); only the QA-passed light-v3, medium-v4 and heavy-v3 mech revisions enter the client. The post-build hash verifier confirms inactive revisions and chroma sources are absent. Wrangler emitted only its known sandboxed debug-log warning. Bundle/performance budgets remain open under CP-802. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
-| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0018 applied; all nine seeds replay twice across 122 tables with integrity/FK clean. |
+| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0021 applied; all nine seeds replay twice across 130 application tables with integrity/FK clean. |
 | Nine seeds, twice | same isolated D1 | PASS | Core, Phase 2, companion classes, equipment, Store, onboarding and three development fixtures replayed twice. |
 | SQLite integrity | isolated D1 database | PASS | `integrity_check=ok`; `foreign_key_check` empty. |
-| `npm run ci:verify:d1` | isolated local D1 | PASS | Eighteen migrations; nine seeds twice; stable table fingerprints/counts; 122 checked application tables. |
-| `npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS baseline + affected reruns | The prior 18/18 baseline covers Battalion join/switch/leave, rank/command administration, ship identity, campaign staging/withdrawal, unit/loadout mutations, strategic/deployment/tactical/report paths and 390px overflow. The prior two affected composer/map-layer journeys remain green. On 2026-08-14 a clean isolated strategic-deployment-to-tactical journey passed with persisted scenario V3, 311 map hexes, keyboard traversal, and keyboard route selection. |
+| `npm run ci:verify:d1` | isolated local D1 | PASS | Twenty-one migrations; nine seeds twice; stable table fingerprints/counts; 130 checked application tables. |
+| `npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 20/20 journeys pass: public auth, Battalion/ship/force persistence, exact Game Master map publication/bootstrap, strategic deployment, persisted scenario V3/311-hex tactical play, four-round outcome/replay, forged-action rejection, keyboard traversal/selection, and 390px overflow. |
 | `git diff --check` | local Phase-1 tree | PASS | No whitespace errors at final gate. |
 | `npm audit --audit-level=high` | npm advisory service | PASS | Zero known vulnerabilities at assessment time; the result is time-sensitive. |
 
@@ -62,7 +63,7 @@ The isolated manual replay contained development fixtures only because Phase 0 w
 | Typecheck/lint/unit tests | Included | Not run on GitHub | pending |
 | Coverage thresholds | Missing | Missing | blocker before RC |
 | Production build | Included | Not run on GitHub | pending |
-| Browser smoke/E2E | Four-test Playwright baseline included | Not run on GitHub | partial; full game-loop matrix remains a blocker |
+| Browser smoke/E2E | 20-test Playwright baseline included | Not run on GitHub | partial; production-like multi-account matrix remains a blocker |
 | Dependency audit | Included; local audit found zero vulnerabilities | Not run on GitHub | pending |
 | Static code/secret scan | Missing | Missing | blocker |
 | Production bundle retention | Included for 14 days with action-provided digest | Not run on GitHub | pending |
@@ -95,6 +96,9 @@ The workflow is a Phase-0 baseline, not a complete release pipeline. Official ac
 | 0016 | `0016_ship_identity_mutations.sql` | Primary-ship identity mutations and receipts | local pass; not deployed |
 | 0017 | `0017_public_v1_economy.sql` | Approved application economy policy and ledger support | local pass; not deployed |
 | 0018 | `0018_campaign_scenario_content_pins.sql` | Nullable exact authored-scenario content pin; no legacy backfill or automatic upgrade | local pass; not deployed |
+| 0019 | `0019_game_master_authority.sql` | Explicit global grants, campaign command receipts, and private audit; no default production grant | local pass; not deployed |
+| 0020 | `0020_game_master_maps.sql` | Versioned map drafts/revisions/publication, authoring receipts/audit, and exact published custom-campaign pins | local pass; not deployed |
+| 0021 | `0021_game_master_campaign_runtime.sql` | Immutable custom-scenario bootstrap bound to one exact published map revision and hash | local pass; not deployed |
 
 ### Production-approved seed families
 
@@ -133,7 +137,7 @@ No external state was changed during this Phase-0 assessment.
 | Content Security Policy/HSTS evidence | missing | Add CSP rollout and verify edge HSTS/TLS. |
 | WebSocket audience isolation | partial/pass locally | Per-viewer invalidations omit gameplay identifiers and enemy catch-up excludes Allied order events; hibernation/browser evidence remains open. |
 | Event/report fog | fail | Current visibility is used instead of event-time knowledge. |
-| Admin least privilege/MFA/audit/retry controls | missing | Backend admin check alone is insufficient. |
+| Admin least privilege/MFA/audit/retry controls | local partial | Explicit global grants, trusted-header stripping, revisioned actor-scoped receipts and private campaign/map audits exist. Grant management, MFA, rate/alert policy, cross-store reconciliation and production evidence remain missing. |
 | Auth/invite abuse controls and cleanup | local partial | Migration `0008` adds bounded terminal-record cleanup, four-scope invitation limits, pseudonymized audit and retryable delivery; production migration/monitoring, opt-out and complete session operations remain. |
 | Secrets scan/dependency/code scan | missing release evidence | Add CI scanners and triage policy. |
 | Data export/delete/anonymisation | missing | Depends on DEC-016. |
@@ -149,7 +153,7 @@ No external state was changed during this Phase-0 assessment.
 | Strategic pure resolver | foundation pass | No runtime caller/journal/alarm; public execution blocked. |
 | Strategic PREPARED→effects→ACK→COMMITTED | missing | CP-302. |
 | Durable schedule lifecycle/recovery | missing | CP-109. |
-| Duplicate command/effect protection | partial | Tactical order/clock now use actor-scoped SHA-256 receipts and revision CAS; cancel/pause/resume/resolve, the resolution journal and several other mutations remain incomplete. |
+| Duplicate command/effect protection | partial | Tactical order/clock and Game Master campaign/map commands use actor-scoped SHA-256 receipts and revision CAS. D1/DO Game Master audit projection is retryable but not atomic; the resolution journal and several other mutations remain incomplete. |
 | D1 migration/seed repeat safety | empty-DB pass | Add previous-release/prod-like snapshot replay. |
 | D1/DO reconciliation | missing | Operator-safe diagnostics/retry and immutable audit. |
 | Backup/restore/rollback | missing | Recorded preview rehearsal with approved RPO/RTO. |
@@ -168,6 +172,7 @@ No external state was changed during this Phase-0 assessment.
 | Own/configure/embark ship | partial/playable local | An authorized Battalion member can edit an existing primary ship's name/registry with revision, receipt and history guarantees; acquisition/modules remain CP-300/DEC-010 and embark breadth remains CP-301. |
 | Submit/resolve strategic travel and operation deployment | local partial | Movement, Embark/Disembark, support and `DEPLOY_TO_CAMPAIGN` resolve through the map coordinator; production world publication and full crash-safe journal remain CP-302–CP-304/DEC-005. |
 | Choose operation and create scenario campaign | partial | K-17 and local Iron Rain are authored and deployable through the live campaign/planner surfaces; strategic order-to-deployment automation and a production content pack remain CP-601/DEC-020. |
+| Administer campaigns and author maps | local partial | An explicitly granted Game Master can inspect live campaigns, adjust clocks, pause/resume/resolve, change objectives, spawn governed enemies, edit/save/reopen/export/publish deterministic maps, and create an exact-pinned recruiting campaign that uses normal join/deployment/DO initialization. Revive and versioned custom victory/reward closure remain open (CP-405/CP-400/CP-500). |
 | Submit/edit/cancel/schedule tactical orders | partial | Current-round generated orders support submit, edit and two-step cancel through actor-scoped hashed receipts and optimistic campaign/order revisions. Cancellation emits an Allied event and supports replacement before lock. Future scheduling remains intentionally unavailable pending reliable semantics. |
 | Resolve deterministic PvE combined arms | narrow partial | CP-500–CP-507 |
 | Persist effects before next round | narrow pass | Supported tactical effects hold `EFFECTS_PENDING` and acknowledge before one next round; broaden under CP-402. |
@@ -181,7 +186,7 @@ No external state was changed during this Phase-0 assessment.
 |---|---:|---:|---:|---:|---:|---:|
 | Landing/auth | Playwright smoke | unknown | Playwright overflow canary | partial | unverified | missing |
 | Guided onboarding | manual foundation only | unknown | manual foundation only | unverified | unverified | missing |
-| Forces/loadout | live browser journeys: owner edits persistent identity/history; unit purchase opens quartermaster; Reserve unit purchases Lightweight Anti-armour, sees the three-ammo weapon in the authoritative preview, commits it and reads owned inventory/effective state/Req balance back | responsive dialog rules present | focused Chromium pass | unverified | unverified | broader matrix pending |
+| Forces/loadout | live browser journeys: owner edits persistent identity/history; unit purchase opens quartermaster; the authoritative combat preview exposes executable actions and rejects a Lightweight Anti-armour fit because Infantry `PRIMARY` slots remain explicitly `CATALOGUED` under RC-UNIT-001 | responsive dialog rules present | Chromium pass with fail-closed unresolved-slot evidence | unverified | unverified | slot activation decision and broader matrix pending |
 | Battalion/ship/strategic reads | prior visual inspection only | unknown | prior visual inspection only | partial | unverified | missing |
 | Tactical map/order | Playwright live-read/forged-field canary | unknown | Playwright overflow canary | **core route/target unavailable** | **no equivalent workflow** | missing |
 | Reports/replay | local interactive reconstruction proven in the four-round browser journey | unknown | responsive map/ledger controls; mobile overflow passes | semantic round/detail/playback controls and synchronized formation ledger | screen-reader audit missing | partial |

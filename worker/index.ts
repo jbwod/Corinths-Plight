@@ -20,6 +20,7 @@ import { routeCampaignDirectoryRequest } from "./routes/campaigns";
 import { routeOnboardingRequest } from "./routes/onboarding";
 import { routeShipAdminRequest } from "./routes/ship-admin";
 import { routeStrategicRequest } from "./routes/strategic";
+import { routeGameMasterRequest } from "./routes/game-master";
 import { rulesCatalogueResponse } from "./rules-catalogue";
 import { scheduleSecurityMaintenance } from "./security-maintenance";
 import { StrategicMapDurableObject } from "./strategic-map-durable-object";
@@ -96,6 +97,9 @@ async function route(request: Request, env: Env, requestId: string, context: Exe
   const strategicResponse = await routeStrategicRequest(request, env);
   if (strategicResponse) return strategicResponse;
 
+  const gameMasterResponse = await routeGameMasterRequest(request, env);
+  if (gameMasterResponse) return gameMasterResponse;
+
   const match = url.pathname.match(campaignPath);
   if (match) {
     const identity = await authenticate(request, env);
@@ -121,6 +125,7 @@ async function route(request: Request, env: Env, requestId: string, context: Exe
     headers.delete("authorization");
     headers.delete("x-demo-user");
     headers.delete("x-demo-role");
+    headers.delete("x-corinth-global-game-master");
     for (const [name, value] of internalViewerHeaders(access.viewer)) headers.set(name, value);
     const internalSearch = new URLSearchParams(url.search);
     internalSearch.delete("demo_user");

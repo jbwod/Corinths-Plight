@@ -31,6 +31,13 @@ The tactical renderer remains React plus Canvas2D. Server-projected `Battlefield
 
 Palette variants and water are presentation-only. Water-ring coordinates are not added to the authoritative map and cannot be selected or traversed. Unknown hexes use a neutral fill and suppress terrain detail, structures, edges, objectives, and units; the renderer therefore does not recover redacted information from cosmetic generation.
 
+Visible objectives use an open zone ring and offset beacon so an occupying unit
+remains readable. Owner color comes from the projected `owner`; target, check,
+and failed glyphs come only from `ACTIVE`, `SECURED`, and `FAILED`; and the
+larger double-ring treatment comes only from the scenario policy's
+`primaryObjectiveId`. Names and owner/status detail progressively appear with
+zoom. The active primary objective may pulse unless reduced motion is enabled.
+
 Animation continues to use native `requestAnimationFrame` with intersection throttling and `prefers-reduced-motion`. Anime.js was evaluated but not added: it does not improve the Canvas2D draw loop and would increase the client dependency and bundle surface. Reduced motion selects stable sprite frames and suppresses pulses and route motion.
 
 ## Input and accessibility
@@ -44,7 +51,12 @@ The canvas supports pointer pan/zoom and now also exposes a fog-safe keyboard he
 - Shift + arrow: pan;
 - `F`: fit the complete land-and-water chart.
 
-The current coordinate, terrain family, visibility, and projected unit callsigns are announced through a live status region. Unknown hexes announce only that they are unknown. This materially improves operation, inspection, and focus visibility, but it is not the complete semantic grid/list, target chooser, and route editor required for WCAG 2.2 AA release evidence.
+The current coordinate, terrain family, visibility, projected unit callsigns,
+and visible objective name, priority, owner, and status are announced through
+a live status region. Unknown hexes announce only that they are unknown. This
+materially improves operation, inspection, and focus visibility, but it is not
+the complete semantic grid/list, target chooser, and route editor required for
+WCAG 2.2 AA release evidence.
 
 ## Persistence and migration
 
@@ -55,9 +67,9 @@ The migration intentionally performs no backfill. A legacy `NULL` pin, an unavai
 ## Verification evidence
 
 - Pure topology and scenario tests cover all four maps.
-- Full TypeScript and ESLint gates pass locally; Vitest passes 736 tests across 96 files.
+- Full TypeScript and ESLint gates pass locally; Vitest passes 834 tests across 105 files.
 - The production bundle compiles locally: Worker 2,053.02 kB, client JavaScript 1,920.16 kB, and CSS 218.38 kB. The post-build verifier finds all 29 allowlisted tactical sheets and rejects inactive mech or chroma hashes. Wrangler emits its known sandbox log-path warning while exiting successfully.
-- All 18 migrations apply to an empty isolated D1; all nine seeds replay twice across 122 tables with integrity and foreign keys clean.
+- All 21 migrations apply to an empty isolated D1; all nine seeds replay twice across 130 application tables with integrity and foreign keys clean.
 - A clean isolated browser workflow passes strategic deployment authorization, strategic round resolution, deployment validation/commit, persisted campaign bootstrap, scenario v3/311-hex API verification, keyboard cursor traversal, and keyboard route selection.
 - A 1920×1080 reduced-motion capture of the live authenticated demo workflow is retained at `/private/tmp/corinth-iron-rain-v3.png` for this local review. It is evidence of the renderer, not public multi-account proof.
 
@@ -68,5 +80,5 @@ The migration intentionally performs no backfill. A legacy `NULL` pin, an unavai
 - Legacy unpinned or older stored campaigns now fail closed; production still needs an explicit operator retention/retirement/migration procedure rather than an automatic upgrade.
 - Full semantic route/target alternatives, screen-reader/manual audit, contrast evidence, and automated accessibility coverage remain open.
 - Static terrain caching, sprite decode/bundle budgets, visual regression baselines, and load/soak profiling remain open.
-- The three active mech revisions now have exact hashes, complete revision disposition, and strict nadir QA; failed renders are quarantined and excluded from the client. The remaining 26 active tactical sheets still require equivalent lineage/visual QA, and all public art still requires rights approval. Reference screenshots 3–5 are style direction only and are not shipped or used as source imagery.
+- The three active mech revisions now have exact hashes, complete revision disposition, and strict nadir QA; failed renders are quarantined and excluded from the client. Seven new Bug Swarm sheets retain their untouched RGBA sources, packed hashes, catalogue status, and prompt-derived subject briefs in `swarm-sprite-provenance.json`; they remain provisional, and artwork does not activate the four incomplete enemy definitions. The remaining 26 player-unit sheets still require equivalent lineage/visual QA, and all public art still requires rights approval. Reference screenshots 3–5 are style direction only and are not shipped or used as source imagery.
 - Production world publication, preview proof, event-time fog policy, observability, rollback rehearsal, legal/privacy decisions, and the wider persistent game-loop blockers in `RELEASE_READINESS.md` remain unresolved. Corinth's Plight must continue to report **NO-GO** for public release.

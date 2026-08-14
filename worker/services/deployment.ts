@@ -46,6 +46,53 @@ interface CampaignDeploymentPolicy {
   reinforcementStatus?: "OPEN" | "CLOSED";
 }
 
+function isGameMasterCampaign(
+  authority: NonNullable<Awaited<ReturnType<typeof getDeploymentAuthority>>>,
+): authority is NonNullable<Awaited<ReturnType<typeof getDeploymentAuthority>>> & {
+  game_master_map_revision_id: string;
+} {
+  return typeof authority.game_master_map_revision_id === "string" &&
+    authority.game_master_map_revision_id.length > 0;
+}
+
+function assertGameMasterScenarioAvailable(
+  authority: NonNullable<Awaited<ReturnType<typeof getDeploymentAuthority>>>,
+): void {
+  if (isGameMasterCampaign(authority) && Number(authority.game_master_scenario_available) !== 1) {
+    throw new ForceServiceError(
+      409,
+      "CAMPAIGN_MAP_PIN_INVALID",
+      "The custom campaign no longer matches its exact published map and scenario revision.",
+    );
+  }
+}
+
+function activateGameMasterCampaignStatement(
+  env: Env,
+  campaignId: string,
+  mapRevisionId: string,
+): D1PreparedStatement {
+  return env.DB.prepare(`UPDATE campaigns SET status='ACTIVE',strategic_status='ACTIVE',
+      strategic_revision=CASE WHEN status='RECRUITING' THEN strategic_revision+1 ELSE strategic_revision END
+    WHERE id=?1 AND status IN ('RECRUITING','ACTIVE') AND game_master_map_revision_id=?2
+      AND EXISTS (SELECT 1 FROM game_master_campaign_scenarios AS custom
+        JOIN game_master_map_revisions AS revisions ON revisions.id=custom.map_revision_id
+        JOIN game_master_maps AS maps ON maps.id=revisions.map_id
+        WHERE custom.campaign_id=campaigns.id
+          AND custom.scenario_id='scenario-' || campaigns.id
+          AND custom.scenario_version=1
+          AND custom.scenario_content_key=campaigns.scenario_content_key
+          AND custom.map_revision_id=campaigns.game_master_map_revision_id
+          AND custom.map_content_hash=revisions.content_hash
+          AND campaigns.map_source_key='admin-map/' || maps.id || '@' || revisions.revision || ':' || revisions.content_hash
+          AND maps.status='PUBLISHED' AND maps.revision=revisions.revision
+          AND maps.content_hash=revisions.content_hash)
+      AND EXISTS (SELECT 1 FROM deployments
+        WHERE campaign_id=campaigns.id AND side='ALLIED'
+          AND status IN ('READY','ACTIVE','IMMOBILISED'))`)
+    .bind(campaignId, mapRevisionId);
+}
+
 function reinforcementWindow(authority: NonNullable<Awaited<ReturnType<typeof getDeploymentAuthority>>>): {
   open: boolean;
   mode: "INITIAL" | "REINFORCEMENT";
@@ -196,6 +243,7 @@ export async function listPlans(env: Env, userId: string): Promise<unknown> {
 export async function getPlanningContext(env: Env, userId: string, campaignId: string): Promise<unknown> {
   const authority = await getDeploymentAuthority(env.DB, userId, campaignId);
   if (!authority) throw new ForceServiceError(404, "CAMPAIGN_NOT_FOUND", "Allied campaign deployment authority was not found.");
+  assertGameMasterScenarioAvailable(authority);
   const [zones, methods] = await Promise.all([
     listInsertionZones(env.DB, campaignId),
     env.DB.prepare(`SELECT id,name,implementation_status,requirements_json
@@ -250,6 +298,7 @@ async function materialize(
 ): Promise<MaterializedPlan> {
   const authority = await getDeploymentAuthority(env.DB, actorId, command.campaignId);
   if (!authority) throw new ForceServiceError(404, "CAMPAIGN_NOT_FOUND", "Allied campaign deployment authority was not found.");
+  assertGameMasterScenarioAvailable(authority);
   const method = await getDeploymentMethod(env.DB, authority.campaign_ruleset_id, command.method);
   if (!method || method.implementation_status !== "IMPLEMENTED") {
     throw new ForceServiceError(422, "INSERTION_METHOD_UNAVAILABLE", `${command.method} is not executable in this ruleset.`);
@@ -509,6 +558,7 @@ export async function commitPlan(
   if (!authority || !canCommand(authority.command_role, authority.campaign_role)) {
     throw new ForceServiceError(403, "DEPLOYMENT_COMMAND_APPROVAL_REQUIRED", "Battalion Command must commit deployment plans.");
   }
+  assertGameMasterScenarioAvailable(authority);
   const reinforcement = reinforcementWindow(authority);
   if (!reinforcement.open) {
     throw new ForceServiceError(409, "REINFORCEMENT_WINDOW_CLOSED", "The campaign deployment window closed before this plan was committed.");
@@ -651,8 +701,14 @@ export async function commitPlan(
         .bind(authority.operation_id),
       env.DB.prepare(`UPDATE campaigns SET status='ACTIVE',strategic_status='ACTIVE',
         strategic_revision=strategic_revision+1 WHERE id=?1 AND status IN ('DRAFT','RECRUITING','ACTIVE')`)
-        .bind(row.campaign_id),
+      .bind(row.campaign_id),
     );
+  } else if (!authority.operation_id && isGameMasterCampaign(authority)) {
+    statements.push(activateGameMasterCampaignStatement(
+      env,
+      row.campaign_id,
+      authority.game_master_map_revision_id,
+    ));
   }
   const response = {
     planId,
@@ -687,8 +743,23 @@ async function attachReinforcementSync(env: Env, actorId: string, committed: unk
   if (!committed || typeof committed !== "object" || Array.isArray(committed)) return committed;
   const record = committed as Record<string, unknown>;
   if (typeof record.campaignId !== "string") return committed;
-  const authority = await getDeploymentAuthority(env.DB, actorId, record.campaignId);
+  let authority = await getDeploymentAuthority(env.DB, actorId, record.campaignId);
   if (!authority) return { ...record, reinforcementSync: { status: "PENDING", reason: "CAMPAIGN_ACCESS_CHANGED" } };
+  assertGameMasterScenarioAvailable(authority);
+  if (isGameMasterCampaign(authority) && authority.campaign_status === "RECRUITING") {
+    await env.DB.batch([
+      activateGameMasterCampaignStatement(env, record.campaignId, authority.game_master_map_revision_id),
+    ]);
+    authority = await getDeploymentAuthority(env.DB, actorId, record.campaignId);
+    if (!authority || authority.campaign_status !== "ACTIVE") {
+      throw new ForceServiceError(
+        500,
+        "CAMPAIGN_ACTIVATION_INCOMPLETE",
+        "The committed custom campaign deployment has not entered its active registry state.",
+      );
+    }
+    assertGameMasterScenarioAvailable(authority);
+  }
   const headers = internalViewerHeaders({
     userId: actorId,
     side: "ALLIED",

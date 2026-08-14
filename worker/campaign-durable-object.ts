@@ -6,6 +6,8 @@ import type {
   CampaignMarkerKind,
   CampaignOperationNoteDto,
   CampaignRuntimeState,
+  Facing,
+  ObjectiveState,
   ResolutionRecord,
   StructuredAction,
   UnitOrder,
@@ -18,7 +20,9 @@ import {
 import {
   createDemoCampaignState,
   canTarget,
+  canTraverseBattlefieldHex,
   createScenarioCampaignState,
+  canOccupyHex,
   getFieldworkDefinition,
   getTacticalActionRule,
   getTacticalCargoProfile,
@@ -37,6 +41,7 @@ import {
   validateLimitedForwardArc,
   validateLightAtAttack,
   validateOrder,
+  type AdminMapDocumentV1,
 } from "../packages/rules-engine/src";
 import {
   CLOCK_PRESETS,
@@ -62,6 +67,13 @@ import {
 } from "./campaign-contracts";
 import { viewerFromInternalRequest } from "./auth";
 import { generateEnemyOrders } from "./enemy-ai";
+import {
+  gameMasterScenarioContentKey,
+  isGameMasterScenarioContentKey,
+  materializeGameMasterCampaignState,
+  materializeGameMasterEnemyDeployment,
+  type GameMasterAuthoredEnemyDeployment,
+} from "./game-master-runtime";
 import { configuredCampaignStrategicConsequences } from "./campaign-strategic-effects";
 import { campaignRealtimeProjection, parseCampaignRealtimeCursor } from "./campaign-realtime";
 import type { Env } from "./env";
@@ -69,8 +81,22 @@ import { errorResponse, json, readJson } from "./http";
 import { validateIncidentalActions } from "./order-validation";
 import { LEGACY_RULESET_ID, resolveUnitExecutionAdapter } from "./services/rules-hydration";
 import { companionArmourActionEconomy } from "./services/companion-armour-hydration";
+import {
+  GameMasterValidationError,
+  parseGameMasterEnemySpawn,
+  parseGameMasterControl,
+  parseGameMasterObjectiveCreate,
+  parseGameMasterObjectiveUpdate,
+  parseGameMasterRevive,
+  type GameMasterCommandIntent,
+} from "./game-master-validation";
 
 const STATE_KEY = "state/current";
+const STATE_CHUNK_PREFIX = "state/chunk/";
+export const CAMPAIGN_STATE_CHUNK_BYTES = 1024 * 1024;
+const CAMPAIGN_STATE_INLINE_BYTES = 1024 * 1024;
+const MAX_CAMPAIGN_STATE_BYTES = 64 * 1024 * 1024;
+const MAX_CAMPAIGN_STATE_CHUNKS = Math.ceil(MAX_CAMPAIGN_STATE_BYTES / CAMPAIGN_STATE_CHUNK_BYTES);
 const FOUNDATION_CAMPAIGN_ID = "outpost-k17";
 const MAX_ROUTE_LENGTH = 128;
 const EFFECT_RETRY_DELAY_MS = 5_000;
@@ -119,7 +145,19 @@ interface WebSocketAttachment {
   role: string;
 }
 
-type CampaignCommandOperation = "ORDER_UPSERT" | "ORDER_CANCEL" | "CLOCK_UPDATE" | "MARKER_UPDATE" | "OPERATION_NOTE_UPDATE";
+type CampaignCommandOperation =
+  | "ORDER_UPSERT"
+  | "ORDER_CANCEL"
+  | "CLOCK_UPDATE"
+  | "MARKER_UPDATE"
+  | "OPERATION_NOTE_UPDATE"
+  | "OBJECTIVE_CREATE"
+  | "OBJECTIVE_UPDATE"
+  | "DEPLOYMENT_REVIVE"
+  | "ENEMY_SPAWN"
+  | "CAMPAIGN_PAUSE"
+  | "CAMPAIGN_RESUME"
+  | "ROUND_RESOLVE";
 
 interface CampaignCommandReceipt<TResponse extends object> {
   schemaVersion: 1;
@@ -145,9 +183,39 @@ interface OrderCancellationResponse {
 }
 
 interface ClockCommandResponse {
+  operation: "CLOCK_UPDATE";
+  commandId: string;
+  campaignId: string;
+  appliedAt: number;
   clock: CampaignRuntimeState["clock"];
   preset: string;
   campaignVersion: number;
+}
+
+interface GameMasterCommandResponse {
+  operation: Exclude<CampaignCommandOperation, "ORDER_UPSERT" | "ORDER_CANCEL" | "CLOCK_UPDATE" | "MARKER_UPDATE" | "OPERATION_NOTE_UPDATE">;
+  commandId: string;
+  campaignId: string;
+  campaignVersion: number;
+  appliedAt: number;
+  resource: ObjectiveState | CampaignDeployment | {
+    phase: CampaignRuntimeState["phase"];
+    round: number;
+    clock: CampaignRuntimeState["clock"];
+    resolution?: Record<string, unknown>;
+  };
+}
+
+interface PendingGameMasterRoundResolve {
+  schemaVersion: 1;
+  operation: "ROUND_RESOLVE";
+  status: "PENDING";
+  actorUserId: string;
+  commandId: string;
+  requestHash: string;
+  expectedCampaignVersion: number;
+  expectedRound: number;
+  createdAt: number;
 }
 
 interface StoredCampaignMarker {
@@ -187,6 +255,67 @@ interface OperationNoteCommandResponse {
   removedNoteId?: string;
 }
 
+interface GameMasterScenarioRuntimeRow {
+  scenario_id: string;
+  scenario_version: number;
+  scenario_content_key: string;
+  map_revision_id: string;
+  map_content_hash: string;
+  objectives_json: string;
+  enemy_deployments_json: string;
+  map_id: string;
+  map_revision: number;
+  revision_content_hash: string;
+  document_json: string;
+  map_source_key: string;
+  campaign_scenario_content_key: string | null;
+  campaign_map_revision_id: string | null;
+}
+
+interface ChunkedCampaignStateManifestV1 {
+  storageFormat: "CORINTH_CAMPAIGN_STATE_CHUNKS";
+  schemaVersion: 1;
+  generation: string;
+  chunkCount: number;
+  byteLength: number;
+  sha256: string;
+}
+
+function campaignStateChunkKey(rootKey: string, index: number): string {
+  const prefix = rootKey === STATE_KEY ? STATE_CHUNK_PREFIX : `${rootKey}/chunk/`;
+  return `${prefix}${String(index).padStart(6, "0")}`;
+}
+
+function chunkedCampaignStateManifest(value: unknown): ChunkedCampaignStateManifestV1 | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const candidate = value as Partial<ChunkedCampaignStateManifestV1>;
+  if (candidate.storageFormat === undefined) return undefined;
+  if (
+    candidate.storageFormat !== "CORINTH_CAMPAIGN_STATE_CHUNKS" ||
+    candidate.schemaVersion !== 1 ||
+    typeof candidate.generation !== "string" ||
+    !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(candidate.generation) ||
+    !Number.isSafeInteger(candidate.chunkCount) ||
+    Number(candidate.chunkCount) < 1 ||
+    Number(candidate.chunkCount) > MAX_CAMPAIGN_STATE_CHUNKS ||
+    !Number.isSafeInteger(candidate.byteLength) ||
+    Number(candidate.byteLength) < 1 ||
+    Number(candidate.byteLength) > MAX_CAMPAIGN_STATE_BYTES ||
+    typeof candidate.sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/.test(candidate.sha256)
+  ) {
+    throw new Error("CAMPAIGN_STATE_CHUNK_MANIFEST_INVALID");
+  }
+  const expectedCount = Math.ceil(Number(candidate.byteLength) / CAMPAIGN_STATE_CHUNK_BYTES);
+  if (candidate.chunkCount !== expectedCount) throw new Error("CAMPAIGN_STATE_CHUNK_MANIFEST_INVALID");
+  return candidate as ChunkedCampaignStateManifestV1;
+}
+
+async function campaignStateSha256(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", Uint8Array.from(bytes).buffer);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 function commandReceipt<TResponse extends object>(
   value: unknown,
   operation: CampaignCommandOperation,
@@ -207,6 +336,38 @@ function commandReceipt<TResponse extends object>(
     throw new Error("CAMPAIGN_COMMAND_RECEIPT_INVALID");
   }
   return receipt as CampaignCommandReceipt<TResponse>;
+}
+
+function pendingGameMasterRoundResolve(value: unknown): PendingGameMasterRoundResolve | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const pending = value as Partial<PendingGameMasterRoundResolve>;
+  if (pending.status !== "PENDING") return undefined;
+  if (
+    pending.schemaVersion !== 1 ||
+    pending.operation !== "ROUND_RESOLVE" ||
+    typeof pending.actorUserId !== "string" ||
+    typeof pending.commandId !== "string" ||
+    !/^[a-f0-9]{64}$/.test(pending.requestHash ?? "") ||
+    !Number.isSafeInteger(pending.expectedCampaignVersion) ||
+    !Number.isSafeInteger(pending.expectedRound) ||
+    Number(pending.expectedRound) < 1 ||
+    !Number.isSafeInteger(pending.createdAt)
+  ) {
+    throw new Error("GAME_MASTER_RESOLVE_PENDING_INVALID");
+  }
+  return pending as PendingGameMasterRoundResolve;
+}
+
+function samePendingGameMasterRoundResolve(
+  left: PendingGameMasterRoundResolve,
+  right: PendingGameMasterRoundResolve,
+): boolean {
+  return left.operation === right.operation &&
+    left.actorUserId === right.actorUserId &&
+    left.commandId === right.commandId &&
+    left.requestHash === right.requestHash &&
+    left.expectedCampaignVersion === right.expectedCampaignVersion &&
+    left.expectedRound === right.expectedRound;
 }
 
 function eventSequence(state: CampaignRuntimeState, round = state.round): number {
@@ -247,12 +408,53 @@ export class CampaignDurableObject extends DurableObject<Env> {
     }
   }
 
+  private async loadGameMasterScenarioRuntime(): Promise<GameMasterScenarioRuntimeRow> {
+    const row = await this.env.DB.prepare(`SELECT scenarios.scenario_id,scenarios.scenario_version,
+        scenarios.scenario_content_key,scenarios.map_revision_id,scenarios.map_content_hash,
+        scenarios.objectives_json,scenarios.enemy_deployments_json,revisions.map_id,
+        revisions.revision AS map_revision,revisions.content_hash AS revision_content_hash,
+        revisions.document_json,campaigns.map_source_key,
+        campaigns.scenario_content_key AS campaign_scenario_content_key,
+        campaigns.game_master_map_revision_id AS campaign_map_revision_id
+      FROM game_master_campaign_scenarios AS scenarios
+      JOIN campaigns ON campaigns.id=scenarios.campaign_id
+      JOIN game_master_map_revisions AS revisions ON revisions.id=scenarios.map_revision_id
+      JOIN game_master_maps AS maps ON maps.id=revisions.map_id
+      WHERE scenarios.campaign_id=?1
+        AND campaigns.game_master_map_revision_id=scenarios.map_revision_id
+        AND campaigns.scenario_content_key=scenarios.scenario_content_key
+        AND scenarios.map_content_hash=revisions.content_hash
+        AND maps.status='PUBLISHED' AND maps.revision=revisions.revision
+        AND maps.content_hash=revisions.content_hash
+      LIMIT 1`).bind(this.campaignId()).first<GameMasterScenarioRuntimeRow>();
+    if (!row) throw new Error("GAME_MASTER_SCENARIO_PIN_INVALID");
+    const expectedContentKey = gameMasterScenarioContentKey(this.campaignId());
+    const expectedMapSourceKey = `admin-map/${row.map_id}@${row.map_revision}:${row.map_content_hash}`;
+    if (
+      row.scenario_id !== `scenario-${this.campaignId()}` ||
+      row.scenario_version !== 1 ||
+      row.scenario_content_key !== expectedContentKey ||
+      row.campaign_scenario_content_key !== expectedContentKey ||
+      row.campaign_map_revision_id !== row.map_revision_id ||
+      row.map_revision_id !== `${row.map_id}@${row.map_revision}` ||
+      row.map_content_hash !== row.revision_content_hash ||
+      row.map_source_key !== expectedMapSourceKey
+    ) {
+      throw new Error("GAME_MASTER_SCENARIO_PIN_MISMATCH");
+    }
+    return row;
+  }
+
   private async assertStoredStateMatchesPinnedScenario(state: CampaignRuntimeState): Promise<void> {
     const selection = await this.env.DB.prepare(`SELECT map_source_key,scenario_content_key
       FROM campaigns WHERE id=?1 LIMIT 1`)
       .bind(this.campaignId()).first<{ map_source_key: string; scenario_content_key: string | null }>();
     if (!selection) throw new Error("CAMPAIGN_NOT_INITIALISED");
-    this.assertPinnedScenarioSelection(selection);
+    if (isGameMasterScenarioContentKey(selection.scenario_content_key)) {
+      await this.loadGameMasterScenarioRuntime();
+    } else {
+      this.assertPinnedScenarioSelection(selection);
+    }
     const storedContentKey = state.scenarioId && state.scenarioVersion
       ? `${state.scenarioId}@${state.scenarioVersion}`
       : undefined;
@@ -313,15 +515,116 @@ export class CampaignDurableObject extends DurableObject<Env> {
     return changed;
   }
 
+  private async readCampaignStoredValue(
+    storage: DurableObjectStorage | DurableObjectTransaction,
+    rootKey = STATE_KEY,
+  ): Promise<unknown | undefined> {
+    const root = await storage.get<unknown>(rootKey);
+    const manifest = chunkedCampaignStateManifest(root);
+    if (!manifest) return root;
+    const keys = Array.from({ length: manifest.chunkCount }, (_, index) =>
+      campaignStateChunkKey(rootKey, index));
+    const stored = await storage.get<unknown>(keys);
+    const chunks: Uint8Array[] = [];
+    let totalLength = 0;
+    for (const [index, key] of keys.entries()) {
+      const value = stored.get(key);
+      if (!(value instanceof Uint8Array)) throw new Error(`CAMPAIGN_STATE_CHUNK_MISSING:${index}`);
+      const expectedLength = index === keys.length - 1
+        ? manifest.byteLength - (CAMPAIGN_STATE_CHUNK_BYTES * index)
+        : CAMPAIGN_STATE_CHUNK_BYTES;
+      if (value.byteLength !== expectedLength) throw new Error(`CAMPAIGN_STATE_CHUNK_LENGTH_INVALID:${index}`);
+      chunks.push(value);
+      totalLength += value.byteLength;
+    }
+    if (totalLength !== manifest.byteLength) throw new Error("CAMPAIGN_STATE_CHUNK_LENGTH_INVALID");
+    const bytes = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    if (await campaignStateSha256(bytes) !== manifest.sha256) {
+      throw new Error("CAMPAIGN_STATE_CHUNK_HASH_MISMATCH");
+    }
+    try {
+      return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    } catch {
+      throw new Error("CAMPAIGN_STATE_CHUNK_JSON_INVALID");
+    }
+  }
+
+  private async deleteCampaignStateChunks(
+    storage: DurableObjectTransaction,
+    rootKey: string,
+    manifest: ChunkedCampaignStateManifestV1 | undefined,
+  ): Promise<void> {
+    if (!manifest) return;
+    for (let index = 0; index < manifest.chunkCount; index += 1) {
+      await storage.delete(campaignStateChunkKey(rootKey, index));
+    }
+  }
+
+  private async writeCampaignState(
+    storage: DurableObjectTransaction,
+    state: CampaignRuntimeState,
+    rootKey = STATE_KEY,
+  ): Promise<void> {
+    const encoded = encodeCampaignStoredState(state);
+    const bytes = new TextEncoder().encode(JSON.stringify(encoded));
+    if (bytes.byteLength > MAX_CAMPAIGN_STATE_BYTES) throw new Error("CAMPAIGN_STATE_TOO_LARGE");
+    const previousManifest = chunkedCampaignStateManifest(await storage.get<unknown>(rootKey));
+    if (bytes.byteLength <= CAMPAIGN_STATE_INLINE_BYTES) {
+      await storage.put(rootKey, encoded);
+      await this.deleteCampaignStateChunks(storage, rootKey, previousManifest);
+      return;
+    }
+    const generation = crypto.randomUUID();
+    const chunkCount = Math.ceil(bytes.byteLength / CAMPAIGN_STATE_CHUNK_BYTES);
+    const chunks: Record<string, Uint8Array> = {};
+    for (let index = 0; index < chunkCount; index += 1) {
+      const start = index * CAMPAIGN_STATE_CHUNK_BYTES;
+      chunks[campaignStateChunkKey(rootKey, index)] = bytes.slice(
+        start,
+        Math.min(bytes.byteLength, start + CAMPAIGN_STATE_CHUNK_BYTES),
+      );
+    }
+    await storage.put(chunks);
+    const manifest: ChunkedCampaignStateManifestV1 = {
+      storageFormat: "CORINTH_CAMPAIGN_STATE_CHUNKS",
+      schemaVersion: 1,
+      generation,
+      chunkCount,
+      byteLength: bytes.byteLength,
+      sha256: await campaignStateSha256(bytes),
+    };
+    await storage.put(rootKey, manifest);
+    if (previousManifest && previousManifest.chunkCount > chunkCount) {
+      for (let index = chunkCount; index < previousManifest.chunkCount; index += 1) {
+        await storage.delete(campaignStateChunkKey(rootKey, index));
+      }
+    }
+  }
+
+  private async stateFromStorage(
+    storage: DurableObjectStorage | DurableObjectTransaction,
+    fallback: CampaignRuntimeState,
+  ): Promise<CampaignRuntimeState> {
+    const value = await this.readCampaignStoredValue(storage);
+    return value === undefined ? fallback : parseCampaignStoredState(value, this.campaignId()).state;
+  }
+
   private async getState(): Promise<CampaignRuntimeState> {
-    const stored = await this.ctx.storage.get<unknown>(STATE_KEY);
+    const stored = await this.readCampaignStoredValue(this.ctx.storage);
     if (stored !== undefined) {
       const parsed = parseCampaignStoredState(stored, this.campaignId());
       if (!this.isDevelopmentFoundationFixture()) {
         await this.assertStoredStateMatchesPinnedScenario(parsed.state);
       }
       const hydrated = this.hydrateAlliedExecutionSupport(parsed.state);
-      if (parsed.legacy || hydrated) await this.ctx.storage.put(STATE_KEY, encodeCampaignStoredState(parsed.state));
+      if (parsed.legacy || hydrated) {
+        await this.ctx.storage.transaction(async (transaction) => this.writeCampaignState(transaction, parsed.state));
+      }
       return parsed.state;
     }
     const created = this.isDevelopmentFoundationFixture()
@@ -331,17 +634,13 @@ export class CampaignDurableObject extends DurableObject<Env> {
       created.campaignId,
       created.round,
       created.clock.roundStartedAt,
-      this.configuredDuration(),
+      this.isDevelopmentFoundationFixture() ? this.configuredDuration() : created.clock.durationMs,
       this.configuredLockLead(),
     );
     this.hydrateAlliedExecutionSupport(created);
-    await this.ctx.storage.put(STATE_KEY, encodeCampaignStoredState(created));
+    await this.ctx.storage.transaction(async (transaction) => this.writeCampaignState(transaction, created));
     await this.scheduleNextAlarm(created);
     return created;
-  }
-
-  private storedState(value: unknown, fallback: CampaignRuntimeState): CampaignRuntimeState {
-    return value === undefined ? fallback : parseCampaignStoredState(value, this.campaignId()).state;
   }
 
   private orderReceiptKey(userId: string, commandId: string): string {
@@ -350,6 +649,14 @@ export class CampaignDurableObject extends DurableObject<Env> {
 
   private clockReceiptKey(userId: string, commandId: string): string {
     return `command/clock/${encodeURIComponent(userId)}/${encodeURIComponent(commandId)}`;
+  }
+
+  private gameMasterReceiptKey(userId: string, commandId: string): string {
+    return `command/game-master/${encodeURIComponent(userId)}/${encodeURIComponent(commandId)}`;
+  }
+
+  private gameMasterAuditKey(now: number, userId: string, commandId: string): string {
+    return `audit/game-master/${String(now).padStart(16, "0")}/${encodeURIComponent(userId)}/${encodeURIComponent(commandId)}`;
   }
 
   private markerReceiptKey(userId: string, commandId: string): string {
@@ -411,9 +718,11 @@ export class CampaignDurableObject extends DurableObject<Env> {
       .bind(this.campaignId()).first<{
         id: string; status: string; name: string; map_source_key: string; scenario_content_key: string | null;
         round_duration_ms: number; planet_name: string;
-      }>();
+    }>();
     if (!campaign) throw new Error("CAMPAIGN_NOT_INITIALISED");
-    this.assertPinnedScenarioSelection(campaign);
+    const customScenario = isGameMasterScenarioContentKey(campaign.scenario_content_key);
+    const gameMasterScenario = customScenario ? await this.loadGameMasterScenarioRuntime() : undefined;
+    if (!customScenario) this.assertPinnedScenarioSelection(campaign);
     const rows = await this.env.DB.prepare(`SELECT deployments.id, deployments.owner_id,
         deployments.side, deployments.status, deployments.snapshot_json,
         units.id AS persistent_unit_id, units.ruleset_id, units.definition_id, units.callsign,
@@ -554,6 +863,30 @@ export class CampaignDurableObject extends DurableObject<Env> {
         `campaign-cargo:${campaign.id}:${deployment.id}:supply`,
       );
     }
+    if (gameMasterScenario) {
+      let objectives: ObjectiveState[];
+      let enemyDeployments: GameMasterAuthoredEnemyDeployment[];
+      let document: AdminMapDocumentV1;
+      try {
+        objectives = JSON.parse(gameMasterScenario.objectives_json) as ObjectiveState[];
+        enemyDeployments = JSON.parse(gameMasterScenario.enemy_deployments_json) as GameMasterAuthoredEnemyDeployment[];
+        document = JSON.parse(gameMasterScenario.document_json) as AdminMapDocumentV1;
+      } catch {
+        throw new Error("GAME_MASTER_SCENARIO_JSON_INVALID");
+      }
+      return materializeGameMasterCampaignState({
+        campaignId: campaign.id,
+        campaignName: campaign.name,
+        planetName: campaign.planet_name,
+        document,
+        objectives,
+        enemyDeployments,
+        alliedDeployments,
+        now: Date.now(),
+        durationMs: campaign.round_duration_ms,
+      });
+    }
+    if (!campaign.scenario_content_key) throw new Error("CAMPAIGN_SCENARIO_CONTENT_UNPINNED");
     return createScenarioCampaignState({
       mapSourceKey: campaign.map_source_key,
       scenarioContentKey: campaign.scenario_content_key,
@@ -1079,8 +1412,8 @@ export class CampaignDurableObject extends DurableObject<Env> {
     return viewerFromInternalRequest(request);
   }
 
-  private isOperator(viewer: ViewerContext): boolean {
-    return viewer.role === "ADMIN" || this.env.ENVIRONMENT !== "production";
+  private isGlobalGameMaster(request: Request, viewer: ViewerContext): boolean {
+    return viewer.role === "ADMIN" && request.headers.get("x-corinth-global-game-master") === "1";
   }
 
   private log(operation: string, data: Record<string, unknown> = {}): void {
@@ -1134,6 +1467,9 @@ export class CampaignDurableObject extends DurableObject<Env> {
       }
       if (url.pathname === "/resolve" && request.method === "POST") return await this.handleManualResolve(request);
       if (url.pathname === "/clock" && request.method === "PATCH") return await this.handleClock(request);
+      if (url.pathname === "/game-master/commands" && request.method === "POST") {
+        return await this.handleGameMasterCommand(request);
+      }
       if (url.pathname === "/pause" && request.method === "POST") return await this.handlePause(request);
       if (url.pathname === "/resume" && request.method === "POST") return await this.handleResume(request);
       if (url.pathname === "/ws" && request.headers.get("upgrade")?.toLowerCase() === "websocket") {
@@ -1152,6 +1488,9 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (message === "REQUEST_TOO_LARGE") return errorResponse(413, message, "Request body is too large.");
       if (error instanceof SyntaxError) return errorResponse(400, "INVALID_JSON", "Request body is not valid JSON.");
       if (error instanceof CampaignRequestContractError) {
+        return errorResponse(400, error.code, error.message, { path: error.path });
+      }
+      if (error instanceof GameMasterValidationError) {
         return errorResponse(400, error.code, error.message, { path: error.path });
       }
       return errorResponse(
@@ -1424,9 +1763,9 @@ export class CampaignDurableObject extends DurableObject<Env> {
     if (state.phase !== "PLANNING") return { state, addedDeploymentIds: [], windowClosed: true };
     const refreshed = await this.createPersistentCampaignState();
     const result = await this.ctx.storage.transaction(async (transaction) => {
-      const raw = await transaction.get<unknown>(STATE_KEY);
+      const raw = await this.readCampaignStoredValue(transaction);
       if (raw === undefined) throw new Error("CAMPAIGN_STATE_MISSING");
-      const current = this.storedState(raw, state);
+      const current = parseCampaignStoredState(raw, this.campaignId()).state;
       if (current.phase !== "PLANNING") {
         return { state: current, addedDeploymentIds: [] as string[], windowClosed: true };
       }
@@ -1455,7 +1794,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       next.deployments.push(...incoming.map((deployment) => structuredClone(deployment)));
       next.events.push(event);
       next.version += 1;
-      await transaction.put(STATE_KEY, encodeCampaignStoredState(next));
+      await this.writeCampaignState(transaction, next);
       await transaction.put(`event/${next.round}/${String(sequence).padStart(6, "0")}`, event);
       return { state: next, addedDeploymentIds: incoming.map((deployment) => deployment.id), windowClosed: false };
     });
@@ -2098,7 +2437,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
           ? { kind: "REPLAY" as const, receipt: concurrentReceipt }
           : { kind: "COMMAND_REUSED" as const };
       }
-      const current = this.storedState(await transaction.get<unknown>(STATE_KEY), baseState);
+      const current = await this.stateFromStorage(transaction, baseState);
       const currentOrder = current.orders.find(
         (candidate) => candidate.unitId === deployment.id && candidate.round === round,
       );
@@ -2112,7 +2451,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
           orderRevision: currentOrder?.revision ?? 0,
         };
       }
-      await transaction.put(STATE_KEY, encodeCampaignStoredState(state));
+      await this.writeCampaignState(transaction, state);
       await transaction.put(`event/${state.round}/${String(sequence).padStart(6, "0")}`, submittedEvent);
       await transaction.put(receiptKey, receipt);
       return { kind: "COMMITTED" as const };
@@ -2217,7 +2556,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
           ? { kind: "REPLAY" as const, receipt: concurrentReceipt }
           : { kind: "COMMAND_REUSED" as const };
       }
-      const current = this.storedState(await transaction.get<unknown>(STATE_KEY), baseState);
+      const current = await this.stateFromStorage(transaction, baseState);
       const currentOrder = current.orders.find((candidate) => candidate.id === orderId);
       if (
         current.version !== intent.expectedCampaignVersion ||
@@ -2232,7 +2571,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
           orderRevision: currentOrder?.revision ?? 0,
         };
       }
-      await transaction.put(STATE_KEY, encodeCampaignStoredState(state));
+      await this.writeCampaignState(transaction, state);
       await transaction.put(`event/${state.round}/${String(sequence).padStart(6, "0")}`, cancelledEvent);
       await transaction.put(receiptKey, receipt);
       return { kind: "COMMITTED" as const };
@@ -2257,7 +2596,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
   private async lockRound(now = Date.now()): Promise<CampaignRuntimeState> {
     const fallback = await this.getState();
     const state = await this.ctx.storage.transaction(async (transaction) => {
-      const current = this.storedState(await transaction.get<unknown>(STATE_KEY), fallback);
+      const current = await this.stateFromStorage(transaction, fallback);
       if (current.phase !== "PLANNING") return current;
       current.phase = "LOCKED";
       current.orders.forEach((order) => {
@@ -2280,7 +2619,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       };
       updated.events.push(event);
       updated.version += 1;
-      await transaction.put(STATE_KEY, encodeCampaignStoredState(updated));
+      await this.writeCampaignState(transaction, updated);
       await transaction.put(`event/${updated.round}/${String(sequence).padStart(6, "0")}`, event);
       return updated;
     });
@@ -2310,7 +2649,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
     let roundStarted: CampaignEvent | undefined;
     const fallback = await this.getState();
     const result = await this.ctx.storage.transaction(async (transaction) => {
-      const state = this.storedState(await transaction.get<unknown>(STATE_KEY), fallback);
+      const state = await this.stateFromStorage(transaction, fallback);
       const record = await transaction.get<ResolutionRecord>(`resolution/${round}`);
       if (!record) throw new Error("RESOLUTION_RECORD_MISSING");
       if (record.status === "RESOLVED" || state.round !== round || state.phase !== "EFFECTS_PENDING") {
@@ -2356,7 +2695,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
         state.events.push(roundStarted);
       }
       state.version += 1;
-      await transaction.put(STATE_KEY, encodeCampaignStoredState(state));
+      await this.writeCampaignState(transaction, state);
       await transaction.put(`resolution/${round}`, record);
       if (roundStarted) await transaction.put(`event/${state.round}/${String(roundStarted.sequence).padStart(6, "0")}`, roundStarted);
       return { state, record, complete: true };
@@ -2398,17 +2737,18 @@ export class CampaignDurableObject extends DurableObject<Env> {
   private async resolveCurrentRound(
     now = Date.now(),
     expectedRound?: number,
+    durableResolve?: { receiptKey: string; pending: PendingGameMasterRoundResolve },
   ): Promise<{ state: CampaignRuntimeState; record: ResolutionRecord; duplicate: boolean }> {
     let duplicate = false;
     let committedRecord: ResolutionRecord | undefined;
     const fallback = await this.getState();
-    if (expectedRound !== undefined && fallback.round !== expectedRound) {
+    if (!durableResolve && expectedRound !== undefined && fallback.round !== expectedRound) {
       const prior = await this.ctx.storage.get<ResolutionRecord>(`resolution/${expectedRound}`);
       if (prior) return { state: fallback, record: prior, duplicate: true };
       throw new Error(`Expected round ${expectedRound}, but campaign is on round ${fallback.round}.`);
     }
     const priorRecord = await this.ctx.storage.get<ResolutionRecord>(`resolution/${fallback.round}`);
-    if (priorRecord) {
+    if (!durableResolve && priorRecord) {
       if (fallback.phase === "EFFECTS_PENDING" && priorRecord.status !== "RESOLVED") {
         const resumed = await this.resumePersistentEffects(fallback.round, now);
         return { state: resumed.state, record: resumed.record, duplicate: true };
@@ -2416,10 +2756,32 @@ export class CampaignDurableObject extends DurableObject<Env> {
       return { state: fallback, record: priorRecord, duplicate: true };
     }
     const nextState = await this.ctx.storage.transaction(async (transaction) => {
-      const state = this.storedState(await transaction.get<unknown>(STATE_KEY), fallback);
+      const claimDurableResolve = async (): Promise<void> => {
+        if (!durableResolve) return;
+        const stored = await transaction.get<unknown>(durableResolve.receiptKey);
+        if (stored === undefined) {
+          await transaction.put(durableResolve.receiptKey, durableResolve.pending);
+          return;
+        }
+        const pending = pendingGameMasterRoundResolve(stored);
+        if (pending) {
+          if (samePendingGameMasterRoundResolve(pending, durableResolve.pending)) return;
+          throw new Error("GAME_MASTER_RESOLVE_COMMAND_REUSED");
+        }
+        const receipt = commandReceipt<GameMasterCommandResponse>(stored, "ROUND_RESOLVE");
+        if (
+          receipt.actorUserId !== durableResolve.pending.actorUserId ||
+          receipt.commandId !== durableResolve.pending.commandId ||
+          receipt.requestHash !== durableResolve.pending.requestHash
+        ) {
+          throw new Error("GAME_MASTER_RESOLVE_COMMAND_REUSED");
+        }
+      };
+      const state = await this.stateFromStorage(transaction, fallback);
       if (expectedRound !== undefined && state.round !== expectedRound) {
         const prior = await transaction.get<ResolutionRecord>(`resolution/${expectedRound}`);
         if (prior) {
+          await claimDurableResolve();
           duplicate = true;
           committedRecord = prior;
           return state;
@@ -2429,6 +2791,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       const resolutionKey = `${state.campaignId}:${state.round}`;
       const existing = await transaction.get<ResolutionRecord>(`resolution/${state.round}`);
       if (existing) {
+        await claimDurableResolve();
         duplicate = true;
         committedRecord = existing;
         return state;
@@ -2438,10 +2801,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
         if (order.round === state.round && order.lifecycle === "SUBMITTED") order.lifecycle = "LOCKED";
         if (order.round === state.round && order.lifecycle === "LOCKED") order.lifecycle = "RESOLVING";
       });
-      await transaction.put(
-        `snapshot/${state.round}`,
-        encodeCampaignStoredState(structuredClone(state)),
-      );
+      await this.writeCampaignState(transaction, structuredClone(state), `snapshot/${state.round}`);
 
       const playerOrders = state.orders.filter(
         (order) => order.round === state.round && ["LOCKED", "RESOLVING"].includes(order.lifecycle),
@@ -2480,7 +2840,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
         schedule: [],
       };
       output.state.version += 1;
-      await transaction.put(STATE_KEY, encodeCampaignStoredState(output.state));
+      await this.writeCampaignState(transaction, output.state);
       await transaction.put(`resolution/${completedRound}`, record);
       for (const resolvedEvent of output.events) {
         await transaction.put(
@@ -2491,6 +2851,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       for (const effect of output.persistentEffects) {
         await transaction.put(`pending-effect/${effect.idempotencyKey}`, effect);
       }
+      await claimDurableResolve();
       committedRecord = record;
       return output.state;
     });
@@ -2510,9 +2871,11 @@ export class CampaignDurableObject extends DurableObject<Env> {
   }
 
   private async handleManualResolve(request: Request): Promise<Response> {
-    await assertCampaignMutationBodyEmpty(request);
     const viewer = this.viewer(request);
-    if (!this.isOperator(viewer)) return errorResponse(403, "ADMIN_REQUIRED", "Campaign operator permission is required.");
+    if (!this.isGlobalGameMaster(request, viewer)) {
+      return errorResponse(403, "GLOBAL_GAME_MASTER_REQUIRED", "Global Game Master authority is required.");
+    }
+    await assertCampaignMutationBodyEmpty(request);
     const state = await this.getState();
     const expectedHeader = request.headers.get("x-expected-round");
     if (expectedHeader === null) {
@@ -2541,7 +2904,9 @@ export class CampaignDurableObject extends DurableObject<Env> {
 
   private async handleClock(request: Request): Promise<Response> {
     const viewer = this.viewer(request);
-    if (!this.isOperator(viewer)) return errorResponse(403, "ADMIN_REQUIRED", "Campaign operator permission is required.");
+    if (!this.isGlobalGameMaster(request, viewer)) {
+      return errorResponse(403, "GLOBAL_GAME_MASTER_REQUIRED", "Global Game Master authority is required.");
+    }
     const intent = parseCampaignClockIntent(await readJson<unknown>(request));
     const requestHash = await campaignCommandHash(intent);
     const receiptKey = this.clockReceiptKey(viewer.userId, intent.commandId);
@@ -2575,6 +2940,10 @@ export class CampaignDurableObject extends DurableObject<Env> {
     state.clock = makeRoundClock(state.campaignId, state.round, now, durationMs, this.configuredLockLead());
     state.version += 1;
     const response: ClockCommandResponse = {
+      operation: "CLOCK_UPDATE",
+      commandId: intent.commandId,
+      campaignId: state.campaignId,
+      appliedAt: now,
       clock: state.clock,
       preset: intent.preset ?? "custom",
       campaignVersion: state.version,
@@ -2599,11 +2968,11 @@ export class CampaignDurableObject extends DurableObject<Env> {
           ? { kind: "REPLAY" as const, receipt: concurrentReceipt }
           : { kind: "COMMAND_REUSED" as const };
       }
-      const current = this.storedState(await transaction.get<unknown>(STATE_KEY), baseState);
+      const current = await this.stateFromStorage(transaction, baseState);
       if (current.version !== intent.expectedCampaignVersion || current.phase !== "PLANNING") {
         return { kind: "VERSION_CHANGED" as const, campaignVersion: current.version, phase: current.phase };
       }
-      await transaction.put(STATE_KEY, encodeCampaignStoredState(state));
+      await this.writeCampaignState(transaction, state);
       await transaction.put(receiptKey, receipt);
       return { kind: "COMMITTED" as const };
     });
@@ -2623,10 +2992,406 @@ export class CampaignDurableObject extends DurableObject<Env> {
     return json(response);
   }
 
-  private async handlePause(request: Request): Promise<Response> {
-    await assertCampaignMutationBodyEmpty(request);
+  private gameMasterIntent(value: unknown): GameMasterCommandIntent & { objectiveId?: string; deploymentId?: string } {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new GameMasterValidationError("Expected a command object.", "$");
+    }
+    const record = value as Record<string, unknown>;
+    switch (record.operation) {
+      case "OBJECTIVE_CREATE": {
+        const body = { ...record };
+        delete body.operation;
+        return parseGameMasterObjectiveCreate(body);
+      }
+      case "OBJECTIVE_UPDATE": {
+        if (typeof record.objectiveId !== "string") {
+          throw new GameMasterValidationError("objectiveId is required.", "$.objectiveId");
+        }
+        const { objectiveId, ...body } = record;
+        delete body.operation;
+        return { ...parseGameMasterObjectiveUpdate(body), objectiveId };
+      }
+      case "DEPLOYMENT_REVIVE": {
+        if (typeof record.deploymentId !== "string") {
+          throw new GameMasterValidationError("deploymentId is required.", "$.deploymentId");
+        }
+        const { deploymentId, ...body } = record;
+        delete body.operation;
+        return { ...parseGameMasterRevive(body), deploymentId };
+      }
+      case "ENEMY_SPAWN": {
+        const body = { ...record };
+        delete body.operation;
+        return parseGameMasterEnemySpawn(body);
+      }
+      case "CAMPAIGN_PAUSE":
+      case "CAMPAIGN_RESUME":
+      case "ROUND_RESOLVE": {
+        const { operation, ...body } = record;
+        return parseGameMasterControl(body, operation);
+      }
+      default: throw new GameMasterValidationError("Unknown Game Master operation.", "$.operation");
+    }
+  }
+
+  private async completeGameMasterRoundResolve(
+    intent: GameMasterCommandIntent & { operation: "ROUND_RESOLVE"; expectedRound: number },
+    requestHash: string,
+    receiptKey: string,
+    pending: PendingGameMasterRoundResolve,
+  ): Promise<Response> {
+    let result: Awaited<ReturnType<CampaignDurableObject["resolveCurrentRound"]>>;
+    try {
+      result = await this.resolveCurrentRound(pending.createdAt, pending.expectedRound, { receiptKey, pending });
+    } catch (error) {
+      if (error instanceof Error && error.message === "GAME_MASTER_RESOLVE_COMMAND_REUSED") {
+        return errorResponse(409, "COMMAND_REUSED", "commandId was already used with a different Game Master command.");
+      }
+      throw error;
+    }
+    const response: GameMasterCommandResponse = {
+      operation: "ROUND_RESOLVE",
+      commandId: pending.commandId,
+      campaignId: result.state.campaignId,
+      campaignVersion: result.state.version,
+      appliedAt: pending.createdAt,
+      resource: {
+        phase: result.state.phase,
+        round: result.state.round,
+        clock: structuredClone(result.state.clock),
+        resolution: this.publicResolution(result.record) as unknown as Record<string, unknown>,
+      },
+    };
+    const receipt: CampaignCommandReceipt<GameMasterCommandResponse> = {
+      schemaVersion: 1,
+      operation: "ROUND_RESOLVE",
+      actorUserId: pending.actorUserId,
+      commandId: pending.commandId,
+      requestHash,
+      status: 200,
+      response,
+      createdAt: pending.createdAt,
+    };
+    const commit = await this.ctx.storage.transaction(async (transaction) => {
+      const stored = await transaction.get<unknown>(receiptKey);
+      if (stored === undefined) throw new Error("GAME_MASTER_RESOLVE_PENDING_MISSING");
+      const concurrentPending = pendingGameMasterRoundResolve(stored);
+      if (concurrentPending) {
+        if (!samePendingGameMasterRoundResolve(concurrentPending, pending)) {
+          return { kind: "COMMAND_REUSED" as const };
+        }
+      } else {
+        const prior = commandReceipt<GameMasterCommandResponse>(stored, "ROUND_RESOLVE");
+        return prior.actorUserId === pending.actorUserId &&
+          prior.commandId === pending.commandId &&
+          prior.requestHash === pending.requestHash
+          ? { kind: "REPLAY" as const, prior }
+          : { kind: "COMMAND_REUSED" as const };
+      }
+      const resolution = await transaction.get<ResolutionRecord>(`resolution/${pending.expectedRound}`);
+      if (!resolution) throw new Error("GAME_MASTER_RESOLVE_RECORD_MISSING");
+      await transaction.put(receiptKey, receipt);
+      await transaction.put(this.gameMasterAuditKey(pending.createdAt, pending.actorUserId, pending.commandId), {
+        schemaVersion: 1,
+        actorUserId: pending.actorUserId,
+        requestHash,
+        intent,
+        response,
+        createdAt: pending.createdAt,
+      });
+      return { kind: "COMMITTED" as const };
+    });
+    if (commit.kind === "REPLAY") return json(commit.prior.response, { status: commit.prior.status });
+    if (commit.kind === "COMMAND_REUSED") {
+      return errorResponse(409, "COMMAND_REUSED", "commandId was already used with a different Game Master command.");
+    }
+    return json(response);
+  }
+
+  private async handleGameMasterCommand(request: Request): Promise<Response> {
     const viewer = this.viewer(request);
-    if (!this.isOperator(viewer)) return errorResponse(403, "ADMIN_REQUIRED", "Campaign operator permission is required.");
+    if (!this.isGlobalGameMaster(request, viewer)) {
+      return errorResponse(403, "GLOBAL_GAME_MASTER_REQUIRED", "Global Game Master authority is required.");
+    }
+    const raw = await readJson<unknown>(request, 16_000);
+    const intent = this.gameMasterIntent(raw);
+    const requestHash = await campaignCommandHash(intent);
+    const receiptKey = this.gameMasterReceiptKey(viewer.userId, intent.commandId);
+    const existing = await this.ctx.storage.get<unknown>(receiptKey);
+    if (existing !== undefined) {
+      const pending = pendingGameMasterRoundResolve(existing);
+      if (pending) {
+        if (
+          intent.operation !== "ROUND_RESOLVE" ||
+          pending.actorUserId !== viewer.userId ||
+          pending.commandId !== intent.commandId ||
+          pending.requestHash !== requestHash ||
+          pending.expectedCampaignVersion !== intent.expectedCampaignVersion ||
+          pending.expectedRound !== intent.expectedRound
+        ) {
+          return errorResponse(409, "COMMAND_REUSED", "commandId was already used with a different Game Master command.");
+        }
+        return this.completeGameMasterRoundResolve(
+          intent as GameMasterCommandIntent & { operation: "ROUND_RESOLVE"; expectedRound: number },
+          requestHash,
+          receiptKey,
+          pending,
+        );
+      }
+      const prior = commandReceipt<GameMasterCommandResponse>(existing, intent.operation);
+      if (prior.actorUserId !== viewer.userId || prior.commandId !== intent.commandId || prior.requestHash !== requestHash) {
+        return errorResponse(409, "COMMAND_REUSED", "commandId was already used with a different Game Master command.");
+      }
+      return json(prior.response, { status: prior.status });
+    }
+
+    const base = await this.getState();
+    if (base.version !== intent.expectedCampaignVersion) {
+      return errorResponse(409, "CAMPAIGN_VERSION_CHANGED", "Campaign state changed before this command was accepted.", {
+        expected: intent.expectedCampaignVersion,
+        actual: base.version,
+      });
+    }
+    const structural = ["OBJECTIVE_CREATE", "OBJECTIVE_UPDATE", "DEPLOYMENT_REVIVE", "ENEMY_SPAWN"].includes(intent.operation);
+    if (structural && (base.phase !== "PAUSED" || base.clock.phaseBeforePause !== "PLANNING")) {
+      return errorResponse(409, "CAMPAIGN_PHASE_INVALID", "Structural Game Master commands require a campaign paused from planning.");
+    }
+    if (intent.operation === "ROUND_RESOLVE") {
+      if (intent.expectedRound !== base.round) {
+        return errorResponse(409, "ROUND_CHANGED", "Campaign round no longer matches the command.", {
+          expected: intent.expectedRound, actual: base.round,
+        });
+      }
+      if (base.phase === "PAUSED") return errorResponse(409, "CAMPAIGN_PAUSED", "Resume the campaign before resolving.");
+      if (!["PLANNING", "LOCKED"].includes(base.phase)) {
+        return errorResponse(409, "CAMPAIGN_PHASE_INVALID", "Only a planning or locked round can be resolved.");
+      }
+    }
+    const state = structuredClone(base);
+    const now = Date.now();
+    let resource: GameMasterCommandResponse["resource"];
+    let eventType: CampaignEvent["type"];
+    if (intent.operation === "CAMPAIGN_PAUSE") {
+      if (["COMPLETE", "FAILED", "EFFECTS_PENDING"].includes(state.phase)) {
+        return errorResponse(409, "CAMPAIGN_PHASE_INVALID", "This campaign phase cannot be paused.");
+      }
+      const updated = pauseClock(state, now);
+      if (updated === state) return errorResponse(409, "CAMPAIGN_ALREADY_PAUSED", "The campaign is already paused.");
+      Object.assign(state, updated);
+      resource = { phase: state.phase, round: state.round, clock: structuredClone(state.clock) };
+      eventType = "CAMPAIGN_PAUSED";
+    } else if (intent.operation === "CAMPAIGN_RESUME") {
+      if (state.phase !== "PAUSED") return errorResponse(409, "CAMPAIGN_NOT_PAUSED", "The campaign is not paused.");
+      const updated = resumeClock(state, now);
+      Object.assign(state, updated);
+      resource = { phase: state.phase, round: state.round, clock: structuredClone(state.clock) };
+      eventType = "CAMPAIGN_RESUMED";
+    } else if (intent.operation === "ROUND_RESOLVE") {
+      const pending: PendingGameMasterRoundResolve = {
+        schemaVersion: 1,
+        operation: "ROUND_RESOLVE",
+        status: "PENDING",
+        actorUserId: viewer.userId,
+        commandId: intent.commandId,
+        requestHash,
+        expectedCampaignVersion: intent.expectedCampaignVersion,
+        expectedRound: intent.expectedRound!,
+        createdAt: now,
+      };
+      return this.completeGameMasterRoundResolve(
+        intent as GameMasterCommandIntent & { operation: "ROUND_RESOLVE"; expectedRound: number },
+        requestHash,
+        receiptKey,
+        pending,
+      );
+    } else if (intent.operation === "OBJECTIVE_CREATE") {
+      if (state.objectives.some((objective) => objective.id === intent.objective.id)) {
+        return errorResponse(409, "OBJECTIVE_EXISTS", "An objective with this identifier already exists.");
+      }
+      const hex = state.map.find((candidate) => candidate.coord.q === intent.objective.coord.q && candidate.coord.r === intent.objective.coord.r);
+      if (!hex) return errorResponse(400, "MAP_COORDINATE_INVALID", "Objective coordinate is outside the battlefield.");
+      if (hex.objectiveId) return errorResponse(409, "HEX_OBJECTIVE_EXISTS", "The selected hex already contains an objective.");
+      const objective: ObjectiveState = structuredClone(intent.objective);
+      state.objectives.push(objective);
+      hex.objectiveId = objective.id;
+      resource = objective;
+      eventType = "GAME_MASTER_OBJECTIVE_CREATED";
+    } else if (intent.operation === "OBJECTIVE_UPDATE") {
+      const objective = state.objectives.find((candidate) => candidate.id === intent.objectiveId);
+      if (!objective) return errorResponse(404, "OBJECTIVE_NOT_FOUND", "The objective does not exist.");
+      if (intent.patch.coord) {
+        const targetHex = state.map.find((candidate) => candidate.coord.q === intent.patch.coord!.q && candidate.coord.r === intent.patch.coord!.r);
+        if (!targetHex) return errorResponse(400, "MAP_COORDINATE_INVALID", "Objective coordinate is outside the battlefield.");
+        if (targetHex.objectiveId && targetHex.objectiveId !== objective.id) {
+          return errorResponse(409, "HEX_OBJECTIVE_EXISTS", "The selected hex already contains an objective.");
+        }
+        const oldHex = state.map.find((candidate) => candidate.objectiveId === objective.id);
+        if (oldHex) delete oldHex.objectiveId;
+        targetHex.objectiveId = objective.id;
+      }
+      Object.assign(objective, structuredClone(intent.patch));
+      resource = structuredClone(objective);
+      eventType = "GAME_MASTER_OBJECTIVE_UPDATED";
+    } else if (intent.operation === "DEPLOYMENT_REVIVE") {
+      const deployment = state.deployments.find((candidate) => candidate.id === intent.deploymentId);
+      if (!deployment) return errorResponse(404, "DEPLOYMENT_NOT_FOUND", "The deployment does not exist.");
+      if (deployment.persistentUnitId || deployment.side !== "ENEMY") {
+        return errorResponse(409, "REVIVE_RULE_DECISION_REQUIRED", "V5 makes persistent destruction permanent; this deployment cannot be revived without an approved compensating rule.");
+      }
+      return errorResponse(409, "REVIVE_RULE_DECISION_REQUIRED", "No authoritative rule defines restored health, ammunition, equipment, or status.");
+    } else if (intent.operation === "ENEMY_SPAWN") {
+      const targetHex = state.map.find((hex) => hex.coord.q === intent.coord.q && hex.coord.r === intent.coord.r);
+      if (!targetHex) {
+        return errorResponse(400, "MAP_COORDINATE_INVALID", "Spawn coordinate is outside the battlefield.");
+      }
+      if (!canOccupyHex(intent.coord, "__game-master-spawn__", state.deployments, state.map)) {
+        return errorResponse(409, "HEX_CAPACITY_EXCEEDED", "The selected battlefield hex has no remaining capacity.");
+      }
+      const customScenario = isGameMasterScenarioContentKey(
+        state.scenarioId && state.scenarioVersion ? `${state.scenarioId}@${state.scenarioVersion}` : undefined,
+      );
+      let deployment: CampaignDeployment;
+      if (customScenario) {
+        const allowed = await this.env.DB.prepare(`SELECT enemies.id
+          FROM enemy_definitions AS enemies
+          JOIN campaigns ON campaigns.ruleset_id=enemies.ruleset_id
+          WHERE campaigns.id=?1 AND enemies.id=?2
+            AND enemies.definition_status IN ('active','experimental')
+          LIMIT 1`).bind(state.campaignId, intent.definitionId).first<{ id: string }>();
+        if (!allowed) {
+          return errorResponse(404, "SCENARIO_ENEMY_DEFINITION_NOT_FOUND", "The enemy definition is not executable in this campaign's pinned ruleset.");
+        }
+        try {
+          deployment = materializeGameMasterEnemyDeployment(state.campaignId, {
+            id: `gm:${intent.commandId}`,
+            definitionId: intent.definitionId,
+            callsign: intent.callsign,
+            coord: intent.coord,
+            facing: intent.facing,
+          });
+        } catch {
+          return errorResponse(422, "SCENARIO_ENEMY_DEFINITION_NOT_EXECUTABLE", "The enemy definition has no governed tactical profile.");
+        }
+        if (!canTraverseBattlefieldHex(targetHex, { unitTags: deployment.tags })) {
+          return errorResponse(422, "ENEMY_TERRAIN_BLOCKED", "This enemy cannot occupy the selected terrain.");
+        }
+      } else {
+        const template = state.deployments.find((candidate) =>
+          candidate.side === "ENEMY" && candidate.definitionId === intent.definitionId);
+        if (!template) {
+          return errorResponse(404, "SCENARIO_ENEMY_DEFINITION_NOT_FOUND", "The exact pinned scenario does not contain this enemy definition.");
+        }
+        deployment = {
+          ...structuredClone(template),
+          id: `${state.campaignId}:gm:${intent.commandId}`,
+          callsign: intent.callsign,
+          status: "ACTIVE",
+          position: { ...intent.coord },
+          facing: intent.facing as Facing,
+          currentHealth: template.stats.maxHealth,
+          ammunition: Object.fromEntries(template.weapons
+            .filter((weapon) => weapon.ammoCapacity !== undefined)
+            .map((weapon) => [weapon.id, weapon.ammoCapacity!])),
+          cooldowns: {},
+          statuses: [],
+          statusEffects: [],
+          locationState: "ON_MAP",
+        };
+        delete deployment.persistentUnitId;
+      }
+      state.deployments.push(deployment);
+      resource = structuredClone(deployment);
+      eventType = "GAME_MASTER_ENEMY_SPAWNED";
+    } else {
+      throw new Error(`Unsupported Game Master operation after validation: ${intent.operation}`);
+    }
+    // pauseClock/resumeClock already append an event and increment version.
+    if (intent.operation !== "CAMPAIGN_PAUSE" && intent.operation !== "CAMPAIGN_RESUME") state.version += 1;
+    const event: CampaignEvent = {
+      eventId: `${state.campaignId}:gm:${intent.commandId}`,
+      campaignId: state.campaignId,
+      round: state.round,
+      sequence: eventSequence(state),
+      type: eventType,
+      actor: viewer.userId,
+      payload: { operation: intent.operation, resourceId: "id" in resource ? resource.id : undefined },
+      timestamp: now,
+      visibility: "ADMIN",
+    };
+    if (intent.operation === "CAMPAIGN_PAUSE" || intent.operation === "CAMPAIGN_RESUME") {
+      const transitionEvent = state.events.at(-1);
+      if (!transitionEvent || transitionEvent.type !== eventType) throw new Error("Campaign control transition did not emit its event.");
+      event.eventId = transitionEvent.eventId;
+      event.sequence = transitionEvent.sequence;
+      event.payload = transitionEvent.payload;
+      event.timestamp = transitionEvent.timestamp;
+      event.visibility = transitionEvent.visibility;
+    } else {
+      state.events.push(event);
+    }
+    const response: GameMasterCommandResponse = {
+      operation: intent.operation,
+      commandId: intent.commandId,
+      campaignId: state.campaignId,
+      campaignVersion: state.version,
+      appliedAt: now,
+      resource,
+    };
+    const receipt: CampaignCommandReceipt<GameMasterCommandResponse> = {
+      schemaVersion: 1,
+      operation: intent.operation,
+      actorUserId: viewer.userId,
+      commandId: intent.commandId,
+      requestHash,
+      status: intent.operation === "OBJECTIVE_CREATE" || intent.operation === "ENEMY_SPAWN" ? 201 : 200,
+      response,
+      createdAt: now,
+    };
+    const commit = await this.ctx.storage.transaction(async (transaction) => {
+      const duplicate = await transaction.get<unknown>(receiptKey);
+      if (duplicate !== undefined) {
+        const prior = commandReceipt<GameMasterCommandResponse>(duplicate, intent.operation);
+        return prior.requestHash === requestHash ? { kind: "REPLAY" as const, prior } : { kind: "COMMAND_REUSED" as const };
+      }
+      const current = await this.stateFromStorage(transaction, base);
+      const phaseValid = structural
+        ? current.phase === "PAUSED" && current.clock.phaseBeforePause === "PLANNING"
+        : intent.operation === "CAMPAIGN_PAUSE"
+          ? !["PAUSED", "COMPLETE", "FAILED", "EFFECTS_PENDING"].includes(current.phase)
+          : intent.operation === "CAMPAIGN_RESUME"
+            ? current.phase === "PAUSED"
+            : true;
+      if (current.version !== intent.expectedCampaignVersion || !phaseValid) {
+        return { kind: "VERSION_CHANGED" as const, version: current.version, phase: current.phase };
+      }
+      await this.writeCampaignState(transaction, state);
+      await transaction.put(receiptKey, receipt);
+      await transaction.put(this.gameMasterAuditKey(now, viewer.userId, intent.commandId), {
+        schemaVersion: 1, actorUserId: viewer.userId, requestHash, intent, response, createdAt: now,
+      });
+      await transaction.put(`event/${state.round}/${String(event.sequence).padStart(6, "0")}`,
+        intent.operation === "CAMPAIGN_PAUSE" || intent.operation === "CAMPAIGN_RESUME"
+          ? state.events.at(-1)!
+          : event);
+      return { kind: "COMMITTED" as const };
+    });
+    if (commit.kind === "REPLAY") return json(commit.prior.response, { status: commit.prior.status });
+    if (commit.kind === "COMMAND_REUSED") return errorResponse(409, "COMMAND_REUSED", "commandId was already used.");
+    if (commit.kind === "VERSION_CHANGED") {
+      return errorResponse(409, "CAMPAIGN_VERSION_CHANGED", "Campaign state changed before commit.", {
+        expected: intent.expectedCampaignVersion, actual: commit.version, phase: commit.phase,
+      });
+    }
+    this.broadcast("game-master-command-applied", state);
+    return json(response, { status: receipt.status });
+  }
+
+  private async handlePause(request: Request): Promise<Response> {
+    const viewer = this.viewer(request);
+    if (!this.isGlobalGameMaster(request, viewer)) {
+      return errorResponse(403, "GLOBAL_GAME_MASTER_REQUIRED", "Global Game Master authority is required.");
+    }
+    await assertCampaignMutationBodyEmpty(request);
     const now = Date.now();
     const fallback = await this.getState();
     if (fallback.phase === "COMPLETE" || fallback.phase === "FAILED") {
@@ -2636,7 +3401,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       return errorResponse(409, "EFFECTS_PENDING", "Campaign persistence must finish before the clock can be paused.");
     }
     const { state, changed, terminal } = await this.ctx.storage.transaction(async (transaction) => {
-      const current = this.storedState(await transaction.get<unknown>(STATE_KEY), fallback);
+      const current = await this.stateFromStorage(transaction, fallback);
       if (current.phase === "COMPLETE" || current.phase === "FAILED") {
         return { state: current, changed: false, terminal: true };
       }
@@ -2644,7 +3409,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
       if (updated === current) return { state: current, changed: false, terminal: false };
       const event = updated.events.at(-1);
       if (!event || event.type !== "CAMPAIGN_PAUSED") throw new Error("Pause transition did not emit its campaign event.");
-      await transaction.put(STATE_KEY, encodeCampaignStoredState(updated));
+      await this.writeCampaignState(transaction, updated);
       await transaction.put(`event/${updated.round}/${String(event.sequence).padStart(6, "0")}`, event);
       return { state: updated, changed: true, terminal: false };
     });
@@ -2655,18 +3420,20 @@ export class CampaignDurableObject extends DurableObject<Env> {
   }
 
   private async handleResume(request: Request): Promise<Response> {
-    await assertCampaignMutationBodyEmpty(request);
     const viewer = this.viewer(request);
-    if (!this.isOperator(viewer)) return errorResponse(403, "ADMIN_REQUIRED", "Campaign operator permission is required.");
+    if (!this.isGlobalGameMaster(request, viewer)) {
+      return errorResponse(403, "GLOBAL_GAME_MASTER_REQUIRED", "Global Game Master authority is required.");
+    }
+    await assertCampaignMutationBodyEmpty(request);
     const now = Date.now();
     const fallback = await this.getState();
     const { state, changed } = await this.ctx.storage.transaction(async (transaction) => {
-      const current = this.storedState(await transaction.get<unknown>(STATE_KEY), fallback);
+      const current = await this.stateFromStorage(transaction, fallback);
       const updated = resumeClock(current, now);
       if (updated === current) return { state: current, changed: false };
       const event = updated.events.at(-1);
       if (!event || event.type !== "CAMPAIGN_RESUMED") throw new Error("Resume transition did not emit its campaign event.");
-      await transaction.put(STATE_KEY, encodeCampaignStoredState(updated));
+      await this.writeCampaignState(transaction, updated);
       await transaction.put(`event/${updated.round}/${String(event.sequence).padStart(6, "0")}`, event);
       return { state: updated, changed: true };
     });
@@ -2681,7 +3448,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
     const record = await this.ctx.storage.get<ResolutionRecord>(`resolution/${round}`);
     if (!record) return errorResponse(404, "REPORT_NOT_FOUND", "No resolved report exists for this round.");
     const storedEvents = await this.ctx.storage.list<CampaignEvent>({ prefix: `event/${round}/` });
-    const storedSnapshot = await this.ctx.storage.get<unknown>(`snapshot/${round}`);
+    const storedSnapshot = await this.readCampaignStoredValue(this.ctx.storage, `snapshot/${round}`);
     if (storedSnapshot === undefined) {
       return errorResponse(409, "REPORT_SNAPSHOT_UNAVAILABLE", "The round battlefield snapshot is unavailable for replay.");
     }

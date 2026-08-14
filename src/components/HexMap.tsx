@@ -6,6 +6,8 @@ import {
   stableDeploymentOrder,
   tacticalFormationLayout,
   tacticalFormationScale,
+  tacticalSpriteGroupFrame,
+  tacticalSpriteGroupLayout,
   tacticalSpriteFrame,
   tacticalSpriteMotion,
   tacticalSpriteState,
@@ -23,14 +25,16 @@ import {
 import {
   connectedTerrainDirections,
   exposedMapDirections,
-  tacticalTerrainKind,
+  tacticalTerrainLabel,
   tacticalTerrainSeed,
   tacticalTerrainStyle,
+  tacticalTerrainVisualProfile,
   tacticalWaterRings,
   terrainBoundaryDirections,
   type TacticalTerrainStyle,
   type TacticalWaterDepth,
 } from "../tactical-terrain";
+import { tacticalObjectiveAriaLabel, tacticalObjectiveVisual } from "../tactical-objectives";
 
 interface HexMapProps {
   campaign: CampaignView;
@@ -118,10 +122,13 @@ function drawTerrainTexture(
   point: { x: number; y: number },
   coord: AxialCoord,
   terrainId: string,
+  visualTerrainId: string | undefined,
   connectedDirections: readonly number[],
   style: TacticalTerrainStyle,
+  animationTime: number,
 ) {
-  const kind = tacticalTerrainKind(terrainId);
+  const profile = tacticalTerrainVisualProfile(terrainId, visualTerrainId);
+  const { kind, motif } = profile;
   const seed = tacticalTerrainSeed(coord);
   ctx.save();
   polygon(ctx, point, 1.8);
@@ -149,12 +156,53 @@ function drawTerrainTexture(
 
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  if (kind === "FOREST") {
-    const treeCount = 5;
+  if (kind === "WATER_SHALLOW" || kind === "WATER_DEEP") {
+    ctx.globalAlpha = kind === "WATER_SHALLOW" ? .58 : .42;
+    ctx.strokeStyle = kind === "WATER_SHALLOW" ? style.detail : style.highlight;
+    ctx.lineWidth = kind === "WATER_SHALLOW" ? 1.5 : 1.15;
+    const waveCount = motif === "POND" ? 2 : motif === "DEEP_OCEAN" ? 3 : 4;
+    const drift = animationTime === 0 ? 0 : Math.sin(animationTime / 850 + (seed % 19)) * 3.2;
+    for (let index = 0; index < waveCount; index += 1) {
+      const y = point.y - 22 + index * (44 / Math.max(1, waveCount - 1)) + drift + ((seed >>> (index * 4)) % 5);
+      const bend = 2 + ((seed >>> (index * 6 + 2)) % 5);
+      ctx.beginPath();
+      ctx.moveTo(point.x - 39, y);
+      ctx.bezierCurveTo(point.x - 17, y - bend, point.x + 9, y + bend, point.x + 39, y - 1);
+      ctx.stroke();
+    }
+    if (motif === "RAPIDS") {
+      ctx.globalAlpha = .82;
+      ctx.strokeStyle = style.contour;
+      ctx.lineWidth = 1.8;
+      for (let index = -2; index <= 2; index += 1) {
+        const x = point.x + index * 14;
+        const y = point.y + ((seed >>> (index + 4)) % 9) - 4;
+        ctx.beginPath();
+        ctx.moveTo(x - 6, y - 5);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x - 6, y + 5);
+        ctx.stroke();
+      }
+    } else if (kind === "WATER_SHALLOW") {
+      ctx.globalAlpha = .5;
+      ctx.fillStyle = style.contour;
+      const shoalCount = motif === "COAST" || motif === "COASTAL" ? 5 : motif === "POND" ? 1 : 3;
+      for (let index = 0; index < shoalCount; index += 1) {
+        const x = point.x - 22 + ((seed >>> (index * 7 + 1)) % 44);
+        const y = point.y - 16 + ((seed >>> (index * 5 + 3)) % 32);
+        ctx.beginPath();
+        ctx.ellipse(x, y, 5 + (index % 2) * 2, 1.2, -.15, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else if (kind === "FOREST") {
+    const conifer = motif === "PINE" || motif === "TAIGA";
+    const dense = motif === "DENSE_FOREST" || motif === "JUNGLE" || motif === "RAINFOREST";
+    const treeCount = dense ? 8 : motif === "DECIDUOUS" ? 6 : 5;
     for (let index = 0; index < treeCount; index += 1) {
       const angle = (index / treeCount) * Math.PI * 2 + ((seed >>> (index * 3)) % 28) / 20;
       const distance = index === 0 ? 2 : 12 + ((seed >>> (index * 4 + 2)) % 13);
-      const radius = 6 + ((seed >>> (index * 2 + 1)) % 4);
+      const radius = (dense ? 7 : 6) + ((seed >>> (index * 2 + 1)) % 4);
       const x = point.x + Math.cos(angle) * distance;
       const y = point.y + Math.sin(angle) * distance * .72;
       ctx.globalAlpha = .38;
@@ -165,13 +213,36 @@ function drawTerrainTexture(
       ctx.globalAlpha = .72;
       ctx.fillStyle = index % 2 === 0 ? style.accent : style.detail;
       ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      if (conifer) {
+        ctx.moveTo(x, y - radius * 1.15);
+        ctx.lineTo(x - radius, y + radius * .72);
+        ctx.lineTo(x + radius, y + radius * .72);
+        ctx.closePath();
+      } else if (motif === "JUNGLE" || motif === "RAINFOREST") {
+        for (let lobe = 0; lobe < 8; lobe += 1) {
+          const lobeAngle = lobe * Math.PI / 4;
+          const lobeRadius = lobe % 2 === 0 ? radius : radius * .72;
+          const px = x + Math.cos(lobeAngle) * lobeRadius;
+          const py = y + Math.sin(lobeAngle) * lobeRadius * .8;
+          if (lobe === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+      } else {
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+      }
       ctx.fill();
       ctx.globalAlpha = .48;
       ctx.strokeStyle = style.highlight;
       ctx.lineWidth = 1.4;
       ctx.beginPath();
-      ctx.arc(x - 1, y - 1, radius - 2, Math.PI * 1.08, Math.PI * 1.78);
+      if (conifer) {
+        ctx.moveTo(x, y - radius * .75);
+        ctx.lineTo(x - radius * .54, y + radius * .35);
+        ctx.lineTo(x + radius * .54, y + radius * .35);
+      } else {
+        ctx.arc(x - 1, y - 1, radius - 2, Math.PI * 1.08, Math.PI * 1.78);
+      }
       ctx.stroke();
     }
   } else if (kind === "RIDGE") {
@@ -206,13 +277,57 @@ function drawTerrainTexture(
       ctx.lineTo(point.x + 7, y - rise);
       ctx.stroke();
     }
+    if (["MOUNTAIN", "MOUNTAINS", "MOUNTAIN_PEAK", "VOLCANO", "MESA"].includes(motif)) {
+      const peakX = point.x - 5 + (seed % 11);
+      const peakY = point.y - 3 + ((seed >>> 5) % 7);
+      for (let ring = 3; ring >= 1; ring -= 1) {
+        ctx.globalAlpha = .34 + (3 - ring) * .14;
+        ctx.strokeStyle = ring === 1 ? style.contour : style.detail;
+        ctx.lineWidth = ring === 1 ? 1.8 : 1.15;
+        ctx.beginPath();
+        ctx.ellipse(peakX, peakY, ring * 10 + 4, ring * 7 + 3, -.18, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if (motif === "VOLCANO") {
+        ctx.globalAlpha = .92;
+        ctx.fillStyle = style.shadow;
+        ctx.beginPath();
+        ctx.ellipse(peakX, peakY, 7, 4.5, -.18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(222, 111, 65, .82)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      } else if (motif === "MOUNTAIN_PEAK") {
+        ctx.globalAlpha = .86;
+        ctx.fillStyle = style.contour;
+        ctx.beginPath();
+        ctx.arc(peakX, peakY, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    if (motif === "CLIFFS") {
+      ctx.globalAlpha = .72;
+      ctx.strokeStyle = style.contour;
+      ctx.lineWidth = 1.4;
+      for (let offset = -24; offset <= 24; offset += 8) {
+        ctx.beginPath();
+        ctx.moveTo(point.x + offset, point.y - 23);
+        ctx.lineTo(point.x + offset - 5, point.y + 24);
+        ctx.stroke();
+      }
+    }
   } else if (kind === "MARSH") {
     ctx.globalAlpha = .68;
-    for (let index = 0; index < 3; index += 1) {
+    const poolCount = motif === "BOG" ? 5 : motif === "FLOODPLAIN" ? 2 : 3;
+    for (let index = 0; index < poolCount; index += 1) {
       const x = point.x - 17 + ((seed >>> (index * 5)) % 34);
       const y = point.y - 13 + ((seed >>> (index * 6 + 2)) % 26);
       const width = 7 + index * 2 + ((seed >>> (index * 3 + 1)) % 4);
-      ctx.fillStyle = index === 1 ? "rgba(50, 78, 72, .78)" : "rgba(43, 66, 59, .72)";
+      ctx.fillStyle = motif === "ASH_MARSH"
+        ? "rgba(58, 60, 57, .82)"
+        : motif === "BOG"
+          ? "rgba(24, 48, 45, .84)"
+          : index === 1 ? "rgba(50, 78, 72, .78)" : "rgba(43, 66, 59, .72)";
       ctx.beginPath();
       ctx.ellipse(x, y, width, 2.8 + (index % 2), -.2 + index * .13, 0, Math.PI * 2);
       ctx.fill();
@@ -220,7 +335,7 @@ function drawTerrainTexture(
       ctx.lineWidth = .9;
       ctx.stroke();
     }
-    if ((seed & 1) === 0) {
+    if ((seed & 1) === 0 || motif === "FLOODPLAIN" || motif === "MANGROVE") {
       const channelY = point.y - 4 + (seed % 9);
       const traceChannel = () => {
         ctx.beginPath();
@@ -238,6 +353,22 @@ function drawTerrainTexture(
       traceChannel();
       ctx.stroke();
     }
+    if (motif === "MANGROVE") {
+      ctx.globalAlpha = .78;
+      ctx.strokeStyle = style.shadow;
+      ctx.lineWidth = 1.4;
+      for (const offset of [-18, 0, 18]) {
+        const baseY = point.y + 8 + ((seed >>> (offset & 7)) % 5);
+        ctx.beginPath();
+        ctx.arc(point.x + offset, baseY - 9, 5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.moveTo(point.x + offset, baseY - 4);
+        ctx.lineTo(point.x + offset - 6, baseY + 5);
+        ctx.moveTo(point.x + offset, baseY - 4);
+        ctx.lineTo(point.x + offset + 6, baseY + 5);
+        ctx.stroke();
+      }
+    }
     ctx.globalAlpha = .82;
     ctx.strokeStyle = style.detail;
     ctx.lineWidth = 1.5;
@@ -250,6 +381,187 @@ function drawTerrainTexture(
       ctx.lineTo(point.x + offset + 3, y - 6);
       ctx.stroke();
     }
+  } else if (kind === "ARID") {
+    ctx.globalAlpha = .5;
+    ctx.strokeStyle = style.contour;
+    ctx.lineWidth = 1.5;
+    const duneCount = motif === "DUNES" ? 4 : ["DESERT", "ARID", "BEACH"].includes(motif) ? 3 : 1;
+    for (let index = 0; index < duneCount; index += 1) {
+      const y = point.y - 19 + index * 18 + ((seed >>> (index * 4)) % 5);
+      ctx.beginPath();
+      ctx.moveTo(point.x - 40, y + 4);
+      ctx.bezierCurveTo(point.x - 18, y - 10, point.x + 4, y + 10, point.x + 40, y - 3);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = .65;
+    ctx.fillStyle = style.shadow;
+    for (let index = 0; index < 3; index += 1) {
+      const x = point.x - 22 + ((seed >>> (index * 6 + 2)) % 44);
+      const y = point.y - 13 + ((seed >>> (index * 5 + 4)) % 30);
+      ctx.beginPath();
+      ctx.ellipse(x, y, 2.5 + index, 1.8 + index * .4, .2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (motif === "CRATER") {
+      ctx.globalAlpha = .82;
+      ctx.fillStyle = `${style.shadow}b8`;
+      ctx.beginPath();
+      ctx.ellipse(point.x, point.y, 22, 16, -.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = style.contour;
+      ctx.lineWidth = 2.4;
+      ctx.stroke();
+      ctx.globalAlpha = .55;
+      ctx.beginPath();
+      ctx.ellipse(point.x - 2, point.y - 1, 12, 8, -.2, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (motif === "CANYON") {
+      const traceCanyon = () => {
+        ctx.beginPath();
+        ctx.moveTo(point.x - 42, point.y + 18);
+        ctx.bezierCurveTo(point.x - 20, point.y - 25, point.x + 12, point.y + 22, point.x + 42, point.y - 19);
+      };
+      ctx.globalAlpha = .8;
+      ctx.strokeStyle = style.shadow;
+      ctx.lineWidth = 11;
+      traceCanyon();
+      ctx.stroke();
+      ctx.globalAlpha = .64;
+      ctx.strokeStyle = style.detail;
+      ctx.lineWidth = 2;
+      traceCanyon();
+      ctx.stroke();
+    } else if (motif === "SALT_FLAT") {
+      ctx.globalAlpha = .72;
+      ctx.strokeStyle = style.contour;
+      ctx.lineWidth = 1;
+      for (let index = 0; index < 5; index += 1) {
+        const x = point.x - 28 + index * 14;
+        ctx.beginPath();
+        ctx.moveTo(x, point.y - 27);
+        ctx.lineTo(x + (index % 2 === 0 ? 8 : -7), point.y - 5);
+        ctx.lineTo(x - 4, point.y + 11);
+        ctx.lineTo(x + 6, point.y + 27);
+        ctx.stroke();
+      }
+    } else if (motif === "MESA" || motif === "BADLANDS") {
+      ctx.globalAlpha = .7;
+      ctx.strokeStyle = style.contour;
+      ctx.lineWidth = 1.8;
+      for (let ring = 3; ring >= 1; ring -= 1) {
+        ctx.beginPath();
+        const radius = ring * 9;
+        for (let corner = 0; corner < 6; corner += 1) {
+          const angle = corner * Math.PI / 3 + .15;
+          const x = point.x + Math.cos(angle) * radius;
+          const y = point.y + Math.sin(angle) * radius * .68;
+          if (corner === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+    } else if (motif === "BURNT_FOREST") {
+      ctx.globalAlpha = .84;
+      ctx.fillStyle = style.shadow;
+      ctx.strokeStyle = style.shadow;
+      ctx.lineWidth = 1.4;
+      for (const offset of [-19, -5, 12, 23]) {
+        const y = point.y + ((seed >>> (offset & 7)) % 25) - 12;
+        ctx.beginPath();
+        ctx.arc(point.x + offset, y, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.moveTo(point.x + offset, y);
+        ctx.lineTo(point.x + offset - 7, y - 5);
+        ctx.moveTo(point.x + offset, y);
+        ctx.lineTo(point.x + offset + 6, y + 5);
+        ctx.stroke();
+      }
+    } else if (motif === "BEACH") {
+      ctx.globalAlpha = .7;
+      ctx.fillStyle = style.contour;
+      for (let index = 0; index < 14; index += 1) {
+        const x = point.x - 31 + ((seed >>> (index % 16)) % 63);
+        const y = point.y - 23 + ((seed >>> ((index + 5) % 16)) % 47);
+        ctx.beginPath();
+        ctx.arc(x, y, .8 + (index % 3) * .35, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else if (kind === "COLD") {
+    const frozenWater = motif === "FROZEN_LAKE" || motif === "ICE_WATER";
+    ctx.globalAlpha = .52;
+    ctx.strokeStyle = style.contour;
+    ctx.lineWidth = frozenWater ? 1.7 : 1.3;
+    const driftCount = motif === "SNOWFIELD" || motif === "ICE_CAP" ? 4 : frozenWater ? 2 : 3;
+    for (let index = 0; index < driftCount; index += 1) {
+      const y = point.y - 21 + index * 19 + ((seed >>> (index * 5)) % 4);
+      ctx.beginPath();
+      ctx.moveTo(point.x - 39, y);
+      ctx.bezierCurveTo(point.x - 12, y - 6, point.x + 13, y + 6, point.x + 39, y - 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = .58;
+    ctx.strokeStyle = style.shadow;
+    ctx.lineWidth = 1;
+    const crackX = point.x - 7 + (seed % 15);
+    const crackY = point.y - 8 + ((seed >>> 5) % 12);
+    ctx.beginPath();
+    ctx.moveTo(crackX - 9, crackY - 7);
+    ctx.lineTo(crackX - 2, crackY - 1);
+    ctx.lineTo(crackX - 6, crackY + 7);
+    ctx.moveTo(crackX - 2, crackY - 1);
+    ctx.lineTo(crackX + 9, crackY + 5);
+    ctx.stroke();
+    if (motif === "GLACIER" || motif === "ICE_CAP" || frozenWater) {
+      ctx.globalAlpha = frozenWater ? .78 : .62;
+      ctx.strokeStyle = style.highlight;
+      ctx.lineWidth = 1.2;
+      for (let index = -2; index <= 2; index += 1) {
+        const x = point.x + index * 14;
+        ctx.beginPath();
+        ctx.moveTo(x - 6, point.y - 30);
+        ctx.lineTo(x + 3, point.y - 9);
+        ctx.lineTo(x - 4, point.y + 8);
+        ctx.lineTo(x + 7, point.y + 30);
+        ctx.stroke();
+      }
+    } else if (motif === "TUNDRA" || motif === "COLD") {
+      ctx.globalAlpha = .72;
+      ctx.strokeStyle = style.detail;
+      ctx.lineWidth = 1.2;
+      for (const offset of [-24, -9, 8, 23]) {
+        const y = point.y + 8 + ((seed >>> (offset & 7)) % 12);
+        ctx.beginPath();
+        ctx.moveTo(point.x + offset - 3, y);
+        ctx.lineTo(point.x + offset, y - 5);
+        ctx.lineTo(point.x + offset + 3, y);
+        ctx.stroke();
+      }
+    }
+  } else if (kind === "URBAN") {
+    ctx.globalAlpha = .72;
+    ctx.fillStyle = style.shadow;
+    ctx.strokeStyle = style.detail;
+    ctx.lineWidth = 1;
+    const blocks = [
+      [-28, -20, 18, 14], [3, -23, 24, 16], [-31, 5, 23, 18], [7, 4, 21, 21],
+    ] as const;
+    for (const [x, y, width, height] of blocks) {
+      ctx.beginPath();
+      ctx.rect(point.x + x, point.y + y, width, height);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.globalAlpha = .42;
+    ctx.strokeStyle = style.contour;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(point.x - 42, point.y);
+    ctx.lineTo(point.x + 42, point.y);
+    ctx.moveTo(point.x, point.y - 38);
+    ctx.lineTo(point.x, point.y + 38);
+    ctx.stroke();
   } else {
     ctx.globalAlpha = .32;
     ctx.strokeStyle = style.contour;
@@ -274,6 +586,68 @@ function drawTerrainTexture(
       ctx.lineTo(point.x + offset, y - 5);
       ctx.lineTo(point.x + offset + 3, y);
       ctx.stroke();
+    }
+    if (motif === "FARMLAND") {
+      ctx.globalAlpha = .58;
+      ctx.strokeStyle = style.shadow;
+      ctx.lineWidth = 2;
+      for (let offset = -28; offset <= 28; offset += 8) {
+        ctx.beginPath();
+        ctx.moveTo(point.x + offset, point.y - 31);
+        ctx.lineTo(point.x + offset + 12, point.y + 31);
+        ctx.stroke();
+      }
+    } else if (motif === "VALLEY") {
+      ctx.globalAlpha = .58;
+      ctx.strokeStyle = style.shadow;
+      for (let ring = 3; ring >= 1; ring -= 1) {
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(point.x, point.y, ring * 13, ring * 8, -.14, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    } else if (motif === "SAVANNA") {
+      ctx.globalAlpha = .78;
+      ctx.fillStyle = style.shadow;
+      ctx.strokeStyle = style.detail;
+      ctx.lineWidth = 1.3;
+      for (const offset of [-20, 15]) {
+        const y = point.y + (offset > 0 ? 8 : -6);
+        ctx.beginPath();
+        ctx.ellipse(point.x + offset, y, 9, 4.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    } else if (motif === "SCRUB" || motif === "HEATH") {
+      ctx.globalAlpha = .72;
+      ctx.fillStyle = style.shadow;
+      for (let index = 0; index < 7; index += 1) {
+        const x = point.x - 27 + ((seed >>> (index * 3)) % 54);
+        const y = point.y - 19 + ((seed >>> (index * 4 + 2)) % 38);
+        ctx.beginPath();
+        ctx.ellipse(x, y, 3.8, 2.4, .2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (motif === "MEADOW" || motif === "GLADE") {
+      ctx.globalAlpha = .74;
+      ctx.fillStyle = style.contour;
+      for (let index = 0; index < 9; index += 1) {
+        const x = point.x - 30 + ((seed >>> (index % 15)) % 60);
+        const y = point.y - 22 + ((seed >>> ((index + 6) % 15)) % 44);
+        ctx.beginPath();
+        ctx.arc(x, y, motif === "MEADOW" ? 1.15 : .75, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (motif === "PLAINS" || motif === "STEPPE") {
+      ctx.globalAlpha = .46;
+      ctx.strokeStyle = style.shadow;
+      ctx.lineWidth = 1;
+      for (let offset = -24; offset <= 24; offset += 12) {
+        ctx.beginPath();
+        ctx.moveTo(point.x + offset, point.y - 29);
+        ctx.lineTo(point.x + offset + 7, point.y + 29);
+        ctx.stroke();
+      }
     }
   }
   ctx.restore();
@@ -393,7 +767,7 @@ function drawHexEdges(
   ctx: CanvasRenderingContext2D,
   point: { x: number; y: number },
   directions: readonly number[],
-  kind: "ROAD" | "RIVER",
+  kind: "ROAD" | "PATH" | "RIVER" | "BRIDGE" | "WALL",
 ) {
   const uniqueDirections = [...new Set(directions)];
   if (uniqueDirections.length === 0) return;
@@ -402,31 +776,79 @@ function drawHexEdges(
   ctx.lineJoin = "round";
   for (const direction of uniqueDirections) {
     const edge = hexEdgePoint(point, direction);
+    if (kind === "WALL") {
+      traceHexSide(ctx, point, direction, HEX_SIZE - 4);
+      ctx.strokeStyle = "rgba(25, 31, 30, .92)";
+      ctx.lineWidth = 7;
+      ctx.stroke();
+      traceHexSide(ctx, point, direction, HEX_SIZE - 5);
+      ctx.strokeStyle = "rgba(181, 173, 144, .94)";
+      ctx.lineWidth = 3.2;
+      ctx.stroke();
+      traceHexSide(ctx, point, direction, HEX_SIZE - 6.2);
+      ctx.strokeStyle = "rgba(229, 213, 168, .55)";
+      ctx.lineWidth = .8;
+      ctx.stroke();
+      continue;
+    }
+    if (kind === "RIVER") {
+      traceHexSide(ctx, point, direction, HEX_SIZE - 5);
+      ctx.strokeStyle = "rgba(8, 27, 30, .8)";
+      ctx.lineWidth = 8;
+      ctx.stroke();
+      traceHexSide(ctx, point, direction, HEX_SIZE - 5);
+      ctx.strokeStyle = "rgba(82, 163, 174, .88)";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      traceHexSide(ctx, point, direction, HEX_SIZE - 5.6);
+      ctx.strokeStyle = "rgba(179, 220, 211, .42)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      continue;
+    }
+    if (kind === "BRIDGE") {
+      const inner = hexEdgePoint(point, direction, HEX_SIZE - 18);
+      const outer = hexEdgePoint(point, direction, HEX_SIZE + 2);
+      const traceBridge = () => {
+        ctx.beginPath();
+        ctx.moveTo(inner.x, inner.y);
+        ctx.lineTo(outer.x, outer.y);
+      };
+      traceBridge();
+      ctx.strokeStyle = "rgba(27, 29, 25, .92)";
+      ctx.lineWidth = 11;
+      ctx.stroke();
+      traceBridge();
+      ctx.strokeStyle = "rgba(185, 151, 93, .98)";
+      ctx.lineWidth = 7;
+      ctx.stroke();
+      const dx = outer.x - inner.x;
+      const dy = outer.y - inner.y;
+      const length = Math.hypot(dx, dy);
+      const normalX = length > 0 ? -dy / length : 0;
+      const normalY = length > 0 ? dx / length : 0;
+      ctx.strokeStyle = "rgba(239, 215, 164, .82)";
+      ctx.lineWidth = 1.1;
+      for (const progress of [.2, .4, .6, .8]) {
+        const x = inner.x + dx * progress;
+        const y = inner.y + dy * progress;
+        ctx.beginPath();
+        ctx.moveTo(x - normalX * 4, y - normalY * 4);
+        ctx.lineTo(x + normalX * 4, y + normalY * 4);
+        ctx.stroke();
+      }
+      continue;
+    }
     const trace = () => {
       ctx.beginPath();
       ctx.moveTo(point.x, point.y);
-      if (kind === "RIVER") {
-        const dx = edge.x - point.x;
-        const dy = edge.y - point.y;
-        const normalX = -dy * .13;
-        const normalY = dx * .13;
-        ctx.bezierCurveTo(point.x + dx * .3 + normalX, point.y + dy * .3 + normalY, point.x + dx * .7 - normalX, point.y + dy * .7 - normalY, edge.x, edge.y);
-      } else {
-        ctx.lineTo(edge.x, edge.y);
-      }
+      ctx.lineTo(edge.x, edge.y);
     };
-    if (kind === "RIVER") {
+    if (kind === "PATH") {
       trace();
-      ctx.strokeStyle = "rgba(8, 27, 30, .76)";
-      ctx.lineWidth = 6;
-      ctx.stroke();
-      trace();
-      ctx.strokeStyle = "rgba(82, 163, 174, .82)";
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      trace();
-      ctx.strokeStyle = "rgba(157, 202, 194, .34)";
-      ctx.lineWidth = .8;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = "rgba(231, 214, 162, .78)";
+      ctx.lineWidth = 2;
     } else {
       trace();
       ctx.strokeStyle = "rgba(33, 31, 24, .72)";
@@ -441,16 +863,131 @@ function drawHexEdges(
   ctx.restore();
 }
 
+function drawAuthoredMapFeature(
+  ctx: CanvasRenderingContext2D,
+  point: { x: number; y: number },
+  structureIds: readonly string[],
+): boolean {
+  const has = (definitionId: string) => structureIds.some((id) =>
+    id === definitionId || id.startsWith(`${definitionId}:`)
+  );
+  const city = has("structure-custom-city");
+  const town = has("structure-custom-town");
+  const outpost = has("structure-custom-outpost");
+  const airfield = has("structure-custom-airfield");
+  const radar = has("structure-sensor-tower");
+  if (!city && !town && !outpost && !airfield && !radar) return false;
+
+  ctx.save();
+  ctx.translate(point.x, point.y - 3);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  if (airfield) {
+    ctx.save();
+    ctx.rotate(-Math.PI / 6);
+    ctx.fillStyle = "rgba(27, 38, 39, .92)";
+    ctx.strokeStyle = "rgba(223, 202, 146, .92)";
+    ctx.lineWidth = 1.7;
+    ctx.beginPath();
+    ctx.roundRect(-8, -31, 16, 62, 3);
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(228, 223, 187, .78)";
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(0, -25);
+    ctx.lineTo(0, 25);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(87, 121, 111, .95)";
+    ctx.fillRect(11, -12, 13, 24);
+    ctx.restore();
+  }
+
+  if (city || town) {
+    const footprints: readonly (readonly [number, number, number, number])[] = city
+      ? [[-26, -21, 15, 16], [-6, -24, 19, 19], [17, -17, 12, 15], [-22, 6, 19, 15], [3, 4, 24, 18]]
+      : [[-19, -14, 17, 16], [5, -18, 19, 17], [-8, 6, 22, 16]];
+    ctx.fillStyle = "rgba(21, 31, 32, .93)";
+    ctx.strokeStyle = city ? "rgba(226, 203, 143, .9)" : "rgba(198, 190, 146, .88)";
+    ctx.lineWidth = 1.5;
+    for (const [x, y, width, height] of footprints) {
+      ctx.beginPath();
+      ctx.rect(x, y, width, height);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(104, 218, 204, .58)";
+      ctx.beginPath();
+      ctx.moveTo(x + 4, y + 4);
+      ctx.lineTo(x + width - 4, y + 4);
+      ctx.stroke();
+      ctx.strokeStyle = city ? "rgba(226, 203, 143, .9)" : "rgba(198, 190, 146, .88)";
+    }
+  }
+
+  if (outpost) {
+    ctx.fillStyle = "rgba(20, 34, 35, .94)";
+    ctx.strokeStyle = "rgba(226, 198, 131, .95)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.rect(-20, -18, 40, 36);
+    ctx.fill();
+    ctx.stroke();
+    const towers: readonly (readonly [number, number])[] = [[-20, -18], [20, -18], [-20, 18], [20, 18]];
+    for (const [x, y] of towers) {
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.fillStyle = "rgba(99, 217, 202, .82)";
+    ctx.fillRect(-4, -6, 8, 12);
+  }
+
+  if (radar) {
+    ctx.strokeStyle = "rgba(123, 229, 217, .95)";
+    ctx.fillStyle = "rgba(11, 31, 35, .92)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.globalAlpha = .72;
+    ctx.beginPath();
+    ctx.arc(0, 0, 22, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = .9;
+    ctx.fillStyle = "rgba(84, 186, 176, .7)";
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, 19, -Math.PI * .72, -Math.PI * .28);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "rgba(224, 211, 159, .95)";
+    ctx.beginPath();
+    ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+  return true;
+}
+
 function deploymentVisual(deployment: CampaignDeployment) {
   return resolveUnitVisual({
     definitionId: deployment.definitionId,
     side: deployment.side,
     tags: [
-    ...deployment.weapons.flatMap((weapon) => weapon.tags),
-    ...(deployment.abilities ?? []).map((ability) => ability.abilityId.toUpperCase()),
-    ...(deployment.movementProfile ? [deployment.movementProfile.mode] : []),
-    ...(deployment.durabilityProfile ? [deployment.durabilityProfile.model] : []),
-    ...deployment.statuses,
+      ...(deployment.tags ?? []),
+      ...deployment.weapons.flatMap((weapon) => weapon.tags),
+      ...(deployment.abilities ?? []).map((ability) => ability.abilityId.toUpperCase()),
+      ...(deployment.movementProfile ? [deployment.movementProfile.mode] : []),
+      ...(deployment.durabilityProfile ? [deployment.durabilityProfile.model] : []),
+      ...deployment.statuses,
     ],
   });
 }
@@ -547,6 +1084,7 @@ function drawTacticalSprite(
   elapsedMs: number,
   reducedMotion: boolean,
   allied: boolean,
+  groupMember: ReturnType<typeof tacticalSpriteGroupLayout>[number],
 ) {
   const motion = tacticalSpriteMotion(state, elapsedMs, reducedMotion);
   ctx.save();
@@ -555,6 +1093,9 @@ function drawTacticalSprite(
   ctx.translate(motion.translateX, motion.translateY);
   ctx.rotate(motion.rotation);
   ctx.scale(motion.scale, motion.scale);
+  ctx.translate(groupMember.x * size, groupMember.y * size);
+  ctx.rotate(groupMember.rotation);
+  ctx.scale(groupMember.scale, groupMember.scale);
   ctx.globalAlpha = motion.opacity * .94;
   ctx.filter = allied
     ? "saturate(.72) sepia(.18) hue-rotate(118deg) contrast(1.14) brightness(.91)"
@@ -570,6 +1111,142 @@ function drawTacticalSprite(
     size,
     size,
   );
+  ctx.restore();
+}
+
+function drawObjectiveMarker(
+  ctx: CanvasRenderingContext2D,
+  objective: CampaignView["objectives"][number],
+  point: { x: number; y: number },
+  primaryObjectiveId: string | undefined,
+  zoom: number,
+  elapsedMs: number,
+  reducedMotion: boolean,
+) {
+  const visual = tacticalObjectiveVisual(objective, primaryObjectiveId);
+  const pulse = visual.primary && objective.status === "ACTIVE" && !reducedMotion
+    ? (Math.sin(elapsedMs / 260) + 1) * .9
+    : 0;
+  const badgeY = -visual.radius;
+
+  ctx.save();
+  ctx.translate(point.x, point.y);
+  ctx.globalAlpha = visual.opacity;
+  ctx.strokeStyle = visual.color;
+  ctx.lineWidth = visual.primary ? 2.2 : 1.6;
+  ctx.shadowColor = visual.color;
+  ctx.shadowBlur = visual.primary ? 7 : 3;
+  ctx.setLineDash([...visual.ringDash]);
+  ctx.beginPath();
+  ctx.arc(0, 0, visual.radius + pulse, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.shadowBlur = 0;
+
+  ctx.globalAlpha = visual.opacity * .48;
+  ctx.lineWidth = 3.4;
+  for (let index = 0; index < 4; index += 1) {
+    const angle = Math.PI / 2 * index - Math.PI / 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, visual.radius - 3, angle - .18, angle + .18);
+    ctx.stroke();
+  }
+  if (visual.primary) {
+    ctx.globalAlpha = visual.opacity * .28;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(0, 0, visual.radius + 4 + pulse, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = visual.opacity;
+  ctx.fillStyle = visual.fill;
+  ctx.strokeStyle = visual.color;
+  ctx.lineWidth = visual.primary ? 2 : 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-3.5, badgeY + visual.badgeRadius - 1);
+  ctx.lineTo(0, badgeY + visual.badgeRadius + 5);
+  ctx.lineTo(3.5, badgeY + visual.badgeRadius - 1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, badgeY, visual.badgeRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.strokeStyle = visual.iconColor;
+  ctx.fillStyle = visual.iconColor;
+  ctx.lineWidth = 1.8;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  if (visual.icon === "SECURED") {
+    ctx.beginPath();
+    ctx.moveTo(-4, badgeY);
+    ctx.lineTo(-1, badgeY + 3);
+    ctx.lineTo(5, badgeY - 4);
+    ctx.stroke();
+  } else if (visual.icon === "FAILED") {
+    ctx.beginPath();
+    ctx.moveTo(-4, badgeY - 4);
+    ctx.lineTo(4, badgeY + 4);
+    ctx.moveTo(4, badgeY - 4);
+    ctx.lineTo(-4, badgeY + 4);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.arc(0, badgeY, 4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-6, badgeY);
+    ctx.lineTo(-2, badgeY);
+    ctx.moveTo(2, badgeY);
+    ctx.lineTo(6, badgeY);
+    ctx.moveTo(0, badgeY - 6);
+    ctx.lineTo(0, badgeY - 2);
+    ctx.moveTo(0, badgeY + 2);
+    ctx.lineTo(0, badgeY + 6);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, badgeY, 1.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (visual.primary) {
+    ctx.fillStyle = visual.color;
+    ctx.beginPath();
+    ctx.moveTo(0, badgeY - visual.badgeRadius - 6);
+    ctx.lineTo(-4, badgeY - visual.badgeRadius - 1);
+    ctx.lineTo(4, badgeY - visual.badgeRadius - 1);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  if (zoom > .7) {
+    ctx.font = `bold ${visual.primary ? 7 : 6.5}px ui-monospace, SFMono-Regular, monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const nameWidth = Math.max(42, ctx.measureText(visual.nameLabel).width + 12);
+    const nameY = badgeY - visual.badgeRadius - (visual.primary ? 18 : 11);
+    ctx.fillStyle = "rgba(3, 12, 15, .92)";
+    ctx.strokeStyle = visual.color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(-nameWidth / 2, nameY - 7, nameWidth, 14, 2.5);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = visual.color;
+    ctx.fillText(visual.nameLabel, 0, nameY + .5);
+
+    if (zoom > 1.05) {
+      ctx.font = "bold 5px ui-monospace, SFMono-Regular, monospace";
+      const detailWidth = ctx.measureText(visual.detailLabel).width + 10;
+      ctx.fillStyle = "rgba(3, 12, 15, .88)";
+      ctx.fillRect(-detailWidth / 2, nameY + 8, detailWidth, 9);
+      ctx.fillStyle = visual.iconColor;
+      ctx.fillText(visual.detailLabel, 0, nameY + 12.5);
+    }
+  }
   ctx.restore();
 }
 
@@ -708,7 +1385,9 @@ export function HexMap({
   const [spriteRevision, setSpriteRevision] = useState(0);
   const [animationTime, setAnimationTime] = useState(0);
   const [mapVisible, setMapVisible] = useState(true);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
 
   useEffect(() => {
     onHoverRef.current = onHover;
@@ -726,6 +1405,14 @@ export function HexMap({
     ]),
     [campaign.map, chartWaterHexes],
   );
+  const terrainTiles = useMemo(() => campaign.map.map((hex) => ({
+    hex,
+    point: axialToTacticalWorld(hex.coord),
+    terrainStyle: tacticalTerrainStyle(hex.terrainId, hex.coord, hex.visualTerrainId),
+    connectedTerrain: connectedTerrainDirections(hex.coord, hex.terrainId, mapIndex, hex.visualTerrainId),
+    terrainBoundaries: terrainBoundaryDirections(hex.coord, hex.terrainId, mapIndex, hex.visualTerrainId),
+    coastline: exposedMapDirections(hex.coord, mapIndex),
+  })), [campaign.map, mapIndex]);
   const mapFitKey = [
     campaign.campaignId,
     campaign.scenarioVersion,
@@ -798,15 +1485,20 @@ export function HexMap({
   const keyboardUnits = !keyboardHex || keyboardVisibility === "UNKNOWN" || !activeKeyboardCoord
     ? []
     : unitIndex.get(coordKey(activeKeyboardCoord)) ?? [];
+  const keyboardObjective = !activeKeyboardCoord || keyboardVisibility === "UNKNOWN"
+    ? undefined
+    : campaign.objectives.find((objective) => coordKey(objective.coord) === coordKey(activeKeyboardCoord));
   const keyboardDescription = !activeKeyboardCoord || !keyboardHex
     ? "No tactical hex is available."
     : keyboardVisibility === "UNKNOWN"
       ? `Hex ${activeKeyboardCoord.q}.${activeKeyboardCoord.r}. Unknown contact area.`
-      : `Hex ${activeKeyboardCoord.q}.${activeKeyboardCoord.r}. ${tacticalTerrainKind(keyboardHex.terrainId).toLowerCase()} terrain. ${keyboardVisibility.toLowerCase()}. ${
+      : `Hex ${activeKeyboardCoord.q}.${activeKeyboardCoord.r}. ${tacticalTerrainLabel(keyboardHex.terrainId, keyboardHex.visualTerrainId)} terrain. ${keyboardVisibility.toLowerCase()}. ${
         keyboardUnits.length > 0
           ? `${keyboardUnits.length} projected ${keyboardUnits.length === 1 ? "unit" : "units"}: ${keyboardUnits.map((unit) => unit.callsign).join(", ")}.`
           : "No projected units."
-      }`;
+      } ${keyboardObjective
+        ? tacticalObjectiveAriaLabel(keyboardObjective, campaign.scenarioPolicy?.primaryObjectiveId)
+        : "No objective."}`;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -886,10 +1578,14 @@ export function HexMap({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    canvas.width = Math.max(1, Math.floor(size.width * size.ratio));
-    canvas.height = Math.max(1, Math.floor(size.height * size.ratio));
-    canvas.style.width = `${size.width}px`;
-    canvas.style.height = `${size.height}px`;
+    const pixelWidth = Math.max(1, Math.floor(size.width * size.ratio));
+    const pixelHeight = Math.max(1, Math.floor(size.height * size.ratio));
+    if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
+    if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
+    const cssWidth = `${size.width}px`;
+    const cssHeight = `${size.height}px`;
+    if (canvas.style.width !== cssWidth) canvas.style.width = cssWidth;
+    if (canvas.style.height !== cssHeight) canvas.style.height = cssHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.setTransform(size.ratio, 0, 0, size.ratio, 0, 0);
@@ -917,14 +1613,10 @@ export function HexMap({
       drawChartWaterHex(ctx, point, waterHex.coord, waterHex.depth);
     }
 
-    for (const hex of campaign.map) {
-      const point = axialToTacticalWorld(hex.coord);
+    for (const tile of terrainTiles) {
+      const { hex, point, terrainStyle, connectedTerrain, terrainBoundaries, coastline } = tile;
       if (point.x < visibleWorld.minX || point.x > visibleWorld.maxX || point.y < visibleWorld.minY || point.y > visibleWorld.maxY) continue;
       polygon(ctx, point, 1.2);
-      const terrainStyle = tacticalTerrainStyle(hex.terrainId, hex.coord);
-      const connectedTerrain = connectedTerrainDirections(hex.coord, hex.terrainId, mapIndex);
-      const terrainBoundaries = terrainBoundaryDirections(hex.coord, hex.terrainId, mapIndex);
-      const coastline = exposedMapDirections(hex.coord, mapIndex);
       if (hex.visibility === "UNKNOWN") {
         ctx.fillStyle = "#11191b";
         ctx.globalAlpha = .19;
@@ -951,7 +1643,16 @@ export function HexMap({
       polygon(ctx, point, 1.2);
       ctx.stroke();
       if (hex.visibility !== "UNKNOWN") {
-        drawTerrainTexture(ctx, point, hex.coord, hex.terrainId, connectedTerrain, terrainStyle);
+        drawTerrainTexture(
+          ctx,
+          point,
+          hex.coord,
+          hex.terrainId,
+          hex.visualTerrainId,
+          connectedTerrain,
+          terrainStyle,
+          reducedMotion ? 0 : animationTime,
+        );
         if (terrainBoundaries.length > 0) drawTerrainBoundaries(ctx, point, terrainBoundaries, terrainStyle);
         if (coastline.length > 0) drawCoastline(ctx, point, coastline);
         if (hex.visibility === "OBSERVED") {
@@ -961,8 +1662,14 @@ export function HexMap({
         }
       }
 
+      if (hex.visibility !== "UNKNOWN") drawHexEdges(ctx, point, hex.edges.paths ?? [], "PATH");
       if (hex.visibility !== "UNKNOWN") drawHexEdges(ctx, point, hex.edges.roads, "ROAD");
       if (hex.visibility !== "UNKNOWN") drawHexEdges(ctx, point, hex.edges.rivers, "RIVER");
+      if (hex.visibility !== "UNKNOWN") drawHexEdges(ctx, point, hex.edges.bridges ?? [], "BRIDGE");
+      if (hex.visibility !== "UNKNOWN") drawHexEdges(ctx, point, hex.edges.walls ?? [], "WALL");
+      const drewAuthoredMapFeature = hex.visibility !== "UNKNOWN"
+        ? drawAuthoredMapFeature(ctx, point, hex.structureIds)
+        : false;
       if (
         hex.visibility !== "UNKNOWN" &&
         hex.structureIds.some((id) => id === "structure-sandbag-line" || id.startsWith("structure-sandbag-line:"))
@@ -980,7 +1687,11 @@ export function HexMap({
         }
         ctx.restore();
       }
-      if (hex.visibility !== "UNKNOWN" && hex.environment.includes(INFANTRY_GARRISON_BUILDING)) {
+      if (
+        hex.visibility !== "UNKNOWN" &&
+        !drewAuthoredMapFeature &&
+        hex.environment.includes(INFANTRY_GARRISON_BUILDING)
+      ) {
         ctx.save();
         ctx.translate(point.x, point.y - 12);
         ctx.fillStyle = "rgba(8, 22, 27, .88)";
@@ -1081,21 +1792,15 @@ export function HexMap({
       const objectiveHex = mapIndex.get(coordKey(objective.coord));
       if (!objectiveHex || objectiveHex.visibility === "UNKNOWN") continue;
       const point = axialToTacticalWorld(objective.coord);
-      const color = objective.owner === "ALLIED" ? "#70d6cc" : objective.owner === "ENEMY" ? "#e56f51" : "#d6b86d";
-      ctx.strokeStyle = color;
-      ctx.fillStyle = "rgba(5,14,16,.88)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, 16, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(point.x - 6, point.y);
-      ctx.lineTo(point.x, point.y - 6);
-      ctx.lineTo(point.x + 6, point.y);
-      ctx.lineTo(point.x, point.y + 6);
-      ctx.closePath();
-      ctx.stroke();
+      drawObjectiveMarker(
+        ctx,
+        objective,
+        point,
+        campaign.scenarioPolicy?.primaryObjectiveId,
+        viewport.zoom,
+        animationTime,
+        reducedMotion,
+      );
     }
 
     for (const marker of markers) {
@@ -1275,12 +1980,28 @@ export function HexMap({
         const order = activeOrdersByUnitId.get(deployment.id);
         const state = tacticalSpriteState(deployment, order);
         const frame = tacticalSpriteFrame(state, animationTime, reducedMotion);
+        const spriteGroup = tacticalSpriteGroupLayout(deployment.definitionId);
         const spriteSrc = findTacticalSprite(deployment.definitionId);
         const sprite = spriteSrc ? spriteImagesRef.current.get(spriteSrc) : undefined;
         const commandColor = alliedCommandColors.get(deployment.ownerId) ?? (allied ? ALLIED_COMMAND_COLORS[0] : "#e36d53");
-        drawSpriteBase(ctx, point, Math.max(8, size * .34), allied, selected, targeted, commandColor, facing);
+        const groupedSprite = spriteGroup.length > 1;
+        drawSpriteBase(ctx, point, Math.max(8, size * (groupedSprite ? .46 : .34)), allied, selected, targeted, commandColor, facing);
         if (sprite?.complete && sprite.naturalWidth >= SPRITE_FRAME_SIZE * 6) {
-          drawTacticalSprite(ctx, sprite, frame, point, facing, size, state, animationTime, reducedMotion, allied);
+          for (const groupMember of spriteGroup) {
+            drawTacticalSprite(
+              ctx,
+              sprite,
+              tacticalSpriteGroupFrame(frame, state, groupMember.movePhase),
+              point,
+              facing,
+              size,
+              state,
+              animationTime,
+              reducedMotion,
+              allied,
+              groupMember,
+            );
+          }
         } else {
           ctx.save();
           ctx.translate(point.x, point.y);
@@ -1371,7 +2092,7 @@ export function HexMap({
     vignette.addColorStop(1, "rgba(0,0,0,.48)");
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, size.width, size.height);
-  }, [activeFocusedIntentId, activeKeyboardCoord, activeOrdersByUnitId, alliedCommandColors, animationTime, campaign, canvasFocused, chartWaterHexes, draftedFacing, draftedRoute, filteredAlliedIntents, hovered, layer, mapIndex, markers, reducedMotion, selectedUnitId, showAlliedIntents, size, spriteRevision, targetHex, targetUnitId, unitIndex, viewport]);
+  }, [activeFocusedIntentId, activeKeyboardCoord, activeOrdersByUnitId, alliedCommandColors, animationTime, campaign, canvasFocused, chartWaterHexes, draftedFacing, draftedRoute, filteredAlliedIntents, hovered, layer, mapIndex, markers, reducedMotion, selectedUnitId, showAlliedIntents, size, spriteRevision, targetHex, targetUnitId, terrainTiles, unitIndex, viewport]);
 
   const screenToWorldPoint = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -1420,7 +2141,9 @@ export function HexMap({
     setKeyboardCoord(next);
     setHovered(next);
     hoveredUnitIdRef.current = unit?.id;
-    onHover(next, unit);
+    const nextHex = mapIndex.get(coordKey(next));
+    if (nextHex?.visibility === "UNKNOWN") onHover();
+    else onHover(next, unit);
     const world = axialToTacticalWorld(next);
     setViewport((current) => {
       const margin = 72;
@@ -1463,11 +2186,13 @@ export function HexMap({
           const world = screenToWorldPoint(event.clientX, event.clientY);
           const coord = tacticalWorldToAxial(world.x, world.y);
           const hex = mapIndex.get(coordKey(coord));
-          const unit = hex && hex.visibility !== "UNKNOWN" ? unitAtWorldPoint(world, coord) : undefined;
+          const inspectable = hex !== undefined && hex.visibility !== "UNKNOWN";
+          const unit = inspectable ? unitAtWorldPoint(world, coord) : undefined;
           if (!hovered || coord.q !== hovered.q || coord.r !== hovered.r || hoveredUnitIdRef.current !== unit?.id) {
             setHovered(coord);
             hoveredUnitIdRef.current = unit?.id;
-            onHover(coord, unit);
+            if (inspectable) onHover(coord, unit);
+            else onHover();
           }
           if (!dragRef.current || event.buttons !== 1) return;
           const dx = event.clientX - dragRef.current.x;
@@ -1510,6 +2235,7 @@ export function HexMap({
           });
         }}
         onKeyDown={(event) => {
+          if (event.ctrlKey || event.metaKey) return;
           if (event.shiftKey && event.key.startsWith("Arrow")) {
             event.preventDefault();
             const amount = 80;
@@ -1533,13 +2259,14 @@ export function HexMap({
             moveKeyboardCursor(directionIndex);
             return;
           }
-          if (
-            (event.key === "Enter" || event.key === " ") &&
-            activeKeyboardCoord &&
-            mapIndex.get(coordKey(activeKeyboardCoord))?.visibility !== "UNKNOWN"
-          ) {
+          if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            onMapClick(activeKeyboardCoord, preferredUnitAt(activeKeyboardCoord));
+            if (
+              activeKeyboardCoord &&
+              mapIndex.get(coordKey(activeKeyboardCoord))?.visibility !== "UNKNOWN"
+            ) {
+              onMapClick(activeKeyboardCoord, preferredUnitAt(activeKeyboardCoord));
+            }
             return;
           }
           if (event.key === "+" || event.key === "=") {

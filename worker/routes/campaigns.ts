@@ -20,6 +20,7 @@ interface CampaignDirectoryRow {
   maximum_players: number;
   member_count: number;
   deployment_count: number;
+  custom_scenario_available: number;
   force_policy_json: string;
   reinforcement_policy_json: string | null;
   current_round: number;
@@ -53,6 +54,7 @@ interface PublicCampaignRow {
   minimum_players: number;
   maximum_players: number;
   member_count: number;
+  custom_scenario_available: number;
 }
 
 const joinPath = /^\/api\/campaigns\/([a-z0-9][a-z0-9-]{0,63})\/join$/;
@@ -104,6 +106,11 @@ function scenarioBriefing(mapSourceKey: string): Record<string, unknown> | undef
   return undefined;
 }
 
+function scenarioAvailable(row: Pick<CampaignDirectoryRow, "map_source_key" | "scenario_content_key" | "custom_scenario_available">): boolean {
+  return isAuthoredScenarioContentSelection(row.map_source_key, row.scenario_content_key) ||
+    Number(row.custom_scenario_available) === 1;
+}
+
 async function commandHash(value: unknown): Promise<string> {
   const bytes = new TextEncoder().encode(JSON.stringify(value));
   const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -144,8 +151,21 @@ async function joinCampaign(request: Request, env: Env, campaignId: string): Pro
           OR (campaigns.map_source_key=?5 AND campaigns.scenario_content_key=?6)
           OR (campaigns.map_source_key=?7 AND campaigns.scenario_content_key=?8)
           OR (campaigns.map_source_key=?9 AND campaigns.scenario_content_key=?10)
-          OR (campaigns.map_source_key=?11 AND campaigns.scenario_content_key=?12))
-        AND (SELECT COUNT(*) FROM campaign_memberships WHERE campaign_id=campaigns.id) < campaigns.maximum_players
+          OR (campaigns.map_source_key=?11 AND campaigns.scenario_content_key=?12)
+          OR EXISTS (SELECT 1 FROM game_master_campaign_scenarios AS custom
+            JOIN game_master_map_revisions AS revisions ON revisions.id=custom.map_revision_id
+            JOIN game_master_maps AS maps ON maps.id=revisions.map_id
+            WHERE custom.campaign_id=campaigns.id
+              AND custom.scenario_id='scenario-' || campaigns.id
+              AND custom.scenario_version=1
+              AND custom.scenario_content_key=campaigns.scenario_content_key
+              AND custom.map_revision_id=campaigns.game_master_map_revision_id
+              AND custom.map_content_hash=revisions.content_hash
+              AND campaigns.map_source_key='admin-map/' || maps.id || '@' || revisions.revision || ':' || revisions.content_hash
+              AND maps.status='PUBLISHED' AND maps.revision=revisions.revision
+              AND maps.content_hash=revisions.content_hash))
+        AND (SELECT COUNT(*) FROM campaign_memberships
+          WHERE campaign_id=campaigns.id AND role<>'GM') < campaigns.maximum_players
       ON CONFLICT(campaign_id,user_id) DO NOTHING`)
       .bind(
         userId,
@@ -263,10 +283,22 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
       COALESCE((SELECT MAX(round_number) + 1 FROM round_metadata WHERE campaign_id=campaigns.id),1) AS current_round,
       memberships.side, memberships.role, memberships.joined_at,
       campaigns.minimum_players, campaigns.maximum_players,
+      EXISTS (SELECT 1 FROM game_master_campaign_scenarios AS custom
+        JOIN game_master_map_revisions AS revisions ON revisions.id=custom.map_revision_id
+        JOIN game_master_maps AS maps ON maps.id=revisions.map_id
+        WHERE custom.campaign_id=campaigns.id
+          AND custom.scenario_id='scenario-' || campaigns.id
+          AND custom.scenario_version=1
+          AND custom.scenario_content_key=campaigns.scenario_content_key
+          AND custom.map_revision_id=campaigns.game_master_map_revision_id
+          AND custom.map_content_hash=revisions.content_hash
+          AND campaigns.map_source_key='admin-map/' || maps.id || '@' || revisions.revision || ':' || revisions.content_hash
+          AND maps.status='PUBLISHED' AND maps.revision=revisions.revision
+          AND maps.content_hash=revisions.content_hash) AS custom_scenario_available,
       results.result,results.reason AS outcome_reason,results.round_number AS result_round,
       results.rewards_json,results.resolved_at,
       (SELECT COUNT(*) FROM campaign_memberships AS members
-        WHERE members.campaign_id = campaigns.id) AS member_count,
+        WHERE members.campaign_id = campaigns.id AND members.role<>'GM') AS member_count,
       (SELECT COUNT(*) FROM deployments
         WHERE deployments.campaign_id=campaigns.id AND deployments.owner_id=?1
           AND deployments.status IN ('READY','ACTIVE','IMMOBILISED')) AS deployment_count
@@ -284,18 +316,42 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
         planets.name AS planet_name,campaigns.map_source_key,campaigns.scenario_content_key,
         campaigns.minimum_players,
         campaigns.maximum_players,(SELECT COUNT(*) FROM campaign_memberships AS members
-          WHERE members.campaign_id=campaigns.id) AS member_count
+          WHERE members.campaign_id=campaigns.id AND members.role<>'GM') AS member_count,
+        EXISTS (SELECT 1 FROM game_master_campaign_scenarios AS custom
+          JOIN game_master_map_revisions AS revisions ON revisions.id=custom.map_revision_id
+          JOIN game_master_maps AS maps ON maps.id=revisions.map_id
+          WHERE custom.campaign_id=campaigns.id
+            AND custom.scenario_id='scenario-' || campaigns.id
+            AND custom.scenario_version=1
+            AND custom.scenario_content_key=campaigns.scenario_content_key
+            AND custom.map_revision_id=campaigns.game_master_map_revision_id
+            AND custom.map_content_hash=revisions.content_hash
+            AND campaigns.map_source_key='admin-map/' || maps.id || '@' || revisions.revision || ':' || revisions.content_hash
+            AND maps.status='PUBLISHED' AND maps.revision=revisions.revision
+            AND maps.content_hash=revisions.content_hash) AS custom_scenario_available
       FROM campaigns JOIN planets ON planets.id=campaigns.planet_id
       WHERE campaigns.status='RECRUITING'
         AND ((campaigns.map_source_key=?2 AND campaigns.scenario_content_key=?3)
           OR (campaigns.map_source_key=?4 AND campaigns.scenario_content_key=?5)
           OR (campaigns.map_source_key=?6 AND campaigns.scenario_content_key=?7)
           OR (campaigns.map_source_key=?8 AND campaigns.scenario_content_key=?9)
-          OR (campaigns.map_source_key=?10 AND campaigns.scenario_content_key=?11))
+          OR (campaigns.map_source_key=?10 AND campaigns.scenario_content_key=?11)
+          OR EXISTS (SELECT 1 FROM game_master_campaign_scenarios AS custom
+            JOIN game_master_map_revisions AS revisions ON revisions.id=custom.map_revision_id
+            JOIN game_master_maps AS maps ON maps.id=revisions.map_id
+            WHERE custom.campaign_id=campaigns.id
+              AND custom.scenario_id='scenario-' || campaigns.id
+              AND custom.scenario_version=1
+              AND custom.scenario_content_key=campaigns.scenario_content_key
+              AND custom.map_revision_id=campaigns.game_master_map_revision_id
+              AND custom.map_content_hash=revisions.content_hash
+              AND campaigns.map_source_key='admin-map/' || maps.id || '@' || revisions.revision || ':' || revisions.content_hash
+              AND maps.status='PUBLISHED' AND maps.revision=revisions.revision
+              AND maps.content_hash=revisions.content_hash))
         AND NOT EXISTS (SELECT 1 FROM campaign_memberships AS mine
           WHERE mine.campaign_id=campaigns.id AND mine.user_id=?1)
         AND (SELECT COUNT(*) FROM campaign_memberships AS members
-          WHERE members.campaign_id=campaigns.id) < campaigns.maximum_players
+          WHERE members.campaign_id=campaigns.id AND members.role<>'GM') < campaigns.maximum_players
       ORDER BY campaigns.name,campaigns.id`)
       .bind(
         userId,
@@ -313,7 +369,7 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
   ]);
   return json({
     campaigns: result.results.map((row) => {
-      const scenarioAvailable = isAuthoredScenarioContentSelection(row.map_source_key, row.scenario_content_key);
+      const available = scenarioAvailable(row);
       return {
       campaignId: row.campaign_id,
       name: row.name,
@@ -326,12 +382,12 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
       deploymentCount: Number(row.deployment_count),
       minimumPlayers: Number(row.minimum_players),
       maximumPlayers: Number(row.maximum_players),
-      scenarioAvailable,
-      canReinforce: scenarioAvailable && reinforcementOpen(row),
+      scenarioAvailable: available,
+      canReinforce: available && reinforcementOpen(row),
       canWithdraw: row.status === "RECRUITING" && row.role === "PLAYER" && Number(row.deployment_count) === 0,
-      canEnter: scenarioAvailable && Number(row.deployment_count) > 0 &&
+      canEnter: available && Number(row.deployment_count) > 0 &&
         ["RECRUITING", "ACTIVE", "PAUSED", "COMPLETE", "FAILED"].includes(row.status),
-      briefing: scenarioAvailable ? scenarioBriefing(row.map_source_key) : undefined,
+      briefing: available ? scenarioBriefing(row.map_source_key) : undefined,
       outcome: row.result ? {
         result: row.result,
         reason: row.outcome_reason,
@@ -342,7 +398,7 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
       };
     }),
     availableCampaigns: available.results.map((row) => {
-      const scenarioAvailable = isAuthoredScenarioContentSelection(row.map_source_key, row.scenario_content_key);
+      const available = scenarioAvailable(row);
       return {
       campaignId: row.campaign_id,
       name: row.name,
@@ -351,9 +407,9 @@ export async function routeCampaignDirectoryRequest(request: Request, env: Env):
       memberCount: Number(row.member_count),
       minimumPlayers: Number(row.minimum_players),
       maximumPlayers: Number(row.maximum_players),
-      scenarioAvailable,
-      canJoin: scenarioAvailable,
-      briefing: scenarioAvailable ? scenarioBriefing(row.map_source_key) : undefined,
+      scenarioAvailable: available,
+      canJoin: available,
+      briefing: available ? scenarioBriefing(row.map_source_key) : undefined,
       };
     }),
   });

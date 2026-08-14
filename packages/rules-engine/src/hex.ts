@@ -16,6 +16,7 @@ export const coordKey = ({ q, r }: AxialCoord): string => `${q},${r}`;
 export const sameCoord = (a: AxialCoord, b: AxialCoord): boolean => a.q === b.q && a.r === b.r;
 export const addCoord = (a: AxialCoord, b: AxialCoord): AxialCoord => ({ q: a.q + b.q, r: a.r + b.r });
 export const subtractCoord = (a: AxialCoord, b: AxialCoord): AxialCoord => ({ q: a.q - b.q, r: a.r - b.r });
+const compareCoords = (left: AxialCoord, right: AxialCoord): number => left.q - right.q || left.r - right.r;
 
 export function hexNeighbours(coord: AxialCoord): AxialCoord[] {
   return HEX_DIRECTIONS.map((direction) => addCoord(coord, direction));
@@ -95,7 +96,14 @@ export interface RouteCostOptions {
   ignoresRivers?: boolean;
   ignoresElevation?: boolean;
   roadMultiplier?: number;
+  pathMultiplier?: number;
   unitTags?: readonly string[];
+  unitStatuses?: readonly string[];
+  /**
+   * Overrides derived flight state for a pending Take Off/Land action. When
+   * omitted, aerospace/VTOL is airborne unless it currently has LANDED.
+   */
+  airborne?: boolean;
 }
 
 export interface RouteCostResult {
@@ -107,12 +115,28 @@ export interface RouteCostResult {
     elevation: number;
     river: number;
     road: boolean;
+    bridge: boolean;
+    path?: boolean;
+    wall?: boolean;
     fieldwork: number;
     garrisonEntry: number;
     total: number;
   }>;
   legal: boolean;
   reason?: string;
+}
+
+export function isAirborneTraversal(options: Pick<RouteCostOptions, "unitTags" | "unitStatuses" | "airborne">): boolean {
+  if (options.airborne !== undefined) return options.airborne;
+  const unitTags = new Set(options.unitTags ?? []);
+  const flightCapable = unitTags.has("AEROSPACE") || unitTags.has("ATMO_FLIGHT") || unitTags.has("VTOL");
+  return flightCapable && !(options.unitStatuses ?? []).includes("LANDED");
+}
+
+export function canTraverseBattlefieldHex(hex: BattlefieldHex, options: RouteCostOptions = {}): boolean {
+  if (isAirborneTraversal(options) || hex.movementRules?.groundTraversal !== "IMPASSABLE") return true;
+  const tags = new Set(options.unitTags ?? []);
+  return hex.movementRules.allowedGroundTraversalTags?.some((tag) => tags.has(tag)) === true;
 }
 
 export function calculateRouteCost(
@@ -125,7 +149,7 @@ export function calculateRouteCost(
   const steps: RouteCostResult["steps"] = [];
   let total = 0;
   const unitTags = new Set(options.unitTags ?? []);
-  const airborne = unitTags.has("AEROSPACE") || unitTags.has("VTOL");
+  const airborne = isAirborneTraversal(options);
 
   for (let position = 1; position < route.length; position += 1) {
     const fromCoord = route[position - 1];
@@ -138,13 +162,44 @@ export function calculateRouteCost(
     if (!from || !to) return { total, steps, legal: false, reason: `Route leaves the battlefield at step ${position}.` };
     const direction = edgeDirection(fromCoord, toCoord);
     if (direction === null) return { total, steps, legal: false, reason: `Route direction is invalid at step ${position}.` };
+    if (!canTraverseBattlefieldHex(to, options)) {
+      return {
+        total,
+        steps,
+        legal: false,
+        reason: `Ground movement cannot traverse ${to.terrainId} at ${coordKey(to.coord)}.`,
+      };
+    }
 
-    const road = !airborne && (from.edges.roads.includes(direction) || to.edges.roads.includes(rearFacing(direction)));
-    const base = airborne ? 1 : road ? to.movementCost * (options.roadMultiplier ?? 0.5) : to.movementCost;
+    const reverseDirection = rearFacing(direction);
+    const wall = from.edges.walls?.includes(direction) === true || to.edges.walls?.includes(reverseDirection) === true;
+    if (!airborne && wall) {
+      return {
+        total,
+        steps,
+        legal: false,
+        reason: `Ground movement cannot cross a wall at ${coordKey(from.coord)}→${coordKey(to.coord)}.`,
+      };
+    }
+    const road = !airborne && (from.edges.roads.includes(direction) || to.edges.roads.includes(reverseDirection));
+    const path = !airborne && !road && (
+      from.edges.paths?.includes(direction) === true || to.edges.paths?.includes(reverseDirection) === true
+    );
+    const base = airborne
+      ? 1
+      : road
+        ? to.movementCost * (options.roadMultiplier ?? 0.5)
+        : path
+          ? to.movementCost * (options.pathMultiplier ?? 0.75)
+          : to.movementCost;
     const elevation = airborne || options.ignoresElevation ? 0 : Math.max(0, to.elevation - from.elevation);
     const riverCrossing =
-      from.edges.rivers.includes(direction) || to.edges.rivers.includes(rearFacing(direction));
-    const river = airborne || options.ignoresRivers || !riverCrossing ? 0 : 1;
+      from.edges.rivers.includes(direction) || to.edges.rivers.includes(reverseDirection);
+    const bridge = !airborne && riverCrossing && (
+      from.edges.bridges?.includes(direction) === true ||
+      to.edges.bridges?.includes(reverseDirection) === true
+    );
+    const river = airborne || bridge || options.ignoresRivers || !riverCrossing ? 0 : 1;
     const fieldwork = airborne ? 0 : fieldworkMovementPenalty(to, options.unitTags).total;
     const infantry = unitTags.has("INFANTRY") && unitTags.has("PERSONNEL") && !unitTags.has("VEHICLE");
     const garrisonEntry = !airborne && infantry && isInfantryGarrisonBuilding(to)
@@ -153,7 +208,20 @@ export function calculateRouteCost(
     const stepTotal = (garrisonEntry > 0
       ? garrisonEntry
       : Math.max(0.25, base + elevation + river) * (options.rush ? 0.5 : 1)) + fieldwork;
-    steps.push({ from: fromCoord, to: toCoord, base, elevation, river, road, fieldwork, garrisonEntry, total: stepTotal });
+    steps.push({
+      from: fromCoord,
+      to: toCoord,
+      base,
+      elevation,
+      river,
+      road,
+      bridge,
+      ...(path ? { path: true } : {}),
+      ...(wall ? { wall: true } : {}),
+      fieldwork,
+      garrisonEntry,
+      total: stepTotal,
+    });
     total += stepTotal;
   }
 
@@ -192,6 +260,14 @@ export function hasLineOfSight(
   const startHeight = (index.get(coordKey(start))?.elevation ?? 0) + Math.max(0, options.observerHeightBonus ?? 0);
   const endHeight = index.get(coordKey(end))?.elevation ?? 0;
   const sightCeiling = Math.max(startHeight, endHeight) + 1;
+  for (let position = 1; position < line.length; position += 1) {
+    const from = index.get(coordKey(line[position - 1]!));
+    const to = index.get(coordKey(line[position]!));
+    if (!from || !to) return false;
+    const direction = edgeDirection(from.coord, to.coord);
+    if (direction === null) return false;
+    if (from.edges.walls?.includes(direction) || to.edges.walls?.includes(rearFacing(direction))) return false;
+  }
   return line.slice(1, -1).every((coord) => {
     const hex = index.get(coordKey(coord));
     return Boolean(
@@ -222,6 +298,14 @@ export function visibleHexes(
 export interface PathOptions {
   blocked?: Set<string>;
   maximumSteps?: number;
+  rush?: boolean;
+  ignoresRivers?: boolean;
+  ignoresElevation?: boolean;
+  roadMultiplier?: number;
+  pathMultiplier?: number;
+  unitTags?: readonly string[];
+  unitStatuses?: readonly string[];
+  airborne?: boolean;
 }
 
 export function shortestPath(
@@ -233,28 +317,59 @@ export function shortestPath(
   if (sameCoord(start, goal)) return [{ ...start }];
   const index = createHexIndex(hexes);
   const blocked = options.blocked ?? new Set<string>();
-  const frontier: AxialCoord[] = [start];
+  if (!index.has(coordKey(start)) || !index.has(coordKey(goal))) return [];
+  const routeOptions: RouteCostOptions = {
+    rush: options.rush,
+    ignoresRivers: options.ignoresRivers,
+    ignoresElevation: options.ignoresElevation,
+    roadMultiplier: options.roadMultiplier,
+    pathMultiplier: options.pathMultiplier,
+    unitTags: options.unitTags,
+    unitStatuses: options.unitStatuses,
+    airborne: options.airborne,
+  };
+  if (!canTraverseBattlefieldHex(index.get(coordKey(goal))!, routeOptions)) return [];
+  const frontier: Array<{ coord: AxialCoord; cost: number; hops: number }> = [{ coord: start, cost: 0, hops: 0 }];
   const cameFrom = new Map<string, AxialCoord | null>([[coordKey(start), null]]);
+  const costs = new Map<string, number>([[coordKey(start), 0]]);
+  const hops = new Map<string, number>([[coordKey(start), 0]]);
   const maximumSteps = options.maximumSteps ?? hexes.length;
 
   while (frontier.length > 0 && cameFrom.size <= maximumSteps * 7) {
-    const current = frontier.shift()!;
-    for (const next of hexNeighbours(current)) {
+    frontier.sort((left, right) =>
+      left.cost - right.cost || left.hops - right.hops ||
+      compareCoords(left.coord, right.coord)
+    );
+    const selected = frontier.shift()!;
+    const current = selected.coord;
+    if (selected.cost !== costs.get(coordKey(current))) continue;
+    if (sameCoord(current, goal)) break;
+    for (const next of hexNeighbours(current).sort(compareCoords)) {
       const key = coordKey(next);
-      if (!index.has(key) || blocked.has(key) || cameFrom.has(key)) continue;
-      cameFrom.set(key, current);
-      if (sameCoord(next, goal)) {
-        const result: AxialCoord[] = [next];
-        let cursor: AxialCoord | null = current;
-        while (cursor) {
-          result.push(cursor);
-          cursor = cameFrom.get(coordKey(cursor)) ?? null;
-        }
-        return result.reverse();
+      if (!index.has(key) || blocked.has(key)) continue;
+      const step = calculateRouteCost([current, next], hexes, routeOptions);
+      if (!step.legal) continue;
+      const nextHops = selected.hops + 1;
+      if (nextHops > maximumSteps) continue;
+      const nextCost = selected.cost + step.total;
+      const previousCost = costs.get(key);
+      const previousHops = hops.get(key) ?? Number.POSITIVE_INFINITY;
+      if (previousCost !== undefined && (nextCost > previousCost || (nextCost === previousCost && nextHops >= previousHops))) {
+        continue;
       }
-      frontier.push(next);
+      costs.set(key, nextCost);
+      hops.set(key, nextHops);
+      cameFrom.set(key, current);
+      frontier.push({ coord: next, cost: nextCost, hops: nextHops });
     }
   }
 
-  return [];
+  if (!cameFrom.has(coordKey(goal))) return [];
+  const result: AxialCoord[] = [goal];
+  let cursor = cameFrom.get(coordKey(goal)) ?? null;
+  while (cursor) {
+    result.push(cursor);
+    cursor = cameFrom.get(coordKey(cursor)) ?? null;
+  }
+  return result.reverse();
 }

@@ -136,6 +136,10 @@ const eventTypes = new Set([
   "CAMPAIGN_FAILED",
   "CAMPAIGN_PAUSED",
   "CAMPAIGN_RESUMED",
+  "GAME_MASTER_OBJECTIVE_CREATED",
+  "GAME_MASTER_OBJECTIVE_UPDATED",
+  "GAME_MASTER_DEPLOYMENT_REVIVED",
+  "GAME_MASTER_ENEMY_SPAWNED",
 ]);
 
 export interface CampaignActionIntent {
@@ -870,14 +874,31 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     if (mapKeys.has(key)) stateFail(`$.map[${index}].coord`, "duplicate battlefield coordinate");
     mapKeys.add(key);
     stateString(hex.terrainId, `$.map[${index}].terrainId`);
+    if (hex.visualTerrainId !== undefined) stateString(hex.visualTerrainId, `$.map[${index}].visualTerrainId`);
     stateNumber(hex.elevation, `$.map[${index}].elevation`);
     stateNumber(hex.movementCost, `$.map[${index}].movementCost`, 0);
+    if (hex.movementRules !== undefined) {
+      const movementRules = stateRecord(hex.movementRules, `$.map[${index}].movementRules`);
+      if (movementRules.groundTraversal !== "PASSABLE" && movementRules.groundTraversal !== "IMPASSABLE") {
+        stateFail(`$.map[${index}].movementRules.groundTraversal`, "invalid ground traversal policy");
+      }
+      stateString(movementRules.applicationProfileId, `$.map[${index}].movementRules.applicationProfileId`);
+      if (movementRules.allowedGroundTraversalTags !== undefined) {
+        stateStringArray(
+          movementRules.allowedGroundTraversalTags,
+          `$.map[${index}].movementRules.allowedGroundTraversalTags`,
+        );
+      }
+    }
     if (typeof hex.blocksLineOfSight !== "boolean") stateFail(`$.map[${index}].blocksLineOfSight`, "expected a boolean");
     stateNumber(hex.lineOfSightModifier, `$.map[${index}].lineOfSightModifier`);
     stateInteger(hex.capacity, `$.map[${index}].capacity`, 0);
     const edges = stateRecord(hex.edges, `$.map[${index}].edges`);
     stateFacingArray(edges.rivers, `$.map[${index}].edges.rivers`);
     stateFacingArray(edges.roads, `$.map[${index}].edges.roads`);
+    if (edges.bridges !== undefined) stateFacingArray(edges.bridges, `$.map[${index}].edges.bridges`);
+    if (edges.paths !== undefined) stateFacingArray(edges.paths, `$.map[${index}].edges.paths`);
+    if (edges.walls !== undefined) stateFacingArray(edges.walls, `$.map[${index}].edges.walls`);
     stateStringArray(hex.structureIds, `$.map[${index}].structureIds`);
     stateStringArray(hex.environment, `$.map[${index}].environment`);
     if (typeof hex.control !== "string" || !sides.has(hex.control)) stateFail(`$.map[${index}].control`, "invalid side");

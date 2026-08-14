@@ -47,12 +47,25 @@ function routeWithinBudget(
   if (desiredRange !== undefined && hexDistance(enemy.position, destination) <= desiredRange) {
     return [enemy.position];
   }
-  const path = shortestPath(enemy.position, destination, state.map);
+  const path = shortestPath(enemy.position, destination, state.map, {
+    unitTags: enemy.tags,
+    unitStatuses: enemy.statuses,
+    airborne: enemy.tags?.some((tag) => tag === "AEROSPACE" || tag === "ATMO_FLIGHT" || tag === "VTOL")
+      ? !enemy.statuses.includes("LANDED")
+      : undefined,
+  });
   if (path.length <= 1) return [enemy.position];
   const route = [path[0]!];
   for (const step of path.slice(1)) {
     const candidate = [...route, step];
-    if (calculateRouteCost(candidate, state.map, { unitTags: enemy.tags }).total > enemy.stats.speed) break;
+    const cost = calculateRouteCost(candidate, state.map, {
+      unitTags: enemy.tags,
+      unitStatuses: enemy.statuses,
+      airborne: enemy.tags?.some((tag) => tag === "AEROSPACE" || tag === "ATMO_FLIGHT" || tag === "VTOL")
+        ? !enemy.statuses.includes("LANDED")
+        : undefined,
+    });
+    if (!cost.legal || cost.total > enemy.stats.speed) break;
     route.push(step);
     if (desiredRange !== undefined && hexDistance(step, destination) <= desiredRange) break;
   }

@@ -10,12 +10,22 @@ interface ProvenanceAsset {
   chromaSha256?: string;
 }
 
+interface SwarmProvenanceAsset extends ProvenanceAsset {
+  definitionId: string;
+  sourcePath: string;
+  sourceSha256: string;
+}
+
 const workspace = process.cwd();
 const manifestPath = resolve(workspace, "src/tactical-sprite-manifest.ts");
 const bundleDirectory = resolve(workspace, "dist/client/assets");
 const provenancePath = resolve(
   workspace,
   "src/assets/tactical-sprites/mech-sprite-provenance.json",
+);
+const swarmProvenancePath = resolve(
+  workspace,
+  "src/assets/tactical-sprites/swarm-sprite-provenance.json",
 );
 
 function digest(bytes: Uint8Array): string {
@@ -27,9 +37,9 @@ const activePaths = [...manifestSource.matchAll(
   /from "\.\/(assets\/tactical-sprites\/generated\/[^"\n]+\.png)";/g,
 )].map((match) => `src/${match[1]}`);
 
-if (activePaths.length !== 29 || new Set(activePaths).size !== activePaths.length) {
+if (activePaths.length !== 36 || new Set(activePaths).size !== activePaths.length) {
   throw new Error(
-    `Tactical sprite allowlist must contain 29 unique static imports; found ${activePaths.length}.`,
+    `Tactical sprite allowlist must contain 36 unique static imports; found ${activePaths.length}.`,
   );
 }
 
@@ -80,7 +90,27 @@ for (const asset of provenance.assets) {
   }
 }
 
+const swarmProvenance = JSON.parse(await readFile(swarmProvenancePath, "utf8")) as {
+  assets: SwarmProvenanceAsset[];
+};
+for (const asset of swarmProvenance.assets) {
+  const sourceHash = digest(await readFile(resolve(workspace, asset.sourcePath)));
+  const packedHash = digest(await readFile(resolve(workspace, asset.path)));
+  if (sourceHash !== asset.sourceSha256) {
+    throw new Error(`Swarm source provenance hash drift: ${asset.sourcePath}`);
+  }
+  if (packedHash !== asset.sha256) {
+    throw new Error(`Swarm packed provenance hash drift: ${asset.path}`);
+  }
+  if (!bundleHashes.has(packedHash)) {
+    throw new Error(`Active swarm sprite is absent from the client bundle: ${asset.path}`);
+  }
+  if (bundleHashes.has(sourceHash)) {
+    throw new Error(`Swarm source render entered the client bundle: ${asset.sourcePath}`);
+  }
+}
+
 const activeNames = activePaths.map((path) => basename(path));
 console.log(
-  `Verified ${activeNames.length} tactical sprites in the client bundle; inactive mech and chroma hashes are absent.`,
+  `Verified ${activeNames.length} tactical sprites in the client bundle; inactive mech, chroma, and swarm source hashes are absent.`,
 );

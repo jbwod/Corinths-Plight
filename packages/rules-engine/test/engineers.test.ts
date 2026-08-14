@@ -216,8 +216,10 @@ describe("Engineer completion mechanics", () => {
 
     expect(output.state.deployments.find((deployment) => deployment.id === engineer.id)?.supplies)
       .toEqual({ SMALL_SUPPLY: 0 });
-    expect(resolvedSource.edges.rivers).not.toContain(0);
-    expect(resolvedTarget.edges.rivers).not.toContain(3);
+    expect(resolvedSource.edges.rivers).toContain(0);
+    expect(resolvedTarget.edges.rivers).toContain(3);
+    expect(resolvedSource.edges.bridges).toContain(0);
+    expect(resolvedTarget.edges.bridges).toContain(3);
     expect(resolvedSource.structureIds).toContainEqual(expect.stringMatching(/^structure-bridge:/));
     expect(resolvedTarget.structureIds).toContainEqual(expect.stringMatching(/^structure-bridge:/));
     expect(output.events).toContainEqual(expect.objectContaining({

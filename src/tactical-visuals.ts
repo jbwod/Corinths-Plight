@@ -11,6 +11,14 @@ export interface TacticalSpriteMotion {
 }
 export type TacticalFormationRole = "SUPPORT" | "ARMOUR" | "INFANTRY" | "AIR";
 
+export interface TacticalSpriteGroupMember {
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  movePhase: 0 | 1;
+}
+
 const ATTACK_ACTIONS = new Set([
   "ATTACK", "ASSAULT", "BOMBARDMENT", "AIR_SUPPORT", "PLACE_DELAYED_CHARGE", "DETONATE_DELAYED_CHARGE",
 ]);
@@ -32,6 +40,46 @@ const FORMATION_SLOTS: Readonly<Record<number, readonly { x: number; y: number }
   8: [{ x: -18, y: -17 }, { x: 0, y: -19 }, { x: 18, y: -17 }, { x: -21, y: 1 }, { x: 21, y: 1 }, { x: -16, y: 18 }, { x: 0, y: 15 }, { x: 16, y: 18 }],
   9: [{ x: -19, y: -18 }, { x: 0, y: -20 }, { x: 19, y: -18 }, { x: -21, y: 0 }, { x: 0, y: 0 }, { x: 21, y: 0 }, { x: -18, y: 18 }, { x: 0, y: 20 }, { x: 18, y: 18 }],
 };
+
+const SINGLE_SPRITE_GROUP = [
+  { x: 0, y: 0, scale: 1, rotation: 0, movePhase: 0 },
+] as const satisfies readonly TacticalSpriteGroupMember[];
+
+const THREE_SPRITE_BROOD = [
+  { x: 0, y: -.2, scale: .7, rotation: 0, movePhase: 0 },
+  { x: -.23, y: .19, scale: .7, rotation: -.07, movePhase: 1 },
+  { x: .23, y: .19, scale: .7, rotation: .07, movePhase: 0 },
+] as const satisfies readonly TacticalSpriteGroupMember[];
+
+const DRONE_SPRITE_BROOD = [
+  { x: 0, y: -.25, scale: .52, rotation: 0, movePhase: 0 },
+  { x: -.26, y: -.06, scale: .52, rotation: -.09, movePhase: 1 },
+  { x: .26, y: -.06, scale: .52, rotation: .09, movePhase: 0 },
+  { x: -.18, y: .25, scale: .52, rotation: -.05, movePhase: 0 },
+  { x: .18, y: .25, scale: .52, rotation: .05, movePhase: 1 },
+] as const satisfies readonly TacticalSpriteGroupMember[];
+
+const SWARM_SPRITE_GROUPS: Readonly<Record<string, readonly TacticalSpriteGroupMember[]>> = {
+  "enemy-bug-drone": DRONE_SPRITE_BROOD,
+  "enemy-bug-burrower": THREE_SPRITE_BROOD,
+  "enemy-bug-flyer": THREE_SPRITE_BROOD,
+  "enemy-bug-spitter": THREE_SPRITE_BROOD,
+  "enemy-bug-warrior": THREE_SPRITE_BROOD,
+};
+
+export function tacticalSpriteGroupLayout(definitionId: string): readonly TacticalSpriteGroupMember[] {
+  return SWARM_SPRITE_GROUPS[definitionId] ?? SINGLE_SPRITE_GROUP;
+}
+
+export function tacticalSpriteGroupFrame(
+  frame: number,
+  state: TacticalSpriteState,
+  movePhase: TacticalSpriteGroupMember["movePhase"],
+): number {
+  if (state !== "MOVE" || movePhase === 0) return frame;
+  if (frame === 1) return 2;
+  return frame === 2 ? 1 : frame;
+}
 
 export function tacticalFormationLayout(count: number): readonly { x: number; y: number }[] {
   const bounded = Math.max(1, Math.floor(count));
@@ -58,9 +106,9 @@ export function tacticalFormationScale(count: number): number {
 
 export function tacticalFormationRole(deployment: Pick<CampaignDeployment, "definitionId" | "tags">): TacticalFormationRole {
   const identity = `${deployment.definitionId} ${(deployment.tags ?? []).join(" ")}`.toUpperCase();
-  if (/AEROSPACE|FIGHTER|BOMBER|VTOL|AIR[ _-]?TRANSPORT/.test(identity)) return "AIR";
+  if (/AEROSPACE|FIGHTER|BOMBER|VTOL|FLYER|AIR[ _-]?TRANSPORT/.test(identity)) return "AIR";
   if (/ARTILLERY|LOGI|MEDIC|ENGINEER|SAPPER|SUPPORT/.test(identity)) return "SUPPORT";
-  if (/TANK|MECH|VEHICLE|IFV|ARMO(U)?R/.test(identity)) return "ARMOUR";
+  if (/TANK|MECH|VEHICLE|IFV|ARMO(U)?R|BUG[ _-]?HEAVY/.test(identity)) return "ARMOUR";
   return "INFANTRY";
 }
 

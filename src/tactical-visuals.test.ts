@@ -5,6 +5,8 @@ import {
   tacticalFormationLayout,
   tacticalFormationRole,
   tacticalFormationScale,
+  tacticalSpriteGroupFrame,
+  tacticalSpriteGroupLayout,
   tacticalSpriteFrame,
   tacticalSpriteMotion,
   tacticalSpriteState,
@@ -48,6 +50,31 @@ describe("tactical unit visuals", () => {
     expect([air, infantry, support, armour].sort(stableDeploymentOrder).map((unit) => unit.id)).toEqual([
       "support", "armour", "infantry", "air",
     ]);
+  });
+
+  it("classifies source-catalogued swarm roles even when a projected deployment omits tags", () => {
+    expect(tacticalFormationRole({ definitionId: "enemy-bug-artillery" })).toBe("SUPPORT");
+    expect(tacticalFormationRole({ definitionId: "enemy-bug-heavy" })).toBe("ARMOUR");
+    expect(tacticalFormationRole({ definitionId: "enemy-bug-flyer" })).toBe("AIR");
+    expect(tacticalFormationRole({ definitionId: "enemy-bug-warrior" })).toBe("INFANTRY");
+  });
+
+  it("renders light swarm deployments as deterministic broods without changing rules state", () => {
+    expect(tacticalSpriteGroupLayout("enemy-bug-drone")).toHaveLength(5);
+    expect(tacticalSpriteGroupLayout("enemy-bug-warrior")).toHaveLength(3);
+    expect(tacticalSpriteGroupLayout("enemy-bug-spitter")).toHaveLength(3);
+    expect(tacticalSpriteGroupLayout("enemy-bug-burrower")).toHaveLength(3);
+    expect(tacticalSpriteGroupLayout("enemy-bug-flyer")).toHaveLength(3);
+    expect(tacticalSpriteGroupLayout("enemy-bug-heavy")).toHaveLength(1);
+    expect(tacticalSpriteGroupLayout("enemy-bug-artillery")).toHaveLength(1);
+    expect(tacticalSpriteGroupLayout("unit-infantry-squad")).toHaveLength(1);
+  });
+
+  it("offsets brood movement frames without altering other animation states", () => {
+    expect(tacticalSpriteGroupFrame(1, "MOVE", 1)).toBe(2);
+    expect(tacticalSpriteGroupFrame(2, "MOVE", 1)).toBe(1);
+    expect(tacticalSpriteGroupFrame(3, "ATTACK", 1)).toBe(3);
+    expect(tacticalSpriteGroupFrame(1, "MOVE", 0)).toBe(1);
   });
 
   it("selects action states without overriding damaged presentation", () => {

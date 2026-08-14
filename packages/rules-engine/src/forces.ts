@@ -46,6 +46,8 @@ export interface MovementRouteInput {
   rush?: boolean;
   hostileGroundPositions?: AxialCoord[];
   unitTags?: readonly string[];
+  unitStatuses?: readonly string[];
+  airborne?: boolean;
 }
 
 export interface MovementRouteResult {
@@ -95,11 +97,14 @@ export function validateMovementRoute(input: MovementRouteInput): MovementRouteR
   let cost = 0;
   if (reasons.every((reason) => !reason.startsWith("Route "))) {
     if (profile.terrainCostMode === "BATTLEFIELD") {
+      const flightMode = profile.mode === "VTOL" || profile.mode === "AEROSPACE" || profile.mode === "ORBITAL";
       const calculated = calculateRouteCost(route, map, {
         ignoresElevation: profile.ignoresElevation,
         ignoresRivers: profile.ignoresRivers,
         roadMultiplier: profile.roadMultiplier,
         unitTags: input.unitTags,
+        unitStatuses: input.unitStatuses,
+        airborne: input.airborne ?? (flightMode ? !(input.unitStatuses ?? []).includes("LANDED") : undefined),
       });
       if (!calculated.legal) reasons.push(calculated.reason ?? "Movement route is illegal.");
       cost = calculated.total;

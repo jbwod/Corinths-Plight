@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-14",
+  "generator": "OpenAI built-in imagegen",
+  "referenceImages": [],
+  "commonPrompt": "Reference-free six-cell tactical sprite strip; strict nadir plan view; north-facing; idle, move A, move B, attack, support, damaged; dark-navy technical ink with burnt-coral and bone chitin plus restrained cyan bioluminescence; isolated transparent subject; no text, scenery, shadow, perspective, crop, or overlap.",
+  "runtimeContract": {
+    "frameOrder": ["IDLE", "MOVE_A", "MOVE_B", "ATTACK", "SUPPORT", "DAMAGED"],
+    "frameSize": 256,
+    "sheetWidth": 1536,
+    "sheetHeight": 256,
+    "sourceFacing": "NORTH"
+  },
+  "runtimePresentation": {
+    "purpose": "Make a single light-swarm deployment read as a brood without changing authoritative unit count, health, or rules state.",
+    "groupSizes": {
+      "enemy-bug-drone": 5,
+      "enemy-bug-burrower": 3,
+      "enemy-bug-flyer": 3,
+      "enemy-bug-spitter": 3,
+      "enemy-bug-warrior": 3,
+      "enemy-bug-heavy": 1,
+      "enemy-bug-artillery": 1
+    }
+  },
+  "assets": [
+    {
+      "definitionId": "enemy-bug-artillery",
+      "catalogueStatus": "incomplete",
+      "subjectBrief": "Large low six-legged indirect-fire organism with a long dorsal bombardment organ and bracing limbs.",
+      "status": "ACTIVE",
+      "visualQa": "PROVISIONAL",
+      "sourceRender": "exec-fff3cec4-e382-4775-be3e-1ed551e923f6.png",
+      "sourcePath": "src/assets/tactical-sprites/source/swarm/enemy-bug-artillery.png",
+      "sourceSha256": "075c1d820b282e47256eab66d9b6a59a44a6fccf59aae0bdbd7618bb6c29a0a4",
+      "path": "src/assets/tactical-sprites/generated/enemy-bug-artillery.png",
+      "sha256": "e453280158ef1af7b67c739a87d557174d131e7d5a1e16506e30dafa21262256",
+      "qaNote": "Role-readable dorsal artillery silhouette; artwork does not activate the incomplete catalogue definition."
+    },
+    {
+      "definitionId": "enemy-bug-burrower",
+      "catalogueStatus": "incomplete",
+      "subjectBrief": "Compact ambush organism with a wedge-shaped digging head and six shovel-like limbs.",
+      "status": "ACTIVE",
+      "visualQa": "PROVISIONAL",
+      "sourceRender": "exec-979ce7bf-8870-4a29-897c-0a76fdc2c56e.png",
+      "sourcePath": "src/assets/tactical-sprites/source/swarm/enemy-bug-burrower.png",
+      "sourceSha256": "f148b94f86ccfd271056bd3ea8d7ded36a686a8abd0c581192cbd1dfddfbc167",
+      "path": "src/assets/tactical-sprites/generated/enemy-bug-burrower.png",
+      "sha256": "ba7e49acc400f6d6293abf635723510d1ca3f5dfa27f16b8dc96750e41ed067c",
+      "qaNote": "Distinct digging-head silhouette; artwork does not activate the incomplete catalogue definition."
+    },
+    {
+      "definitionId": "enemy-bug-drone",
+      "catalogueStatus": "experimental",
+      "subjectBrief": "Small fast six-legged swarm organism with a narrow body and compact forward claws.",
+      "status": "ACTIVE",
+      "visualQa": "PROVISIONAL",
+      "sourceRender": "exec-c01ac027-beae-4286-ab0b-964be228bb12.png",
+      "sourcePath": "src/assets/tactical-sprites/source/swarm/enemy-bug-drone.png",
+      "sourceSha256": "edc83643de66554cfad812409a2229168b91b3622fd7dfd8a5c8a7d6a8d2af5d",
+      "path": "src/assets/tactical-sprites/generated/enemy-bug-drone.png",
+      "sha256": "33e3cc79fb8f12ea614c2f331e0f2d5a9f0e71e7ed41455b3a170d71359f2c15",
+      "qaNote": "Small melee silhouette remains distinct from Warrior and Heavy at tactical scale."
+    },
+    {
+      "definitionId": "enemy-bug-flyer",
+      "catalogueStatus": "incomplete",
+      "subjectBrief": "Vehicle-scale airborne organism with two pairs of swept insect wings and tucked grasping forelimbs.",
+      "status": "ACTIVE",
+      "visualQa": "PROVISIONAL",
+      "sourceRender": "exec-17b1a6c0-e809-4502-abcc-ca659c482b2d.png",
+      "sourcePath": "src/assets/tactical-sprites/source/swarm/enemy-bug-flyer.png",
+      "sourceSha256": "640cf7dc5935853f564227b2b3bf443588cab00ab61a04780348bb6d806116c6",
+      "path": "src/assets/tactical-sprites/generated/enemy-bug-flyer.png",
+      "sha256": "af2b37e5ffaeff88b9c7cd4c955d718925e9a6d5abd82cf826f7cea74be78183",
+      "qaNote": "Readable air-threat silhouette; a targeted fragment-cleanup edit was rejected because it flattened transparency; artwork does not activate the incomplete catalogue definition."
+    },
+    {
+      "definitionId": "enemy-bug-heavy",
+      "catalogueStatus": "experimental",
+      "subjectBrief": "Massive low eight-legged armored siege organism with paired dorsal spine-volley organs.",
+      "status": "ACTIVE",
+      "visualQa": "PROVISIONAL",
+      "sourceRender": "exec-f9cb8913-9d0b-4f3f-8dbd-3b94eb414551.png",
+      "sourcePath": "src/assets/tactical-sprites/source/swarm/enemy-bug-heavy.png",
+      "sourceSha256": "82915727ae9de2b6c060200cffb68cc35a567bf6f516fa44437153557dfd067a",
+      "path": "src/assets/tactical-sprites/generated/enemy-bug-heavy.png",
+      "sha256": "c97421b733ff5f3e5c92abaef716d20b362659b16fc72695cb7816e32076c20f",
+      "qaNote": "Broad armored ranged silhouette remains distinct from the melee forms."
+    },
+    {
+      "definitionId": "enemy-bug-spitter",
+      "catalogueStatus": "incomplete",
+      "subjectBrief": "Lean six-legged ranged organism with a closed dorsal acid sac and forward nozzle.",
+      "status": "ACTIVE",
+      "visualQa": "PROVISIONAL",
+      "sourceRender": "exec-dedecb71-32ab-466c-a9a6-bfbcc92ad6fe.png",
+      "sourcePath": "src/assets/tactical-sprites/source/swarm/enemy-bug-spitter.png",
+      "sourceSha256": "60a90e62d166aa3c33ede69f9e27bf3dd6cc7ab4dd871f9f0cb7f08f0464f4c4",
+      "path": "src/assets/tactical-sprites/generated/enemy-bug-spitter.png",
+      "sha256": "8be283471db647635f7430b2567d37c386cb101e7e1aca2f3ad11e587403c865",
+      "qaNote": "Acid-sac silhouette distinguishes direct ranged pressure from artillery; artwork does not activate the incomplete catalogue definition."
+    },
+    {
+      "definitionId": "enemy-bug-warrior",
+      "catalogueStatus": "experimental",
+      "subjectBrief": "Large broad six-legged melee organism with layered dorsal chitin and paired scythe forelimbs.",
+      "status": "ACTIVE",
+      "visualQa": "PROVISIONAL",
+      "sourceRender": "exec-93264dcf-c116-4fc6-8dec-26ea5471c8ec.png",
+      "sourcePath": "src/assets/tactical-sprites/source/swarm/enemy-bug-warrior.png",
+      "sourceSha256": "cfd74b9edc82e81cb0cbaac9dcd24dd57867a5e7a93cb8ab35aa6e09e1d4026b",
+      "path": "src/assets/tactical-sprites/generated/enemy-bug-warrior.png",
+      "sha256": "f7b164a9381c1ad0d920210fb7b9aa0e9aa3a1d0ec92887a496398a4355da869",
+      "qaNote": "Large melee silhouette remains distinct from Drone and Heavy at tactical scale."
+    }
+  ]
+}

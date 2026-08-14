@@ -461,6 +461,8 @@ export function validateOrder(
   const route = calculateRouteCost(order.route, input.previousState.map, {
     rush: order.orderType === "RUSH",
     unitTags: deployment.tags,
+    unitStatuses: deployment.statuses,
+    airborne: isAerospaceDeployment(deployment) ? (!landed || takesOff) : undefined,
   });
   if (!route.legal) reasons.push(route.reason ?? "Route is illegal.");
   const budget = validateSpeedBudget(deployment.stats, route.total, [
@@ -1682,8 +1684,10 @@ export function resolveRound(input: RoundInput): RoundOutput {
         targetMapHex.structureIds.push(instanceId);
         if (fieldwork.id === "structure-bridge" && bridgeSourceHex && bridgeDirection !== null) {
           bridgeSourceHex.structureIds.push(instanceId);
-          bridgeSourceHex.edges.rivers = bridgeSourceHex.edges.rivers.filter((direction) => direction !== bridgeDirection);
-          targetMapHex.edges.rivers = targetMapHex.edges.rivers.filter((direction) => direction !== rearFacing(bridgeDirection));
+          bridgeSourceHex.edges.bridges = [...new Set([...(bridgeSourceHex.edges.bridges ?? []), bridgeDirection])];
+          targetMapHex.edges.bridges = [
+            ...new Set([...(targetMapHex.edges.bridges ?? []), rearFacing(bridgeDirection)]),
+          ];
         }
         actor.supplies = { ...(actor.supplies ?? {}), SMALL_SUPPLY: supplyBefore - fieldwork.smallSupplyCost };
         event("STRUCTURE_COMPLETED", actor.id, {

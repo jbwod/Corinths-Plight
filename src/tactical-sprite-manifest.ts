@@ -3,6 +3,13 @@ import aerospaceFighterSprite from "./assets/tactical-sprites/generated/unit-aer
 import artillerySprite from "./assets/tactical-sprites/generated/unit-artillery.png";
 import combatMedicSprite from "./assets/tactical-sprites/generated/unit-combat-medic.png";
 import engineersSprite from "./assets/tactical-sprites/generated/unit-engineers.png";
+import bugArtillerySprite from "./assets/tactical-sprites/generated/enemy-bug-artillery.png";
+import bugBurrowerSprite from "./assets/tactical-sprites/generated/enemy-bug-burrower.png";
+import bugDroneSprite from "./assets/tactical-sprites/generated/enemy-bug-drone.png";
+import bugFlyerSprite from "./assets/tactical-sprites/generated/enemy-bug-flyer.png";
+import bugHeavySprite from "./assets/tactical-sprites/generated/enemy-bug-heavy.png";
+import bugSpitterSprite from "./assets/tactical-sprites/generated/enemy-bug-spitter.png";
+import bugWarriorSprite from "./assets/tactical-sprites/generated/enemy-bug-warrior.png";
 import heavyAirTransportSprite from "./assets/tactical-sprites/generated/unit-heavy-air-transport.png";
 import heavyArtillerySprite from "./assets/tactical-sprites/generated/unit-heavy-artillery.png";
 import heavyBattleTankSprite from "./assets/tactical-sprites/generated/unit-heavy-battle-tank.png";
@@ -43,6 +50,13 @@ export interface ActiveTacticalSpriteAsset {
  * them in the client asset graph.
  */
 export const ACTIVE_TACTICAL_SPRITE_ASSETS = [
+  { definitionId: "enemy-bug-artillery", revisionId: "enemy-bug-artillery", src: bugArtillerySprite, visualQa: "PROVISIONAL" },
+  { definitionId: "enemy-bug-burrower", revisionId: "enemy-bug-burrower", src: bugBurrowerSprite, visualQa: "PROVISIONAL" },
+  { definitionId: "enemy-bug-drone", revisionId: "enemy-bug-drone", src: bugDroneSprite, visualQa: "PROVISIONAL" },
+  { definitionId: "enemy-bug-flyer", revisionId: "enemy-bug-flyer", src: bugFlyerSprite, visualQa: "PROVISIONAL" },
+  { definitionId: "enemy-bug-heavy", revisionId: "enemy-bug-heavy", src: bugHeavySprite, visualQa: "PROVISIONAL" },
+  { definitionId: "enemy-bug-spitter", revisionId: "enemy-bug-spitter", src: bugSpitterSprite, visualQa: "PROVISIONAL" },
+  { definitionId: "enemy-bug-warrior", revisionId: "enemy-bug-warrior", src: bugWarriorSprite, visualQa: "PROVISIONAL" },
   { definitionId: "unit-aerospace-bomber", revisionId: "unit-aerospace-bomber", src: aerospaceBomberSprite, visualQa: "PROVISIONAL" },
   { definitionId: "unit-aerospace-fighter", revisionId: "unit-aerospace-fighter", src: aerospaceFighterSprite, visualQa: "PROVISIONAL" },
   { definitionId: "unit-artillery", revisionId: "unit-artillery", src: artillerySprite, visualQa: "PROVISIONAL" },

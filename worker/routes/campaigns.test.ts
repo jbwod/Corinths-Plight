@@ -294,4 +294,41 @@ describe("campaign directory", () => {
       }],
     });
   });
+
+  it("accepts an exact published Game Master scenario pin for an authenticated member", async () => {
+    const response = await routeCampaignDirectoryRequest(new Request("https://game.test/api/campaigns", {
+      headers: { "x-demo-user": "demo-user" },
+    }), env([{
+      campaign_id: "gm-1234567890abcdef1234567890abcdef",
+      name: "Salt Reach",
+      status: "RECRUITING",
+      planet_name: "Corinth",
+      map_source_key: "admin-map/map-1234567890abcdef1234567890abcdef@2:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      scenario_content_key: "scenario-gm-campaign-1234567890abcdef1234567890abcdef@1",
+      side: "ALLIED",
+      role: "PLAYER",
+      joined_at: 1,
+      minimum_players: 1,
+      maximum_players: 8,
+      member_count: 1,
+      deployment_count: 1,
+      custom_scenario_available: 1,
+      force_policy_json: '{"reinforcementStatus":"OPEN"}',
+      reinforcement_policy_json: null,
+      current_round: 1,
+      result: null,
+      outcome_reason: null,
+      result_round: null,
+      rewards_json: null,
+      resolved_at: null,
+    }]));
+
+    await expect(response?.json()).resolves.toMatchObject({
+      campaigns: [{
+        campaignId: "gm-1234567890abcdef1234567890abcdef",
+        scenarioAvailable: true,
+        canEnter: true,
+      }],
+    });
+  });
 });

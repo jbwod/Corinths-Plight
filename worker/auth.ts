@@ -20,6 +20,10 @@ export type CampaignAccessDecision =
   | { allowed: true; viewer: ViewerContext }
   | { allowed: false; reason: "NOT_FOUND" | "FORBIDDEN" | "ROLE_UNSUPPORTED" };
 
+export type GameMasterAccessDecision =
+  | { allowed: true; userId: string; source: "GLOBAL_GRANT" | "DEVELOPMENT_DEMO" }
+  | { allowed: false; userId: string };
+
 export const LOCAL_DEMO_CAMPAIGN_ID = "outpost-k17";
 const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
 const knownEnvironments = new Set(["development", "preview", "production"]);
@@ -162,6 +166,27 @@ export async function authorizeCampaign(
     .bind(campaignId, userId)
     .first<CampaignMembershipRow>();
   return campaignAccessFromRow(userId, row);
+}
+
+export async function authorizeGameMaster(
+  identity: AuthenticatedIdentity,
+  env: Env,
+): Promise<GameMasterAccessDecision> {
+  if (identity.kind === "DEMO") {
+    return demoAuthEnabled(env) && identity.viewer.role === "ADMIN"
+      ? { allowed: true, userId: identity.viewer.userId, source: "DEVELOPMENT_DEMO" }
+      : { allowed: false, userId: identity.viewer.userId };
+  }
+  const grant = await env.DB.prepare(`SELECT grants.user_id
+      FROM game_master_grants AS grants
+      JOIN users ON users.id=grants.user_id AND users.status='ACTIVE'
+      WHERE grants.user_id=?1 AND grants.status='ACTIVE'
+      LIMIT 1`)
+    .bind(identity.userId)
+    .first<{ user_id: string }>();
+  return grant
+    ? { allowed: true, userId: identity.userId, source: "GLOBAL_GRANT" }
+    : { allowed: false, userId: identity.userId };
 }
 
 export function internalViewerHeaders(viewer: ViewerContext): Headers {

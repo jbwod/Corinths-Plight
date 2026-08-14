@@ -3,6 +3,7 @@ import {
   LOCAL_DEMO_CAMPAIGN_ID,
   authConfigurationIsSafe,
   authorizeCampaign,
+  authorizeGameMaster,
   campaignAccessFromRow,
   demoAuthEnabled,
   requestIsEmailVerificationNavigation,
@@ -169,5 +170,29 @@ describe("campaign authorization", () => {
       allowed: true,
       viewer: { userId: "user-1", side: "ENEMY", role: "PLAYER" },
     });
+  });
+});
+
+describe("global Game Master authorization", () => {
+  it("requires an explicit active grant for a production session", async () => {
+    await expect(authorizeGameMaster({ kind: "SESSION", userId: "gm-1" }, envWithRow({ user_id: "gm-1" })))
+      .resolves.toEqual({ allowed: true, userId: "gm-1", source: "GLOBAL_GRANT" });
+    await expect(authorizeGameMaster({ kind: "SESSION", userId: "commander-1" }, envWithRow(null)))
+      .resolves.toEqual({ allowed: false, userId: "commander-1" });
+  });
+
+  it("allows demo ADMIN only behind the existing development opt-in", async () => {
+    const admin: AuthenticatedIdentity = {
+      kind: "DEMO",
+      viewer: { userId: "demo-admin", side: "ALLIED", role: "ADMIN" },
+    };
+    const player: AuthenticatedIdentity = {
+      kind: "DEMO",
+      viewer: { userId: "demo-player", side: "ALLIED", role: "PLAYER" },
+    };
+    const local = { ...envWithRow(null), ENVIRONMENT: "development", ALLOW_DEMO_AUTH: "true" } satisfies Env;
+    await expect(authorizeGameMaster(admin, local)).resolves.toMatchObject({ allowed: true, source: "DEVELOPMENT_DEMO" });
+    await expect(authorizeGameMaster(player, local)).resolves.toEqual({ allowed: false, userId: "demo-player" });
+    await expect(authorizeGameMaster(admin, envWithRow(null))).resolves.toEqual({ allowed: false, userId: "demo-admin" });
   });
 });

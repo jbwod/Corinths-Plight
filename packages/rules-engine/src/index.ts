@@ -1,5 +1,7 @@
 export * from "./catalogue";
 export * from "./artillery";
+export * from "./admin-map-domain";
+export * from "./admin-map-generation";
 export * from "./companion-mechs";
 export * from "./catalogue-runtime";
 export * from "./companion-class-profile";
@@ -37,4 +39,5 @@ export * from "./supply-profile-hydration";
 export * from "./tactical-grammar";
 export * from "./tactical-supply";
 export * from "./tactical-unit-catalogue";
+export * from "./terrain-application";
 export * from "./visibility";

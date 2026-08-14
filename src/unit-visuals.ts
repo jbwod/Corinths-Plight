@@ -120,7 +120,19 @@ export interface UnitVisualLookup {
   side?: string;
 }
 
+const SWARM_TACTICAL_FALLBACKS: Readonly<Record<string, Pick<UnitVisualDefinition, "shortCode" | "tacticalGlyph" | "label">>> = {
+  "enemy-bug-artillery": { shortCode: "ART", tacticalGlyph: "ARTILLERY", label: "Bug Artillery" },
+  "enemy-bug-burrower": { shortCode: "BRW", tacticalGlyph: "BIOLOGICAL", label: "Bug Burrower" },
+  "enemy-bug-drone": { shortCode: "DRN", tacticalGlyph: "BIOLOGICAL", label: "Bug Drone" },
+  "enemy-bug-flyer": { shortCode: "FLY", tacticalGlyph: "FIGHTER", label: "Bug Flyer" },
+  "enemy-bug-heavy": { shortCode: "HVY", tacticalGlyph: "TANK", label: "Bug Heavy" },
+  "enemy-bug-spitter": { shortCode: "SPT", tacticalGlyph: "BIOLOGICAL", label: "Bug Spitter" },
+  "enemy-bug-warrior": { shortCode: "WAR", tacticalGlyph: "BIOLOGICAL", label: "Bug Warrior" },
+};
+
 function semanticFallback(input: UnitVisualLookup): Pick<UnitVisualDefinition, "shortCode" | "tacticalGlyph" | "label"> {
+  const swarmVisual = SWARM_TACTICAL_FALLBACKS[input.definitionId];
+  if (swarmVisual) return swarmVisual;
   const tags = new Set((input.tags ?? []).map((tag) => tag.toUpperCase()));
   if (tags.has("MEDICAL")) return { shortCode: "MED", tacticalGlyph: "MEDIC", label: "Medical unit" };
   if (tags.has("ENGINEER") || tags.has("BUILDER")) return { shortCode: "ENG", tacticalGlyph: "ENGINEER", label: "Engineer unit" };

@@ -13,13 +13,15 @@ vi.mock("cloudflare:workers", () => ({
 }));
 
 import type { Env } from "./env";
-import { CampaignDurableObject } from "./campaign-durable-object";
+import { CAMPAIGN_STATE_CHUNK_BYTES, CampaignDurableObject } from "./campaign-durable-object";
 import { encodeCampaignStoredState, parseCampaignStoredState } from "./campaign-contracts";
 import {
   createDemoCampaignState,
   createScenarioCampaignState,
+  generateAdminMap,
   IRON_RAIN_SCENARIO_CONTENT_KEY,
 } from "../packages/rules-engine/src";
+import { selectGameMasterInsertionHex } from "./game-master-runtime";
 
 const CAMPAIGN_ID = "outpost-k17";
 const UNIT_ID = "dep-rook-7";
@@ -27,13 +29,41 @@ const UNIT_ID = "dep-rook-7";
 class MemoryStorage {
   readonly values = new Map<string, unknown>();
   alarm: number | null = null;
+  failNextPutWhen?: (key: string, value: unknown) => boolean;
+  lastTransactionMutationCount = 0;
 
-  async get<Value>(key: string): Promise<Value | undefined> {
-    return this.values.get(key) as Value | undefined;
+  private assertValueFits(value: unknown): void {
+    const byteLength = value instanceof Uint8Array
+      ? value.byteLength
+      : new TextEncoder().encode(JSON.stringify(value)).byteLength;
+    if (byteLength > 2 * 1024 * 1024) throw new Error("MEMORY_STORAGE_VALUE_TOO_LARGE");
   }
 
-  async put<Value>(key: string, value: Value): Promise<void> {
-    this.values.set(key, value);
+  async get<Value>(key: string): Promise<Value | undefined>;
+  async get<Value>(keys: string[]): Promise<Map<string, Value>>;
+  async get<Value>(keyOrKeys: string | string[]): Promise<Value | undefined | Map<string, Value>> {
+    if (Array.isArray(keyOrKeys)) {
+      return new Map(keyOrKeys.flatMap((key) => this.values.has(key)
+        ? [[key, this.values.get(key) as Value] as const]
+        : []));
+    }
+    return this.values.get(keyOrKeys) as Value | undefined;
+  }
+
+  async put<Value>(key: string, value: Value): Promise<void>;
+  async put<Value>(entries: Record<string, Value>): Promise<void>;
+  async put<Value>(keyOrEntries: string | Record<string, Value>, value?: Value): Promise<void> {
+    const entries = typeof keyOrEntries === "string"
+      ? [[keyOrEntries, value as Value] as const]
+      : Object.entries(keyOrEntries) as Array<[string, Value]>;
+    for (const [key, entry] of entries) {
+      this.assertValueFits(entry);
+      if (this.failNextPutWhen?.(key, entry)) {
+        this.failNextPutWhen = undefined;
+        throw new Error("MEMORY_STORAGE_INJECTED_WRITE_FAILURE");
+      }
+      this.values.set(key, entry);
+    }
   }
 
   async delete(key: string): Promise<boolean> {
@@ -49,11 +79,51 @@ class MemoryStorage {
   }
 
   async transaction<Value>(closure: (transaction: DurableObjectTransaction) => Promise<Value>): Promise<Value> {
-    return closure({
-      get: this.get.bind(this),
-      put: this.put.bind(this),
-      delete: this.delete.bind(this),
-    } as unknown as DurableObjectTransaction);
+    const staged = new Map(this.values);
+    const mutations = new Set<string>();
+    const get = async <Stored>(keyOrKeys: string | string[]): Promise<Stored | undefined | Map<string, Stored>> => {
+      if (Array.isArray(keyOrKeys)) {
+        return new Map(keyOrKeys.flatMap((key) => staged.has(key)
+          ? [[key, staged.get(key) as Stored] as const]
+          : []));
+      }
+      return staged.get(keyOrKeys) as Stored | undefined;
+    };
+    const put = async <Stored>(
+      keyOrEntries: string | Record<string, Stored>,
+      value?: Stored,
+    ): Promise<void> => {
+      const entries = typeof keyOrEntries === "string"
+        ? [[keyOrEntries, value as Stored] as const]
+        : Object.entries(keyOrEntries) as Array<[string, Stored]>;
+      for (const [key, entry] of entries) {
+        this.assertValueFits(entry);
+        if (this.failNextPutWhen?.(key, entry)) {
+          this.failNextPutWhen = undefined;
+          throw new Error("MEMORY_STORAGE_INJECTED_WRITE_FAILURE");
+        }
+        staged.set(key, entry);
+        mutations.add(key);
+      }
+    };
+    const remove = async (keyOrKeys: string | string[]): Promise<boolean | number> => {
+      if (Array.isArray(keyOrKeys)) {
+        let count = 0;
+        for (const key of keyOrKeys) {
+          mutations.add(key);
+          if (staged.delete(key)) count += 1;
+        }
+        return count;
+      }
+      mutations.add(keyOrKeys);
+      return staged.delete(keyOrKeys);
+    };
+    const result = await closure({ get, put, delete: remove } as unknown as DurableObjectTransaction);
+    if (mutations.size > 128) throw new Error("MEMORY_STORAGE_TRANSACTION_KEY_LIMIT");
+    this.lastTransactionMutationCount = mutations.size;
+    this.values.clear();
+    for (const [key, value] of staged) this.values.set(key, value);
+    return result;
   }
 
   async getAlarm(): Promise<number | null> {
@@ -81,6 +151,12 @@ class EffectStatement {
   }
 
   async first(): Promise<Record<string, unknown> | null> {
+    if (this.query.includes("FROM game_master_campaign_scenarios AS scenarios")) {
+      return this.database.customScenarioRow;
+    }
+    if (this.query.includes("FROM enemy_definitions AS enemies") && this.query.includes("JOIN campaigns")) {
+      return this.database.enemyDefinitionAllowed ? { id: String(this.bindings[1]) } : null;
+    }
     if (this.query.includes("SELECT map_source_key,scenario_content_key") && this.query.includes("FROM campaigns")) {
       return this.database.campaignRow;
     }
@@ -135,6 +211,8 @@ class EffectDatabase {
   }>();
   linkedOperation: Record<string, unknown> | null = null;
   campaignRow: Record<string, unknown> | null = null;
+  customScenarioRow: Record<string, unknown> | null = null;
+  enemyDefinitionAllowed = false;
   deploymentRows: Record<string, unknown>[] = [];
 
   prepare(query: string): D1PreparedStatement {
@@ -202,6 +280,21 @@ function request(path: string, init: RequestInit = {}): Request {
   return new Request(`https://campaign.internal${path}`, { ...init, headers });
 }
 
+function adminRequest(path: string, init: RequestInit = {}): Request {
+  const headers = new Headers(init.headers);
+  headers.set("x-corinth-user", "demo-admin");
+  headers.set("x-corinth-side", "ALLIED");
+  headers.set("x-corinth-role", "ADMIN");
+  if (init.body !== undefined) headers.set("content-type", "application/json");
+  return new Request(`https://campaign.internal${path}`, { ...init, headers });
+}
+
+function globalGameMasterRequest(path: string, init: RequestInit = {}): Request {
+  const headers = new Headers(init.headers);
+  headers.set("x-corinth-global-game-master", "1");
+  return adminRequest(path, { ...init, headers });
+}
+
 function orderBody(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
     commandId: "command-order-0001",
@@ -230,6 +323,88 @@ function ironRainState(campaignId: string) {
     durationMs: 300_000,
     alliedDeployments,
   });
+}
+
+function configureCustomCampaign(
+  database: EffectDatabase,
+  campaignId: string,
+  document = generateAdminMap({ preset: "MIXED", seed: "do-custom-runtime", width: 18, height: 14 }),
+): void {
+  const mapId = "gm-map-runtime";
+  const revision = 2;
+  const revisionId = `${mapId}@${revision}`;
+  const scenarioId = `scenario-${campaignId}`;
+  const scenarioContentKey = `${scenarioId}@1`;
+  const mapSourceKey = `admin-map/${mapId}@${revision}:${document.hash}`;
+  const insertion = selectGameMasterInsertionHex(document);
+  const infantry = createDemoCampaignState(1_000).deployments
+    .find((deployment) => deployment.side === "ALLIED" && deployment.definitionId === "unit-infantry-squad")!;
+  database.campaignRow = {
+    id: campaignId,
+    status: "RECRUITING",
+    name: "Operation Custom Runtime",
+    map_source_key: mapSourceKey,
+    scenario_content_key: scenarioContentKey,
+    game_master_map_revision_id: revisionId,
+    round_duration_ms: 300_000,
+    planet_name: "Corinth",
+  };
+  database.customScenarioRow = {
+    scenario_id: scenarioId,
+    scenario_version: 1,
+    scenario_content_key: scenarioContentKey,
+    map_revision_id: revisionId,
+    map_content_hash: document.hash,
+    objectives_json: "[]",
+    enemy_deployments_json: "[]",
+    map_id: mapId,
+    map_revision: revision,
+    revision_content_hash: document.hash,
+    document_json: JSON.stringify(document),
+    map_source_key: mapSourceKey,
+    campaign_scenario_content_key: scenarioContentKey,
+    campaign_map_revision_id: revisionId,
+  };
+  database.deploymentRows = [{
+    id: `deployment:${campaignId}:rook-custom`,
+    owner_id: "demo-user",
+    side: "ALLIED",
+    status: "READY",
+    snapshot_json: JSON.stringify({ ...infantry, position: insertion.coord }),
+    persistent_unit_id: "rook-custom",
+    ruleset_id: "ruleset-v5-core-curated-1",
+    definition_id: "unit-infantry-squad",
+    callsign: "ROOK-CUSTOM",
+    battlegroup_id: null,
+  }];
+}
+
+function storedCampaignState(storage: MemoryStorage, campaignId: string) {
+  const root = storage.values.get("state/current");
+  if (
+    root && typeof root === "object" && !Array.isArray(root) &&
+    (root as { storageFormat?: unknown }).storageFormat === "CORINTH_CAMPAIGN_STATE_CHUNKS"
+  ) {
+    const manifest = root as {
+      generation: string;
+      chunkCount: number;
+      byteLength: number;
+    };
+    const bytes = new Uint8Array(manifest.byteLength);
+    let offset = 0;
+    for (let index = 0; index < manifest.chunkCount; index += 1) {
+      const key = `state/chunk/${String(index).padStart(6, "0")}`;
+      const chunk = storage.values.get(key);
+      if (!(chunk instanceof Uint8Array)) throw new Error(`TEST_STATE_CHUNK_MISSING:${index}`);
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return parseCampaignStoredState(
+      JSON.parse(new TextDecoder().decode(bytes)),
+      campaignId,
+    ).state;
+  }
+  return parseCampaignStoredState(root, campaignId).state;
 }
 
 describe("CampaignDurableObject campaign contracts", () => {
@@ -285,6 +460,144 @@ describe("CampaignDurableObject campaign contracts", () => {
       },
     });
     expect(parseCampaignStoredState(storage.values.get("state/current"), campaignId).state.scenarioVersion).toBe(2);
+  });
+
+  it("materializes an exact published Game Master map revision into server-authoritative runtime state", async () => {
+    const database = new EffectDatabase();
+    const campaignId = `gm-campaign-${"a".repeat(32)}`;
+    configureCustomCampaign(database, campaignId);
+    const { campaign, storage } = campaignObject(database, campaignId);
+
+    const response = await campaign.fetch(request("/state"));
+
+    expect(response.status).toBe(200);
+    const state = storedCampaignState(storage, campaignId);
+    expect(`${state.scenarioId}@${state.scenarioVersion}`).toBe(database.campaignRow!.scenario_content_key);
+    expect(state.map.length).toBeGreaterThan(100);
+    expect(state.map.some((hex) => hex.visualTerrainId?.startsWith("WATER_") &&
+      hex.movementRules?.groundTraversal === "IMPASSABLE")).toBe(true);
+    expect(state.map.some((hex) => hex.edges.paths !== undefined && hex.edges.walls !== undefined)).toBe(true);
+    expect(state.objectives).toEqual([]);
+    expect(state.deployments).toEqual([
+      expect.objectContaining({ persistentUnitId: "rook-custom", callsign: "ROOK-CUSTOM" }),
+    ]);
+    expect(state.scenarioPolicy).toBeUndefined();
+  });
+
+  it("round-trips a 96x96 custom battlefield through bounded atomic chunks and fails closed on corruption", async () => {
+    const database = new EffectDatabase();
+    const campaignId = `gm-campaign-${"d".repeat(32)}`;
+    const document = generateAdminMap({ preset: "MIXED", seed: "do-chunked-96", width: 96, height: 96 });
+    configureCustomCampaign(database, campaignId, document);
+    const { campaign, storage } = campaignObject(database, campaignId);
+
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const firstManifest = storage.values.get("state/current") as {
+      storageFormat: string;
+      generation: string;
+      chunkCount: number;
+      byteLength: number;
+    };
+    expect(firstManifest).toMatchObject({
+      storageFormat: "CORINTH_CAMPAIGN_STATE_CHUNKS",
+      chunkCount: expect.any(Number),
+      byteLength: expect.any(Number),
+    });
+    expect(firstManifest.chunkCount).toBeGreaterThan(1);
+    const firstChunks = [...storage.values.entries()].filter(([key]) => key.startsWith("state/chunk/"));
+    expect(firstChunks).toHaveLength(firstManifest.chunkCount);
+    expect(firstChunks.every(([, value]) =>
+      value instanceof Uint8Array && value.byteLength <= CAMPAIGN_STATE_CHUNK_BYTES)).toBe(true);
+    const roundTripped = storedCampaignState(storage, campaignId);
+    expect(roundTripped.map).toHaveLength(96 * 96);
+    expect(roundTripped.map.map((hex) => hex.coord)).toEqual(document.cells.map((cell) => ({ q: cell.q, r: cell.r })));
+
+    const pause = await campaign.fetch(globalGameMasterRequest("/game-master/commands", {
+      method: "POST",
+      body: JSON.stringify({
+        operation: "CAMPAIGN_PAUSE",
+        commandId: "gm-chunked-pause-0001",
+        expectedCampaignVersion: roundTripped.version,
+      }),
+    }));
+    expect(pause.status).toBe(200);
+    const secondManifest = storage.values.get("state/current") as typeof firstManifest;
+    expect(secondManifest.generation).not.toBe(firstManifest.generation);
+    expect([...storage.values.keys()].filter((key) => key.startsWith("state/chunk/")))
+      .toHaveLength(secondManifest.chunkCount);
+    expect(storage.lastTransactionMutationCount).toBeLessThanOrEqual(128);
+    expect(storedCampaignState(storage, campaignId)).toMatchObject({ phase: "PAUSED", map: expect.any(Array) });
+
+    const corruptKey = `state/chunk/${"0".padStart(6, "0")}`;
+    storage.values.delete(corruptKey);
+    const corrupted = await campaign.fetch(request("/state"));
+    expect(corrupted.status).toBe(500);
+    await expect(corrupted.json()).resolves.toMatchObject({
+      error: { code: "CAMPAIGN_ERROR", details: { message: "CAMPAIGN_STATE_CHUNK_MISSING:0" } },
+    });
+  }, 15_000);
+
+  it("fails closed when a custom campaign's selector and immutable map pin disagree", async () => {
+    const database = new EffectDatabase();
+    const campaignId = `gm-campaign-${"b".repeat(32)}`;
+    configureCustomCampaign(database, campaignId);
+    database.customScenarioRow = {
+      ...database.customScenarioRow,
+      map_source_key: "admin-map/forged@1:sha256:forged",
+    };
+    const { campaign, storage } = campaignObject(database, campaignId);
+
+    const response = await campaign.fetch(request("/state"));
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "CAMPAIGN_ERROR", details: { message: "GAME_MASTER_SCENARIO_PIN_MISMATCH" } },
+    });
+    expect(storage.values.has("state/current")).toBe(false);
+  });
+
+  it("spawns a governed enemy into an initially empty custom scenario", async () => {
+    const database = new EffectDatabase();
+    database.enemyDefinitionAllowed = true;
+    const campaignId = `gm-campaign-${"c".repeat(32)}`;
+    configureCustomCampaign(database, campaignId);
+    const { campaign, storage } = campaignObject(database, campaignId);
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const initial = storedCampaignState(storage, campaignId);
+    expect((await campaign.fetch(globalGameMasterRequest("/game-master/commands", {
+      method: "POST",
+      body: JSON.stringify({
+        operation: "CAMPAIGN_PAUSE",
+        commandId: "gm-custom-pause-0001",
+        expectedCampaignVersion: initial.version,
+      }),
+    }))).status).toBe(200);
+    const seeded = storedCampaignState(storage, campaignId);
+    const spawnHex = seeded.map.find((hex) =>
+      !hex.visualTerrainId?.startsWith("WATER_") && hex.movementRules?.groundTraversal === "PASSABLE")!;
+
+    const response = await campaign.fetch(globalGameMasterRequest("/game-master/commands", {
+      method: "POST",
+      body: JSON.stringify({
+        operation: "ENEMY_SPAWN",
+        commandId: "gm-custom-spawn-0001",
+        expectedCampaignVersion: seeded.version,
+        definitionId: "enemy-bug-warrior",
+        callsign: "TALON-CUSTOM",
+        coord: spawnHex.coord,
+        facing: 2,
+      }),
+    }));
+
+    expect(response.status).toBe(201);
+    const current = storedCampaignState(storage, campaignId);
+    expect(current.deployments).toContainEqual(expect.objectContaining({
+      id: `${campaignId}:authored:gm:gm-custom-spawn-0001`,
+      side: "ENEMY",
+      definitionId: "enemy-bug-warrior",
+      callsign: "TALON-CUSTOM",
+      position: spawnHex.coord,
+    }));
   });
 
   it("imports a committed Allied reinforcement once and exposes its Battlegroup", async () => {
@@ -857,7 +1170,7 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(future.status).toBe(422);
     expect(await future.json()).toMatchObject({ error: { code: "FUTURE_ORDER_UNSUPPORTED" } });
 
-    const pause = await campaign.fetch(request("/pause", {
+    const pause = await campaign.fetch(globalGameMasterRequest("/pause", {
       method: "POST",
       body: "{}",
     }));
@@ -901,10 +1214,36 @@ describe("CampaignDurableObject campaign contracts", () => {
 
   it("requires an explicit expected round for manual resolution", async () => {
     const { campaign } = campaignObject();
-    const response = await campaign.fetch(request("/resolve", { method: "POST" }));
+    const response = await campaign.fetch(globalGameMasterRequest("/resolve", { method: "POST" }));
 
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ error: { code: "EXPECTED_ROUND_REQUIRED" } });
+  });
+
+  it("denies every campaign control path to a campaign-local admin without global authority", async () => {
+    const { campaign, storage } = campaignObject();
+    const attempts = [
+      adminRequest("/resolve", { method: "POST", headers: { "x-expected-round": "1" } }),
+      adminRequest("/clock", {
+        method: "PATCH",
+        body: JSON.stringify({
+          commandId: "campaign-local-clock-0001",
+          expectedCampaignVersion: 1,
+          preset: "1m",
+        }),
+      }),
+      adminRequest("/pause", { method: "POST" }),
+      adminRequest("/resume", { method: "POST" }),
+    ];
+
+    for (const attempt of attempts) {
+      const response = await campaign.fetch(attempt);
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({
+        error: { code: "GLOBAL_GAME_MASTER_REQUIRED" },
+      });
+    }
+    expect(storage.values.has("state/current")).toBe(false);
   });
 
   it("keeps a terminal scenario on its completed round and clears the alarm", async () => {
@@ -950,7 +1289,7 @@ describe("CampaignDurableObject campaign contracts", () => {
     storage.values.set("state/current", encodeCampaignStoredState(seeded));
     storage.alarm = 123;
 
-    const response = await campaign.fetch(request("/resolve", {
+    const response = await campaign.fetch(globalGameMasterRequest("/resolve", {
       method: "POST",
       headers: { "x-expected-round": "21" },
     }));
@@ -1030,7 +1369,7 @@ describe("CampaignDurableObject campaign contracts", () => {
       events: expect.arrayContaining([expect.objectContaining({ type: "CAMPAIGN_COMPLETED" })]),
     });
 
-    const pause = await campaign.fetch(request("/pause", { method: "POST" }));
+    const pause = await campaign.fetch(globalGameMasterRequest("/pause", { method: "POST" }));
     expect(pause.status).toBe(409);
     expect(await pause.json()).toMatchObject({ error: { code: "CAMPAIGN_COMPLETE" } });
     expect(parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state.phase).toBe("COMPLETE");
@@ -1053,7 +1392,7 @@ describe("CampaignDurableObject campaign contracts", () => {
     });
     storage.values.set("state/current", encodeCampaignStoredState(seeded));
 
-    const first = await campaign.fetch(request("/resolve", {
+    const first = await campaign.fetch(globalGameMasterRequest("/resolve", {
       method: "POST",
       headers: { "x-expected-round": String(completedRound) },
     }));
@@ -1091,7 +1430,7 @@ describe("CampaignDurableObject campaign contracts", () => {
       appliedEffectCount: firstBody.resolution.effectCount,
     });
 
-    const replay = await campaign.fetch(request("/resolve", {
+    const replay = await campaign.fetch(globalGameMasterRequest("/resolve", {
       method: "POST",
       headers: { "x-expected-round": String(completedRound) },
     }));
@@ -1108,14 +1447,14 @@ describe("CampaignDurableObject campaign contracts", () => {
       expectedCampaignVersion: 1,
       preset: "1m",
     });
-    const first = await campaign.fetch(request("/clock", { method: "PATCH", body }));
-    const replay = await campaign.fetch(request("/clock", { method: "PATCH", body }));
+    const first = await campaign.fetch(globalGameMasterRequest("/clock", { method: "PATCH", body }));
+    const replay = await campaign.fetch(globalGameMasterRequest("/clock", { method: "PATCH", body }));
     expect(first.status).toBe(200);
     expect(replay.status).toBe(200);
     expect(await replay.json()).toEqual(await first.json());
     expect(parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state.version).toBe(2);
 
-    const collision = await campaign.fetch(request("/clock", {
+    const collision = await campaign.fetch(globalGameMasterRequest("/clock", {
       method: "PATCH",
       body: JSON.stringify({
         commandId: "command-clock-0001",
@@ -1126,7 +1465,7 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(collision.status).toBe(409);
     expect(await collision.json()).toMatchObject({ error: { code: "COMMAND_REUSED" } });
 
-    const stale = await campaign.fetch(request("/clock", {
+    const stale = await campaign.fetch(globalGameMasterRequest("/clock", {
       method: "PATCH",
       body: JSON.stringify({
         commandId: "command-clock-stale",
@@ -1136,5 +1475,187 @@ describe("CampaignDurableObject campaign contracts", () => {
     }));
     expect(stale.status).toBe(409);
     expect(await stale.json()).toMatchObject({ error: { code: "CAMPAIGN_VERSION_CHANGED" } });
+  });
+
+  it("requires trusted global authority and applies an enemy spawn once with server-authored mechanics", async () => {
+    const { campaign, storage } = campaignObject();
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    const pausedAt = Date.now();
+    seeded.phase = "PAUSED";
+    seeded.clock = {
+      ...seeded.clock,
+      pausedAt,
+      phaseBeforePause: "PLANNING",
+    };
+    storage.values.set("state/current", encodeCampaignStoredState(seeded));
+    const body = JSON.stringify({
+      operation: "ENEMY_SPAWN",
+      commandId: "gm-spawn-command-0001",
+      expectedCampaignVersion: seeded.version,
+      definitionId: "enemy-bug-drone",
+      callsign: "Spawn Alpha",
+      coord: { q: -4, r: 1 },
+      facing: 2,
+    });
+
+    const forbidden = await campaign.fetch(adminRequest("/game-master/commands", { method: "POST", body }));
+    expect(forbidden.status).toBe(403);
+
+    const first = await campaign.fetch(globalGameMasterRequest("/game-master/commands", { method: "POST", body }));
+    const replay = await campaign.fetch(globalGameMasterRequest("/game-master/commands", { method: "POST", body }));
+    expect(first.status).toBe(201);
+    expect(replay.status).toBe(201);
+    expect(await replay.json()).toEqual(await first.json());
+    const state = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    const spawned = state.deployments.find((deployment) => deployment.id === `${CAMPAIGN_ID}:gm:gm-spawn-command-0001`)!;
+    expect(spawned).toMatchObject({
+      side: "ENEMY",
+      definitionId: "enemy-bug-drone",
+      callsign: "Spawn Alpha",
+      status: "ACTIVE",
+      position: { q: -4, r: 1 },
+    });
+    expect(spawned.currentHealth).toBe(spawned.stats.maxHealth);
+    expect(state.events.at(-1)).toMatchObject({ type: "GAME_MASTER_ENEMY_SPAWNED", visibility: "ADMIN" });
+  });
+
+  it("fails closed for deployment revival because V5 defines destruction as permanent", async () => {
+    const { campaign, storage } = campaignObject();
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    seeded.phase = "PAUSED";
+    seeded.clock = { ...seeded.clock, pausedAt: Date.now(), phaseBeforePause: "PLANNING" };
+    storage.values.set("state/current", encodeCampaignStoredState(seeded));
+    const target = seeded.deployments[0]!;
+    const response = await campaign.fetch(globalGameMasterRequest("/game-master/commands", {
+      method: "POST",
+      body: JSON.stringify({
+        operation: "DEPLOYMENT_REVIVE",
+        deploymentId: target.id,
+        commandId: "gm-revive-command-0001",
+        expectedCampaignVersion: seeded.version,
+      }),
+    }));
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: { code: "REVIVE_RULE_DECISION_REQUIRED" } });
+    expect(parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state.version).toBe(seeded.version);
+  });
+
+  it("applies and replays version-pinned Game Master pause and resume commands", async () => {
+    const { campaign, storage } = campaignObject();
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const initial = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    const pauseBody = JSON.stringify({
+      operation: "CAMPAIGN_PAUSE",
+      commandId: "gm-pause-command-0001",
+      expectedCampaignVersion: initial.version,
+    });
+    const pause = await campaign.fetch(globalGameMasterRequest("/game-master/commands", {
+      method: "POST",
+      body: pauseBody,
+    }));
+    const replay = await campaign.fetch(globalGameMasterRequest("/game-master/commands", {
+      method: "POST",
+      body: pauseBody,
+    }));
+    expect(pause.status).toBe(200);
+    expect(await replay.json()).toEqual(await pause.json());
+    const paused = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    expect(paused.phase).toBe("PAUSED");
+    expect(paused.clock.phaseBeforePause).toBe("PLANNING");
+
+    const resume = await campaign.fetch(globalGameMasterRequest("/game-master/commands", {
+      method: "POST",
+      body: JSON.stringify({
+        operation: "CAMPAIGN_RESUME",
+        commandId: "gm-resume-command-0001",
+        expectedCampaignVersion: paused.version,
+      }),
+    }));
+    expect(resume.status).toBe(200);
+    expect(parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state.phase).toBe("PLANNING");
+  });
+
+  it("reconciles a committed Game Master round when final receipt persistence fails", async () => {
+    const database = new EffectDatabase();
+    database.fail = false;
+    const { campaign, storage } = campaignObject(database);
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const initial = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    const commandId = "gm-resolve-command-0001";
+    const receiptKey = `command/game-master/demo-admin/${commandId}`;
+    const command = {
+      operation: "ROUND_RESOLVE",
+      commandId,
+      expectedCampaignVersion: initial.version,
+      expectedRound: initial.round,
+    };
+    const body = JSON.stringify(command);
+    storage.failNextPutWhen = (key, value) => key === receiptKey &&
+      typeof value === "object" && value !== null && "status" in value && value.status === 200;
+
+    const interrupted = await campaign.fetch(globalGameMasterRequest("/game-master/commands", {
+      method: "POST",
+      body,
+    }));
+    expect(interrupted.status).toBe(500);
+    const pending = storage.values.get(receiptKey) as Record<string, unknown>;
+    expect(pending).toMatchObject({
+      schemaVersion: 1,
+      operation: "ROUND_RESOLVE",
+      status: "PENDING",
+      actorUserId: "demo-admin",
+      commandId,
+      expectedCampaignVersion: initial.version,
+      expectedRound: initial.round,
+    });
+    expect(storage.values.get(`resolution/${initial.round}`)).toMatchObject({
+      round: initial.round,
+      status: "RESOLVED",
+    });
+    expect([...storage.values.keys()].filter((key) => key.startsWith("resolution/"))).toHaveLength(1);
+    expect([...storage.values.keys()].filter((key) => key.startsWith("audit/game-master/"))).toHaveLength(0);
+    const committedState = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+
+    const collision = await campaign.fetch(globalGameMasterRequest("/game-master/commands", {
+      method: "POST",
+      body: JSON.stringify({ ...command, expectedCampaignVersion: initial.version + 1 }),
+    }));
+    expect(collision.status).toBe(409);
+    expect(await collision.json()).toMatchObject({ error: { code: "COMMAND_REUSED" } });
+    expect(storage.values.get(receiptKey)).toEqual(pending);
+
+    const recovered = await campaign.fetch(globalGameMasterRequest("/game-master/commands", {
+      method: "POST",
+      body,
+    }));
+    expect(recovered.status).toBe(200);
+    const recoveredBody = await recovered.json() as Record<string, unknown>;
+    expect(recoveredBody).toMatchObject({
+      operation: "ROUND_RESOLVE",
+      commandId,
+      appliedAt: pending.createdAt,
+    });
+    expect(storage.values.get(receiptKey)).toMatchObject({
+      operation: "ROUND_RESOLVE",
+      status: 200,
+      response: recoveredBody,
+    });
+    expect([...storage.values.keys()].filter((key) => key.startsWith("resolution/"))).toEqual([
+      `resolution/${initial.round}`,
+    ]);
+    expect([...storage.values.keys()].filter((key) => key.startsWith("audit/game-master/"))).toHaveLength(1);
+    expect(parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state).toEqual(committedState);
+
+    const replay = await campaign.fetch(globalGameMasterRequest("/game-master/commands", {
+      method: "POST",
+      body,
+    }));
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toEqual(recoveredBody);
+    expect([...storage.values.keys()].filter((key) => key.startsWith("resolution/"))).toHaveLength(1);
+    expect([...storage.values.keys()].filter((key) => key.startsWith("audit/game-master/"))).toHaveLength(1);
+    expect(parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state).toEqual(committedState);
   });
 });

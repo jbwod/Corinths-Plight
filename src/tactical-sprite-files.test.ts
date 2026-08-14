@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { ACTIVE_TACTICAL_SPRITE_ASSETS } from "./tactical-sprite-manifest";
 import mechProvenance from "./assets/tactical-sprites/mech-sprite-provenance.json";
+import swarmProvenance from "./assets/tactical-sprites/swarm-sprite-provenance.json";
 
 function readPngDimensions(path: string): { width: number; height: number; bitDepth: number; colourType: number } {
   const png = readFileSync(resolve(process.cwd(), path));
@@ -60,5 +61,20 @@ describe("tactical sprite files", () => {
       .map((asset) => asset.path.split("/").at(-1) ?? "")
       .sort();
     expect(declaredQuarantinedFiles).toEqual(quarantinedFiles);
+  });
+
+  it("declares every generated Bug Swarm sheet and retained RGBA source", () => {
+    const generatedEnemyRevisions = readdirSync(resolve(process.cwd(), "src/assets/tactical-sprites/generated"))
+      .filter((name) => /^enemy-bug-.+\.png$/.test(name))
+      .map((name) => name.replace(/\.png$/, ""))
+      .sort();
+    const declaredEnemyRevisions = swarmProvenance.assets
+      .map((asset) => asset.definitionId)
+      .sort();
+    expect(generatedEnemyRevisions).toEqual(declaredEnemyRevisions);
+
+    for (const asset of swarmProvenance.assets) {
+      expect(readPngDimensions(asset.sourcePath).colourType, asset.sourcePath).toBe(6);
+    }
   });
 });

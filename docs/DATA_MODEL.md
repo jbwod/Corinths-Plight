@@ -2,7 +2,7 @@
 
 **Status:** Phase-0 reconciled implemented schema/use plus target deltas (2026-08-10)
 
-**Scope:** D1 migrations `0001`–`0018`, all production/development seed files, current Campaign Durable Object storage, and the Phase 3 Strategic Map coordination boundary
+**Scope:** D1 migrations `0001`–`0021`, all production/development seed files, current Campaign Durable Object storage, the Phase 3 Strategic Map boundary, and local Game Master/map-authoring/runtime records
 
 ## 1. Authority and status
 
@@ -14,7 +14,7 @@
 
 D1 owns global identity, ownership, economy, organisation, ship, strategic-world, campaign-registry, event, and archive truth. One named Campaign Durable Object owns the mutable tactical state of one active campaign. Phase 3 adds a separate sharded Strategic Map Durable Object boundary, one coordinator per strategic map/theatre. It is never a global-galaxy singleton.
 
-Five authored campaigns load committed D1 force snapshots into exact version-`@3` battlefields: K-17, Iron Rain, Broken Road, Night Glass, and Cold Horizon. Unsupported map/content pairs remain unavailable rather than receiving invented or latest-at-runtime content, so this is a fixed authored set rather than a general campaign-authoring system.
+Five authored campaigns load committed D1 force snapshots into exact version-`@3` battlefields: K-17, Iron Rain, Broken Road, Night Glass, and Cold Horizon. Unsupported map/content pairs remain unavailable rather than receiving invented or latest-at-runtime content. Migration `0020` adds persistent custom-map drafts/revisions, and `0021` adds the exact custom-scenario bootstrap row; current generator/vocabulary/application `@2` documents can publish and create exact-pinned recruiting campaigns that bootstrap through the ordinary committed-deployment path.
 
 ## 2. Representation conventions
 
@@ -28,7 +28,7 @@ Five authored campaigns load committed D1 force snapshots into exact version-`@3
 
 ## 3. Implemented D1 schema
 
-The eighteen migrations create the following table families. Field lists below reflect landed SQL, not a claim that every service workflow is executable. Production deployment state must still be checked separately before applying local migrations.
+The twenty-one migrations create the following table families. Field lists below reflect landed SQL, not a claim that every service workflow is executable. The latest isolated replay contains 130 application tables. Production remains recorded at `0007` and must be checked separately before any authorized migration.
 
 ### 3.1 Identity and sessions
 
@@ -112,7 +112,7 @@ Ship status is exactly `DOCKED`, `ORBIT`, `IN_TRANSIT`, `ARRIVING`, `DEPLOYING`,
 | Table | Implemented fields and constraints |
 |---|---|
 | `planets` | `id`, unique `name`, `strategic_coord_json`, `environment_json`, `war_state_json` |
-| `campaigns` | `id`, `planet_id`, `ruleset_id`, `name`, `status`, `round_duration_ms`, `map_source_key`, nullable `scenario_content_key`, `minimum_players`, `maximum_players`, `created_by`, `created_at`, `started_at`, `completed_at`; unique `(planet_id, name)`. Status: `DRAFT`, `RECRUITING`, `ACTIVE`, `PAUSED`, `COMPLETE`, `FAILED`. Migration `0018` adds the exact immutable `<scenarioId>@<version>` selector without backfilling legacy rows. There is no engine hash, seed policy, or DO-name column. |
+| `campaigns` | Existing registry fields plus nullable `scenario_content_key` and nullable `game_master_map_revision_id`. Migration `0018` adds the exact immutable `<scenarioId>@<version>` selector without backfilling legacy rows; `0020` permits a `RECRUITING` custom campaign to pin one immutable published Game Master map revision/hash. Status remains `DRAFT`, `RECRUITING`, `ACTIVE`, `PAUSED`, `COMPLETE`, or `FAILED`. There is no engine hash, versioned custom victory/reward policy, or DO-name column. |
 | `campaign_memberships` | `campaign_id`, `user_id`, nullable `battalion_id`, `side`, `role`, `joined_at`; composite PK. Side: `ALLIED`, `ENEMY`, `NEUTRAL`; role: `PLAYER`, `BATTALION_COMMAND`, `GM`, `OBSERVER`. |
 | `deployments` | `id`, `campaign_id`, `player_unit_id`, `owner_id`, `side`, `status`, `snapshot_json`, `deployed_at`, `withdrawn_at`; unique campaign/unit and a partial unique index preventing a unit from having more than one `READY`, `ACTIVE`, or `IMMOBILISED` deployment. There is no snapshot hash. |
 | `round_metadata` | `campaign_id`, positive `round_number`, globally unique `resolution_key`, `phase`, `lock_at`, `resolves_at`, `state_digest`, `archived_at`; PK campaign/round. No input/output hash, seed commitment, resolver version, effect status, or event range. |
@@ -203,21 +203,57 @@ The development seed uses `strategic-map-corinth`, CSV Resolute, the Resolute Ta
 
 New reward JSON records service history plus the published `public-v1-economy@1` breakdown. Terminal mission results grant 5 Req and victories add 20 Req through one ledger idempotency key per Allied commander. Historical pre-policy results retain their original `BALANCE_REQUIRED` projection and are not rewritten as if a reward had been paid.
 
+### 3.13 Global Game Master authority and audit
+
+Migration `0019_game_master_authority.sql` adds:
+
+| Table | Implemented fields and constraints |
+|---|---|
+| `game_master_grants` | One global grant per User, `ACTIVE`/`REVOKED` lifecycle, grantor, bounded reason, timestamps, and revocation consistency. No default row is inserted. |
+| `game_master_command_receipts` | Actor-scoped command ID, bounded operation vocabulary, campaign, canonical SHA-256 request hash and JSON, exact status/response JSON, and completion time. |
+| `game_master_audit_events` | Immutable private campaign-command outcome with authority source, actor, command, request hash/JSON, response status/JSON, and occurrence time. |
+
+Global authority is separate from `campaign_memberships.role='GM'` and Battalion command roles. Development demo authority requires explicit development demo authentication plus `ADMIN`; production requires an active grant for an active User. The DO command/state commit and D1 receipt/audit projection are independently durable and retryable, but cannot be one cross-store transaction.
+
+### 3.14 Versioned Game Master maps
+
+Migration `0020_game_master_maps.sql` adds:
+
+| Table | Implemented fields and constraints |
+|---|---|
+| `game_master_maps` | Named owner-scoped `DRAFT`/`PUBLISHED` head, optional planet, one of five presets, seed, revision, exact schema/generator/vocabulary versions, constrained `sha256:` content hash, canonical document JSON, explicit mechanics mapping, author/publisher identities, timestamps, and mutation token. |
+| `game_master_map_revisions` | Immutable saved revision with exact document/hash/mechanics mapping and author. `(map_id, revision)` is unique and published selections remain addressable by pinned campaigns. |
+| `game_master_authoring_receipts` | Actor-scoped exact response receipt for `MAP_SAVE`, `MAP_PUBLISH`, or `CAMPAIGN_CREATE`. |
+| `game_master_authoring_audit_events` | Private immutable audit outcome for the same authoring operations, including authority source and request/response evidence. |
+
+The version-1 document is strictly validated and canonicalized before persistence: exact keys and generator/vocabulary `@2`, width 12–96, height 10–96, bounded 16 MiB import, complete cell/topology/boundary validation, stable ordering, and matching SHA-256. Hash verification is an integrity check, not a signature. Every current biome/point/edge ID carries a published profile. Publication revalidates those IDs and campaign creation pins `game_master_map_revision_id`, `map_source_key`, and a scenario key containing the exact published revision/hash; it also creates the first deterministic passable insertion zone.
+
+### 3.15 Exact custom campaign runtime bootstrap
+
+Migration `0021_game_master_campaign_runtime.sql` adds:
+
+| Table | Implemented fields and constraints |
+|---|---|
+| `game_master_campaign_scenarios` | One immutable scenario bootstrap row per campaign with unique scenario/content keys, exact published map revision and SHA-256 content hash, bounded canonical objective/enemy arrays, creator, and timestamp. The content key is constrained to `scenario_id@scenario_version`; the map revision cannot be deleted while selected. |
+
+Campaign creation inserts this row, the exact campaign pins, the deterministic ground-passable insertion zone, and the Game Master membership in one D1 batch guarded by the published revision/hash. Directory, join, and DO initialization all re-check the same selection. Existing custom campaign objectives and enemies begin empty and are changed only through audited live commands; no victory, reward, or closure threshold is inferred.
+
 ## 4. Current Campaign Durable Object records
 
-One DO is named by the URL/D1 campaign ID. The explicit local `outpost-k17` fixture remains available only in development. A persistent campaign requires committed D1 deployment/loadout snapshots and an exact supported `map_source_key`/`scenario_content_key` pair. K-17, Iron Rain, Broken Road, Night Glass, and Cold Horizon all load their named `@3` content. Iron Rain has 311 land hexes, Broken Road 244, Night Glass 240, and Cold Horizon 298. A legacy `NULL` pin, unavailable version, or mismatch between stored DO scenario identity and the D1 pin fails closed without creating, rewriting, or auto-upgrading state. General scenario import/authoring is not implemented.
+One DO is named by the URL/D1 campaign ID. The explicit local `outpost-k17` fixture remains available only in development. A persistent campaign requires committed D1 deployment/loadout snapshots and an exact supported `map_source_key`/`scenario_content_key` pair. K-17, Iron Rain, Broken Road, Night Glass, and Cold Horizon all load their named `@3` content. Iron Rain has 311 land hexes, Broken Road 244, Night Glass 240, and Cold Horizon 298. A published custom-map pair is resolved through `game_master_map_revisions`, revalidates revision/hash/document mechanics, and materializes the battlefield before state creation. A legacy `NULL` pin, unavailable/draft/hash-mismatched revision, or stored scenario mismatch fails closed without creating, rewriting, or auto-upgrading DO state.
 
 | Storage key | Implemented contents | Current behavior |
 |---|---|---|
-| `state/current` | Schema-version-1 envelope containing the full `CampaignRuntimeState`: campaign/rules/engine identifiers, round/phase, clock including embedded schedule, map, deployments, orders, objectives, a bounded event list, in-state resolution map, pending-effect list, version | Critical nested map/deployment/weapon/order/clock/event/effect fields are validated on read and before write; a validated legacy raw state is upgraded to the envelope |
-| `snapshot/{round}` | Schema-version-1 envelope containing a structured clone of the pre-resolution state after entering `RESOLVING` | Written inside the resolution transaction and validated with the same storage-envelope contract |
+| `state/current`; `state/chunk/{index}` when large | Inline schema-version-1 envelope, or a small SHA-256 manifest plus fixed 1 MiB chunks containing that exact envelope | Critical nested fields are validated on read and before write; legacy inline state remains readable. Chunk count/length/hash/JSON are checked and corruption fails closed. Fixed slots are replaced atomically and stale tail chunks are deleted. |
+| `snapshot/{round}`; `snapshot/{round}/chunk/{index}` when large | Inline pre-resolution envelope or the same verified chunk format after entering `RESOLVING` | Written inside the resolution transaction and validated with the same storage contract. Maximum-size snapshots currently duplicate static map data and therefore have linear per-round storage cost. |
 | `resolution/{round}` | Current `ResolutionRecord` | Presence is the current duplicate-resolution guard |
 | `event/{round}/{sequence}` | Individual canonical `CampaignEvent`; storage sequence is six-digit padded | Written for order, lock, pause/resume, resolution, and next-round events |
 | `pending-effect/{idempotencyKey}` | Current `PendingPersistentEffect` | Written after resolver output; applied through a D1 batch and deleted after a matching `campaign_effect_receipts` row is verified |
 | `command/order/{encodedUserId}/{encodedCommandId}` | Schema-version-1 order-upsert receipt with actor, command ID, SHA-256 request hash, HTTP status, exact response, and creation time | Commits atomically with `state/current` and the order event; matching retries replay and changed-payload reuse fails closed |
 | `command/clock/{encodedUserId}/{encodedCommandId}` | Schema-version-1 clock-update receipt with actor, command ID, SHA-256 request hash, HTTP status, exact response, and creation time | Commits atomically with `state/current`; matching retries replay and changed-payload reuse fails closed |
+| `command/game-master/{encodedUserId}/{encodedCommandId}` | Game Master campaign-command receipt with actor, operation, request hash, status, and exact response | Commits with the DO mutation. The later D1 registry/audit projection is idempotent but not in the DO transaction. |
 
-There are **no** separate `schedule/{id}` records. `ORDER_LOCK` and `ROUND_RESOLVE` items live only in `state/current.clock.schedule`; consumed items are removed rather than retained with a status. The one DO alarm is set from the earliest embedded `runAt`.
+There are **no** separate `schedule/{id}` records. `ORDER_LOCK` and `ROUND_RESOLVE` items live only in the decoded current state's `clock.schedule`; consumed items are removed rather than retained with a status. The one DO alarm is set from the earliest embedded `runAt`.
 
 Current record shapes are:
 
@@ -261,6 +297,8 @@ The resolution seed is currently a predictable string derived from campaign, rou
 - one D1 effect row per idempotency key;
 - unique invitation-security bucket keys plus constrained scope/outcome vocabularies and indexed bounded cleanup paths from migration `0008`;
 - nullable campaign scenario pins from migration `0018`; runtime requires an exact supported map/content pair, deliberately leaving legacy rows unavailable until an explicit migration decision;
+- active global Game Master authority is an explicit grant, while actor-scoped campaign/authoring receipts and audits reject changed-payload command reuse;
+- map heads use optimistic revisions and immutable saved revisions; only a published current map revision/hash can create the matching immutable custom-scenario row, and runtime initialization rechecks that exact pin;
 - acyclic structured strategic-location hierarchy and same-map, non-self route edges;
 - one active operational Battalion selection backed by active membership;
 - Battalion-consistent ranks, Task Force ships, Battlegroup embarkations, and strategic-order subjects;
@@ -289,12 +327,12 @@ The resolution seed is currently a predictable string derived from campaign, rou
 - complete Req pricing/income/replacement rules beyond the currently published purchases;
 - full unit/ship/location reconciliation beyond the implemented loadout/deployment boundary;
 - immutable published ruleset content and a campaign-bound engine/content hash;
-- general scenario schema/import and content-hash publication beyond the five exact-pinned authored `@3` loaders;
+- versioned custom objective/victory/reward/closure policy; published custom maps now bootstrap through normal deployment, but intentionally begin with empty objectives/enemies and no invented terminal threshold;
 - immutable archival of all order revisions and canonical events into D1;
 - cryptographic input/output/effect payload hashes;
 - cryptographically journaled exactly-once D1 damage, death, equipment loss, history, and requisition effects beyond the current receipt-idempotent subset;
 - acknowledgement of all required D1 effects before opening the next round;
-- idempotency/compare-and-set for tactical cancel and operator pause/resume/resolve commands, plus service-level enforcement of recorded strategic expected revisions;
+- complete cross-store reconciliation/diagnostics for Game Master audit projection, grant administration/MFA, and service-level enforcement of every recorded strategic expected revision;
 - runtime validation of every bounded JSON/public DTO.
 
 ## 6. Target D1/DO effects protocol

@@ -41,6 +41,22 @@ describe("unit visual registry", () => {
     }
   });
 
+  it("maps every source-catalogued enemy type to a six-state tactical sprite sheet", () => {
+    for (const enemy of catalogue.content.enemies) {
+      expect(findTacticalSprite(enemy.id), enemy.id).toMatch(/enemy-bug-.+\.png$/);
+    }
+  });
+
+  it("gives projected swarm contacts source-specific accessible labels and scale roles", () => {
+    expect(resolveUnitVisual({ definitionId: "enemy-bug-drone", side: "ENEMY" })).toMatchObject({
+      label: "Bug Drone",
+      shortCode: "DRN",
+      tacticalGlyph: "BIOLOGICAL",
+    });
+    expect(resolveUnitVisual({ definitionId: "enemy-bug-heavy", side: "ENEMY" }).tacticalGlyph).toBe("TANK");
+    expect(resolveUnitVisual({ definitionId: "enemy-bug-flyer", side: "ENEMY" }).tacticalGlyph).toBe("FIGHTER");
+  });
+
   it("uses the QA-passed plan-view mech revisions", () => {
     expect(findTacticalSprite("unit-light-mech")).toContain("unit-light-mech-v3");
     expect(findTacticalSprite("unit-medium-mech")).toContain("unit-medium-mech-v4");

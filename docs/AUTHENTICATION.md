@@ -35,6 +35,12 @@ Passwordless email access is the recovery path for this slice. Password storage,
 
 The authentication boundary is not the complete account lifecycle. Migration `0008` and the corresponding hourly Worker schedule now implement bounded cleanup for expired operational records, but this code has not been deployed and therefore is not active on the public origin. There is still no session/device management UI, MFA, account linking, data export/deletion, or operator recovery workflow. Those remaining gaps are public-release blockers rather than implicit behavior.
 
+### Global Game Master authorization
+
+Migration `0019_game_master_authority.sql` adds a separate `game_master_grants` authority boundary. An authenticated production User must be active and hold an active global grant before any `/api/game-master/*` capability is returned. Campaign-local `GM` membership and Battalion command roles do not imply this authority. The migration creates no default production grant, and there is no public grant/revoke endpoint.
+
+The explicit development demo identity may receive Game Master capability only when demo authentication is enabled for the development environment and its internal role is `ADMIN`; production cannot enable that path. The Worker removes client-supplied trusted Game Master/viewer headers and supplies them to the Campaign Durable Object only after authorization. Implemented commands use actor-scoped request-hash receipts and private audits, but operator MFA, grant lifecycle UI, alerting, rate policy, and cross-store reconciliation remain release blockers. See [GAME_MASTER.md](./GAME_MASTER.md).
+
 ### Operational retention defaults
 
 The Worker schedule is configured for `0 * * * *` in development, preview, and production configuration. Each invocation claims at most 10 due Battalion-invitation delivery jobs under five-minute leases and handles at most 100 cleanup candidates per table. It can be safely repeated: it marks expired pending authentication challenges, invitations, and outbox jobs terminal before deleting retained records. Active, unexpired sessions and account records are never cleanup candidates.

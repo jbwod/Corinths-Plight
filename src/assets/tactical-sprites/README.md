@@ -31,6 +31,21 @@ packed hashes, QA results, and rejected predecessors are recorded in
 `mech-sprite-provenance.json`. Rejected generations are retained in
 `quarantine/` and are never imported by the runtime allowlist.
 
+The Bug Swarm expansion adds one active sheet for each of the seven enemy
+definitions in the pinned catalogue: Artillery, Burrower, Drone, Flyer, Heavy,
+Spitter, and Warrior. Drone, Warrior, and Heavy are the executable experimental
+MVP enemies. The other four definitions remain mechanically incomplete; their
+artwork is available to the renderer but does not activate, balance, or make
+those definitions spawnable. Untouched RGBA source strips and exact source and
+packed hashes are retained under `source/swarm/` and recorded in
+`swarm-sprite-provenance.json`.
+
+Light Swarm deployments are composed as broods at render time so one
+authoritative deployment still feels numerous: Drone uses five visible sprite
+instances, while Warrior, Spitter, Burrower, and Flyer use three. Heavy and
+Artillery remain singular. This is a presentation rule only and does not alter
+model count, health, targeting, or resolution.
+
 `src/tactical-sprite-manifest.ts` is the only runtime sprite allowlist. Do not
 replace it with an eager wildcard: wildcard discovery bundles inactive and
 quarantined revisions into the client.
@@ -47,3 +62,9 @@ Prompt pattern:
 
 Infantry prompts additionally require anatomically coherent shoulders, arms,
 hands, weapon grip, torso, hips, and legs in every frame.
+
+Bug Swarm prompts instead require one anatomically coherent insectoid per
+frame, an unambiguous role silhouette, consistent dorsal anatomy, and attached
+limbs. The shared palette is burnt-coral and bone chitin, dark-navy ink, and
+restrained cyan bioluminescence so enemy contacts remain readable against the
+cool white/blue-grey player force at tactical scale.

@@ -1,8 +1,8 @@
 # Corinth's Plight Architecture
 
-**Status:** Phase-0 reconciled Phase 1–3 foundation decision record (2026-08-10)
+**Status:** Phase-0 reconciled foundation plus local Game Master/map-authoring slice (2026-08-14)
 
-**Scope:** The original foundation milestone plus additive Phase 2 persistent forces, Phase 3 strategic war, the equipment/deployment slice, production identity/security operations, and guided enlistment; not the complete Phase 3 success scenario
+**Scope:** The original foundation milestone plus additive Phase 2 persistent forces, Phase 3 strategic war, equipment/deployment, production identity/security operations, guided enlistment, and the admin-only Game Master/map-authoring vertical slice; not the complete Phase 3 success scenario
 
 **V1 baseline:** commit `609ea9f50b4d595cfa07c2677d3eeb681d45d0ce`; see [V1_AUDIT.md](./V1_AUDIT.md)
 
@@ -16,7 +16,7 @@ This document distinguishes three states:
 | **Target** | An accepted architecture decision that still needs implementation before production |
 | **Deferred** | Outside the first foundation deliverable |
 
-The current repository is a deployed identity/guided-enlistment foundation with partial force, equipment, deployment, tactical, and strategic read-model work. K-17, the Corinth strategic world, and Spearhead are development fixtures. It is **not** yet the complete production game: production has no world/campaign content, public strategic order submission and resolution are explicitly blocked, general scenario import/publication remains open, and the tactical effect journal still lacks its complete cryptographic protocol.
+The current repository is a deployed identity/guided-enlistment foundation with partial force, equipment, deployment, tactical, and strategic work plus a local admin-only Game Master/map-authoring slice. K-17, the Corinth strategic world, and Spearhead are development fixtures. It is **not** yet the complete production game: production has no world/campaign content, the custom-map workflow is local-only and still lacks a victory/reward closure profile, and the tactical effect journal still lacks its complete cryptographic protocol.
 
 ## 2. Exact foundation milestone
 
@@ -25,13 +25,14 @@ The current repository is a deployed identity/guided-enlistment foundation with 
 | Deliverable | Repository evidence | Status |
 |---|---|---|
 | Foundation and Phase 3 design/audit documents | Original seven documents plus `STRATEGIC_LAYER.md`, `BATTALION_MODEL.md`, `SHIP_SYSTEM.md`, and `STRATEGIC_RESOLUTION.md` | Implemented |
-| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0018_campaign_scenario_content_pins.sql` | Eighteen additive schema artifacts in the repository; production is recorded only through `0007`, so later gameplay and operations migrations are local until an explicitly authorized release |
+| D1 migrations | `migrations/0001_platform_and_rules.sql` through `0021_game_master_campaign_runtime.sql` | Twenty-one additive schema artifacts in the repository; production is recorded only through `0007`, so later gameplay, operations, Game Master, authoring, and custom-runtime migrations are local until an explicitly authorized release |
 | Ruleset seed | `seeds/v5-core-curated.sql`; consistency check in `scripts/validate-seed.ts` | Idempotent SQL artifact exists, but its 12 obsolete conflict IDs and split compiled/D1 catalogue prevent a complete authority claim |
 | Domain contracts | `packages/domain/src/index.ts`, `worker/campaign-contracts.ts` | Shared TypeScript interfaces plus bounded tactical request contracts and a versioned, validated Campaign DO state/snapshot envelope; general public DTO/runtime schemas remain incomplete |
 | Pure rules engine | `packages/rules-engine/src/` and `packages/rules-engine/test/` | Implemented foundation subset |
-| Campaign DO skeleton | `worker/campaign-durable-object.ts` | Implemented for the explicit development K-17 fixture and five exact-pinned authored `@3` loaders; persistent initialization requires committed deployment snapshots and is not a general scenario bootstrap |
+| Campaign DO skeleton | `worker/campaign-durable-object.ts` | Implemented for the explicit development K-17 fixture, five exact-pinned authored `@3` loaders, and exact published custom maps. Persistent initialization requires committed deployment snapshots; large state/snapshots use verified 1 MiB chunks, while maximum-map snapshot deduplication remains open. |
 | Accelerated clock | `worker/campaign-clock.ts` and its tests | Implemented, including manual/1m/5m/30m/24h presets |
 | Basic hex-map prototype | `src/App.tsx`, `src/components/HexMap.tsx`, `src/components/Glyph.tsx` | Implemented |
+| Game Master and map authoring | `worker/routes/game-master.ts`, `worker/game-master-authoring.ts`, `worker/game-master-runtime.ts`, `src/components/GameMasterConsole.tsx`, migrations `0019`–`0021` | Admin-only local vertical slice: live campaign controls are grant-scoped, receipt-idempotent and audited; five deterministic map presets save/edit/publish immutable revisions and create exact-pinned recruiting campaigns that use the ordinary join/deployment/runtime path. Revive and custom victory/reward closure remain blocked. |
 | Phase 2 persistent forces | `0003`, the combined-arms catalogue/fixture, typed force services and UI | Implemented checkpoint; not every catalogue mutation is active |
 | Phase 3 strategic schema/world | `0004`, `development-strategic-world.sql`, and the four Phase 3 design documents | Implemented local checkpoint |
 | Strategic resolver/API/UI | Domain, pure-engine, Worker, and responsive strategic workspace files | Partial read/prototype checkpoint: read APIs exist, the internal order service is not exposed by the public route, public order submission returns `501`, the coordinator resolver returns `501`, and the UI can fall back to showcase data |
@@ -90,17 +91,19 @@ There are no independently deployed microservices. The client, Worker entry poin
 | `src/components/` | Hex map and reusable visual components | No D1/DO access |
 | `worker/index.ts` | Public API composition, origin policy, authentication, D1 campaign authorization, named-DO forwarding, security headers | Browser never receives a DO stub |
 | `worker/auth.ts` | Demo/session authentication, D1 membership lookup, trusted viewer headers | Demo mode is development-only; no V1 credential compatibility |
+| `worker/routes/game-master.ts`, `worker/game-master-authoring.ts`, `worker/game-master-validation.ts` | Global Game Master authorization, live-campaign commands, audit projection, deterministic map edit/persistence/publication, and exact-pinned recruiting campaign creation | Production requires an explicit active D1 grant; no default grant exists. D1/DO command and audit projection is idempotent but not one atomic cross-store transaction. |
 | `worker/services/security-operations.ts`, `worker/repositories/security-operations.ts`, `worker/services/invitation-delivery.ts` | Bounded retention maintenance, pseudonymized invitation throttling/audit, and a leased Resend delivery outbox | Immediate `waitUntil` attempts plus hourly recovery and migration `0008` exist locally; production remains on the pre-`0008` deployment |
 | `worker/routes/ship-admin.ts`, `worker/services/ship-admin.ts`, `worker/repositories/ship-admin.ts` | Primary-ship name/registry mutation, current-Battalion authorization, optimistic concurrency, audience history and exact replay receipts | Existing-ship identity only; hull acquisition and module mutation/economy remain blocked |
-| `worker/campaign-durable-object.ts` | Exact-pinned authored campaign state, committed-snapshot initialization, orders, alarms, sockets, resolution, projections, and receipt-idempotent D1 writeback | General scenario schema/import, audience-safe realtime/reporting, and the complete cryptographic effect journal remain open |
+| `worker/campaign-durable-object.ts` | Exact-pinned authored and published-custom campaign state, committed-snapshot initialization, orders, alarms, sockets, resolution, projections, and receipt-idempotent D1 writeback | Custom maps bootstrap only from an exact published revision/hash and committed Allied deployment; custom victory/reward closure, audience-safe realtime/reporting, and the complete cryptographic effect journal remain open |
 | `worker/campaign-clock.ts` | Pure clock/schedule transitions | Schedule is currently embedded in `state/current`, not separate storage records |
 | `worker/strategic-*` | Strategic request policy/validation/clock and map coordination as landed | Must remain map-sharded and permission scoped; no global game object |
 | `worker/enemy-ai.ts` | Deterministic foundation enemy orders | No LLM or network dependency |
 | `worker/http.ts` | JSON/no-store responses, body-size limit, JSON parsing | It does not provide general runtime schema validation or content-type enforcement; campaign-specific parsing lives in `worker/campaign-contracts.ts` |
 | `packages/domain/src/` | Shared TypeScript interfaces and constants | Compile-time contracts only; not a runtime schema package yet |
 | `packages/rules-engine/src/` | Pure compiled catalogue, hex, mechanics, visibility, RNG, enemy/demo fixtures, and resolver | No storage, network, wall-clock reads, or `Math.random()`; its five allied tactical definitions do not cover all D1 classes marked executable |
+| `packages/rules-engine/src/admin-map-*`, `terrain-application.ts` | Strict canonical generator/vocabulary `@2` map documents, five deterministic generators, complete biome/point/edge profiles, and the `corinth-custom-map-terrain-application@2` document-to-battlefield adapter | Runtime consumes materialized mechanics; it never derives rules by parsing a visual biome ID. The application profile is an owner-approved project interpretation, not canonical V5. |
 | `packages/rules-engine/test/` | Pure engine fixtures and regression tests | No live Cloudflare integration |
-| `migrations/` | Eighteen ordered additive D1 SQL migrations | Production is recorded through `0007`; no new runtime uses the legacy Alembic files also retained in this directory |
+| `migrations/` | Twenty-one ordered additive D1 SQL migrations | Production is recorded through `0007`; `0019`–`0021` are local Game Master/authoring/custom-runtime schema only, and no new runtime uses the retained legacy Alembic files |
 | `seeds/v5-core-curated.sql`, `seeds/v5-phase2-combined-arms.sql` | Versioned D1 rules/source/conflict catalogue | Definitions only; availability overlays distinguish executable/catalogue state |
 | `seeds/onboarding-foundation.sql` | Production-safe guided-enlistment policy and three NPC recruitment Battalions | Product fixture, not canonical V5 lore; no development User or campaign data |
 | `seeds/development-forces.sql`, `seeds/development-strategic-world.sql` | Explicit local-only Phase 2/3 fixtures | Never production data or automatically canonical lore |
@@ -142,7 +145,7 @@ Current tactical order commands derive start position, class eligibility, execut
 Still target rather than implemented:
 
 - general runtime request schemas and versioned public DTO schemas;
-- idempotency/expected-version contracts for operator pause/resume/resolve commands (order upsert, cancellation and clock update now have this boundary);
+- operator grant administration/MFA, rate limits, cross-store reconciliation, announcements/awards, and safe recovery controls beyond the implemented receipt-idempotent campaign commands;
 - delegated Battalion command and production-grade admin audit;
 - session rotation/device management, operator account controls, and legacy account migration;
 - event-time intelligence/declassification for historical reports beyond the bounded audience-projected socket reconnect catch-up.
@@ -157,12 +160,20 @@ Guided enlistment follows the same boundary. Verified accounts receive an actor-
 
 The stable strategic coordinator name comes from `strategic_maps.coordinator_key`; the development value is `strategic-map-corinth`. No request may derive a singleton `GLOBAL_GAME_DURABLE_OBJECT` name.
 
+### 5.2 Global Game Master and authoring flow
+
+Global Game Master authority is an active `game_master_grants` row for an active User and is deliberately independent of Battalion command and campaign-local `GM` membership. Migration `0019` creates no production default, and no player-facing grant mutation route exists. The Worker strips client internal headers and supplies the trusted global marker only after this check; the Campaign DO requires the marker and an `ADMIN` projection.
+
+Live campaign clock, objective, enemy-spawn, pause, resume, and resolve commands use actor-scoped command IDs, canonical SHA-256 request hashes, expected campaign versions, exact response receipts, and private audit events. Structural objective/spawn commands require a campaign paused from `PLANNING`. Revive fails closed because destruction restoration is not source-defined. D1 reserves the command before dispatch; matching incomplete reservations fail closed for two minutes, then permit exact-hash compare-and-set takeover and idempotent redispatch. The DO mutation and its local receipt are atomic within that DO; the later D1 receipt, registry state, and audit projection are retryable but not part of the same transaction.
+
+Migration `0020` adds versioned map drafts and immutable revisions. Five deterministic presets produce strict canonical `corinth.admin-map` documents using generator/vocabulary `@2`; `corinth-custom-map-terrain-application@2` governs every current biome and point/edge feature, so an exact valid draft can publish. Migration `0021` adds the immutable custom-scenario bootstrap record. Campaign creation requires a published expected revision, creates a recruiting exact-hash pin and passable insertion zone, and reaches the ordinary join, deployment, and DO bootstrap path. Objectives/enemies start empty for audited GM authoring; no victory/reward threshold is invented. See [GAME_MASTER.md](./GAME_MASTER.md).
+
 ## 6. D1 and Campaign DO ownership
 
 | Concern | Implemented owner now | Target owner |
 |---|---|---|
 | Users, session validation, campaign registry/membership | D1, read by Worker | D1 |
-| Authored scenario selection | Nullable exact `campaigns.scenario_content_key` plus `map_source_key`; runtime rejects unpinned/mismatched content | Hash-pinned immutable scenario publication with explicit upgrade migrations |
+| Authored scenario selection | Nullable exact `campaigns.scenario_content_key` plus `map_source_key`; migration `0020` pins one immutable published Game Master map revision/hash and `0021` stores the corresponding immutable scenario bootstrap. Runtime rejects unpinned, draft, unavailable, hash-mismatched, or stored-state-mismatched content. | Add versioned custom objective/victory/reward policy and explicit upgrade migrations |
 | Rules, source provenance, conflict and persistent-world table shapes | D1 migrations/seed exist; runtime rules are also compiled in `catalogue.ts` | D1-pinned immutable rules plus a verified compiled engine interpretation |
 | Player Units, requisition, Battalions, ships, deployments, archives | D1 plus implemented force/loadout/deployment/onboarding subsets; broader lifecycle workflows remain open | D1 transactional global truth |
 | Strategic locations/maps/nodes/routes, operations, formations, supply, rounds, orders, events, receipts, war variables | D1 migration and local fixture exist; checkpoint services use only their landed subset | D1 transactional strategic truth |
@@ -279,8 +290,8 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 | Check | Status | Evidence or remaining work |
 |---|---|---|
 | Package skeleton, TypeScript, lint, unit tests, local production build | Complete | Root package scripts |
-| Application browser smoke baseline | Partial/local | Playwright covers public auth, authenticated live navigation without showcase fallback, tactical rejection of client-authored economy, and 390px overflow (4 tests); remote CI evidence, broader browser matrix, accessibility, and performance gates remain open |
-| Migrations and idempotent seed artifacts | Local head `0018`; production head `0007` | Fresh empty D1 replay through all eighteen migrations and all seven seeds twice passes integrity/FK checks; fresh campaign inserts receive current exact pins, while conflict replay never repins existing campaigns |
+| Application browser smoke baseline | Partial/local | Playwright passes 20 local journeys spanning public auth, persistent Battalion/ship/force flows, Game Master map publication/bootstrap, strategic and tactical resolution/replay, forged-action rejection, keyboard map operation, and 390px overflow; remote CI evidence, broader multi-account browser matrix, accessibility, and performance gates remain open |
+| Migrations and idempotent seed artifacts | Local head `0021`; production head `0007` | Fresh empty D1 replay through all twenty-one migrations and all nine seeds twice passes integrity/FK checks across 130 application tables; no Game Master migration or runtime is claimed as deployed |
 | Deterministic resolver subset and regression coverage | Partial but tested | Narrow Hold/Advance/Rush/Attack/equipment paths have unit coverage; locale ordering, terrain defaults, category-scoped flanking, cargo ledger, and release journal defects remain |
 | K-17 state, alarms, clock, pause/resume, sockets | Partial | Unit coverage exists; crash/alarm/WebSocket integration coverage does not |
 | Viewer projection | Partial | Basic state/report redaction exists; event-time and socket-field leakage tests remain |
@@ -289,7 +300,7 @@ This is not yet a complete fog/replay security proof. `CampaignView` is still la
 | Separate persisted schedule records and reconnect catch-up | Partial | Schedule lives inside current state; sockets provide bounded projected cursor catch-up but no separate persisted feed |
 | Production passwordless identity/session issuance | Deployed foundation | Resend verified-email links, opaque sessions, logout, auth rate limits, and pseudonymized audit are deployed; `0008` retention schedule is local-only pending migration/deployment |
 | Guided enlistment and Battalion recruitment | Deployed foundation | Public/private/code/targeted joins, one-charter economy, starter grant, tour, recruitment settings, and Resend delivery are deployed; `0008` invitation throttling/expiry is local-only |
-| Helion/Corinth strategic schema and fixture | Complete as development data only | Fresh 0001–0018 replay and all seven seeds twice passed; production seeds still create no strategic world or campaigns |
+| Helion/Corinth strategic schema and fixture | Complete as development data only | Fresh 0001–0021 replay and all nine seeds twice passed; production seeds still create no strategic world or campaigns |
 | Strategic map sharding, pure resolver, permission-scoped reads, responsive UI | Partial/blocked | Unit tests cover the pure resolver and service shell; public order submission and DO resolution return `501`, route durations are `BALANCE_REQUIRED`, and the UI can use showcase state |
 | Strategic-to-tactical deployment/result reconciliation | Partial | Loadout/deployment commit, exact-pinned authored scenario bootstrap, and narrow tactical writeback exist; general scenario publication and withdrawal remain open |
 | Production D1 and custom-domain foundation | Complete | Production binding is migrated through `0007`; `corinthplight.qnetica.com.au` serves the current Worker/UI |

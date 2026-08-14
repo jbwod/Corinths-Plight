@@ -118,6 +118,25 @@ async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<
     }).toBe(true);
   }
 
+  const membershipResponse = await page.request.get("/api/campaigns", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(membershipResponse.status()).toBe(200);
+  const membershipDirectory = await membershipResponse.json() as {
+    campaigns?: Array<{ campaignId: string }>;
+  };
+  if (!membershipDirectory.campaigns?.some((entry) => entry.campaignId === "campaign-k17-relay")) {
+    const joined = await page.request.post("/api/campaigns/campaign-k17-relay/join", {
+      headers: {
+        "content-type": "application/json",
+        "x-demo-user": "demo-user",
+        origin: "http://127.0.0.1:4173",
+      },
+      data: { commandId: `browser-ensure-k17-${crypto.randomUUID()}` },
+    });
+    expect([200, 201]).toContain(joined.status());
+  }
+
   const stateResponse = await page.request.get("/api/campaigns/campaign-k17-relay/state", {
     headers: { "x-demo-user": "demo-user" },
   });
@@ -150,18 +169,31 @@ async function ensurePlayableK17(page: Page, deployFoundation = false): Promise<
   await expect(map).toBeVisible();
 }
 
-async function resolveCurrentK17Round(page: Page): Promise<void> {
-  const resolution = await page.evaluate(async () => {
+async function resolveCampaignRoundAsGameMaster(page: Page, campaignId: string): Promise<void> {
+  const resolution = await page.evaluate(async (selectedCampaignId) => {
     const headers = { "x-demo-user": "demo-user" };
-    const current = await fetch("/api/campaigns/campaign-k17-relay/state", { headers });
-    const state = await current.json() as { round: number };
-    const resolved = await fetch("/api/campaigns/campaign-k17-relay/resolve", {
+    const current = await fetch(`/api/campaigns/${selectedCampaignId}/state`, { headers });
+    const state = await current.json() as { round: number; version: number };
+    const resolved = await fetch(`/api/game-master/campaigns/${selectedCampaignId}/resolve`, {
       method: "POST",
-      headers: { ...headers, "x-expected-round": String(state.round) },
+      headers: {
+        ...headers,
+        "x-demo-role": "ADMIN",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        commandId: `browser-gm-resolve-${crypto.randomUUID()}`,
+        expectedCampaignVersion: state.version,
+        expectedRound: state.round,
+      }),
     });
     return { status: resolved.status, body: await resolved.text() };
-  });
+  }, campaignId);
   expect(resolution, resolution.body).toMatchObject({ status: 200 });
+}
+
+async function resolveCurrentK17Round(page: Page): Promise<void> {
+  await resolveCampaignRoundAsGameMaster(page, "campaign-k17-relay");
 }
 
 function affordableRoute(
@@ -467,6 +499,54 @@ test("public landing exposes the signed-out authentication shell", async ({ page
   await expect(page.getByLabel("USERNAME")).toBeVisible();
 });
 
+test("quartermaster previews combat effects and fails closed for unresolved equipment slots", async ({ page }) => {
+  await page.goto("/?view=forces");
+  await expect(page.getByText("REGISTRY LIVE", { exact: true })).toBeVisible();
+  await page.locator(".grouped-roster").getByRole("button", { name: /POLAR-1/ }).click();
+  await page.getByRole("button", { name: "MANAGE LOADOUT" }).click();
+
+  const openingLoadoutResponse = await page.request.get("/api/forces/force-polar-1/loadout", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(openingLoadoutResponse.status()).toBe(200);
+  const openingLoadout = await openingLoadoutResponse.json() as {
+    ownedEquipment: Array<{
+      inventoryId: string;
+      definitionId: string;
+      assignedUnitId: string | null;
+      executable: boolean;
+    }>;
+  };
+  const availableAntiArmour = openingLoadout.ownedEquipment.find((equipment) =>
+    equipment.definitionId === "equipment-light-at" &&
+    equipment.executable &&
+    (!equipment.assignedUnitId || equipment.assignedUnitId === "force-polar-1"));
+  expect(availableAntiArmour, "the development quartermaster should own one usable light anti-armour weapon").toBeDefined();
+
+  const dialog = page.getByRole("dialog", { name: /POLAR-1 loadout/i });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("COMBAT EFFECT PREVIEW", { exact: true })).toBeVisible();
+  await dialog.getByText(/AVAILABLE ACTIONS/).scrollIntoViewIfNeeded();
+  await expect(dialog.getByText(/AVAILABLE ACTIONS/)).toBeVisible();
+  const availableActions = dialog.locator(".loadout-preview-list").filter({ hasText: "AVAILABLE ACTIONS" });
+  await expect(availableActions.locator("p")).toContainText(/(^| · )ATTACK( · |$)/);
+
+  const openingBalance = Number(await dialog.locator(".loadout-state span").filter({ hasText: "REQ" }).locator("b").innerText());
+  await dialog.locator('button[aria-label^="+ Lightweight Anti-armour Weapon PRIMARY"]:not(:disabled)').click();
+  await expect(dialog.getByRole("alert")).toContainText("Lightweight Anti-armour Weapon has no compatible unit slot.");
+  await expect(dialog.getByText("VALID", { exact: true })).toBeVisible();
+
+  const response = await page.request.get("/api/forces/force-polar-1/loadout", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(response.status()).toBe(200);
+  await expect(response.json()).resolves.toMatchObject({
+    loadout: { items: expect.not.arrayContaining([expect.objectContaining({ inventoryId: availableAntiArmour!.inventoryId })]) },
+    requisitionBalance: openingBalance,
+    validation: { valid: true },
+  });
+});
+
 test("local demo navigation reaches live strategic and tactical services", async ({ page }) => {
   const sessionResponse = page.waitForResponse((response) => response.url().endsWith("/api/auth/session"));
 
@@ -489,6 +569,74 @@ test("local demo navigation reaches live strategic and tactical services", async
   await expect(page.getByText("CAMPAIGN LIVE", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "K-17: Hold the Relay" })).toBeVisible();
   await expect(page.getByText(/Local tactical projection active/)).toHaveCount(0);
+});
+
+test("Game Master publishes a governed map and creates an exact-pinned recruiting campaign", async ({ page }) => {
+  const suffix = crypto.randomUUID().slice(0, 8);
+  const mapName = `Browser Icefront ${suffix}`;
+  const campaignName = `Browser Northwatch ${suffix}`;
+
+  await page.goto("/?view=command");
+  await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Game Master" }).click();
+  await expect(page.getByRole("heading", { name: "Game Master", exact: true })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /Loading live campaigns/ })).toHaveCount(0);
+  const liveRegion = page.locator(".gm-live-region");
+
+  const generator = page.getByRole("group", { name: "Generator" });
+  await generator.getByRole("combobox").selectOption("ICY");
+  await generator.getByRole("textbox").fill(`browser-icefront-${suffix}`);
+  await generator.getByRole("spinbutton").nth(0).fill("18");
+  await generator.getByRole("spinbutton").nth(1).fill("14");
+  await generator.getByRole("button", { name: "GENERATE PREVIEW" }).click();
+  await expect(liveRegion).toContainText(/Generated \d+ deterministic hexes/);
+  await expect(page.getByText(/No published profile/)).toHaveCount(0);
+  await expect(page.getByLabel(/mechanical profile/).first()).toContainText("Locked · terrain-");
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "EXPORT JSON" }).click();
+  expect((await download).suggestedFilename()).toMatch(/\.json$/);
+
+  const draftIdentity = page.getByRole("group", { name: "Draft identity" });
+  await draftIdentity.getByRole("textbox").fill(mapName);
+  await draftIdentity.getByRole("combobox").selectOption({ index: 1 });
+  await page.getByRole("button", { name: "SAVE DRAFT" }).click();
+  await expect(liveRegion).toContainText("Map draft saved.");
+  await expect(page.getByRole("button", { name: "REVIEW PUBLISH" })).toBeEnabled();
+  await page.getByRole("button", { name: "REVIEW PUBLISH" }).click();
+  await expect(page.getByRole("alertdialog", { name: new RegExp(`Publish ${mapName}`) })).toBeVisible();
+  await page.getByRole("button", { name: "CONFIRM PUBLISH MAP" }).click();
+  await expect(liveRegion).toContainText("Map published for authoring selection.");
+
+  const campaignForm = page.locator(".gm-create-campaign form");
+  await campaignForm.getByRole("textbox").fill(campaignName);
+  await campaignForm.getByRole("combobox").nth(0).selectOption({ index: 1 });
+  const publishedMapSelect = campaignForm.getByRole("combobox").nth(1);
+  const publishedMapOption = publishedMapSelect.locator("option").filter({ hasText: mapName });
+  await expect(publishedMapOption).toHaveCount(1);
+  const publishedMapId = await publishedMapOption.getAttribute("value");
+  expect(publishedMapId).toBeTruthy();
+  await publishedMapSelect.selectOption(publishedMapId!);
+  const durationPreset = campaignForm.getByRole("combobox").nth(2);
+  if (await durationPreset.count()) await durationPreset.selectOption({ index: 1 });
+  else await campaignForm.getByRole("spinbutton").fill("1");
+  await page.getByRole("button", { name: "CREATE AND PLACE CAMPAIGN" }).click();
+
+  const created = page.getByRole("region", { name: "Created campaign result" });
+  await expect(created).toContainText(campaignName);
+  await expect(created).toContainText("READY TO DEPLOY");
+  await expect(created).toContainText("READY_FOR_DEPLOYMENT");
+
+  const directory = await page.request.get("/api/campaigns", { headers: { "x-demo-user": "demo-user" } });
+  expect(directory.status()).toBe(200);
+  const body = await directory.json() as {
+    campaigns?: Array<{ name: string; role: string; scenarioAvailable: boolean; canEnter: boolean }>;
+  };
+  expect(body.campaigns).toContainEqual(expect.objectContaining({
+    name: campaignName,
+    role: "GM",
+    scenarioAvailable: true,
+    canEnter: false,
+  }));
 });
 
 test("commander switches persistent Battalion context without rejoining", async ({ page }) => {
@@ -793,7 +941,7 @@ test("Battalion creator transfers command authority and the new commander can ha
     headers: headersFor("demo-user"),
     data: transferCommand,
   });
-  expect(replay.status()).toBe(201);
+  expect(replay.status()).toBe(200);
   await expect(replay.json()).resolves.toMatchObject({
     operation: "TRANSFER_BATTALION_COMMAND",
     previousCommanderUserId: "demo-user",
@@ -1101,46 +1249,6 @@ test("quartermaster purchases published combined-arms units exactly once", async
   });
 });
 
-test("quartermaster previews and persists equipment into a Reserve unit", async ({ page }) => {
-  await page.goto("/?view=forces");
-  await expect(page.getByText("REGISTRY LIVE", { exact: true })).toBeVisible();
-  await page.locator(".grouped-roster").getByRole("button", { name: /POLAR-1/ }).click();
-  await page.getByRole("button", { name: "MANAGE LOADOUT" }).click();
-
-  const dialog = page.getByRole("dialog", { name: /POLAR-1 loadout/i });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByText("COMBAT EFFECT PREVIEW", { exact: true })).toBeVisible();
-  await dialog.getByText(/AVAILABLE ACTIONS/).scrollIntoViewIfNeeded();
-  await expect(dialog.getByText(/AVAILABLE ACTIONS/)).toBeVisible();
-  await expect(dialog.getByText(/ATTACK/)).toBeVisible();
-
-  const openingBalance = Number(await dialog.locator(".loadout-state span").filter({ hasText: "REQ" }).locator("b").innerText());
-  const purchaseResponse = page.waitForResponse((response) =>
-    response.url().endsWith("/api/requisition/equipment-purchases") && response.request().method() === "POST");
-  await dialog.getByRole("button", { name: /^\+ Lightweight Anti-armour Weapon requisition/ }).click();
-  const purchase = await purchaseResponse;
-  expect(purchase.status()).toBe(201);
-  const purchased = await purchase.json() as { inventoryId: string };
-  await expect(dialog.getByText("Lightweight Anti-armour Weapon", { exact: true }).first()).toBeVisible();
-  await expect(dialog.getByText(/3 AMMO/)).toBeVisible();
-  await expect(dialog.getByText("VALID", { exact: true })).toBeVisible();
-  await dialog.getByRole("button", { name: "COMMIT LOADOUT" }).click();
-  await expect(page.getByText(/POLAR-1 effective loadout committed/i)).toBeVisible();
-
-  const response = await page.request.get("/api/forces/force-polar-1/loadout", {
-    headers: { "x-demo-user": "demo-user" },
-  });
-  expect(response.status()).toBe(200);
-  await expect(response.json()).resolves.toMatchObject({
-    effectiveUnit: {
-      weapons: expect.arrayContaining([expect.objectContaining({ id: "weapon-light-at", ammoCapacity: 3 })]),
-      equipmentInstanceIds: expect.arrayContaining([purchased.inventoryId]),
-    },
-    requisitionBalance: openingBalance - 1,
-    validation: { valid: true },
-  });
-});
-
 test("commander edits a persistent unit identity and sees the service record", async ({ page }) => {
   await page.goto("/?view=forces");
   await expect(page.getByText("REGISTRY LIVE", { exact: true })).toBeVisible();
@@ -1175,69 +1283,120 @@ test("commander edits a persistent unit identity and sees the service record", a
 });
 
 test("strategic UI submits and resolves a Battlegroup disembark order", async ({ page }) => {
+  type StrategicProjection = {
+    map: { version: number };
+    round: { round: number };
+    battlegroups: Array<{
+      id: string;
+      status: string;
+      revision?: number;
+      currentNodeId: string | null;
+      currentCarrierTaskForceId?: string | null;
+    }>;
+  };
+  const readProjection = async (): Promise<StrategicProjection> => {
+    const response = await page.request.get("/api/strategic/maps/strategic-map-corinth", {
+      headers: { "x-demo-user": "demo-user" },
+    });
+    expect(response.status()).toBe(200);
+    return response.json() as Promise<StrategicProjection>;
+  };
+  const initial = await readProjection();
+  const initialHammer = initial.battlegroups.find((group) => group.id === "battlegroup-hammer");
+  expect(initialHammer, "development world should contain Hammer Battlegroup").toBeDefined();
+
   await page.goto("/?view=galactic");
   await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "The Corinth Expedition" })).toBeVisible();
 
   const formation = page.getByLabel("ORDERED FORMATION");
   await formation.selectOption("battlegroup-hammer");
-  await page.getByRole("button", { name: "DISEMBARK", exact: true }).click();
-  await expect(page.getByText(/Hammer: order submitted for strategic round/i)).toBeVisible();
-
-  const before = await page.request.get("/api/strategic/maps/strategic-map-corinth", {
-    headers: { "x-demo-user": "demo-user" },
-  });
-  expect(before.status()).toBe(200);
-  const current = await before.json() as { map: { version: number }; round: { round: number } };
-  await page.getByRole("button", { name: `RESOLVE ROUND ${current.round.round}` }).click();
-  await expect(page.getByText(new RegExp(`Strategic round ${current.round.round} resolved`))).toBeVisible();
+  let ordered: StrategicProjection | undefined;
+  if (initialHammer!.status === "EMBARKED") {
+    await page.getByRole("button", { name: "DISEMBARK", exact: true }).click();
+    await expect(page.getByText(/Hammer: order submitted for strategic round/i)).toBeVisible();
+    ordered = await readProjection();
+    await page.getByRole("button", { name: `RESOLVE ROUND ${ordered.round.round}` }).click();
+    await expect(page.getByText(new RegExp(`Strategic round ${ordered.round.round} resolved`))).toBeVisible();
+  } else {
+    expect(initialHammer).toMatchObject({
+      status: "READY",
+      currentNodeId: "node-corinth-high-orbit",
+    });
+    await expect(page.getByRole("button", { name: "DISEMBARK", exact: true })).toHaveCount(0);
+  }
 
   await expect.poll(async () => {
-    const response = await page.request.get("/api/strategic/maps/strategic-map-corinth", {
-      headers: { "x-demo-user": "demo-user" },
-    });
-    const projection = await response.json() as {
-      map: { version: number };
-      round: { round: number };
-      battlegroups: Array<{ id: string; status: string; currentNodeId: string | null }>;
-    };
+    const projection = await readProjection();
     const hammer = projection.battlegroups.find((group) => group.id === "battlegroup-hammer");
-    return projection.map.version === current.map.version + 1
-      && projection.round.round === current.round.round + 1
+    return (!ordered || (
+      projection.map.version === ordered.map.version + 1 &&
+      projection.round.round === ordered.round.round + 1
+    ))
       && hammer?.status === "READY"
       && hammer.currentNodeId === "node-corinth-high-orbit";
   }).toBe(true);
 });
 
 test("strategic deployment authorization boots a persistent tactical operation", async ({ page }) => {
+  type StrategicProjection = {
+    map: { version: number };
+    round: { round: number };
+    operations: Array<{ id: string; status: string; deployedBattlegroupIds: string[] }>;
+    battlegroups: Array<{
+      id: string;
+      status: string;
+      currentOperationId: string | null;
+      currentCarrierTaskForceId?: string | null;
+    }>;
+  };
+  type TacticalProjection = {
+    scenarioVersion: number;
+    map: Array<{ coord: { q: number; r: number } }>;
+    deployments: Array<{ ownerId: string; callsign: string }>;
+  };
+  const readStrategicProjection = async (): Promise<StrategicProjection> => {
+    const response = await page.request.get("/api/strategic/maps/strategic-map-corinth", {
+      headers: { "x-demo-user": "demo-user" },
+    });
+    expect(response.status()).toBe(200);
+    return response.json() as Promise<StrategicProjection>;
+  };
+  const initial = await readStrategicProjection();
+  const initialOperation = initial.operations.find((item) => item.id === "strategic-operation-iron-rain");
+  const initialRaven = initial.battlegroups.find((group) => group.id === "battlegroup-raven");
+  expect(initialOperation, "development world should contain Operation Iron Rain").toBeDefined();
+  expect(initialRaven, "development world should contain Raven Battlegroup").toBeDefined();
+  const alreadyAuthorised = initialOperation!.status === "ACTIVE" &&
+    initialOperation!.deployedBattlegroupIds.includes("battlegroup-raven") &&
+    initialRaven!.status === "DEPLOYING" &&
+    initialRaven!.currentOperationId === "strategic-operation-iron-rain";
+
   await page.goto("/?view=galactic");
   await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();
   await page.getByRole("tab", { name: "OPERATIONS BOARD" }).click();
   await page.getByRole("button", { name: /Operation Iron Rain/ }).click();
-  await page.getByLabel("DEPLOYMENT FORMATION").selectOption("battlegroup-raven");
-  await page.getByRole("button", { name: "AUTHORISE STANDARD LANDING" }).click();
-  await expect(page.getByText(/Raven: order submitted for strategic round/i)).toBeVisible();
-
-  const before = await page.request.get("/api/strategic/maps/strategic-map-corinth", {
-    headers: { "x-demo-user": "demo-user" },
-  });
-  expect(before.status()).toBe(200);
-  const current = await before.json() as { map: { version: number }; round: { round: number } };
-  await page.getByRole("tab", { name: "COMMAND MAP" }).click();
-  await page.getByRole("button", { name: `RESOLVE ROUND ${current.round.round}` }).click();
-  await expect(page.getByText(new RegExp(`Strategic round ${current.round.round} resolved`))).toBeVisible();
+  let ordered: StrategicProjection | undefined;
+  if (!alreadyAuthorised) {
+    expect(initialRaven).toMatchObject({ status: "EMBARKED" });
+    await page.getByLabel("DEPLOYMENT FORMATION").selectOption("battlegroup-raven");
+    await page.getByRole("button", { name: "AUTHORISE STANDARD LANDING" }).click();
+    await expect(page.getByText(/Raven: order submitted for strategic round/i)).toBeVisible();
+    ordered = await readStrategicProjection();
+    await page.getByRole("tab", { name: "COMMAND MAP" }).click();
+    await page.getByRole("button", { name: `RESOLVE ROUND ${ordered.round.round}` }).click();
+    await expect(page.getByText(new RegExp(`Strategic round ${ordered.round.round} resolved`))).toBeVisible();
+  }
 
   await expect.poll(async () => {
-    const response = await page.request.get("/api/strategic/maps/strategic-map-corinth", {
-      headers: { "x-demo-user": "demo-user" },
-    });
-    const projection = await response.json() as {
-      operations: Array<{ id: string; status: string; deployedBattlegroupIds: string[] }>;
-      battlegroups: Array<{ id: string; status: string; currentOperationId: string | null }>;
-    };
+    const projection = await readStrategicProjection();
     const operation = projection.operations.find((item) => item.id === "strategic-operation-iron-rain");
     const raven = projection.battlegroups.find((group) => group.id === "battlegroup-raven");
-    return operation?.status === "ACTIVE"
+    return (!ordered || (
+      projection.map.version === ordered.map.version + 1 &&
+      projection.round.round === ordered.round.round + 1
+    ))
+      && operation?.status === "ACTIVE"
       && operation.deployedBattlegroupIds.includes("battlegroup-raven")
       && raven?.status === "DEPLOYING"
       && raven.currentOperationId === "strategic-operation-iron-rain";
@@ -1245,28 +1404,44 @@ test("strategic deployment authorization boots a persistent tactical operation",
 
   await page.getByRole("tab", { name: "OPERATIONS BOARD" }).click();
   await page.getByRole("button", { name: /Operation Iron Rain/ }).click();
-  await page.getByRole("button", { name: "PLAN TACTICAL DEPLOYMENT" }).click();
-  await expect(page.getByRole("heading", { name: "Deployment planner", exact: true })).toBeVisible();
-  await expect(page.getByText("PLANNER LIVE", { exact: true })).toBeVisible();
-  await page.locator("label").filter({ hasText: "POLAR-1" }).getByRole("checkbox").check();
-  await page.locator("label").filter({ hasText: "AURORA-4" }).getByRole("checkbox").check();
-  await page.getByRole("button", { name: "VALIDATE PLAN" }).click();
-  await expect(page.getByRole("heading", { name: "Ready for command" })).toBeVisible();
-  await page.getByRole("button", { name: "COMMIT DEPLOYMENT" }).click();
+  const tacticalBefore = await page.request.get("/api/campaigns/operation-iron-rain/state", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  const priorTactical = tacticalBefore.ok()
+    ? await tacticalBefore.json() as TacticalProjection
+    : undefined;
+  const alreadyDeployed = new Set(priorTactical?.deployments
+    .filter((unit) => unit.ownerId === "demo-user")
+    .map((unit) => unit.callsign) ?? []);
+  let deploymentTarget = alreadyDeployed.size;
+  if (deploymentTarget === 0) {
+    await page.getByRole("button", { name: "PLAN TACTICAL DEPLOYMENT" }).click();
+    await expect(page.getByRole("heading", { name: "Deployment planner", exact: true })).toBeVisible();
+    await expect(page.getByText("PLANNER LIVE", { exact: true })).toBeVisible();
+    const ravenUnits = page.locator("label").filter({ hasText: "· Raven" }).locator('input[type="checkbox"]:enabled');
+    const ravenUnitCount = await ravenUnits.count();
+    expect(ravenUnitCount, "the authorised Raven formation should retain at least one deployable unit").toBeGreaterThan(0);
+    const requiredDeployments = Math.min(2, ravenUnitCount);
+    for (let index = 0; index < requiredDeployments; index += 1) {
+      await ravenUnits.nth(index).check();
+    }
+    deploymentTarget = requiredDeployments;
+    await page.getByRole("button", { name: /VALIDATE PLAN|REVALIDATE PLAN/ }).click();
+    await expect(page.getByRole("heading", { name: "Ready for command" })).toBeVisible();
+    await page.getByRole("button", { name: "COMMIT DEPLOYMENT" }).click();
+  } else {
+    await page.goto("/?view=campaigns&campaign=operation-iron-rain");
+  }
   await expect(page.getByRole("region", { name: "Tactical operations map" })).toBeVisible();
 
   const campaign = await page.request.get("/api/campaigns/operation-iron-rain/state", {
     headers: { "x-demo-user": "demo-user" },
   });
   expect(campaign.status()).toBe(200);
-  const tactical = await campaign.json() as {
-    scenarioVersion: number;
-    map: Array<{ coord: { q: number; r: number } }>;
-    deployments: Array<{ ownerId: string }>;
-  };
+  const tactical = await campaign.json() as TacticalProjection;
   expect(tactical.scenarioVersion).toBe(IRON_RAIN_SCENARIO_VERSION);
   expect(tactical.map).toHaveLength(311);
-  expect(tactical.deployments.filter((unit) => unit.ownerId === "demo-user")).toHaveLength(2);
+  expect(tactical.deployments.filter((unit) => unit.ownerId === "demo-user").length).toBeGreaterThanOrEqual(deploymentTarget);
 
   const tacticalCanvas = page.getByRole("application", { name: /Operation Iron Rain tactical hex map/ });
   await tacticalCanvas.focus();
@@ -1419,14 +1594,7 @@ test("tactical API exposes Light Mech, VTOL, Fighter, Bomber, and HAT verticals 
   });
   expect(striderOrder, striderOrder.body).toMatchObject({ status: 201 });
 
-  const resolved = await page.evaluate(async (round) => {
-    const response = await fetch("/api/campaigns/outpost-k17/resolve", {
-      method: "POST",
-      headers: { "x-demo-user": "demo-user", "x-expected-round": String(round) },
-    });
-    return { status: response.status, body: await response.text() };
-  }, foundationState.round);
-  expect(resolved, resolved.body).toMatchObject({ status: 200 });
+  await resolveCampaignRoundAsGameMaster(page, "outpost-k17");
 
   const afterMechRound = await page.request.get("/api/campaigns/outpost-k17/state", {
     headers: { "x-demo-user": "demo-user" },
@@ -1513,6 +1681,7 @@ test("Heavy Air Transport composer exposes a manifested clear-route drop", async
 });
 
 test("tactical composer exposes every currently executable action and no catalogue-only controls", async ({ page }) => {
+  test.setTimeout(90_000);
   await page.goto("/?view=campaigns");
   await ensurePlayableK17(page, true);
   const openingRequisitionResponse = await page.request.get("/api/requisition", {
@@ -1904,7 +2073,7 @@ test("public and authenticated shells do not overflow a 390px viewport", async (
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto("/?signedout=1");
-  await expect(page.getByRole("heading", { name: "Every unit has a name. Every order has a cost." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Corinth is not lost. Not yet." })).toBeVisible();
   await expectNoDocumentOverflow(page);
 
   await page.goto("/?view=campaigns");

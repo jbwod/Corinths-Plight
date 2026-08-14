@@ -658,6 +658,26 @@ export interface AxialCoord {
 export interface HexEdgeFeatures {
   rivers: Facing[];
   roads: Facing[];
+  /** Explicit traversable bridge edges; omitted by legacy authored maps. */
+  bridges?: Facing[];
+  /** Authored foot/rough tracks. Paths reduce ground cost less than roads. */
+  paths?: Facing[];
+  /** Authored blocking walls. Airborne traversal ignores them. */
+  walls?: Facing[];
+}
+
+/**
+ * Application-authored traversal policy for a battlefield hex.
+ *
+ * This is deliberately separate from `terrainId`: visual biome names do not
+ * silently acquire mechanics. Maps opt into a published application rule by
+ * storing both the result and the profile that authorised it.
+ */
+export interface BattlefieldHexMovementRules {
+  groundTraversal: "PASSABLE" | "IMPASSABLE";
+  applicationProfileId: string;
+  /** Explicit exceptions for otherwise blocked ground; empty/omitted means none. */
+  allowedGroundTraversalTags?: string[];
 }
 
 export type VisibilityState = "VISIBLE" | "OBSERVED" | "UNKNOWN";
@@ -665,8 +685,11 @@ export type VisibilityState = "VISIBLE" | "OBSERVED" | "UNKNOWN";
 export interface BattlefieldHex {
   coord: AxialCoord;
   terrainId: string;
+  /** Optional visual vocabulary key; rules remain in terrainId/movementRules. */
+  visualTerrainId?: string;
   elevation: number;
   movementCost: number;
+  movementRules?: BattlefieldHexMovementRules;
   blocksLineOfSight: boolean;
   lineOfSightModifier: number;
   capacity: number;
@@ -958,7 +981,11 @@ export type CampaignEventType =
   | "CAMPAIGN_COMPLETED"
   | "CAMPAIGN_FAILED"
   | "CAMPAIGN_PAUSED"
-  | "CAMPAIGN_RESUMED";
+  | "CAMPAIGN_RESUMED"
+  | "GAME_MASTER_OBJECTIVE_CREATED"
+  | "GAME_MASTER_OBJECTIVE_UPDATED"
+  | "GAME_MASTER_DEPLOYMENT_REVIVED"
+  | "GAME_MASTER_ENEMY_SPAWNED";
 
 export interface CampaignEvent<TPayload = Record<string, unknown>> {
   eventId: string;
@@ -1110,6 +1137,54 @@ export interface ViewerContext {
   side: FactionSide;
   role: "PLAYER" | "BATTALION_COMMAND" | "ADMIN";
   battalionId?: string;
+}
+
+export type GameMasterCapability =
+  | "CAMPAIGN_READ"
+  | "CAMPAIGN_CLOCK_WRITE"
+  | "CAMPAIGN_CONTROL"
+  | "CAMPAIGN_CREATE"
+  | "MAP_WRITE"
+  | "OBJECTIVE_WRITE"
+  | "ENEMY_SPAWN"
+  | "AUDIT_READ";
+
+export interface GameMasterSessionDto {
+  authenticated: true;
+  authorized: boolean;
+  userId: string;
+  grantSource: "GLOBAL_GRANT" | "DEVELOPMENT_DEMO" | null;
+  capabilities: GameMasterCapability[];
+}
+
+export interface GameMasterCampaignSummaryDto {
+  id: string;
+  name: string;
+  planetName: string;
+  status: "ACTIVE" | "PAUSED";
+  mapSourceKey: string;
+  scenarioContentKey: string;
+  roundDurationMs: number;
+  campaignVersion: number;
+  round: number;
+  phase: CampaignPhase;
+}
+
+export interface GameMasterCommandResultDto<TResource = Record<string, unknown>> {
+  operation:
+    | "CLOCK_UPDATE"
+    | "OBJECTIVE_CREATE"
+    | "OBJECTIVE_UPDATE"
+    | "CAMPAIGN_PAUSE"
+    | "CAMPAIGN_RESUME"
+    | "ROUND_RESOLVE"
+    | "ENEMY_SPAWN"
+    | "DEPLOYMENT_REVIVE";
+  commandId: string;
+  campaignId: string;
+  campaignVersion: number;
+  appliedAt: number;
+  resource: TResource;
 }
 
 export interface CampaignView extends Omit<CampaignRuntimeState, "resolutions" | "pendingPersistentEffects" | "reinforcementWaves"> {

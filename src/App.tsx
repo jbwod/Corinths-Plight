@@ -43,12 +43,16 @@ import { HexMap, type TacticalMapLayer } from "./components/HexMap";
 import { StrategicWorkspace, type StrategicView } from "./components/StrategicWorkspace";
 import { AuthGateway } from "./components/AuthGateway";
 import { CampaignReports } from "./components/CampaignReports";
+import { GameMasterConsole } from "./components/GameMasterConsole";
 import { UnitPortrait } from "./components/UnitVisual";
 import { companionArmourIntentSummary, getCompanionArmourUiProfile } from "./companion-armour-ui";
 
 const DEMO_USER = "demo-user";
 const DEFAULT_DEVELOPMENT_CAMPAIGN_ID = "outpost-k17";
 const DEMO_HEADERS = import.meta.env.DEV ? { "x-demo-user": DEMO_USER } : undefined;
+const GAME_MASTER_DEMO_HEADERS = import.meta.env.DEV
+  ? { "x-demo-user": DEMO_USER, "x-demo-role": "ADMIN" }
+  : undefined;
 const viewer = {
   userId: DEMO_USER,
   side: "ALLIED" as const,
@@ -65,6 +69,7 @@ const navigation = [
   ["route", "Deployment"],
   ["target", "Campaigns"],
   ["reports", "Reports"],
+  ["settings", "Game Master"],
 ] as const;
 
 type ActiveNav = (typeof navigation)[number][1];
@@ -312,7 +317,25 @@ function GameApp() {
   const [campaignDirectoryOpen, setCampaignDirectoryOpen] = useState(
     () => new URLSearchParams(window.location.search).get("directory") === "1",
   );
+  const [gameMasterAuthorized, setGameMasterAuthorized] = useState(false);
   const realtimeCursor = useRef<{ round: number; sequence: number; version: number } | undefined>(undefined);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/game-master/session", {
+      headers: GAME_MASTER_DEMO_HEADERS,
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) return { authorized: false };
+        return response.json() as Promise<{ authorized?: boolean }>;
+      })
+      .then((session) => setGameMasterAuthorized(session.authorized === true))
+      .catch(() => {
+        if (!controller.signal.aborted) setGameMasterAuthorized(false);
+      });
+    return () => controller.abort();
+  }, []);
 
   const loadCampaignDirectory = useCallback(async (): Promise<string | undefined> => {
     const response = await fetch("/api/campaigns", { headers: DEMO_HEADERS });
@@ -749,6 +772,11 @@ function GameApp() {
   const routeResult = calculateRouteCost(draftedRoute, campaign.map, {
     rush: orderType === "RUSH",
     unitTags: selectedUnit?.tags,
+    unitStatuses: selectedUnit?.statuses,
+    airborne: selectedUnit
+      ? (selectedUnit.tags?.some((tag) => tag === "AEROSPACE" || tag === "ATMO_FLIGHT" || tag === "VTOL") ?? false) &&
+        (!selectedUnit.statuses.includes("LANDED") || actionMode === "TAKE_OFF")
+      : undefined,
   });
   const plannedGarrisonHex = draftedRoute.length > 1 && selectedUnit?.tags?.includes("INFANTRY") && selectedUnit.tags.includes("PERSONNEL")
     ? campaign.map.find((hex) => coordinatesEqual(hex.coord, draftedRoute.at(-1)!) && hex.environment.includes(INFANTRY_GARRISON_BUILDING))
@@ -779,7 +807,7 @@ function GameApp() {
     (campaign.clock.lockAt > 0 && now >= campaign.clock.lockAt && scheduledRound === campaign.round);
   const manualClock = campaign.clock.resolvesAt === 0;
   const campaignTerminal = campaign.phase === "COMPLETE" || campaign.phase === "FAILED";
-  const showOperatorControls = campaign.viewer.role === "ADMIN" || import.meta.env.DEV;
+  const showOperatorControls = campaign.viewer.role === "ADMIN";
   const countdown = campaignTerminal
     ? campaign.outcome?.result ?? "COMPLETE"
     : manualClock
@@ -1073,7 +1101,14 @@ function GameApp() {
         .map((deployment) => `${deployment.position.q},${deployment.position.r}`),
     );
     blocked.delete(`${coord.q},${coord.r}`);
-    const route = shortestPath(selectedUnit.position, coord, campaign.map, { blocked });
+    const route = shortestPath(selectedUnit.position, coord, campaign.map, {
+      blocked,
+      rush: orderType === "RUSH",
+      unitTags: selectedUnit.tags,
+      unitStatuses: selectedUnit.statuses,
+      airborne: (selectedUnit.tags?.some((tag) => tag === "AEROSPACE" || tag === "ATMO_FLIGHT" || tag === "VTOL") ?? false) &&
+        (!selectedUnit.statuses.includes("LANDED") || actionMode === "TAKE_OFF"),
+    });
     if (route.length === 0) {
       setNotice({ tone: "danger", message: "No legal route reaches that hex." });
       return;
@@ -1494,6 +1529,7 @@ function GameApp() {
     Reports: connection === "ERROR"
       ? { eyebrow: "TACTICAL ARCHIVE // UNAVAILABLE", title: "Campaign Reports" }
       : { eyebrow: `AFTER-ACTION ARCHIVE // ${campaign.planetName.toUpperCase()}`, title: "Campaign Reports" },
+    "Game Master": { eyebrow: "GLOBAL OPERATIONS // AUDITED AUTHORITY", title: "Campaign Director" },
   };
 
   function navigate(next: ActiveNav) {
@@ -1554,7 +1590,7 @@ function GameApp() {
       </header>
 
       <nav className="rail" aria-label="Primary">
-        {navigation.map(([icon, label]) => (
+        {navigation.filter(([, label]) => label !== "Game Master" || gameMasterAuthorized).map(([icon, label]) => (
           <button
             className={activeNav === label ? "active" : ""}
             key={label}
@@ -1564,13 +1600,11 @@ function GameApp() {
             <span>{label}</span>
           </button>
         ))}
-        <button className="rail-settings" onClick={() => setNotice({ tone: "info", message: "Campaign operator controls are available in the command drawer." })}>
-          <Glyph name="settings" />
-          <span>Settings</span>
-        </button>
       </nav>
 
-      {strategicView ? (
+      {activeNav === "Game Master" ? (
+        <GameMasterConsole demoUser={import.meta.env.DEV ? DEMO_USER : undefined} />
+      ) : strategicView ? (
         <StrategicWorkspace
           view={strategicView}
           onNavigate={(view) => navigate(view)}

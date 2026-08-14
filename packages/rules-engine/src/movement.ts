@@ -61,6 +61,10 @@ export function resolveSimultaneousMovement(
       const route = calculateRouteCost(order.route, map, {
         rush: order.orderType === "RUSH",
         unitTags: deployment.tags,
+        unitStatuses: deployment.statuses,
+        airborne: deployment.tags?.some((tag) => tag === "AEROSPACE" || tag === "ATMO_FLIGHT" || tag === "VTOL")
+          ? (!deployment.statuses.includes("LANDED") || order.actions.some((action) => action.type === "TAKE_OFF"))
+          : undefined,
       });
       if (!route.legal) return undefined;
       let cumulative = 0;
