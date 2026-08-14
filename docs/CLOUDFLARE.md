@@ -14,7 +14,7 @@ The repository builds a React/Vite client and one Cloudflare Worker containing t
 
 The private game-test release was deployed on 2026-08-14. The primary custom domain is `https://corinthplight.qnetica.com.au`; `https://corinths-plight.cybercow-now.workers.dev` remains enabled as a fallback. Production version `e88137dd-19ae-4bf5-8050-3accf8f14343` binds D1 database `corinths-plight-production` (`c75ca7bc-f10b-4987-853d-f387d377bdb9`) and both Durable Object namespaces. Production is migrated through `0022`, has no pending migrations, and contains the canonical catalogue/onboarding seeds plus the production-safe `game-test-strategic-world@1` Helion/Corinth foundation. Development identities, forces, ships, and scenario fixtures were deliberately not applied; preview remains unprovisioned.
 
-The repository and production migration head is `0022_game_master_skirmish_policy.sql`. It includes `0008` invitation abuse/retention controls, later gameplay migrations, `0019` global Game Master authority/audit, `0020` versioned map drafts, `0021` exact custom-scenario bootstrap records, and `0022` the exact version-2 custom-skirmish terminal/reward policy. The Game Master runtime is deployed, but production still has no active global Game Master grant until the owner explicitly approves the exact account privilege change.
+The repository and production migration head is `0022_game_master_skirmish_policy.sql`. It includes `0008` invitation abuse/retention controls, later gameplay migrations, `0019` global Game Master authority/audit, `0020` versioned map drafts, `0021` exact custom-scenario bootstrap records, and `0022` the exact version-2 custom-skirmish terminal/reward policy. The Game Master runtime is deployed. On 2026-08-14, the owner explicitly approved and activated the production global Game Master grant for `cybercow.now@gmail.com` for the private game-test.
 
 ## 2. Current runtime topology
 
@@ -87,7 +87,7 @@ There is no `worker/demo.ts` or `scripts/seed-ruleset.ts`. Demo authentication i
 
 | Binding/config | Current resource | Authority/status |
 |---|---|---|
-| `DB` | D1 | Identity/session/onboarding, Battalion recruitment, force/equipment/loadout/deployment services, campaign authorization, strategic read models, and narrow campaign-effect receipts are active in the recorded release; global Game Master grants/audits, versioned map drafts, exact custom-scenario bootstrap, and pinned custom-skirmish policy records exist only at the local `0019`–`0022` head |
+| `DB` | D1 | Identity/session/onboarding, Battalion recruitment, force/equipment/loadout/deployment services, campaign authorization, strategic read models, campaign-effect receipts, global Game Master grants/audits, versioned map drafts, exact custom-scenario bootstrap, and pinned custom-skirmish policy records are active through production migration `0022` |
 | `CAMPAIGN` | Durable Object namespace | One named object per campaign; the explicit development K-17 fixture may self-initialise, while persistent campaigns require committed D1 deployment snapshots and an exact supported `map_source_key`/`scenario_content_key` pair |
 | `STRATEGIC_MAP` | Durable Object namespace | Deployed named-object boundary per strategic map/theatre; internal order service shell exists, but public order submission and resolution are blocked |
 | DO migration `v1` | `new_sqlite_classes: ["CampaignDurableObject"]` | Present |
@@ -257,11 +257,11 @@ Implemented:
 - server-derived owner/rules/action/target validation;
 - HTTP security headers and no-store JSON responses;
 - server-side battlefield projection, report projection, hidden drafts, and removal of stored seed/effects/journal fields.
-- explicit global Game Master grants, trusted-header stripping, revision/idempotency contracts, and private campaign/map-authoring audits at the local migration head.
+- explicit global Game Master grants, trusted-header stripping, revision/idempotency contracts, and private campaign/map-authoring audits deployed through production migration `0022`.
 
 Still required:
 
-- deploy and monitor the local `0008` retention/expiry implementation, and reconcile its operational defaults with the pending privacy/legal policy;
+- monitor the deployed `0008` retention/expiry implementation and reconcile its operational defaults with the pending privacy/legal policy;
 - runtime request/response schemas and content-type policy;
 - server-secret seed/HMAC or equivalent commitment protocol;
 - cryptographic input/output/effect hashes;
@@ -295,7 +295,7 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 - [~] Snapshot/report projection exists; event-time payload and socket-audience leakage coverage is incomplete.
 - [x] Implement and deploy passwordless production registration/login, opaque session issuance, email-based recovery, and logout revocation.
 - [x] Committed D1 deployment snapshots load into five exact-pinned authored `@3` scenarios and exact published custom-map `@2` revisions. New custom scenario content uses the bounded, versioned `game-master-skirmish@1` terminal policy and published reward policy and creates an authored strategic campaign node.
-- [~] Global-grant-scoped Game Master campaign controls, the exact `game-master-recovery@1` exceptional correction, and deterministic five-preset map edit/publication are deployed, receipt-idempotent, and audited. Grant administration, an active production grant, and cross-store reconciliation diagnostics remain open.
+- [~] Global-grant-scoped Game Master campaign controls, the exact `game-master-recovery@1` exceptional correction, and deterministic five-preset map edit/publication are deployed, receipt-idempotent, and audited. The owner-approved production grant for `cybercow.now@gmail.com` is active; self-service grant administration and cross-store reconciliation diagnostics remain open.
 - [ ] Implement PREPARED journal, cryptographic input/output hashes, and protected deterministic seed.
 - [ ] Implement separate persisted schedule records and consumed/recovery semantics.
 - [~] D1 persistent-effect application uses idempotent receipts; acknowledgement-gated next-round transition and a cryptographic payload journal remain open.
