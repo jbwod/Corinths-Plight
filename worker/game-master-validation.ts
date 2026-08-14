@@ -95,6 +95,7 @@ export interface GameMasterCampaignCreateIntent {
   mapRevision: number;
   mapContentHash: `sha256:${string}`;
   roundDurationMs: number;
+  maximumPlayers: number;
 }
 
 export class GameMasterValidationError extends Error {
@@ -363,6 +364,7 @@ export function parseGameMasterCampaignCreate(value: unknown): GameMasterCampaig
     "mapRevision",
     "mapContentHash",
     "roundDurationMs",
+    "maximumPlayers",
   ], "$");
   if (!Number.isSafeInteger(source.roundDurationMs) ||
       (Number(source.roundDurationMs) !== 0 && Number(source.roundDurationMs) < 5_000) ||
@@ -375,6 +377,10 @@ export function parseGameMasterCampaignCreate(value: unknown): GameMasterCampaig
   if (typeof source.mapContentHash !== "string" || !/^sha256:[a-f0-9]{64}$/.test(source.mapContentHash)) {
     fail("$.mapContentHash", "mapContentHash must be a lowercase SHA-256 content hash.");
   }
+  const maximumPlayers = source.maximumPlayers === undefined ? 8 : Number(source.maximumPlayers);
+  if (!Number.isSafeInteger(maximumPlayers) || maximumPlayers < 1 || maximumPlayers > 64) {
+    fail("$.maximumPlayers", "maximumPlayers must be an integer from 1 through 64.");
+  }
   return {
     operation: "CAMPAIGN_CREATE",
     commandId: parseCommandId(source.commandId),
@@ -384,5 +390,6 @@ export function parseGameMasterCampaignCreate(value: unknown): GameMasterCampaig
     mapRevision: Number(source.mapRevision),
     mapContentHash: source.mapContentHash as `sha256:${string}`,
     roundDurationMs: Number(source.roundDurationMs),
+    maximumPlayers,
   };
 }

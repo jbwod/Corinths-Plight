@@ -26,6 +26,27 @@ export interface ForceTotalsView {
   lost: number;
 }
 
+export interface StrategicForceUnitView {
+  unitId: string;
+  definitionId: string;
+  definitionName: string;
+  callsign: string;
+  name: string;
+  category: string;
+  status: string;
+  locationState: string;
+  currentHealth: number;
+  maximumHealth: number;
+  healthModel: string;
+  version: number;
+  readiness: {
+    ready: boolean;
+    blockers: string[];
+    warnings: string[];
+  };
+  battlegroups: Array<{ id: string; name: string }>;
+}
+
 export interface BattalionSummaryView {
   id: string;
   name: string;
@@ -130,6 +151,7 @@ export interface EmbarkedUnitView {
 export interface ShipView {
   id: string;
   name: string;
+  classDefinitionId: string;
   className: string;
   registry: string;
   location: string;
@@ -153,6 +175,7 @@ export interface ShipView {
   taskForce: {
     id: string;
     name: string;
+    shipIds: string[];
     status: string;
     location: string;
     intention?: string;
@@ -218,11 +241,102 @@ export interface MapFormationView {
   version: number;
   carrierTaskForceId?: string;
   capabilities: string[];
+  shipIds: string[];
   supply?: {
     largeCurrent: number | null;
     largeCapacity: number | null;
     suppliedThroughRound: number | null;
   };
+}
+
+export interface StrategicPlanetView {
+  planetId: string;
+  name: string;
+  locationId: string;
+  strategicNodeId?: string;
+  position?: { x: number; y: number };
+  control: StrategicNodeControl;
+  status: string;
+  environment: Record<string, unknown>;
+  warState: Record<string, unknown>;
+}
+
+export interface CampaignSummaryObjectiveView {
+  id: string;
+  name: string;
+  coord: { q: number; r: number };
+  owner: string;
+  status: string;
+  description: string;
+}
+
+export interface CampaignSummaryUnitView {
+  id: string;
+  persistentUnitId?: string;
+  definitionId: string;
+  callsign: string;
+  status: string;
+  locationState: string;
+  position: { q: number; r: number };
+  currentHealth: number;
+  maxHealth: number;
+}
+
+export interface CampaignLiveSummaryView {
+  campaignId: string;
+  campaignName: string;
+  planetName: string;
+  round: number;
+  phase: string;
+  version: number;
+  clock: {
+    durationMs: number;
+    roundStartedAt: number | null;
+    lockAt: number | null;
+    resolvesAt: number | null;
+    pausedAt?: number | null;
+  };
+  objectives: CampaignSummaryObjectiveView[];
+  viewerUnits: CampaignSummaryUnitView[];
+  deployments: {
+    allied: { visibility: "EXACT" | "VISIBLE_ONLY"; total: number; byStatus: Record<string, number> };
+    enemy: { visibility: "EXACT" | "VISIBLE_ONLY"; total: number; byStatus: Record<string, number> };
+  };
+  viewer: { userId: string; side: string; role: string; battalionId?: string };
+  serverTime: number;
+}
+
+export interface StrategicCampaignMapView {
+  campaignId: string;
+  name: string;
+  status: "RECRUITING" | "ACTIVE" | "PAUSED";
+  strategicStatus: "MUSTERING" | "ACTIVE";
+  planetId: string;
+  planetName: string;
+  planetLocationId: string;
+  strategicNodeId: string;
+  operationId?: string;
+  memberCount: number;
+  viewerDeploymentCount: number;
+  canEnter: boolean;
+  viewerMembership: {
+    side: string;
+    role: string;
+    battalionId?: string;
+  };
+  live?: CampaignLiveSummaryView;
+}
+
+export interface StrategicShipPresenceView {
+  shipId: string;
+  name: string;
+  registry: string | null;
+  classDefinitionId: string;
+  className: string;
+  status: string;
+  taskForceId: string;
+  nodeId?: string;
+  primary: boolean;
 }
 
 export interface StrategicMapView {
@@ -233,6 +347,9 @@ export interface StrategicMapView {
   nodes: StrategicNodeView[];
   routes: StrategicRouteView[];
   formations: MapFormationView[];
+  planets: StrategicPlanetView[];
+  campaigns: StrategicCampaignMapView[];
+  shipPresence: StrategicShipPresenceView[];
   viewerPermissions: string[];
 }
 
@@ -240,6 +357,7 @@ export interface StrategicSnapshot {
   profile: StrategicProfileView;
   clock: StrategicClockView;
   forces: ForceTotalsView;
+  forceUnits: StrategicForceUnitView[];
   battalion: BattalionSummaryView;
   ranks: RankView[];
   permissionDefinitions: BattalionPermissionDefinitionView[];
@@ -269,6 +387,7 @@ export const SHOWCASE_STRATEGIC_SNAPSHOT: StrategicSnapshot = {
     ordersLockAt: null,
   },
   forces: { active: 14, deployed: 0, aboard: 14, available: 0, lost: 1 },
+  forceUnits: [],
   battalion: {
     id: "battalion-33rd-expeditionary",
     name: "33rd Expeditionary Battalion",
@@ -339,6 +458,7 @@ export const SHOWCASE_STRATEGIC_SNAPSHOT: StrategicSnapshot = {
   ship: {
     id: "ship-corinth-ward",
     name: "CSV Resolute",
+    classDefinitionId: "ship-class-destroyer",
     className: "Destroyer",
     registry: "CSV-RESOLUTE",
     location: "Corinth High Orbit",
@@ -381,6 +501,7 @@ export const SHOWCASE_STRATEGIC_SNAPSHOT: StrategicSnapshot = {
     taskForce: {
       id: "task-force-resolute",
       name: "Resolute Task Force",
+      shipIds: ["ship-corinth-ward"],
       status: "READY",
       location: "Corinth High Orbit",
       intention: "Support the Corinth Expedition and recover deployed Battlegroups.",
@@ -477,9 +598,17 @@ export const SHOWCASE_STRATEGIC_SNAPSHOT: StrategicSnapshot = {
       { id: "route-junction-7-hive-basin", fromNodeId: "node-junction-7", toNodeId: "node-hive-basin", status: "OPEN", movementProfiles: ["GROUND_BATTLEGROUP", "AIR_MOBILE_BATTLEGROUP"], travelRounds: null },
     ],
     formations: [
-      { id: "task-force-resolute", kind: "TASK_FORCE", name: "Resolute Task Force", status: "READY", nodeId: "node-corinth-high-orbit", intention: "Support the Corinth Expedition", routeNodeIds: [], version: 1, capabilities: ["GROUND_COMBAT", "LOGISTICS"] },
-      { id: "battlegroup-hammer", kind: "BATTLEGROUP", name: "Battlegroup Hammer", status: "EMBARKED", nodeId: "node-corinth-high-orbit", intention: "Combined-arms reserve", routeNodeIds: [], version: 1, carrierTaskForceId: "task-force-resolute", capabilities: ["GROUND_COMBAT", "ARMOURED", "ENGINEERING", "ARTILLERY"] },
-      { id: "battlegroup-raven", kind: "BATTLEGROUP", name: "Battlegroup Raven", status: "EMBARKED", nodeId: "node-corinth-high-orbit", intention: "Rapid-response reserve", routeNodeIds: [], version: 1, carrierTaskForceId: "task-force-resolute", capabilities: ["GROUND_COMBAT", "RECON", "AIR_MOBILE"] },
+      { id: "task-force-resolute", kind: "TASK_FORCE", name: "Resolute Task Force", status: "READY", nodeId: "node-corinth-high-orbit", intention: "Support the Corinth Expedition", routeNodeIds: [], version: 1, capabilities: ["GROUND_COMBAT", "LOGISTICS"], shipIds: ["ship-corinth-ward"] },
+      { id: "battlegroup-hammer", kind: "BATTLEGROUP", name: "Battlegroup Hammer", status: "EMBARKED", nodeId: "node-corinth-high-orbit", intention: "Combined-arms reserve", routeNodeIds: [], version: 1, carrierTaskForceId: "task-force-resolute", capabilities: ["GROUND_COMBAT", "ARMOURED", "ENGINEERING", "ARTILLERY"], shipIds: [] },
+      { id: "battlegroup-raven", kind: "BATTLEGROUP", name: "Battlegroup Raven", status: "EMBARKED", nodeId: "node-corinth-high-orbit", intention: "Rapid-response reserve", routeNodeIds: [], version: 1, carrierTaskForceId: "task-force-resolute", capabilities: ["GROUND_COMBAT", "RECON", "AIR_MOBILE"], shipIds: [] },
+    ],
+    planets: [
+      { planetId: "planet-corinth", name: "Corinth", locationId: "location-corinth", strategicNodeId: "node-corinth", position: { x: 44, y: 47 }, control: "CONTESTED", status: "OPEN", environment: { biome: "TEMPERATE_FRONTIER" }, warState: { control: "CONTESTED", enemyPressure: "HIGH" } },
+      { planetId: "planet-corinth-ii", name: "Corinth II", locationId: "location-corinth-ii", strategicNodeId: "node-corinth-ii", position: { x: 74, y: 68 }, control: "UNKNOWN", status: "OPEN", environment: {}, warState: { control: "UNKNOWN" } },
+    ],
+    campaigns: [],
+    shipPresence: [
+      { shipId: "ship-corinth-ward", name: "CSV Resolute", registry: "CSV-RESOLUTE", classDefinitionId: "ship-class-destroyer", className: "Destroyer", status: "ORBIT", taskForceId: "task-force-resolute", nodeId: "node-corinth-high-orbit", primary: true },
     ],
   },
 };

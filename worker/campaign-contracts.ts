@@ -5,6 +5,10 @@ import type {
   Facing,
   OrderType,
 } from "../packages/domain/src";
+import {
+  GAME_MASTER_SKIRMISH_MAX_ROUNDS,
+  PUBLIC_V1_ECONOMY_POLICY_ID,
+} from "../packages/domain/src";
 import { CLOCK_PRESETS, type ClockPreset } from "./campaign-clock";
 
 export const CAMPAIGN_STORAGE_SCHEMA_VERSION = 1 as const;
@@ -1134,52 +1138,66 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     objectiveState.set(id, { owner: objective.owner as string, status: objective.status as string });
   }
 
+  let scenarioPolicyId: string | undefined;
   if (state.scenarioPolicy !== undefined) {
     const policy = stateRecord(state.scenarioPolicy, "$.scenarioPolicy");
-    stateOnlyKeys(
-      policy,
-      ["policyId", "version", "startRound", "maxRounds", "primaryObjectiveId", "capturableObjectiveIds"],
-      "$.scenarioPolicy",
-    );
-    if (policy.policyId !== "HOLD_PRIMARY_OBJECTIVE") stateFail("$.scenarioPolicy.policyId", "unsupported scenario policy");
-    if (policy.version !== 1) stateFail("$.scenarioPolicy.version", "unsupported scenario policy version");
-    const startRound = stateInteger(policy.startRound, "$.scenarioPolicy.startRound", 1);
-    const maxRounds = stateInteger(policy.maxRounds, "$.scenarioPolicy.maxRounds", 1);
-    if (!Number.isSafeInteger(startRound + maxRounds - 1)) {
-      stateFail("$.scenarioPolicy.maxRounds", "scenario duration exceeds the supported round range");
-    }
-    const primaryObjectiveId = stateString(policy.primaryObjectiveId, "$.scenarioPolicy.primaryObjectiveId");
-    const capturableObjectiveIds = stateStringArray(
-      policy.capturableObjectiveIds,
-      "$.scenarioPolicy.capturableObjectiveIds",
-    );
-    if (capturableObjectiveIds.length === 0) stateFail("$.scenarioPolicy.capturableObjectiveIds", "at least one objective is required");
-    if (new Set(capturableObjectiveIds).size !== capturableObjectiveIds.length) {
-      stateFail("$.scenarioPolicy.capturableObjectiveIds", "duplicate objective identifier");
-    }
-    if (!objectiveState.has(primaryObjectiveId)) stateFail("$.scenarioPolicy.primaryObjectiveId", "objective does not exist");
-    if (!capturableObjectiveIds.includes(primaryObjectiveId)) {
-      stateFail("$.scenarioPolicy.primaryObjectiveId", "primary objective must be capturable");
-    }
-    for (const [index, id] of capturableObjectiveIds.entries()) {
-      if (!objectiveState.has(id)) stateFail(`$.scenarioPolicy.capturableObjectiveIds[${index}]`, "objective does not exist");
-    }
-    if (state.reinforcementWaves !== undefined) {
-      const finalRound = startRound + maxRounds - 1;
-      for (const [index, waveValue] of stateArray(state.reinforcementWaves, "$.reinforcementWaves").entries()) {
-        const wave = stateRecord(waveValue, `$.reinforcementWaves[${index}]`);
-        const arrivesAfterRound = stateInteger(
-          wave.arrivesAfterRound,
-          `$.reinforcementWaves[${index}].arrivesAfterRound`,
-          1,
-        );
-        if (arrivesAfterRound < startRound || arrivesAfterRound >= finalRound) {
-          stateFail(
+    scenarioPolicyId = stateString(policy.policyId, "$.scenarioPolicy.policyId");
+    if (scenarioPolicyId === "HOLD_PRIMARY_OBJECTIVE") {
+      stateOnlyKeys(
+        policy,
+        ["policyId", "version", "startRound", "maxRounds", "primaryObjectiveId", "capturableObjectiveIds"],
+        "$.scenarioPolicy",
+      );
+      if (policy.version !== 1) stateFail("$.scenarioPolicy.version", "unsupported scenario policy version");
+      const startRound = stateInteger(policy.startRound, "$.scenarioPolicy.startRound", 1);
+      const maxRounds = stateInteger(policy.maxRounds, "$.scenarioPolicy.maxRounds", 1);
+      if (!Number.isSafeInteger(startRound + maxRounds - 1)) {
+        stateFail("$.scenarioPolicy.maxRounds", "scenario duration exceeds the supported round range");
+      }
+      const primaryObjectiveId = stateString(policy.primaryObjectiveId, "$.scenarioPolicy.primaryObjectiveId");
+      const capturableObjectiveIds = stateStringArray(
+        policy.capturableObjectiveIds,
+        "$.scenarioPolicy.capturableObjectiveIds",
+      );
+      if (capturableObjectiveIds.length === 0) stateFail("$.scenarioPolicy.capturableObjectiveIds", "at least one objective is required");
+      if (new Set(capturableObjectiveIds).size !== capturableObjectiveIds.length) {
+        stateFail("$.scenarioPolicy.capturableObjectiveIds", "duplicate objective identifier");
+      }
+      if (!objectiveState.has(primaryObjectiveId)) stateFail("$.scenarioPolicy.primaryObjectiveId", "objective does not exist");
+      if (!capturableObjectiveIds.includes(primaryObjectiveId)) {
+        stateFail("$.scenarioPolicy.primaryObjectiveId", "primary objective must be capturable");
+      }
+      for (const [index, id] of capturableObjectiveIds.entries()) {
+        if (!objectiveState.has(id)) stateFail(`$.scenarioPolicy.capturableObjectiveIds[${index}]`, "objective does not exist");
+      }
+      if (state.reinforcementWaves !== undefined) {
+        const finalRound = startRound + maxRounds - 1;
+        for (const [index, waveValue] of stateArray(state.reinforcementWaves, "$.reinforcementWaves").entries()) {
+          const wave = stateRecord(waveValue, `$.reinforcementWaves[${index}]`);
+          const arrivesAfterRound = stateInteger(
+            wave.arrivesAfterRound,
             `$.reinforcementWaves[${index}].arrivesAfterRound`,
-            "wave must arrive after a playable non-final scenario round",
+            1,
           );
+          if (arrivesAfterRound < startRound || arrivesAfterRound >= finalRound) {
+            stateFail(
+              `$.reinforcementWaves[${index}].arrivesAfterRound`,
+              "wave must arrive after a playable non-final scenario round",
+            );
+          }
         }
       }
+    } else if (scenarioPolicyId === "game-master-skirmish") {
+      stateOnlyKeys(policy, ["policyId", "version", "maxRounds", "rewardPolicyId"], "$.scenarioPolicy");
+      if (policy.version !== 1) stateFail("$.scenarioPolicy.version", "unsupported scenario policy version");
+      if (policy.maxRounds !== GAME_MASTER_SKIRMISH_MAX_ROUNDS) {
+        stateFail("$.scenarioPolicy.maxRounds", "unsupported Game Master skirmish duration");
+      }
+      if (policy.rewardPolicyId !== PUBLIC_V1_ECONOMY_POLICY_ID) {
+        stateFail("$.scenarioPolicy.rewardPolicyId", "unsupported Game Master skirmish reward policy");
+      }
+    } else {
+      stateFail("$.scenarioPolicy.policyId", "unsupported scenario policy");
     }
   }
 
@@ -1195,17 +1213,45 @@ function validateCampaignState(state: Record<string, unknown>, campaignId: strin
     }
     const outcomeRound = stateInteger(campaignOutcome.round, "$.outcome.round", 1);
     if (outcomeRound !== state.round) stateFail("$.outcome.round", "must match the campaign round");
-    const victoryReason = "FINAL_ROUND_PRIMARY_HELD";
-    const defeatReasons = new Set([
-      "ALL_ALLIED_DEPLOYMENTS_LOST",
-      "PRIMARY_OBJECTIVE_LOST",
-      "FINAL_ROUND_CONDITIONS_NOT_MET",
-    ]);
+    const victoryReason = scenarioPolicyId === "game-master-skirmish"
+      ? "ALL_SPAWNED_ENEMIES_LOST"
+      : "FINAL_ROUND_PRIMARY_HELD";
+    const defeatReasons = scenarioPolicyId === "game-master-skirmish"
+      ? new Set(["ALL_ALLIED_DEPLOYMENTS_LOST", "GAME_MASTER_SKIRMISH_ROUND_LIMIT_REACHED"])
+      : new Set([
+        "ALL_ALLIED_DEPLOYMENTS_LOST",
+        "PRIMARY_OBJECTIVE_LOST",
+        "FINAL_ROUND_CONDITIONS_NOT_MET",
+      ]);
     if (
       (campaignOutcome.result === "VICTORY" && campaignOutcome.reason !== victoryReason) ||
       (campaignOutcome.result === "DEFEAT" && !defeatReasons.has(campaignOutcome.reason as string))
     ) {
       stateFail("$.outcome.reason", "reason does not match the campaign outcome");
+    }
+    if (scenarioPolicyId === "game-master-skirmish") {
+      const alliedSurvivors = [...deploymentState.values()].filter(
+        ({ side, status }) => side === "ALLIED" && status !== "DESTROYED" && status !== "WITHDRAWN",
+      );
+      const enemies = [...deploymentState.values()].filter(({ side }) => side === "ENEMY");
+      const enemySurvivors = enemies.filter(
+        ({ status }) => status !== "DESTROYED" && status !== "WITHDRAWN",
+      );
+      if (campaignOutcome.reason === "ALL_ALLIED_DEPLOYMENTS_LOST" && alliedSurvivors.length !== 0) {
+        stateFail("$.outcome.reason", "Allied-loss outcome has surviving Allied deployments");
+      }
+      if (
+        campaignOutcome.reason === "ALL_SPAWNED_ENEMIES_LOST" &&
+        (enemies.length === 0 || enemySurvivors.length !== 0)
+      ) {
+        stateFail("$.outcome.reason", "enemy-loss outcome requires a spawned and fully lost Enemy force");
+      }
+      if (
+        campaignOutcome.reason === "GAME_MASTER_SKIRMISH_ROUND_LIMIT_REACHED" &&
+        (outcomeRound < GAME_MASTER_SKIRMISH_MAX_ROUNDS || (enemies.length > 0 && enemySurvivors.length === 0))
+      ) {
+        stateFail("$.outcome.reason", "round-limit outcome does not match the Game Master skirmish state");
+      }
     }
     const summaryIds = new Set<string>();
     for (const [index, summaryValue] of stateArray(campaignOutcome.objectives, "$.outcome.objectives").entries()) {

@@ -127,8 +127,7 @@ export function campaignAccessFromRow(
   if (!row) return { allowed: false, reason: "NOT_FOUND" };
   if (!row.role || !row.side) return { allowed: false, reason: "FORBIDDEN" };
 
-  if (row.role === "OBSERVER") return { allowed: false, reason: "ROLE_UNSUPPORTED" };
-  if (row.role !== "PLAYER" && row.role !== "BATTALION_COMMAND" && row.role !== "GM") {
+  if (!campaignRoleHasRuntimeAccess(row.role)) {
     return { allowed: false, reason: "ROLE_UNSUPPORTED" };
   }
   if (row.side !== "ALLIED" && row.side !== "ENEMY" && !(row.side === "NEUTRAL" && row.role === "GM")) {
@@ -144,6 +143,12 @@ export function campaignAccessFromRow(
       battalionId: row.battalion_id ?? undefined,
     },
   };
+}
+
+export function campaignRoleHasRuntimeAccess(
+  role: string,
+): role is "PLAYER" | "BATTALION_COMMAND" | "GM" {
+  return role === "PLAYER" || role === "BATTALION_COMMAND" || role === "GM";
 }
 
 export async function authorizeCampaign(

@@ -14,6 +14,9 @@ import type {
   ViewerContext,
 } from "../packages/domain/src";
 import {
+  GAME_MASTER_RECOVERY_POLICY_ID,
+  GAME_MASTER_SKIRMISH_MAX_ROUNDS,
+  GAME_MASTER_SKIRMISH_POLICY_KEY,
   PUBLIC_V1_ECONOMY_POLICY_ID,
   publicV1CampaignReward,
 } from "../packages/domain/src";
@@ -31,6 +34,7 @@ import {
   isLightAtChargeStore,
   isConstructibleFieldworkId,
   isAuthoredScenarioContentSelection,
+  projectCampaignSummary,
   projectCampaignState,
   resolveRound,
   synchronizeSupplyCargo,
@@ -68,6 +72,7 @@ import {
 import { viewerFromInternalRequest } from "./auth";
 import { generateEnemyOrders } from "./enemy-ai";
 import {
+  GAME_MASTER_SCENARIO_VERSION,
   gameMasterScenarioContentKey,
   isGameMasterScenarioContentKey,
   materializeGameMasterCampaignState,
@@ -206,6 +211,11 @@ interface GameMasterCommandResponse {
   };
 }
 
+type GameMasterRecoveryResource = CampaignDeployment & {
+  recoveryPolicyId: typeof GAME_MASTER_RECOVERY_POLICY_ID;
+  recoveryRound: number;
+};
+
 interface PendingGameMasterRoundResolve {
   schemaVersion: 1;
   operation: "ROUND_RESOLVE";
@@ -263,6 +273,9 @@ interface GameMasterScenarioRuntimeRow {
   map_content_hash: string;
   objectives_json: string;
   enemy_deployments_json: string;
+  application_policy_key: string | null;
+  maximum_rounds: number | null;
+  reward_policy_id: string | null;
   map_id: string;
   map_revision: number;
   revision_content_hash: string;
@@ -411,7 +424,9 @@ export class CampaignDurableObject extends DurableObject<Env> {
   private async loadGameMasterScenarioRuntime(): Promise<GameMasterScenarioRuntimeRow> {
     const row = await this.env.DB.prepare(`SELECT scenarios.scenario_id,scenarios.scenario_version,
         scenarios.scenario_content_key,scenarios.map_revision_id,scenarios.map_content_hash,
-        scenarios.objectives_json,scenarios.enemy_deployments_json,revisions.map_id,
+        scenarios.objectives_json,scenarios.enemy_deployments_json,
+        scenarios.application_policy_key,scenarios.maximum_rounds,scenarios.reward_policy_id,
+        revisions.map_id,
         revisions.revision AS map_revision,revisions.content_hash AS revision_content_hash,
         revisions.document_json,campaigns.map_source_key,
         campaigns.scenario_content_key AS campaign_scenario_content_key,
@@ -432,8 +447,11 @@ export class CampaignDurableObject extends DurableObject<Env> {
     const expectedMapSourceKey = `admin-map/${row.map_id}@${row.map_revision}:${row.map_content_hash}`;
     if (
       row.scenario_id !== `scenario-${this.campaignId()}` ||
-      row.scenario_version !== 1 ||
+      row.scenario_version !== GAME_MASTER_SCENARIO_VERSION ||
       row.scenario_content_key !== expectedContentKey ||
+      row.application_policy_key !== GAME_MASTER_SKIRMISH_POLICY_KEY ||
+      row.maximum_rounds !== GAME_MASTER_SKIRMISH_MAX_ROUNDS ||
+      row.reward_policy_id !== PUBLIC_V1_ECONOMY_POLICY_ID ||
       row.campaign_scenario_content_key !== expectedContentKey ||
       row.campaign_map_revision_id !== row.map_revision_id ||
       row.map_revision_id !== `${row.map_id}@${row.map_revision}` ||
@@ -1456,6 +1474,7 @@ export class CampaignDurableObject extends DurableObject<Env> {
     const url = new URL(request.url);
     try {
       if (url.pathname === "/state" && request.method === "GET") return await this.handleState(request);
+      if (url.pathname === "/summary" && request.method === "GET") return await this.handleSummary(request);
       if (url.pathname === "/markers" && request.method === "GET") return await this.handleMarkers(request);
       if (url.pathname === "/markers" && request.method === "POST") return await this.handleMarkerCommand(request);
       if (url.pathname === "/operation-notes" && request.method === "GET") return await this.handleOperationNotes(request);
@@ -1506,6 +1525,11 @@ export class CampaignDurableObject extends DurableObject<Env> {
     const state = await this.getState();
     const view = projectCampaignState(state, this.viewer(request), Date.now());
     return json(view);
+  }
+
+  private async handleSummary(request: Request): Promise<Response> {
+    const state = await this.getState();
+    return json(projectCampaignSummary(state, this.viewer(request), Date.now()));
   }
 
   private async handleMarkers(request: Request): Promise<Response> {
@@ -3034,6 +3058,16 @@ export class CampaignDurableObject extends DurableObject<Env> {
     }
   }
 
+  private async permanentRecoveryStatusEffectIds(campaignId: string): Promise<Set<string>> {
+    const rows = await this.env.DB.prepare(`SELECT definitions.id
+      FROM status_effect_definitions AS definitions
+      JOIN campaigns ON campaigns.ruleset_id=definitions.ruleset_id
+      WHERE campaigns.id=?1
+        AND COALESCE(json_extract(definitions.definition_json,'$.permanent'),0)=1
+      ORDER BY definitions.id`).bind(campaignId).all<{ id: string }>();
+    return new Set(rows.results.map((row) => row.id));
+  }
+
   private async completeGameMasterRoundResolve(
     intent: GameMasterCommandIntent & { operation: "ROUND_RESOLVE"; expectedRound: number },
     requestHash: string,
@@ -3235,10 +3269,50 @@ export class CampaignDurableObject extends DurableObject<Env> {
     } else if (intent.operation === "DEPLOYMENT_REVIVE") {
       const deployment = state.deployments.find((candidate) => candidate.id === intent.deploymentId);
       if (!deployment) return errorResponse(404, "DEPLOYMENT_NOT_FOUND", "The deployment does not exist.");
-      if (deployment.persistentUnitId || deployment.side !== "ENEMY") {
-        return errorResponse(409, "REVIVE_RULE_DECISION_REQUIRED", "V5 makes persistent destruction permanent; this deployment cannot be revived without an approved compensating rule.");
+      if (
+        deployment.status !== "DESTROYED" ||
+        deployment.locationState !== "DESTROYED" ||
+        deployment.currentHealth !== 0
+      ) {
+        return errorResponse(409, "DEPLOYMENT_NOT_DESTROYED", "Only a destroyed deployment can be recovered.");
       }
-      return errorResponse(409, "REVIVE_RULE_DECISION_REQUIRED", "No authoritative rule defines restored health, ammunition, equipment, or status.");
+      if (deployment.persistentUnitId && deployment.side !== "ALLIED") {
+        return errorResponse(409, "PERSISTENT_DEPLOYMENT_SIDE_INVALID", "Only an allied persistent deployment can be reconciled with the persistent roster.");
+      }
+      const targetHex = state.map.find((hex) =>
+        hex.coord.q === deployment.position.q && hex.coord.r === deployment.position.r);
+      if (!targetHex) {
+        return errorResponse(409, "DEPLOYMENT_POSITION_INVALID", "The destroyed deployment no longer has a valid battlefield position.");
+      }
+      if (!canOccupyHex(deployment.position, deployment.id, state.deployments, state.map)) {
+        return errorResponse(409, "HEX_CAPACITY_EXCEEDED", "The destroyed deployment's battlefield hex has no remaining capacity.");
+      }
+      if (!canTraverseBattlefieldHex(targetHex, { unitTags: deployment.tags, unitStatuses: [] })) {
+        return errorResponse(409, "DEPLOYMENT_TERRAIN_BLOCKED", "The recovered deployment cannot occupy its battlefield terrain.");
+      }
+      const permanentStatusEffectIds = await this.permanentRecoveryStatusEffectIds(state.campaignId);
+      deployment.status = "ACTIVE";
+      deployment.locationState = "ON_MAP";
+      deployment.currentHealth = deployment.stats.maxHealth;
+      deployment.ammunition = Object.fromEntries(deployment.weapons
+        .filter((weapon) => weapon.ammoCapacity !== undefined)
+        .map((weapon) => [weapon.id, weapon.ammoCapacity!]));
+      deployment.cooldowns = {};
+      deployment.statuses = [];
+      deployment.statusEffects = (deployment.statusEffects ?? [])
+        .filter((effect) => permanentStatusEffectIds.has(effect.definitionId));
+      deployment.subsystems = (deployment.subsystems ?? []).map((subsystem) => ({
+        subsystemId: subsystem.subsystemId,
+        state: "OPERATIONAL" as const,
+      }));
+      delete deployment.bombardmentSuppression;
+      const recovered: GameMasterRecoveryResource = {
+        ...structuredClone(deployment),
+        recoveryPolicyId: GAME_MASTER_RECOVERY_POLICY_ID,
+        recoveryRound: state.round,
+      };
+      resource = recovered;
+      eventType = "GAME_MASTER_DEPLOYMENT_REVIVED";
     } else if (intent.operation === "ENEMY_SPAWN") {
       const targetHex = state.map.find((hex) => hex.coord.q === intent.coord.q && hex.coord.r === intent.coord.r);
       if (!targetHex) {
@@ -3314,7 +3388,14 @@ export class CampaignDurableObject extends DurableObject<Env> {
       sequence: eventSequence(state),
       type: eventType,
       actor: viewer.userId,
-      payload: { operation: intent.operation, resourceId: "id" in resource ? resource.id : undefined },
+      payload: {
+        operation: intent.operation,
+        resourceId: "id" in resource ? resource.id : undefined,
+        ...(intent.operation === "DEPLOYMENT_REVIVE" ? {
+          policyId: GAME_MASTER_RECOVERY_POLICY_ID,
+          exceptionalCorrection: true,
+        } : {}),
+      },
       timestamp: now,
       visibility: "ADMIN",
     };

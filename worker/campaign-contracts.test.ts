@@ -1,9 +1,14 @@
 import {
   createDemoCampaignState,
   createScenarioCampaignState,
+  evaluateScenarioRoundEnd,
   OUTPOST_K17_SCENARIO_CONTENT_KEY,
   resolveRound,
 } from "../packages/rules-engine/src";
+import {
+  GAME_MASTER_SKIRMISH_MAX_ROUNDS,
+  PUBLIC_V1_ECONOMY_POLICY_ID,
+} from "../packages/domain/src";
 import { describe, expect, it } from "vitest";
 import {
   CAMPAIGN_STORAGE_SCHEMA_VERSION,
@@ -599,6 +604,37 @@ describe("versioned campaign Durable Object storage", () => {
     });
   });
 
+  it("round-trips the exact Game Master skirmish policy and terminal reason", () => {
+    const state = fixture();
+    state.round = 4;
+    state.clock.schedule.forEach((scheduled) => { scheduled.round = 4; });
+    state.orders = [];
+    state.objectives = [];
+    state.deployments = [
+      structuredClone(state.deployments.find(({ side }) => side === "ALLIED")!),
+      structuredClone(state.deployments.find(({ side }) => side === "ENEMY")!),
+    ];
+    state.deployments[1]!.status = "DESTROYED";
+    state.scenarioPolicy = {
+      policyId: "game-master-skirmish",
+      version: 1,
+      maxRounds: GAME_MASTER_SKIRMISH_MAX_ROUNDS,
+      rewardPolicyId: PUBLIC_V1_ECONOMY_POLICY_ID,
+    };
+    state.outcome = evaluateScenarioRoundEnd(state).outcome;
+    state.phase = "COMPLETE";
+
+    expect(state.outcome?.reason).toBe("ALL_SPAWNED_ENEMIES_LOST");
+    expect(parseCampaignStoredState(encodeCampaignStoredState(state), CAMPAIGN_ID)).toEqual({
+      state,
+      legacy: false,
+    });
+
+    const forgedEmptyRosterVictory = structuredClone(state);
+    forgedEmptyRosterVictory.deployments = forgedEmptyRosterVictory.deployments.filter(({ side }) => side !== "ENEMY");
+    expect(() => encodeCampaignStoredState(forgedEmptyRosterVictory)).toThrow(/spawned and fully lost Enemy force/);
+  });
+
   it("upgrades a previously stored terminal outcome with the fail-closed reward disposition", () => {
     const previousState = fixture();
     previousState.round = 21;
@@ -631,8 +667,19 @@ describe("versioned campaign Durable Object storage", () => {
     expect(() => encodeCampaignStoredState(badDuration)).toThrow(/scenarioPolicy\.maxRounds/);
 
     const badObjective = fixture();
-    badObjective.scenarioPolicy!.capturableObjectiveIds.push("objective-does-not-exist");
+    if (badObjective.scenarioPolicy?.policyId !== "HOLD_PRIMARY_OBJECTIVE") throw new Error("fixture policy drift");
+    badObjective.scenarioPolicy.capturableObjectiveIds.push("objective-does-not-exist");
     expect(() => encodeCampaignStoredState(badObjective)).toThrow(/objective does not exist/);
+
+    const badGameMasterPolicy = fixture();
+    badGameMasterPolicy.scenarioPolicy = {
+      policyId: "game-master-skirmish",
+      version: 1,
+      maxRounds: GAME_MASTER_SKIRMISH_MAX_ROUNDS,
+      rewardPolicyId: PUBLIC_V1_ECONOMY_POLICY_ID,
+    };
+    (badGameMasterPolicy.scenarioPolicy as unknown as { rewardPolicyId: string }).rewardPolicyId = "latest";
+    expect(() => encodeCampaignStoredState(badGameMasterPolicy)).toThrow(/rewardPolicyId/);
 
     const previousState = fixture();
     previousState.round = 21;

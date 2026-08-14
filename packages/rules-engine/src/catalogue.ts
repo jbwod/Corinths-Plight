@@ -13,6 +13,11 @@ import { COMPANION_ARTILLERY_CREW_DEFINITION_ID, getCompanionArtilleryCrewProfil
 import { getPowerArmouredInfantryPublicV1Class } from "./power-armoured-infantry";
 import { getPublicV1CompanionTankProfile, isCompanionTankDefinitionId } from "./companion-tanks";
 import { getMechanizedInfantryPublicV1Class, MECHANIZED_INFANTRY_DEFINITION_ID } from "./mechanized-infantry";
+import { getIrregularPublicV1Class } from "./irregular-progression";
+import { getSapperPublicV1Class } from "./sapper-construction";
+import { getSpecialForcesPublicV1Class } from "./special-forces";
+import { getCompanionMechV1Class } from "./companion-mechs";
+import { getCompanionVtolPublicV1Class, isCompanionVtolTransportDefinitionId } from "./companion-vtol-transports";
 import { getTacticalUnitClass } from "./tactical-unit-catalogue";
 
 const v5 = (section: string) => `Meta - Core Rules (V5).md — ${section}`;
@@ -452,10 +457,15 @@ export const allDefinitions: GameDefinition[] = [
 
 export function getUnitClass(id: string): UnitClassDefinition {
   if (id === "unit-power-armoured-infantry") return getPowerArmouredInfantryPublicV1Class(0);
+  if (id === "unit-irregular") return getIrregularPublicV1Class(0);
+  if (id === "unit-special-forces") return getSpecialForcesPublicV1Class(0);
+  if (id === "unit-sappers") return getSapperPublicV1Class(0);
   if (id === MECHANIZED_INFANTRY_DEFINITION_ID) return getMechanizedInfantryPublicV1Class(0);
   if (isCompanionTankDefinitionId(id)) return getPublicV1CompanionTankProfile(id, 0);
   if (id === COMPANION_ARTILLERY_CREW_DEFINITION_ID) return getCompanionArtilleryCrewProfile(0);
   if (isCompanionArtilleryDefinitionId(id)) return getPublicV1CompanionArtilleryProfile(id, 0);
+  if (isCompanionVtolTransportDefinitionId(id)) return getCompanionVtolPublicV1Class(id, 0);
+  if (id === "unit-medium-mech" || id === "unit-heavy-mech") return getCompanionMechV1Class(id, 0);
   const enemy = unitClasses.find((candidate) => candidate.id === id && candidate.kind === "enemy");
   if (enemy) return enemy;
   return getTacticalUnitClass(id);

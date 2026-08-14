@@ -10,10 +10,15 @@ import {
   type RankView,
   type ShipCapacityView,
   type ShipCargoView,
+  type CampaignLiveSummaryView,
+  type StrategicCampaignMapView,
+  type StrategicForceUnitView,
   type StrategicMapView,
   type StrategicNodeControl,
   type StrategicNodeView,
   type StrategicRouteView,
+  type StrategicPlanetView,
+  type StrategicShipPresenceView,
   type StrategicSnapshot,
 } from "./model";
 
@@ -39,6 +44,7 @@ export interface StrategicApiPayloads {
   operations: unknown;
   map: unknown;
   forces?: unknown;
+  campaignSummaries?: unknown[];
 }
 
 interface EndpointResult {
@@ -410,6 +416,7 @@ function normalizeFormation(value: unknown, kind: MapFormationView["kind"], inde
     version: asNumber(record.version, 1),
     carrierTaskForceId: identifier(record, "currentCarrierTaskForceId", "carrierTaskForceId") || undefined,
     capabilities: stringValues(record.capabilities),
+    shipIds: kind === "TASK_FORCE" ? stringValues(record.shipIds ?? record.ships) : [],
     supply: kind === "TASK_FORCE" ? {
       largeCurrent: asNullableNumber(supply.largeCurrent ?? largeSupply?.quantity),
       largeCapacity: asNullableNumber(supply.largeCapacity ?? largeSupply?.capacity),
@@ -418,7 +425,162 @@ function normalizeFormation(value: unknown, kind: MapFormationView["kind"], inde
   };
 }
 
-function normalizeMap(payload: JsonRecord): StrategicMapView {
+function normalizePlanets(payload: JsonRecord): StrategicPlanetView[] {
+  return firstArray(payload, "planets").flatMap((value): StrategicPlanetView[] => {
+    const record = asRecord(value);
+    if (!record) return [];
+    const planetId = identifier(record, "planetId", "id");
+    const locationId = identifier(record, "locationId", "strategicLocationId");
+    if (!planetId || !locationId) return [];
+    const position = asRecord(record.position);
+    return [{
+      planetId,
+      name: asString(record.name, planetId),
+      locationId,
+      strategicNodeId: identifier(record, "strategicNodeId", "nodeId") || undefined,
+      position: position && typeof position.x === "number" && typeof position.y === "number"
+        ? { x: position.x, y: position.y }
+        : undefined,
+      control: nodeControl(record.control),
+      status: normalizedStatus(record.status, "OPEN"),
+      environment: asRecord(record.environment) ?? {},
+      warState: asRecord(record.warState) ?? {},
+    }];
+  });
+}
+
+function normalizeCampaignLiveSummary(value: unknown): CampaignLiveSummaryView | undefined {
+  const record = asRecord(value);
+  if (!record) return undefined;
+  const campaignId = identifier(record, "campaignId");
+  if (!campaignId) return undefined;
+  const clock = asRecord(record.clock) ?? {};
+  const viewer = asRecord(record.viewer) ?? {};
+  const deployments = asRecord(record.deployments) ?? {};
+  const aggregate = (value: unknown): CampaignLiveSummaryView["deployments"]["allied"] => {
+    const row = asRecord(value) ?? {};
+    return {
+      visibility: normalizedStatus(row.visibility, "VISIBLE_ONLY") === "EXACT" ? "EXACT" : "VISIBLE_ONLY",
+      total: asNumber(row.total),
+      byStatus: Object.fromEntries(Object.entries(asRecord(row.byStatus) ?? {}).map(([key, count]) => [key, asNumber(count)])),
+    };
+  };
+  return {
+    campaignId,
+    campaignName: asString(record.campaignName, campaignId),
+    planetName: asString(record.planetName),
+    round: asNumber(record.round, 1),
+    phase: normalizedStatus(record.phase, "PLANNING"),
+    version: asNumber(record.version, 1),
+    clock: {
+      durationMs: asNumber(clock.durationMs),
+      roundStartedAt: asNullableNumber(clock.roundStartedAt),
+      lockAt: asNullableNumber(clock.lockAt),
+      resolvesAt: asNullableNumber(clock.resolvesAt),
+      ...(clock.pausedAt === undefined ? {} : { pausedAt: asNullableNumber(clock.pausedAt) }),
+    },
+    objectives: firstArray(record, "objectives").flatMap((item) => {
+      const objective = asRecord(item);
+      const coord = asRecord(objective?.coord);
+      if (!objective || !coord) return [];
+      return [{
+        id: identifier(objective, "id"),
+        name: asString(objective.name),
+        coord: { q: asNumber(coord.q), r: asNumber(coord.r) },
+        owner: normalizedStatus(objective.owner, "NEUTRAL"),
+        status: normalizedStatus(objective.status, "ACTIVE"),
+        description: asString(objective.description),
+      }];
+    }),
+    viewerUnits: firstArray(record, "viewerUnits").flatMap((item) => {
+      const unit = asRecord(item);
+      const position = asRecord(unit?.position);
+      if (!unit || !position) return [];
+      return [{
+        id: identifier(unit, "id"),
+        persistentUnitId: identifier(unit, "persistentUnitId") || undefined,
+        definitionId: identifier(unit, "definitionId"),
+        callsign: asString(unit.callsign),
+        status: normalizedStatus(unit.status),
+        locationState: normalizedStatus(unit.locationState, "ON_MAP"),
+        position: { q: asNumber(position.q), r: asNumber(position.r) },
+        currentHealth: asNumber(unit.currentHealth),
+        maxHealth: asNumber(unit.maxHealth),
+      }];
+    }),
+    deployments: {
+      allied: aggregate(deployments.allied),
+      enemy: aggregate(deployments.enemy),
+    },
+    viewer: {
+      userId: identifier(viewer, "userId"),
+      side: normalizedStatus(viewer.side, "ALLIED"),
+      role: normalizedStatus(viewer.role, "PLAYER"),
+      battalionId: identifier(viewer, "battalionId") || undefined,
+    },
+    serverTime: asNumber(record.serverTime),
+  };
+}
+
+function normalizeCampaigns(payload: JsonRecord, liveValues: unknown[]): StrategicCampaignMapView[] {
+  const liveById = new Map(liveValues.flatMap((value) => {
+    const live = normalizeCampaignLiveSummary(value);
+    return live ? [[live.campaignId, live] as const] : [];
+  }));
+  return firstArray(payload, "campaigns").flatMap((value): StrategicCampaignMapView[] => {
+    const record = asRecord(value);
+    if (!record) return [];
+    const campaignId = identifier(record, "campaignId", "id");
+    const status = normalizedStatus(record.status);
+    if (!campaignId || (status !== "RECRUITING" && status !== "ACTIVE" && status !== "PAUSED")) return [];
+    const strategicStatus = normalizedStatus(record.strategicStatus);
+    if (strategicStatus !== "MUSTERING" && strategicStatus !== "ACTIVE") return [];
+    const membership = asRecord(record.viewerMembership) ?? {};
+    return [{
+      campaignId,
+      name: asString(record.name, campaignId),
+      status,
+      strategicStatus,
+      planetId: identifier(record, "planetId"),
+      planetName: asString(record.planetName),
+      planetLocationId: identifier(record, "planetLocationId"),
+      strategicNodeId: identifier(record, "strategicNodeId"),
+      operationId: identifier(record, "operationId") || undefined,
+      memberCount: asNumber(record.memberCount),
+      viewerDeploymentCount: asNumber(record.viewerDeploymentCount),
+      canEnter: record.canEnter === true,
+      viewerMembership: {
+        side: normalizedStatus(membership.side, "ALLIED"),
+        role: normalizedStatus(membership.role, "PLAYER"),
+        battalionId: identifier(membership, "battalionId") || undefined,
+      },
+      live: liveById.get(campaignId),
+    }];
+  });
+}
+
+function normalizeShipPresence(payload: JsonRecord): StrategicShipPresenceView[] {
+  return firstArray(payload, "shipPresence").flatMap((value): StrategicShipPresenceView[] => {
+    const record = asRecord(value);
+    if (!record) return [];
+    const shipId = identifier(record, "shipId", "id");
+    const taskForceId = identifier(record, "taskForceId");
+    if (!shipId || !taskForceId) return [];
+    return [{
+      shipId,
+      name: asString(record.name, shipId),
+      registry: typeof record.registry === "string" ? record.registry : null,
+      classDefinitionId: identifier(record, "classDefinitionId"),
+      className: asString(record.className),
+      status: normalizedStatus(record.status),
+      taskForceId,
+      nodeId: identifier(record, "nodeId", "currentNodeId") || undefined,
+      primary: record.primary === true,
+    }];
+  });
+}
+
+function normalizeMap(payload: JsonRecord, campaignSummaries: unknown[] = []): StrategicMapView {
   const map = firstRecord(payload, "map");
   const nodes = normalizeNodes(payload);
   const taskForces = firstArray(payload, "taskForces").map((value, index) => normalizeFormation(value, "TASK_FORCE", index)).filter((value): value is MapFormationView => Boolean(value));
@@ -440,6 +602,9 @@ function normalizeMap(payload: JsonRecord): StrategicMapView {
     nodes,
     routes: normalizeRoutes(payload),
     formations: [...taskForces, ...battlegroups],
+    planets: normalizePlanets(payload),
+    campaigns: normalizeCampaigns(payload, campaignSummaries),
+    shipPresence: normalizeShipPresence(payload),
     viewerPermissions: stringValues(payload.viewerPermissions),
   };
 }
@@ -465,7 +630,7 @@ export function normalizeStrategicPayloads(payloads: StrategicApiPayloads): Stra
   const taskForce = firstRecord(shipPayload, "taskForce");
   const supply = firstRecord(shipPayload, "supply");
   const slots = firstRecord(ship, "slots");
-  const map = normalizeMap(mapPayload);
+  const map = normalizeMap(mapPayload, payloads.campaignSummaries ?? []);
   const permissions = stringValues(battalionPayload.permissions ?? activeBattalion.permissions);
   const modules = normalizeModules(shipPayload);
   const capabilities = stringValues(shipPayload.capabilities ?? ship.capabilities);
@@ -535,6 +700,38 @@ export function normalizeStrategicPayloads(payloads: StrategicApiPayloads): Stra
     const record = asRecord(value);
     return record ? [record] : [];
   });
+  const forceUnits: StrategicForceUnitView[] = forceRecords.map((record, index) => {
+    const readiness = firstRecord(record, "readiness");
+    const issueMessages = (value: unknown): string[] => asArray(value).flatMap((issue) => {
+      const item = asRecord(issue);
+      const message = asString(item?.message);
+      return message ? [message] : [];
+    });
+    return {
+      unitId: identifier(record, "unitId", "id") || `force-${index + 1}`,
+      definitionId: identifier(record, "definitionId"),
+      definitionName: asString(record.definitionName, asString(record.className, readableIdentifier(asString(record.definitionId, "Unit")))),
+      callsign: asString(record.callsign, "UNNAMED"),
+      name: asString(record.name, asString(record.callsign, "Unnamed unit")),
+      category: normalizedStatus(record.category, "UNKNOWN"),
+      status: normalizedStatus(record.status, "ACTIVE"),
+      locationState: normalizedStatus(record.locationState, "RESERVE"),
+      currentHealth: asNumber(record.currentHealth),
+      maximumHealth: asNumber(record.maximumHealth),
+      healthModel: normalizedStatus(record.healthModel, "HITS"),
+      version: asNumber(record.version, 1),
+      readiness: {
+        ready: readiness.ready === true,
+        blockers: issueMessages(readiness.blockers),
+        warnings: issueMessages(readiness.warnings),
+      },
+      battlegroups: asArray(record.battlegroups).flatMap((value) => {
+        const group = asRecord(value);
+        const id = identifier(group ?? {}, "id", "battlegroupId");
+        return group && id ? [{ id, name: asString(group.name, id) }] : [];
+      }),
+    };
+  });
   const forceStatus = (record: JsonRecord) => normalizedStatus(record.status, "ACTIVE");
   const forceLocation = (record: JsonRecord) => normalizedStatus(record.locationState, "RESERVE");
   const forceTotalsFromRegistry = {
@@ -596,6 +793,7 @@ export function normalizeStrategicPayloads(payloads: StrategicApiPayloads): Stra
       available: asNumber(forceTotals.available, forceTotalsFromRegistry.available),
       lost: asNumber(forceTotals.lost, forceTotalsFromRegistry.lost),
     },
+    forceUnits,
     battalion: {
       id: identifier(activeBattalion, "id", "battalionId") || "active-battalion",
       name: asString(activeBattalion.name, "Active Battalion"),
@@ -616,6 +814,7 @@ export function normalizeStrategicPayloads(payloads: StrategicApiPayloads): Stra
     ship: {
       id: identifier(ship, "id", "shipId") || identifier(primaryShip, "id", "shipId") || "primary-ship",
       name: asString(ship.name, asString(primaryShip.name, "Primary Battalion ship")),
+      classDefinitionId: identifier(ship, "classDefinitionId") || identifier(primaryShip, "classDefinitionId"),
       className: asString(ship.className, asString(ship.class, asString(primaryShip.className, "Class unavailable"))),
       registry: asString(ship.registry, asString(ship.callsign, "Registry unavailable")),
       location: nodeById.get(shipNodeId)?.name ?? asString(ship.locationName, asString(firstRecord(ship, "location").name, asString(primaryShip.location, shipNodeId || "Location unavailable"))),
@@ -651,6 +850,7 @@ export function normalizeStrategicPayloads(payloads: StrategicApiPayloads): Stra
       taskForce: {
         id: identifier(taskForce, "id", "taskForceId") || "primary-task-force",
         name: asString(taskForce.name, "Primary Task Force"),
+        shipIds: stringValues(taskForce.shipIds ?? taskForce.ships),
         status: normalizedStatus(taskForce.status, "UNKNOWN"),
         location: nodeById.get(taskForceNodeId)?.name ?? asString(taskForce.locationName, asString(firstRecord(taskForce, "location").name, taskForceNodeId || "Location unavailable")),
         intention: asString(taskForce.intention, asString(taskForce.currentIntention)) || undefined,
@@ -686,6 +886,16 @@ function mapIdFromCommand(payload: unknown): string {
   return identifier(strategic, "mapId", "currentMapId") || FALLBACK_MAP_ID;
 }
 
+function liveCampaignIdsFromMap(payload: unknown): string[] {
+  const map = asRecord(payload) ?? {};
+  return [...new Set(firstArray(map, "campaigns").flatMap((value) => {
+    const campaign = asRecord(value);
+    const id = identifier(campaign ?? {}, "campaignId", "id");
+    const status = normalizedStatus(campaign?.status);
+    return id && ["RECRUITING", "ACTIVE", "PAUSED"].includes(status) ? [id] : [];
+  }))];
+}
+
 export async function loadStrategicSnapshot(): Promise<StrategicLoadResult> {
   const [command, battalion, members, activity, ship, operations, forces] = await Promise.all([
     endpoint("/api/command"),
@@ -699,8 +909,15 @@ export async function loadStrategicSnapshot(): Promise<StrategicLoadResult> {
 
   const mapId = mapIdFromCommand(command.payload);
   const map = await endpoint(`/api/strategic/maps/${encodeURIComponent(mapId)}`);
+  const campaignSummaryResults = await Promise.all(
+    liveCampaignIdsFromMap(map.payload).map((campaignId) =>
+      endpoint(`/api/campaigns/${encodeURIComponent(campaignId)}/summary`)),
+  );
+  const campaignSummaries = campaignSummaryResults.flatMap((result) => result.ok ? [result.payload] : []);
   const results = [command, battalion, members, activity, ship, operations, map, forces];
-  const issues = results.filter((result) => !result.ok).flatMap((result) => result.message ? [result.message] : []);
+  const issues = [...results, ...campaignSummaryResults]
+    .filter((result) => !result.ok)
+    .flatMap((result) => result.message ? [result.message] : []);
   if (results.some((result) => result.status === 401)) {
     return { mode: "AUTH_REQUIRED", snapshot: SHOWCASE_STRATEGIC_SNAPSHOT, issues };
   }
@@ -718,6 +935,7 @@ export async function loadStrategicSnapshot(): Promise<StrategicLoadResult> {
         operations: {},
         map: {},
         forces: payloadOrEmpty(forces),
+        campaignSummaries: [],
       }),
       issues,
     };
@@ -744,6 +962,7 @@ export async function loadStrategicSnapshot(): Promise<StrategicLoadResult> {
       operations: payloadOrEmpty(operations),
       map: payloadOrEmpty(map),
       forces: payloadOrEmpty(forces),
+      campaignSummaries,
     }),
     issues,
   };

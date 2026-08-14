@@ -30,6 +30,7 @@ export interface CampaignOperationNoteDto {
 
 export * from "./json-contract";
 export * from "./economy-policy";
+export * from "./game-master-recovery-policy";
 export * from "./rules-catalogue-contract";
 export * from "./governed-cargo";
 export * from "./governed-supply";
@@ -1022,7 +1023,24 @@ export interface CampaignScenarioPolicyV1 {
   capturableObjectiveIds: string[];
 }
 
-export type CampaignScenarioPolicy = CampaignScenarioPolicyV1;
+export const GAME_MASTER_SKIRMISH_POLICY_KEY = "game-master-skirmish@1" as const;
+export const GAME_MASTER_SKIRMISH_MAX_ROUNDS = 12 as const;
+
+/**
+ * Version 1 is the bounded terminal policy for a Game Master-authored
+ * skirmish. Enemy presence is derived from the persisted deployment history,
+ * so an empty starting roster cannot be mistaken for a victory.
+ */
+export interface GameMasterSkirmishScenarioPolicyV1 {
+  policyId: "game-master-skirmish";
+  version: 1;
+  maxRounds: typeof GAME_MASTER_SKIRMISH_MAX_ROUNDS;
+  rewardPolicyId: "public-v1-economy@1";
+}
+
+export type CampaignScenarioPolicy =
+  | CampaignScenarioPolicyV1
+  | GameMasterSkirmishScenarioPolicyV1;
 
 export interface CampaignReinforcementWave {
   id: string;
@@ -1033,6 +1051,8 @@ export interface CampaignReinforcementWave {
 
 export type CampaignOutcomeReason =
   | "ALL_ALLIED_DEPLOYMENTS_LOST"
+  | "ALL_SPAWNED_ENEMIES_LOST"
+  | "GAME_MASTER_SKIRMISH_ROUND_LIMIT_REACHED"
   | "PRIMARY_OBJECTIVE_LOST"
   | "FINAL_ROUND_PRIMARY_HELD"
   | "FINAL_ROUND_CONDITIONS_NOT_MET";
@@ -1146,6 +1166,7 @@ export type GameMasterCapability =
   | "CAMPAIGN_CREATE"
   | "MAP_WRITE"
   | "OBJECTIVE_WRITE"
+  | "DEPLOYMENT_REVIVE"
   | "ENEMY_SPAWN"
   | "AUDIT_READ";
 
@@ -1191,6 +1212,54 @@ export interface CampaignView extends Omit<CampaignRuntimeState, "resolutions" |
   viewer: ViewerContext;
   serverTime: number;
   connectionToken?: string;
+}
+
+/** Fog-safe, navigation-sized projection of a live tactical campaign. */
+export interface CampaignSummaryObjectiveDto {
+  id: string;
+  name: string;
+  coord: AxialCoord;
+  owner: FactionSide;
+  status: ObjectiveState["status"];
+  description: string;
+}
+
+/** Only emitted for a deployment owned by the authenticated viewer. */
+export interface CampaignSummaryUnitDto {
+  id: string;
+  persistentUnitId?: string;
+  definitionId: string;
+  callsign: string;
+  status: DeploymentStatus;
+  locationState: UnitLocationState;
+  position: AxialCoord;
+  currentHealth: number;
+  maxHealth: number;
+}
+
+export interface CampaignDeploymentAggregateDto {
+  visibility: "EXACT" | "VISIBLE_ONLY";
+  total: number;
+  byStatus: Record<DeploymentStatus, number>;
+}
+
+export interface CampaignSummaryDto {
+  campaignId: string;
+  campaignName: string;
+  planetName: string;
+  rulesetVersion: string;
+  round: number;
+  phase: CampaignPhase;
+  version: number;
+  clock: Pick<CampaignClock, "durationMs" | "roundStartedAt" | "lockAt" | "resolvesAt" | "pausedAt">;
+  objectives: CampaignSummaryObjectiveDto[];
+  viewerUnits: CampaignSummaryUnitDto[];
+  deployments: {
+    allied: CampaignDeploymentAggregateDto;
+    enemy: CampaignDeploymentAggregateDto;
+  };
+  viewer: ViewerContext;
+  serverTime: number;
 }
 
 export interface PersistentUnitIdentity {
@@ -2124,8 +2193,58 @@ export interface StrategicMapProjectionDto {
   taskForces: TaskForceSummaryDto[];
   battlegroups: BattlegroupSummaryDto[];
   operations: OperationSummaryDto[];
+  planets: StrategicPlanetSummaryDto[];
+  campaigns: StrategicCampaignMapSummaryDto[];
+  shipPresence: StrategicShipPresenceDto[];
   viewerPermissions: BattalionPermission[];
   serverTime: number;
+}
+
+/** Public/system-map representation of a planet rooted in the current map. */
+export interface StrategicPlanetSummaryDto {
+  planetId: string;
+  name: string;
+  locationId: string;
+  strategicNodeId?: string | null;
+  position?: { x: number; y: number } | null;
+  control: StrategicNodeControl;
+  status: StrategicNodeDto["status"];
+  environment: Record<string, unknown>;
+  warState: Record<string, unknown>;
+}
+
+/** A joined, non-terminal campaign visible on the live strategic map. */
+export interface StrategicCampaignMapSummaryDto {
+  campaignId: string;
+  name: string;
+  status: "RECRUITING" | "ACTIVE" | "PAUSED";
+  strategicStatus: "MUSTERING" | "ACTIVE";
+  planetId: string;
+  planetName: string;
+  planetLocationId: string;
+  strategicNodeId: string;
+  operationId?: string | null;
+  memberCount: number;
+  viewerDeploymentCount: number;
+  canEnter: boolean;
+  viewerMembership: {
+    side: FactionSide;
+    role: "PLAYER" | "BATTALION_COMMAND" | "GM" | "OBSERVER";
+    battalionId?: string | null;
+  };
+}
+
+/** Exact same-Battalion ship presence; never includes another Battalion's private fleet data. */
+export interface StrategicShipPresenceDto {
+  shipId: string;
+  name: string;
+  registry: string | null;
+  classDefinitionId: string;
+  className: string;
+  status: ShipStatus;
+  taskForceId: string;
+  nodeId?: string | null;
+  primary: boolean;
 }
 
 export type StrategicDeploymentMethod =

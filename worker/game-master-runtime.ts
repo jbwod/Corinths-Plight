@@ -1,4 +1,6 @@
 import {
+  GAME_MASTER_SKIRMISH_MAX_ROUNDS,
+  PUBLIC_V1_ECONOMY_POLICY_ID,
   RULESET_VERSION,
   type BattlefieldHex,
   type CampaignDeployment,
@@ -14,7 +16,7 @@ import {
   materializeAdminMapBattlefield,
   type AdminMapDocumentV1,
 } from "../packages/rules-engine/src";
-export const GAME_MASTER_SCENARIO_VERSION = 1 as const;
+export const GAME_MASTER_SCENARIO_VERSION = 2 as const;
 
 export interface GameMasterAuthoredEnemyDeployment {
   id: string;
@@ -33,7 +35,7 @@ export function gameMasterScenarioContentKey(campaignId: string): string {
 }
 
 export function isGameMasterScenarioContentKey(value: string | null | undefined): boolean {
-  return typeof value === "string" && /^scenario-gm-campaign-[a-f0-9]{32}@1$/.test(value);
+  return typeof value === "string" && /^scenario-gm-campaign-[a-f0-9]{32}@2$/.test(value);
 }
 
 export class GameMasterRuntimeValidationError extends Error {
@@ -213,6 +215,12 @@ export function materializeGameMasterCampaignState(input: {
     ],
     orders: [],
     objectives,
+    scenarioPolicy: {
+      policyId: "game-master-skirmish",
+      version: 1,
+      maxRounds: GAME_MASTER_SKIRMISH_MAX_ROUNDS,
+      rewardPolicyId: PUBLIC_V1_ECONOMY_POLICY_ID,
+    },
     reinforcementWaves: [],
     events: [{
       eventId: `${input.campaignId}:1:0001:ROUND_STARTED`,

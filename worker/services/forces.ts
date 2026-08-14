@@ -14,7 +14,7 @@ import type {
   UnitClassDefinition,
   UnitStatus,
 } from "../../packages/domain/src";
-import { getTacticalUnitClass, IRREGULAR_PROGRESSION_TRACKS } from "../../packages/rules-engine/src";
+import { getUnitClass, IRREGULAR_PROGRESSION_TRACKS } from "../../packages/rules-engine/src";
 import {
   V5_CORE_CURATED_2_CONTENT_HASH,
   V5_CORE_CURATED_2_RULESET_VERSION,
@@ -132,7 +132,7 @@ export function readinessFor(
     });
   }
 
-  const executable = row.executable === 1 && row.implementation_status !== "CATALOGUE_ONLY";
+  const executable = row.executable === 1 && row.implementation_status === "IMPLEMENTED";
   requirements.push({ id: "definition-executable", label: "Rules definition is executable", satisfied: executable });
   if (!executable) {
     blockers.push({
@@ -860,7 +860,7 @@ function catalogueItem(
   const durabilityRules = parseJson<Record<string, unknown>>(row.durability_definition_json, {});
   let governed: UnitClassDefinition | null = null;
   try {
-    governed = getTacticalUnitClass(row.id);
+    governed = getUnitClass(row.id);
   } catch {
     // Non-executable catalogue rows remain visible as D1-backed reference data.
   }
@@ -873,8 +873,8 @@ function catalogueItem(
     implementationStatus: row.implementation_status ?? "CATALOGUE_ONLY",
     requisitionStatus: row.requisition_status ?? "NOT_APPLICABLE",
     availabilityStatus: row.availability_status ?? "HIDDEN",
-    executable: row.executable === 1 && governed !== null,
-    purchasable: row.purchasable === 1,
+    executable: row.executable === 1 && row.implementation_status === "IMPLEMENTED" && governed !== null,
+    purchasable: isImplementedUnitDefinition(row),
     reasonCode: row.reason_code,
     requisitionCost: row.requisition_cost,
     durability: {
@@ -1043,6 +1043,25 @@ export async function getRequisition(env: Env, ownerId: string): Promise<unknown
     getRequisitionLedger(env.DB, ownerId),
   ]);
   return { balance, ledger };
+}
+
+export function isImplementedUnitDefinition(
+  definition: Pick<
+    CatalogueUnitRow,
+    | "implementation_status"
+    | "executable"
+    | "purchasable"
+    | "availability_status"
+    | "requisition_status"
+    | "requisition_cost"
+  >,
+): boolean {
+  return definition.implementation_status === "IMPLEMENTED" &&
+    definition.executable === 1 &&
+    definition.purchasable === 1 &&
+    definition.availability_status === "AVAILABLE" &&
+    definition.requisition_status === "PUBLISHED" &&
+    definition.requisition_cost !== null;
 }
 
 function replayReceipt(
@@ -1235,13 +1254,7 @@ export async function purchaseForce(
   const definition = await getPurchasableDefinition(env.DB, command.definitionId);
   if (!definition) throw new ForceServiceError(404, "DEFINITION_NOT_FOUND", "Unit definition was not found.");
 
-  const normallyPurchasable =
-    definition.implementation_status !== "CATALOGUE_ONLY" &&
-    definition.executable === 1 &&
-    definition.purchasable === 1 &&
-    definition.availability_status === "AVAILABLE" &&
-    definition.requisition_status === "PUBLISHED" &&
-    definition.requisition_cost !== null;
+  const normallyPurchasable = isImplementedUnitDefinition(definition);
   if (!normallyPurchasable) {
     throw new ForceServiceError(422, "DEFINITION_NOT_PURCHASABLE", "This class cannot be requisitioned in the active profile.", {
       implementationStatus: definition.implementation_status,

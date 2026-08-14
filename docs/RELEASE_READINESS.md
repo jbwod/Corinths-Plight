@@ -10,16 +10,18 @@
 
 This is the live release checklist. A checked local build item is not permission to deploy and is not evidence of a complete player workflow. Production migrations, seed changes, deployment, external email/messages, push, and irreversible data operations require explicit authorization for the specific release operation.
 
+The owner has separately authorized a private production game-test operation and has explicitly waived preview plus a pre-deployment backup as gates for that operation. This does not change the public-release decision, satisfy recovery evidence, or authorize public invitations. The test-ready product claim is limited to authenticated account/onboarding, Battalion and force management, deployment, tactical campaigns/reports/recovery, and explicitly granted Game Master authoring. Strategic Command/Galactic and Ship are outside that production game-test scope and must not be presented there as ready gameplay.
+
 ## Current release blockers
 
 | Blocker | Status | Evidence / exit condition |
 |---|---:|---|
 | Split D1/compiled/adaptor rules truth | partial P0 | CP-200's generated `@2` catalogue now materializes playable starter/Force/unit/weapon/action/order data through tactical resolution; CP-201 preserves D1 profile/status/link data and fails closed before unsupported classes execute. D1 still carries legacy `@1` relational/FK identity and lacks immutable `@2` publication. |
 | Conflict provenance mismatch | open P0 | D1 has 12 obsolete conflict IDs instead of the 72-record canonical register. |
-| No production world/campaign content | open P0 | Production seeds create zero campaigns, insertion zones, strategic maps/nodes and ships. |
-| Demo/showcase/hard-coded production client paths | open P0 | App, Forces, Deployment and Strategic surfaces use fixed IDs or local fallback data. |
-| Strategic order and resolution `501` | open P0 when advertised | `POST /api/strategic/orders`; Strategic Map DO `/resolve`. |
-| Tactical next-round/effect acknowledgement ordering | open P0 | Next PLANNING state is committed before D1 effect ACK. |
+| No recorded production game-test content | open P0 | A local production-safe K-17 campaign/insertion seed exists, but the recorded `0007` deployment has no newly verified game-test content or current smoke evidence; the wider strategic world remains development-only. |
+| Production client truth boundary | partial P0 | Demo identities/default campaign IDs and showcase fallback are development-only. Production Forces, Strategic, and tactical campaign loading fail closed without substituting local state; authenticated browser evidence and removal/hardening of retained in-memory development fixtures remain open. Strategic Galactic/Ship surfaces are outside the private production game-test scope and must remain unadvertised there. |
+| Strategic product boundary | partial P0 when advertised | Supported strategic orders and approval-gated resolution execute locally; unresolved movement timing/intent families, PREPARED/cryptographic recovery, production world publication, and separate acceptance evidence remain open. |
+| Tactical persistent-effect journal | partial P0 | Supported effects now acknowledge before the next planning round opens and retry through stable receipts. PREPARED/input-output hashing, protected seeds, payload-collision detection, attempt diagnostics, full effect coverage, and crash-injection evidence remain open. |
 | WebSocket/report fog | partial P0 security | Socket invalidations are viewer-specific, identifier-free and provide bounded projected catch-up; reports still use current-time rather than event-time visibility. |
 | Runtime schema/fail-closed authoritative JSON | partial P0 | Campaign order/clock intents and v1 current/snapshot state validate and fail closed. The five authored scenarios now require an exact immutable content key and reject unpinned, unavailable, or stored-state-mismatched campaigns; remaining routes, DTOs, rules and stored documents are not comprehensively versioned. |
 | Preview environment | blocked P0 | Preview D1 is a placeholder and has no deploy/migrate/smoke proof. |
@@ -29,7 +31,7 @@ This is the live release checklist. A checked local build item is not permission
 | Browser E2E/accessibility/performance/security suites | partial P0 | Twenty local Playwright journeys and CI evidence retention exist; no production-like multi-user scenario, Axe/manual accessibility, performance or load proof. |
 | Privacy/terms/support/security/data-rights/asset licensing | blocked P0 | Owner/legal decisions and per-asset evidence absent. |
 | Unresolved Req/travel/slots/cargo/ship rules | decision blockers | See `RULE_DECISIONS_REQUIRED.md`; unavailable values must remain blocked. |
-| Game Master/map publication completion | partial P1 / release-sensitive | Global-grant-scoped live controls, five deterministic `@2` presets, complete biome/feature mechanics, immutable publication, and exact-pinned recruiting custom-campaign bootstrap are audited locally. Revive, custom victory/reward closure, grant administration/MFA, rate/alert policy, early-rejection auditing, cross-store diagnostics, production migration, and preview evidence remain blocked. |
+| Game Master/map publication completion | partial P1 / release-sensitive | Global-grant-scoped live controls, exact `game-master-recovery@1` exceptional correction, five deterministic `@2` presets, complete biome/feature mechanics, immutable publication, exact-pinned recruiting custom-campaign bootstrap, and the bounded `game-master-skirmish@1` terminal/reward policy are audited locally. Standalone-custom strategic placement/recovery, grant administration/MFA, rate/alert policy, early-rejection auditing, cross-store diagnostics, and recorded production evidence remain blocked. |
 
 ## Current local command evidence
 
@@ -38,13 +40,13 @@ This is the live release checklist. A checked local build item is not permission
 | `npm run seed:check` | macOS local, Node project toolchain | PASS | 49 definitions; 43 active; 225 SQL definitions; 13 canonical and 16 Phase-2 allied classes; 7 enemy roles; 4 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
 | `npm run typecheck` | local | PASS | TypeScript 6.0.3. |
 | `npm run lint` | local | PASS | ESLint 10.8.1. |
-| `npm test` | local | PASS | Vitest 4.1.10; 105 files / 834 tests. |
+| `npm test` | local | PASS | Vitest 4.1.10; 106 files / 849 tests. |
 | `npm run build` | local development config | PASS | Worker 2,053.02 kB; client JS 1,920.16 kB; CSS 218.38 kB. The explicit manifest bundles 29 active tactical sheets (7.77 MiB); only the QA-passed light-v3, medium-v4 and heavy-v3 mech revisions enter the client. The post-build hash verifier confirms inactive revisions and chroma sources are absent. Wrangler emitted only its known sandboxed debug-log warning. Bundle/performance budgets remain open under CP-802. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
-| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0021 applied; all nine seeds replay twice across 130 application tables with integrity/FK clean. |
+| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0022 applied; all nine seeds replay twice across 130 application tables with integrity/FK clean. |
 | Nine seeds, twice | same isolated D1 | PASS | Core, Phase 2, companion classes, equipment, Store, onboarding and three development fixtures replayed twice. |
 | SQLite integrity | isolated D1 database | PASS | `integrity_check=ok`; `foreign_key_check` empty. |
-| `npm run ci:verify:d1` | isolated local D1 | PASS | Twenty-one migrations; nine seeds twice; stable table fingerprints/counts; 130 checked application tables. |
+| `npm run ci:verify:d1` | isolated local D1 | PASS | Twenty-two migrations; nine seeds twice; stable table fingerprints/counts; 130 checked application tables. |
 | `npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 20/20 journeys pass: public auth, Battalion/ship/force persistence, exact Game Master map publication/bootstrap, strategic deployment, persisted scenario V3/311-hex tactical play, four-round outcome/replay, forged-action rejection, keyboard traversal/selection, and 390px overflow. |
 | `git diff --check` | local Phase-1 tree | PASS | No whitespace errors at final gate. |
 | `npm audit --audit-level=high` | npm advisory service | PASS | Zero known vulnerabilities at assessment time; the result is time-sensitive. |
@@ -99,6 +101,7 @@ The workflow is a Phase-0 baseline, not a complete release pipeline. Official ac
 | 0019 | `0019_game_master_authority.sql` | Explicit global grants, campaign command receipts, and private audit; no default production grant | local pass; not deployed |
 | 0020 | `0020_game_master_maps.sql` | Versioned map drafts/revisions/publication, authoring receipts/audit, and exact published custom-campaign pins | local pass; not deployed |
 | 0021 | `0021_game_master_campaign_runtime.sql` | Immutable custom-scenario bootstrap bound to one exact published map revision and hash | local pass; not deployed |
+| 0022 | `0022_game_master_skirmish_policy.sql` | Legacy custom `@1` preservation plus exact version-2 `game-master-skirmish@1`, round-12, and `public-v1-economy@1` pins | local pass; not deployed |
 
 ### Production-approved seed families
 
@@ -172,7 +175,7 @@ No external state was changed during this Phase-0 assessment.
 | Own/configure/embark ship | partial/playable local | An authorized Battalion member can edit an existing primary ship's name/registry with revision, receipt and history guarantees; acquisition/modules remain CP-300/DEC-010 and embark breadth remains CP-301. |
 | Submit/resolve strategic travel and operation deployment | local partial | Movement, Embark/Disembark, support and `DEPLOY_TO_CAMPAIGN` resolve through the map coordinator; production world publication and full crash-safe journal remain CP-302–CP-304/DEC-005. |
 | Choose operation and create scenario campaign | partial | K-17 and local Iron Rain are authored and deployable through the live campaign/planner surfaces; strategic order-to-deployment automation and a production content pack remain CP-601/DEC-020. |
-| Administer campaigns and author maps | local partial | An explicitly granted Game Master can inspect live campaigns, adjust clocks, pause/resume/resolve, change objectives, spawn governed enemies, edit/save/reopen/export/publish deterministic maps, and create an exact-pinned recruiting campaign that uses normal join/deployment/DO initialization. Revive and versioned custom victory/reward closure remain open (CP-405/CP-400/CP-500). |
+| Administer campaigns and author maps | local partial | An explicitly granted Game Master can inspect live campaigns, adjust clocks, pause/resume/resolve, change objectives, spawn governed enemies, apply the server-authored `game-master-recovery@1` correction to a legal destroyed deployment while paused from planning, edit/save/reopen/export/publish deterministic maps, and create an exact-pinned recruiting campaign that uses normal join/deployment/DO initialization. New custom `@2` content uses the bounded skirmish closure and published Req policy. Recovery remains an exceptional non-V5 admin correction; standalone-custom strategic placement/recovery remains open (CP-405/CP-400/CP-603). |
 | Submit/edit/cancel/schedule tactical orders | partial | Current-round generated orders support submit, edit and two-step cancel through actor-scoped hashed receipts and optimistic campaign/order revisions. Cancellation emits an Allied event and supports replacement before lock. Future scheduling remains intentionally unavailable pending reliable semantics. |
 | Resolve deterministic PvE combined arms | narrow partial | CP-500–CP-507 |
 | Persist effects before next round | narrow pass | Supported tactical effects hold `EFFECTS_PENDING` and acknowledge before one next round; broaden under CP-402. |
@@ -216,4 +219,4 @@ All 14 steps in `GAME_COMPLETION_GOAL.md` remain unproven as one preview run. Ev
 4. Provision preview only with explicit Cloudflare authorization.
 5. Deliver the Phase-1 preview identity/operations gate before inviting additional users.
 
-Production deployment is not the next safe action. The next safe external action is a reviewed Phase-0 commit/push followed by a CI run; push still requires explicit authorization under the completion goal.
+This checklist still forbids describing the build as a public release. For the separately authorized private game-test operation, the permitted external sequence is authenticated remote inventory, guarded dry-run, exact pending-migration review, production-safe seed review, migrate/seed/deploy, and read-only smoke evidence. The owner has waived preview and a pre-deployment backup only for that operation; all other release controls remain open.

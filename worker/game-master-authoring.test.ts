@@ -27,6 +27,9 @@ class FakeStatement {
     if (this.query.includes("FROM game_master_authoring_receipts")) {
       return (this.database.receipts.get(`${this.bindings[0]}:${this.bindings[1]}`) ?? null) as T | null;
     }
+    if (this.query.includes("JOIN strategic_nodes AS nodes") && this.query.includes("JOIN strategic_maps AS maps")) {
+      return this.database.strategicAnchor as T | null;
+    }
     if (this.query.includes("FROM planets WHERE id=")) {
       return (this.database.planet ?? null) as T | null;
     }
@@ -72,7 +75,19 @@ class FakeDatabase {
   maps: Record<string, unknown>[] = [];
   existingMap: Record<string, unknown> | null = null;
   campaignMap: Record<string, unknown> | null = null;
-  planet: Record<string, unknown> | null = { id: "planet-corinth", name: "Corinth" };
+  planet: Record<string, unknown> | null = {
+    id: "planet-corinth",
+    name: "Corinth",
+    strategic_location_id: "location-corinth",
+  };
+  strategicAnchor: Record<string, unknown> | null = {
+    map_id: "strategic-map-corinth",
+    map_revision: 1,
+    ruleset_id: "ruleset-v5-core-curated-1",
+    planet_location_id: "location-corinth",
+    planet_node_id: "node-corinth",
+    planet_position_json: '{"x":50,"y":50}',
+  };
   reservationBatchCount = 0;
   afterReservation?: (count: number) => Promise<void>;
 
@@ -375,6 +390,10 @@ describe("Game Master map and campaign authoring", () => {
         canJoin: true,
         canEnter: false,
         runtimeStatus: "READY_FOR_DEPLOYMENT",
+        strategicMapId: "strategic-map-corinth",
+        strategicNodeId: expect.stringMatching(/^node-gm-campaign-/),
+        strategicOperationId: expect.stringMatching(/^operation-gm-campaign-/),
+        strategicPosition: { x: expect.any(Number), y: expect.any(Number) },
         insertionZones: [{
           allowedMethods: ["STANDARD_GROUND"],
           coord: expect.any(Object),
@@ -383,9 +402,56 @@ describe("Game Master map and campaign authoring", () => {
     });
     const campaignInsert = database.batches.flat().find((statement) => statement.query.includes("INSERT INTO campaigns"));
     expect(campaignInsert?.query).toContain("'RECRUITING'");
-    expect(database.batches.flat().some((statement) => statement.query.includes("game_master_campaign_scenarios"))).toBe(true);
+    const scenarioInsert = database.batches.flat().find((statement) =>
+      statement.query.includes("INSERT INTO game_master_campaign_scenarios"));
+    expect(scenarioInsert?.bindings).toEqual(expect.arrayContaining([
+      2,
+      "game-master-skirmish@1",
+      12,
+      "public-v1-economy@1",
+    ]));
     expect(database.batches.flat().some((statement) => statement.query.includes("campaign_insertion_zones"))).toBe(true);
     expect(database.batches.flat().some((statement) => statement.query.includes("campaign_memberships"))).toBe(true);
+    expect(database.batches.flat().some((statement) =>
+      statement.query.includes("INSERT INTO strategic_content_sources") && statement.query.includes("'ADMIN_AUTHORED'"),
+    )).toBe(true);
+    expect(database.batches.flat().some((statement) =>
+      statement.query.includes("INSERT INTO strategic_nodes") && statement.query.includes("'CAMPAIGN'"),
+    )).toBe(true);
+    expect(database.batches.flat().some((statement) =>
+      statement.query.includes("INSERT INTO strategic_operations") &&
+      statement.query.includes("'MUSTERING','UNKNOWN','[]'"),
+    )).toBe(true);
+  });
+
+  it("fails closed when the selected planet has no active strategic map anchor", async () => {
+    const database = new FakeDatabase();
+    const row = mapRow();
+    database.strategicAnchor = null;
+    database.campaignMap = {
+      id: "gm-map-existing",
+      planet_id: "planet-corinth",
+      status: "PUBLISHED",
+      revision: 1,
+      content_hash: row.content_hash,
+      document_json: row.document_json,
+      revision_id: "gm-map-existing@1",
+      revision_content_hash: row.content_hash,
+    };
+
+    const response = await routeGameMasterAuthoringRequest(post("/api/game-master/campaigns", {
+      commandId: "gm-campaign-no-strategic-map",
+      name: "Operation Unanchored",
+      planetId: "planet-corinth",
+      mapId: "gm-map-existing",
+      mapRevision: 1,
+      mapContentHash: row.content_hash,
+      roundDurationMs: 300_000,
+    }), env(database), actor);
+
+    expect(response?.status).toBe(409);
+    expect(await response?.json()).toMatchObject({ error: { code: "ACTIVE_STRATEGIC_MAP_REQUIRED" } });
+    expect(database.receipts.size).toBe(0);
   });
 
   it("rejects draft, stale, or hash-drifted maps before reserving a campaign command", async () => {

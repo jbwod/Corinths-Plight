@@ -1,17 +1,21 @@
 import type {
+  CampaignDeploymentAggregateDto,
   CampaignDeployment,
   CampaignEvent,
   CampaignRuntimeState,
+  CampaignSummaryDto,
   CampaignView,
+  DeploymentStatus,
+  FactionSide,
   ViewerContext,
 } from "../../domain/src";
 import { coordKey, visibleHexes } from "./hex";
-import { getTacticalUnitClass } from "./tactical-unit-catalogue";
+import { getUnitClass } from "./catalogue";
 
 function deploymentTags(deployment: CampaignDeployment): string[] {
   if (deployment.tags) return deployment.tags;
   try {
-    return getTacticalUnitClass(deployment.definitionId).tags;
+    return getUnitClass(deployment.definitionId).tags;
   } catch {
     return [];
   }
@@ -114,5 +118,76 @@ export function projectCampaignState(
     events,
     viewer,
     serverTime,
+  };
+}
+
+const deploymentStatuses: DeploymentStatus[] = ["READY", "ACTIVE", "IMMOBILISED", "DESTROYED", "WITHDRAWN"];
+
+function deploymentAggregate(
+  deployments: CampaignDeployment[],
+  side: FactionSide,
+  visibility: CampaignDeploymentAggregateDto["visibility"],
+): CampaignDeploymentAggregateDto {
+  const selected = deployments.filter((deployment) => deployment.side === side);
+  const byStatus = Object.fromEntries(
+    deploymentStatuses.map((status) => [status, selected.filter((deployment) => deployment.status === status).length]),
+  ) as Record<DeploymentStatus, number>;
+  return { visibility, total: selected.length, byStatus };
+}
+
+/**
+ * Produces the small read model used by strategic navigation. It deliberately
+ * derives from the normal fog projection so it cannot become a second,
+ * less-restrictive campaign visibility policy.
+ */
+export function projectCampaignSummary(
+  state: CampaignRuntimeState,
+  viewer: ViewerContext,
+  serverTime: number,
+): CampaignSummaryDto {
+  const projected = projectCampaignState(state, viewer, serverTime);
+  return {
+    campaignId: projected.campaignId,
+    campaignName: projected.campaignName,
+    planetName: projected.planetName,
+    rulesetVersion: projected.rulesetVersion,
+    round: projected.round,
+    phase: projected.phase,
+    version: projected.version,
+    clock: {
+      durationMs: projected.clock.durationMs,
+      roundStartedAt: projected.clock.roundStartedAt,
+      lockAt: projected.clock.lockAt,
+      resolvesAt: projected.clock.resolvesAt,
+      ...(projected.clock.pausedAt === undefined ? {} : { pausedAt: projected.clock.pausedAt }),
+    },
+    objectives: projected.objectives.map((objective) => ({ ...objective })),
+    viewerUnits: projected.deployments
+      .filter((deployment) => deployment.ownerId === viewer.userId)
+      .map((deployment) => ({
+        id: deployment.id,
+        ...(deployment.persistentUnitId ? { persistentUnitId: deployment.persistentUnitId } : {}),
+        definitionId: deployment.definitionId,
+        callsign: deployment.callsign,
+        status: deployment.status,
+        locationState: deployment.locationState ?? "ON_MAP",
+        position: { ...deployment.position },
+        currentHealth: deployment.currentHealth,
+        maxHealth: deployment.stats.maxHealth,
+      })),
+    deployments: {
+      allied: deploymentAggregate(
+        projected.deployments,
+        "ALLIED",
+        viewer.role === "ADMIN" || viewer.side === "ALLIED" ? "EXACT" : "VISIBLE_ONLY",
+      ),
+      enemy: deploymentAggregate(
+        projected.deployments,
+        "ENEMY",
+        viewer.role === "ADMIN" || viewer.side === "ENEMY" ? "EXACT" : "VISIBLE_ONLY",
+      ),
+    },
+    viewer: projected.viewer,
+    serverTime: projected.serverTime,
   };
 }

@@ -51,7 +51,8 @@ import { createSeededRandom, hashSeed } from "./rng";
 import { getTacticalActionRule, getTacticalOrderRule } from "./tactical-grammar";
 import { isLightAtChargeStore, validateLightAtAttack } from "./light-at";
 import { isGarrisonEligible, isInfantryGarrisonBuilding } from "./cover";
-import { getTacticalSubsystemRules, getTacticalUnitClass } from "./tactical-unit-catalogue";
+import { getTacticalSubsystemRules } from "./tactical-unit-catalogue";
+import { getUnitClass } from "./catalogue";
 import { applyScenarioReinforcements, evaluateScenarioRoundEnd } from "./scenario";
 import {
   POWER_ARMOURED_INFANTRY_PUBLIC_V1,
@@ -140,7 +141,7 @@ export interface OrderValidation {
 function isArtilleryDeployment(deployment: CampaignDeployment): boolean {
   if (isCrewedCompanionArtilleryDefinitionId(deployment.definitionId)) return true;
   try {
-    return getTacticalUnitClass(deployment.definitionId).tags.includes("ARTILLERY");
+    return getUnitClass(deployment.definitionId).tags.includes("ARTILLERY");
   } catch {
     return false;
   }
@@ -172,7 +173,7 @@ const artilleryProfile: ArtilleryProfile = {
 function deploymentTags(deployment: CampaignDeployment): string[] {
   if (deployment.tags) return deployment.tags;
   try {
-    return getTacticalUnitClass(deployment.definitionId).tags;
+    return getUnitClass(deployment.definitionId).tags;
   } catch {
     return [];
   }
@@ -219,7 +220,7 @@ function deploymentAllowsAction(
   if (isSapperDeployment(deployment) && (actionType === "SAPPER_CONSTRUCT" || actionType === "RELOAD_BUILD_SUPPLY")) return true;
   if (isIrregularDeployment(deployment) && actionType === "RECRUIT_IRREGULAR") return true;
   try {
-    return getTacticalUnitClass(deployment.definitionId).allowedActions.includes(actionType);
+    return getUnitClass(deployment.definitionId).allowedActions.includes(actionType);
   } catch {
     return false;
   }
@@ -230,7 +231,7 @@ function deploymentAllowsOrder(deployment: CampaignDeployment, orderType: UnitOr
   if ((isSpecialForcesDeployment(deployment) || isSapperDeployment(deployment)) && orderType === "STEALTH") return true;
   if (deployment.allowedOrders) return deployment.allowedOrders.includes(orderType);
   try {
-    return getTacticalUnitClass(deployment.definitionId).allowedOrders.includes(orderType);
+    return getUnitClass(deployment.definitionId).allowedOrders.includes(orderType);
   } catch {
     return orderType !== "STEALTH";
   }
@@ -2314,7 +2315,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         }
         const medicalUnit = (() => {
           try {
-            return getTacticalUnitClass(actor.definitionId).tags.includes("MEDICAL");
+            return getUnitClass(actor.definitionId).tags.includes("MEDICAL");
           } catch {
             return false;
           }
@@ -2377,7 +2378,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
       if (action.type === "HEAL") {
         const actorIsMedic = (() => {
           try {
-            return getTacticalUnitClass(actor.definitionId).tags.includes("MEDICAL");
+            return getUnitClass(actor.definitionId).tags.includes("MEDICAL");
           } catch {
             return false;
           }
@@ -2386,7 +2387,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         const targetIsInfantry = (() => {
           if (!target) return false;
           try {
-            return getTacticalUnitClass(target.definitionId).tags.includes("INFANTRY");
+            return getUnitClass(target.definitionId).tags.includes("INFANTRY");
           } catch {
             return false;
           }
@@ -2503,7 +2504,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         let actorIsEngineer = false;
         if (target) {
           try {
-            actorIsEngineer = getTacticalUnitClass(actor.definitionId).tags.includes("ENGINEER");
+            actorIsEngineer = getUnitClass(actor.definitionId).tags.includes("ENGINEER");
           } catch {
             actorIsEngineer = false;
           }
@@ -2577,7 +2578,7 @@ export function resolveRound(input: RoundInput): RoundOutput {
         const targetTags = (() => {
           if (!target) return [];
           try {
-            return getTacticalUnitClass(target.definitionId).tags;
+            return getUnitClass(target.definitionId).tags;
           } catch {
             return [];
           }

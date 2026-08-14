@@ -1247,6 +1247,28 @@ test("quartermaster purchases published combined-arms units exactly once", async
     callsign: "MBT-NEW",
     requisitionSpent: 10,
   });
+
+  await page.getByRole("button", { name: "REQUISITION UNIT" }).click();
+  const companionDialog = page.getByRole("dialog", { name: "Requisition unit" });
+  await companionDialog.getByRole("button", { name: /^Sappers / }).click();
+  await expect(companionDialog.getByText("6 RP", { exact: true })).toBeVisible();
+  await companionDialog.getByLabel("UNIT NAME").fill("Quiet Field Engineering Cell");
+  await companionDialog.getByLabel("CALLSIGN").fill("SAP-NEW");
+  const companionPurchaseRequest = page.waitForRequest((request) =>
+    request.url().endsWith("/api/requisition/purchases") && request.method() === "POST");
+  await companionDialog.getByRole("button", { name: "PURCHASE UNIT" }).click();
+  const committedCompanionRequest = await companionPurchaseRequest;
+  const companionLoadout = page.getByRole("dialog", { name: /SAP-NEW loadout/i });
+  await expect(companionLoadout).toBeVisible();
+  await companionLoadout.getByRole("button", { name: "Close loadout" }).click();
+
+  const companionCommand = committedCompanionRequest.postDataJSON() as Record<string, unknown>;
+  expect(companionCommand).toMatchObject({ definitionId: "unit-sappers", callsign: "SAP-NEW" });
+  const companionBalanceResponse = await page.request.get("/api/requisition", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(companionBalanceResponse.status()).toBe(200);
+  await expect(companionBalanceResponse.json()).resolves.toMatchObject({ balance: opening.balance - 24 });
 });
 
 test("commander edits a persistent unit identity and sees the service record", async ({ page }) => {

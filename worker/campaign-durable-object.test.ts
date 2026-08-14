@@ -183,6 +183,13 @@ class EffectStatement {
   }
 
   async all<T>(): Promise<D1Result<T>> {
+    if (this.query.includes("FROM status_effect_definitions AS definitions")) {
+      return {
+        success: true,
+        meta: {},
+        results: this.database.permanentStatusEffectIds.map((id) => ({ id })) as T[],
+      } as D1Result<T>;
+    }
     if (this.query.includes("FROM deployments JOIN player_units")) {
       return { success: true, meta: {}, results: this.database.deploymentRows as T[] } as D1Result<T>;
     }
@@ -213,6 +220,7 @@ class EffectDatabase {
   campaignRow: Record<string, unknown> | null = null;
   customScenarioRow: Record<string, unknown> | null = null;
   enemyDefinitionAllowed = false;
+  permanentStatusEffectIds: string[] = [];
   deploymentRows: Record<string, unknown>[] = [];
 
   prepare(query: string): D1PreparedStatement {
@@ -334,7 +342,7 @@ function configureCustomCampaign(
   const revision = 2;
   const revisionId = `${mapId}@${revision}`;
   const scenarioId = `scenario-${campaignId}`;
-  const scenarioContentKey = `${scenarioId}@1`;
+  const scenarioContentKey = `${scenarioId}@2`;
   const mapSourceKey = `admin-map/${mapId}@${revision}:${document.hash}`;
   const insertion = selectGameMasterInsertionHex(document);
   const infantry = createDemoCampaignState(1_000).deployments
@@ -351,12 +359,15 @@ function configureCustomCampaign(
   };
   database.customScenarioRow = {
     scenario_id: scenarioId,
-    scenario_version: 1,
+    scenario_version: 2,
     scenario_content_key: scenarioContentKey,
     map_revision_id: revisionId,
     map_content_hash: document.hash,
     objectives_json: "[]",
     enemy_deployments_json: "[]",
+    application_policy_key: "game-master-skirmish@1",
+    maximum_rounds: 12,
+    reward_policy_id: "public-v1-economy@1",
     map_id: mapId,
     map_revision: revision,
     revision_content_hash: document.hash,
@@ -408,6 +419,37 @@ function storedCampaignState(storage: MemoryStorage, campaignId: string) {
 }
 
 describe("CampaignDurableObject campaign contracts", () => {
+  it("returns a fog-safe campaign summary without tactical map, orders, or events", async () => {
+    const { campaign, storage } = campaignObject(undefined, CAMPAIGN_ID);
+    const state = createDemoCampaignState(100_000);
+    storage.values.set("state/current", encodeCampaignStoredState(state));
+
+    const response = await campaign.fetch(request("/summary"));
+    const summary = await response.json() as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(summary).toMatchObject({
+      campaignId: state.campaignId,
+      round: state.round,
+      phase: state.phase,
+      deployments: { enemy: { visibility: "VISIBLE_ONLY" }, allied: { visibility: "EXACT" } },
+    });
+    expect(summary).not.toHaveProperty("map");
+    expect(summary).not.toHaveProperty("orders");
+    expect(summary).not.toHaveProperty("events");
+    expect(summary).not.toHaveProperty("resolutions");
+    expect(summary).not.toHaveProperty("pendingPersistentEffects");
+    expect(summary.viewerUnits).toEqual(
+      state.deployments
+        .filter((deployment) => deployment.ownerId === "demo-user" && deployment.locationState !== "RESERVE")
+        .map((deployment) => expect.objectContaining({
+          id: deployment.id,
+          currentHealth: deployment.currentHealth,
+          maxHealth: deployment.stats.maxHealth,
+        })),
+    );
+  });
+
   it("fails closed without materialising latest content for an unpinned legacy campaign", async () => {
     const database = new EffectDatabase();
     const campaignId = "legacy-iron-rain";
@@ -481,7 +523,54 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(state.deployments).toEqual([
       expect.objectContaining({ persistentUnitId: "rook-custom", callsign: "ROOK-CUSTOM" }),
     ]);
-    expect(state.scenarioPolicy).toBeUndefined();
+    expect(state.scenarioPolicy).toEqual({
+      policyId: "game-master-skirmish",
+      version: 1,
+      maxRounds: 12,
+      rewardPolicyId: "public-v1-economy@1",
+    });
+  });
+
+  it("leaves legacy Game Master @1 state untouched and fails closed instead of upgrading it", async () => {
+    const database = new EffectDatabase();
+    const campaignId = `gm-campaign-${"b".repeat(32)}`;
+    configureCustomCampaign(database, campaignId);
+    const legacyContentKey = `scenario-${campaignId}@1`;
+    database.campaignRow!.scenario_content_key = legacyContentKey;
+    database.customScenarioRow!.scenario_version = 1;
+    database.customScenarioRow!.scenario_content_key = legacyContentKey;
+    database.customScenarioRow!.campaign_scenario_content_key = legacyContentKey;
+    database.customScenarioRow!.application_policy_key = null;
+    database.customScenarioRow!.maximum_rounds = null;
+    database.customScenarioRow!.reward_policy_id = null;
+    const { campaign, storage } = campaignObject(database, campaignId);
+
+    const response = await campaign.fetch(request("/state"));
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "CAMPAIGN_ERROR",
+        details: { message: `CAMPAIGN_SCENARIO_VERSION_NOT_AVAILABLE:${legacyContentKey}` },
+      },
+    });
+    expect(storage.values.has("state/current")).toBe(false);
+  });
+
+  it("fails closed when the persisted Game Master application policy drifts", async () => {
+    const database = new EffectDatabase();
+    const campaignId = `gm-campaign-${"c".repeat(32)}`;
+    configureCustomCampaign(database, campaignId);
+    database.customScenarioRow!.maximum_rounds = 13;
+    const { campaign, storage } = campaignObject(database, campaignId);
+
+    const response = await campaign.fetch(request("/state"));
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "CAMPAIGN_ERROR", details: { message: "GAME_MASTER_SCENARIO_PIN_MISMATCH" } },
+    });
+    expect(storage.values.has("state/current")).toBe(false);
   });
 
   it("round-trips a 96x96 custom battlefield through bounded atomic chunks and fails closed on corruption", async () => {
@@ -1520,25 +1609,101 @@ describe("CampaignDurableObject campaign contracts", () => {
     expect(state.events.at(-1)).toMatchObject({ type: "GAME_MASTER_ENEMY_SPAWNED", visibility: "ADMIN" });
   });
 
-  it("fails closed for deployment revival because V5 defines destruction as permanent", async () => {
-    const { campaign, storage } = campaignObject();
+  it("applies and replays exceptional deployment recovery under the pinned application policy", async () => {
+    const database = new EffectDatabase();
+    database.permanentStatusEffectIds = ["status-permanent-progression"];
+    const { campaign, storage } = campaignObject(database);
+    expect((await campaign.fetch(request("/state"))).status).toBe(200);
+    const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    seeded.phase = "PAUSED";
+    seeded.clock = { ...seeded.clock, pausedAt: Date.now(), phaseBeforePause: "PLANNING" };
+    const target = seeded.deployments[0]!;
+    target.status = "DESTROYED";
+    target.locationState = "DESTROYED";
+    target.currentHealth = 0;
+    target.ammunition = Object.fromEntries(target.weapons
+      .filter((weapon) => weapon.ammoCapacity !== undefined)
+      .map((weapon) => [weapon.id, 0]));
+    target.cooldowns = { "recovery-test": 3 };
+    target.statuses = ["DUG_IN", "REARM_REQUIRED"];
+    target.statusEffects = [
+      { id: "temporary", definitionId: "status-temporary", status: "ACTIVE" },
+      { id: "permanent", definitionId: "status-permanent-progression", status: "ACTIVE" },
+    ];
+    target.subsystems = [
+      { subsystemId: "mobility", state: "DISABLED", damageSourceId: "enemy", damagedRound: seeded.round },
+      { subsystemId: "sensors", state: "DAMAGED", damagedRound: seeded.round },
+    ];
+    target.bombardmentSuppression = { stacks: 2, lastAppliedRound: seeded.round };
+    storage.values.set("state/current", encodeCampaignStoredState(seeded));
+    const body = JSON.stringify({
+      operation: "DEPLOYMENT_REVIVE",
+      deploymentId: target.id,
+      commandId: "gm-revive-command-0001",
+      expectedCampaignVersion: seeded.version,
+    });
+    const first = await campaign.fetch(globalGameMasterRequest("/game-master/commands", {
+      method: "POST",
+      body,
+    }));
+    const replay = await campaign.fetch(globalGameMasterRequest("/game-master/commands", {
+      method: "POST",
+      body,
+    }));
+
+    expect(first.status).toBe(200);
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toEqual(await first.json());
+    const state = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
+    const recovered = state.deployments.find((deployment) => deployment.id === target.id)!;
+    expect(recovered).toMatchObject({
+      status: "ACTIVE",
+      locationState: "ON_MAP",
+      currentHealth: target.stats.maxHealth,
+      cooldowns: {},
+      statuses: [],
+      statusEffects: [{ id: "permanent", definitionId: "status-permanent-progression", status: "ACTIVE" }],
+      subsystems: [
+        { subsystemId: "mobility", state: "OPERATIONAL" },
+        { subsystemId: "sensors", state: "OPERATIONAL" },
+      ],
+    });
+    expect(recovered).not.toHaveProperty("bombardmentSuppression");
+    expect(recovered.ammunition).toEqual(Object.fromEntries(recovered.weapons
+      .filter((weapon) => weapon.ammoCapacity !== undefined)
+      .map((weapon) => [weapon.id, weapon.ammoCapacity])));
+    expect(state.version).toBe(seeded.version + 1);
+    expect(state.events.filter((event) => event.type === "GAME_MASTER_DEPLOYMENT_REVIVED")).toEqual([
+      expect.objectContaining({
+        visibility: "ADMIN",
+        payload: expect.objectContaining({
+          policyId: "game-master-recovery@1",
+          exceptionalCorrection: true,
+          resourceId: target.id,
+        }),
+      }),
+    ]);
+  });
+
+  it("rejects recovery for a deployment that is not destroyed", async () => {
+    const { campaign, storage } = campaignObject(new EffectDatabase());
     expect((await campaign.fetch(request("/state"))).status).toBe(200);
     const seeded = parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state;
     seeded.phase = "PAUSED";
     seeded.clock = { ...seeded.clock, pausedAt: Date.now(), phaseBeforePause: "PLANNING" };
     storage.values.set("state/current", encodeCampaignStoredState(seeded));
-    const target = seeded.deployments[0]!;
     const response = await campaign.fetch(globalGameMasterRequest("/game-master/commands", {
       method: "POST",
       body: JSON.stringify({
         operation: "DEPLOYMENT_REVIVE",
-        deploymentId: target.id,
-        commandId: "gm-revive-command-0001",
+        deploymentId: seeded.deployments[0]!.id,
+        commandId: "gm-revive-command-healthy",
         expectedCampaignVersion: seeded.version,
       }),
     }));
+
     expect(response.status).toBe(409);
-    expect(await response.json()).toMatchObject({ error: { code: "REVIVE_RULE_DECISION_REQUIRED" } });
+    expect(await response.json()).toMatchObject({ error: { code: "DEPLOYMENT_NOT_DESTROYED" } });
     expect(parseCampaignStoredState(storage.values.get("state/current"), CAMPAIGN_ID).state.version).toBe(seeded.version);
   });
 

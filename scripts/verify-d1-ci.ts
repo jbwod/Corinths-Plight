@@ -24,6 +24,7 @@ const seedFiles = [
   "v5-equipment-deployment.sql",
   "v5-store-catalogue.sql",
   "onboarding-foundation.sql",
+  "game-test-strategic-world.sql",
   "development-forces.sql",
   "development-strategic-world.sql",
   "development-spearhead.sql",

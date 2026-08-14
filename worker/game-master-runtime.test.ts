@@ -20,7 +20,7 @@ describe("Game Master custom-map runtime materialization", () => {
     expect(first.movementRules).toMatchObject({ groundTraversal: "PASSABLE" });
   });
 
-  it("materializes the exact map as a neutral scenario without inventing objectives, enemies, or victory policy", () => {
+  it("materializes the exact map as a neutral scenario with the pinned skirmish policy", () => {
     const document = generateAdminMap({ preset: "MIXED", seed: "runtime-state", width: 18, height: 14 });
     const state = materializeGameMasterCampaignState({
       campaignId,
@@ -38,7 +38,12 @@ describe("Game Master custom-map runtime materialization", () => {
     expect(state.map.every((hex) => hex.control === "NEUTRAL" && hex.visibility === "UNKNOWN")).toBe(true);
     expect(state.objectives).toEqual([]);
     expect(state.deployments).toEqual([]);
-    expect(state.scenarioPolicy).toBeUndefined();
+    expect(state.scenarioPolicy).toEqual({
+      policyId: "game-master-skirmish",
+      version: 1,
+      maxRounds: 12,
+      rewardPolicyId: "public-v1-economy@1",
+    });
     expect(state.map.some((hex) => hex.edges.paths !== undefined && hex.edges.walls !== undefined)).toBe(true);
   });
 

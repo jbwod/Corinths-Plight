@@ -8,6 +8,7 @@ import {
   V5_CORE_CURATED_2_CATALOGUE,
   V5_CORE_CURATED_2_CONTENT_HASH,
 } from "../src/generated/v5-core-curated-2";
+import { getUnitClass } from "../src/catalogue";
 import {
   buildCanonicalCatalogueEnvelope,
   legacyDefinitionCounts,
@@ -157,6 +158,11 @@ describe("rules catalogue bootstrap", () => {
         purchasable: true,
         reasonCode: null,
         parameters: { missing: [] },
+      });
+      expect(getUnitClass(definitionId), definitionId).toMatchObject({
+        id: definitionId,
+        kind: "unit-class",
+        requisitionCost: expect.any(Number),
       });
     }
     expect(overlays.get("UNIT:unit-infantry-squad")).toMatchObject({

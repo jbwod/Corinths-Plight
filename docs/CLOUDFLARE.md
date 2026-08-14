@@ -14,7 +14,7 @@ The repository builds a React/Vite client and one Cloudflare Worker containing t
 
 The Phase 3, equipment/deployment, passwordless identity, and guided-enlistment runtime was deployed on 2026-08-10. The primary custom domain is `https://corinthplight.qnetica.com.au`; `https://corinths-plight.cybercow-now.workers.dev` remains enabled as a fallback. Production version `f34fa674-b242-4bda-9a7d-dd06cddc7363` binds D1 database `corinths-plight-production` (`c75ca7bc-f10b-4987-853d-f387d377bdb9`) and both Durable Object namespaces. Production is migrated through `0007` and contains the four production-approved seed families, verified-email challenge/session support, the onboarding economy policy, and three NPC recruitment Battalions. The catalogue/conflict split documented in [GAME_SYSTEMS.md](./GAME_SYSTEMS.md) remains a release blocker. Development fixtures were deliberately not applied; preview remains unprovisioned.
 
-The current repository migration head is `0021_game_master_campaign_runtime.sql`. It includes the locally verified `0008_auth_retention_and_invitation_abuse.sql`, later gameplay migrations, `0019` global Game Master authority/audit, `0020` versioned map drafts, and `0021` exact custom-scenario bootstrap records. None of `0008`–`0021` is present in the recorded production version, so these capabilities must not be described as active on the public origin until an explicitly authorized migration and deployment.
+The current repository migration head is `0022_game_master_skirmish_policy.sql`. It includes the locally verified `0008_auth_retention_and_invitation_abuse.sql`, later gameplay migrations, `0019` global Game Master authority/audit, `0020` versioned map drafts, `0021` exact custom-scenario bootstrap records, and `0022` the exact version-2 custom-skirmish terminal/reward policy. None of `0008`–`0022` is present in the recorded production version, so these capabilities must not be described as active on the public origin until an explicitly authorized migration and deployment is actually recorded.
 
 ## 2. Current runtime topology
 
@@ -67,6 +67,7 @@ All public traffic passes through the Worker. Campaign traffic resolves D1 campa
 | `migrations/0019_game_master_authority.sql` | Explicit global grants plus actor-scoped campaign command receipts and private audits; no production default grant |
 | `migrations/0020_game_master_maps.sql` | Versioned canonical map heads/revisions/publication, authoring receipts/audits, and exact custom-campaign map-revision pins |
 | `migrations/0021_game_master_campaign_runtime.sql` | Immutable custom campaign scenario bootstrap content tied to one published map revision/hash |
+| `migrations/0022_game_master_skirmish_policy.sql` | Preserves legacy custom `@1` rows as unpinned/fail-closed and requires new custom `@2` rows to pin `game-master-skirmish@1`, round 12, and `public-v1-economy@1` |
 | `seeds/v5-core-curated.sql` | Idempotent D1 SQL rules seed |
 | `seeds/v5-phase2-combined-arms.sql` | Provenance-bearing Phase 2 combined-arms catalogue |
 | `seeds/v5-equipment-deployment.sql` | Equipment/action/deployment-method overlays for the narrow vertical slice; presence or `executable` flags do not override the open slot/Scan/Drone rule gates |
@@ -86,7 +87,7 @@ There is no `worker/demo.ts` or `scripts/seed-ruleset.ts`. Demo authentication i
 
 | Binding/config | Current resource | Authority/status |
 |---|---|---|
-| `DB` | D1 | Identity/session/onboarding, Battalion recruitment, force/equipment/loadout/deployment services, campaign authorization, strategic read models, and narrow campaign-effect receipts are active in the recorded release; global Game Master grants/audits, versioned map drafts, and exact custom-scenario bootstrap records exist only at the local `0019`–`0021` head |
+| `DB` | D1 | Identity/session/onboarding, Battalion recruitment, force/equipment/loadout/deployment services, campaign authorization, strategic read models, and narrow campaign-effect receipts are active in the recorded release; global Game Master grants/audits, versioned map drafts, exact custom-scenario bootstrap, and pinned custom-skirmish policy records exist only at the local `0019`–`0022` head |
 | `CAMPAIGN` | Durable Object namespace | One named object per campaign; the explicit development K-17 fixture may self-initialise, while persistent campaigns require committed D1 deployment snapshots and an exact supported `map_source_key`/`scenario_content_key` pair |
 | `STRATEGIC_MAP` | Durable Object namespace | Deployed named-object boundary per strategic map/theatre; internal order service shell exists, but public order submission and resolution are blocked |
 | DO migration `v1` | `new_sqlite_classes: ["CampaignDurableObject"]` | Present |
@@ -142,7 +143,7 @@ The default Wrangler configuration deliberately enables the local demo. It must 
 - There is no separate synchronizer-token mechanism; the current cookie-auth mitigation is exact same-origin Origin enforcement plus `SameSite=Lax`. Deployment/proxy policy must preserve the Origin signal.
 - `readJson` enforces size and parses JSON but does not require JSON content type or apply general runtime schemas.
 - Campaign order/clock payloads have dedicated bounded parsers; bodyless tactical mutations reject payloads; and `state/current`/new snapshots use a validated versioned envelope. Critical nested map/deployment/weapon/order/clock/effect shapes are checked, but this remains a tactical contract rather than general public DTO coverage.
-- Five code-authored scenario loaders are available at `@3`. Iron Rain has 311 land hexes, Broken Road 244, Night Glass 240, and Cold Horizon 298; each preserves its authored playable core, insertion/objective coordinates, terrain rules, enemy forces, waves, and round policy. Strict deterministic custom-map `@2` import, revision persistence, immutable publication, and exact-pinned recruiting/DO bootstrap also exist locally; custom victory/reward closure remains open.
+- Five code-authored scenario loaders are available at `@3`. Iron Rain has 311 land hexes, Broken Road 244, Night Glass 240, and Cold Horizon 298; each preserves its authored playable core, insertion/objective coordinates, terrain rules, enemy forces, waves, and round policy. Strict deterministic custom-map `@2` import, revision persistence, immutable publication, and exact-pinned recruiting/DO bootstrap also exist locally. New custom scenario content `@2` pins `game-master-skirmish@1` and `public-v1-economy@1`; legacy custom `@1` is preserved without a policy and fails runtime selection rather than inheriting current behavior.
 - The compiled rules endpoint is separate from D1 seed rows; a campaign is not yet loaded from a D1 content hash.
 - Game Master commands require explicit global authority in every environment. The only development exception is the explicitly enabled demo identity with internal `ADMIN`; there is no permissive any-viewer operator shortcut.
 
@@ -215,9 +216,11 @@ Actual root scripts are:
 | `deploy:dry` | Runs guard + production build + `wrangler deploy --dry-run --env production` |
 | `deploy` | Runs guard + production build + `wrangler deploy --env production` |
 
-The production D1 resource is provisioned, but the guard remains closed unless the release operator explicitly supplies `CORINTH_RELEASE_APPROVED=true`. Release sequence: verify the authenticated account, export D1, rehearse all migrations/seeds in an isolated local database, run validator/typecheck/lint/tests/production build, inspect `deploy:dry`, apply remote migrations and canonical seeds, deploy, and perform read-only health and D1 checks.
+The production D1 resource is provisioned, but the guard remains closed unless the release operator explicitly supplies `CORINTH_RELEASE_APPROVED=true`. The normal public-release sequence is: verify the authenticated account, export D1, rehearse all migrations/seeds in an isolated local database, run validator/typecheck/lint/tests/production build, inspect `deploy:dry`, apply remote migrations and canonical seeds, deploy, and perform read-only health and D1 checks.
 
-Preview provisioning/deployment is also not scripted at the package level. It requires a real preview D1 ID and explicit `--env preview` on every Wrangler operation. Preview must complete before production.
+The owner explicitly waived preview and a pre-deployment backup only for the authorized private production game-test operation. That operation-scoped waiver does not prove restore/rollback, close the preview/recovery roadmap items, or authorize public invitations. The game-test surface is limited to authenticated account/onboarding, Battalion and force management, deployment, tactical campaign/report/recovery, and explicitly granted Game Master authoring; unfinished strategic and ship surfaces are outside its production test-ready claim.
+
+Preview provisioning/deployment is not scripted at the package level. It requires a real preview D1 ID and explicit `--env preview` on every Wrangler operation. Preview and backup/restore rehearsal remain required evidence before a public release even though they are not gates for the waived private game-test operation.
 
 Do not run `db.create_all()`, `drop_all()`, manual dashboard schema edits, or legacy Alembic against D1.
 
@@ -285,14 +288,14 @@ Legend: `[x]` complete, `[~]` partial/local only, `[ ]` open.
 - [x] No R2, Queue, or KV authority binding is present.
 - [x] Demo auth requires exact development opt-in and is limited to `outpost-k17` and `operation-spearhead`; production cannot enable it safely.
 - [x] Unsafe mutations/WebSocket upgrades require same origin; D1 membership is checked before DO lookup.
-- [~] Twenty-one additive D1 migrations pass a fresh empty replay locally; all nine seeds pass twice across 130 application tables with integrity/FK checks. Production is recorded only through `0007`, and `0008`–`0021` await explicit migration/deployment authorization.
+- [~] Twenty-two additive D1 migrations pass a fresh empty replay locally; all nine seeds pass twice across 130 application tables with integrity/FK checks. Production is recorded only through `0007`, and `0008`–`0022` await an actually recorded migration/deployment.
 - [~] A 20-test local Playwright baseline covers public auth, persistent account/gameplay workflows, Game Master map publication/bootstrap, strategic and tactical resolution, forged-action rejection, replay, keyboard map operation, and 390px overflow; CI is configured, but no remote run, full production-like multi-account matrix, accessibility, or performance evidence exists yet.
 - [~] Guided enlistment and Battalion public/private/code/invitation recruitment are deployed with actor-scoped receipts, expected revisions, permission checks, and Resend delivery; `0008` invitation throttling/expiry is locally verified but not deployed.
 - [~] Manual/accelerated/24h clocks and pause/resume are unit-tested; alarm crash/eviction integration is not.
 - [~] Snapshot/report projection exists; event-time payload and socket-audience leakage coverage is incomplete.
 - [x] Implement and deploy passwordless production registration/login, opaque session issuance, email-based recovery, and logout revocation.
-- [~] Committed D1 deployment snapshots load into five exact-pinned authored `@3` scenarios and exact published custom-map `@2` revisions; custom victory/reward closure remains open.
-- [~] Global-grant-scoped Game Master campaign controls and deterministic five-preset map edit/publication are receipt-idempotent and audited locally. Revive, grant administration, production migration, and cross-store diagnostics remain open.
+- [~] Committed D1 deployment snapshots load into five exact-pinned authored `@3` scenarios and exact published custom-map `@2` revisions. New custom scenario content uses the bounded, versioned `game-master-skirmish@1` terminal policy and published reward policy; standalone-custom strategic placement remains open.
+- [~] Global-grant-scoped Game Master campaign controls, the exact `game-master-recovery@1` exceptional correction, and deterministic five-preset map edit/publication are receipt-idempotent and audited locally. Grant administration, production migration, and cross-store reconciliation diagnostics remain open.
 - [ ] Implement PREPARED journal, cryptographic input/output hashes, and protected deterministic seed.
 - [ ] Implement separate persisted schedule records and consumed/recovery semantics.
 - [~] D1 persistent-effect application uses idempotent receipts; acknowledgement-gated next-round transition and a cryptographic payload journal remain open.
@@ -348,15 +351,15 @@ Related boundaries: [ARCHITECTURE.md](./ARCHITECTURE.md), [DATA_MODEL.md](./DATA
 
 ## 14. Current migration and seed order
 
-The repository migration head is `0021_game_master_campaign_runtime.sql`; the recorded production head remains `0007_guided_onboarding_and_battalions.sql`. Migrations `0008`–`0021` contain locally verified operations, gameplay, Game Master, map-authoring, and exact custom-scenario bootstrap slices and are not active on the recorded production release. Migration `0018` deliberately leaves existing campaigns' `scenario_content_key` nullable and unpinned; `0019` inserts no default Game Master grant; `0020` persists immutable map revisions; and `0021` adds bootstrap rows only when an authorized campaign creation command pins a published revision and hash. The production-approved seed chain is core, Phase 2 combined arms, companion classes, equipment, Store, then onboarding foundation. The three development seeds are local-only and must never be applied to production.
+The repository migration head is `0022_game_master_skirmish_policy.sql`; the recorded production head remains `0007_guided_onboarding_and_battalions.sql`. Migrations `0008`–`0022` contain locally verified operations, gameplay, Game Master, map-authoring, exact custom-scenario bootstrap, and bounded custom-skirmish policy slices and are not active on the recorded production release. Migration `0018` deliberately leaves existing campaigns' `scenario_content_key` nullable and unpinned; `0019` inserts no default Game Master grant; `0020` persists immutable map revisions; `0021` adds bootstrap rows only when an authorized campaign creation command pins a published revision and hash; and `0022` preserves legacy custom `@1` rows without silently supplying the new policy while requiring the exact version-2 policy tuple for new rows. The production-approved seed chain is core, Phase 2 combined arms, companion classes, equipment, Store, then onboarding foundation. The three development seeds are local-only and must never be applied to production.
 
 Production release order is:
 
 1. export/backup the production D1 database;
 2. run a production Worker dry build;
-3. apply pending D1 migrations in order through the reviewed repository head (currently `0021`) before deploying code that depends on them;
+3. apply pending D1 migrations in order through the reviewed repository head (currently `0022`) before deploying code that depends on them;
 4. apply the four production-approved seed families in order; never apply a development fixture;
 5. deploy the Worker/client with the Phase 3 Strategic Map DO export;
 6. smoke-test health, anonymous authentication boundaries, the custom domain, and migration state.
 
-The release guard requires `CORINTH_RELEASE_APPROVED=true`; production demo auth remains false. This sequence is an operational outline, not authorization to change Cloudflare. Preview remains unprovisioned and must prove the production-like release path before another production release. Operation Spearhead and all development identities/fixtures remain local-only.
+The release guard requires `CORINTH_RELEASE_APPROVED=true`; production demo auth remains false. This sequence is an operational outline, not authorization to change Cloudflare. The owner-approved private game-test waiver removes preview/export as gates only for that named operation; it does not change the public-release NO-GO or provide recovery evidence. Operation Spearhead and all development identities/fixtures remain local-only.

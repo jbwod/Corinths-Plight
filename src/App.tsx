@@ -79,7 +79,8 @@ const strategicViews = new Set<ActiveNav>(["Command", "Galactic", "Battalion", "
 function initialNavigation(): ActiveNav {
   const requested = new URLSearchParams(window.location.search).get("view")?.toLowerCase();
   const matched = navigation.find(([, label]) => label.toLowerCase() === requested)?.[1];
-  return matched ?? "Command";
+  if (!import.meta.env.DEV && (matched === "Command" || matched === "Ship")) return "Forces";
+  return matched ?? (import.meta.env.DEV ? "Command" : "Forces");
 }
 
 type ConnectionState = "CONNECTING" | "LIVE" | "RECONNECTING" | "LOCAL" | "ERROR";
@@ -238,8 +239,11 @@ function eventLabel(event: CampaignEvent): string {
 }
 
 function campaignOutcomeMessage(campaign: CampaignView): string {
+  const objectivePolicy = campaign.scenarioPolicy?.policyId === "HOLD_PRIMARY_OBJECTIVE"
+    ? campaign.scenarioPolicy
+    : undefined;
   const primaryObjective = campaign.objectives.find((objective) =>
-    objective.id === campaign.scenarioPolicy?.primaryObjectiveId
+    objective.id === objectivePolicy?.primaryObjectiveId
   );
   const objectiveName = primaryObjective?.name ?? "The primary objective";
   switch (campaign.outcome?.reason) {
@@ -1458,6 +1462,17 @@ function GameApp() {
     void loadCampaign(false, entry.campaignId);
   }
 
+  function openCampaignFromGalactic(campaignId: string) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("campaign", campaignId);
+    url.searchParams.delete("directory");
+    window.history.replaceState({}, "", url);
+    setCampaignId(campaignId);
+    setCampaignDirectoryOpen(false);
+    navigate("Campaigns");
+    void loadCampaign(false, campaignId);
+  }
+
   function browseCampaigns() {
     const url = new URL(window.location.href);
     url.searchParams.set("directory", "1");
@@ -1516,19 +1531,26 @@ function GameApp() {
 
   const strategicView = strategicViews.has(activeNav) ? activeNav as StrategicView : undefined;
   const tacticalContext = activeNav === "Campaigns" || activeNav === "Reports";
+  const tacticalProjectionReady = import.meta.env.DEV || (
+    connection === "LIVE" && campaignId !== undefined && campaign.campaignId === campaignId
+  );
   const topbarCopy: Record<ActiveNav, { eyebrow: string; title: string }> = {
-    Command: { eyebrow: "33RD EXPEDITIONARY // PERSISTENT WORLD", title: "Command Overview" },
-    Galactic: { eyebrow: "HELION SYSTEM // STRATEGIC THEATRE", title: "Galactic Operations" },
+    Command: { eyebrow: "PERSISTENT WORLD // AUTHENTICATED COMMAND", title: "Command Overview" },
+    Galactic: { eyebrow: "STRATEGIC THEATRE // BATTALION PROJECTION", title: "Galactic Operations" },
     Battalion: { eyebrow: "COOPERATIVE ORGANISATION // ACTIVE MEMBERSHIP", title: "Battalion Command" },
-    Ship: { eyebrow: "PRIMARY ORBITAL // BATTALION HOME", title: "CSV Resolute" },
-    Forces: { eyebrow: "33RD EXPEDITIONARY BATTALION // MUSTER", title: "Persistent Force Registry" },
+    Ship: { eyebrow: "ORBITAL COMMAND // FUTURE TEST PHASE", title: "Battalion Ship" },
+    Forces: { eyebrow: "ACTIVE BATTALION // MUSTER", title: "Persistent Force Registry" },
     Deployment: { eyebrow: "TACTICAL MUSTER // FORCE PROJECTION", title: "Deployment Planner" },
     Campaigns: connection === "ERROR"
       ? { eyebrow: "TACTICAL NETWORK // UNAVAILABLE", title: "Campaign Operations" }
-      : { eyebrow: `ACTIVE OPERATION // ${campaign.planetName.toUpperCase()}`, title: campaign.campaignName },
+      : tacticalProjectionReady
+        ? { eyebrow: `ACTIVE OPERATION // ${campaign.planetName.toUpperCase()}`, title: campaign.campaignName }
+        : { eyebrow: "TACTICAL NETWORK // LINKING", title: "Campaign Operations" },
     Reports: connection === "ERROR"
       ? { eyebrow: "TACTICAL ARCHIVE // UNAVAILABLE", title: "Campaign Reports" }
-      : { eyebrow: `AFTER-ACTION ARCHIVE // ${campaign.planetName.toUpperCase()}`, title: "Campaign Reports" },
+      : tacticalProjectionReady
+        ? { eyebrow: `AFTER-ACTION ARCHIVE // ${campaign.planetName.toUpperCase()}`, title: "Campaign Reports" }
+        : { eyebrow: "TACTICAL ARCHIVE // LINKING", title: "Campaign Reports" },
     "Game Master": { eyebrow: "GLOBAL OPERATIONS // AUDITED AUTHORITY", title: "Campaign Director" },
   };
 
@@ -1576,10 +1598,12 @@ function GameApp() {
           ) : null}
           {activeNav === "Campaigns" && !campaignDirectoryOpen && <button className="campaign-browser-button" onClick={browseCampaigns}>BROWSE CAMPAIGNS</button>}
         </div>
-        <div className="round-clock" aria-label={tacticalContext ? `Round ${campaign.round}, campaign ${countdown}` : "Persistent strategic layer; open Command for the authoritative clock"}>
+        <div className="round-clock" aria-label={tacticalContext && tacticalProjectionReady ? `Round ${campaign.round}, campaign ${countdown}` : tacticalContext ? "Campaign projection is loading" : "Persistent strategic layer; open Command for the authoritative clock"}>
           <Glyph name="clock" size={17} />
-          {tacticalContext ? (
+          {tacticalContext && tacticalProjectionReady ? (
             <><div><span>ROUND {campaign.round}</span><strong>{countdown}</strong></div><small>{campaignTerminal ? "MISSION ENDED" : manualClock ? "UNTIMED" : `LOCK ${lockCountdown}`}</small></>
+          ) : tacticalContext ? (
+            <><div><span>CAMPAIGN</span><strong>LINKING</strong></div><small>AUTHORITATIVE<br />STATE</small></>
           ) : (
             <><div><span>STRATEGIC LAYER</span><strong>ASYNC</strong></div><small>SEE COMMAND<br />FOR CLOCK</small></>
           )}
@@ -1590,7 +1614,10 @@ function GameApp() {
       </header>
 
       <nav className="rail" aria-label="Primary">
-        {navigation.filter(([, label]) => label !== "Game Master" || gameMasterAuthorized).map(([icon, label]) => (
+        {navigation.filter(([, label]) =>
+          (import.meta.env.DEV || (label !== "Command" && label !== "Ship")) &&
+          (label !== "Game Master" || gameMasterAuthorized)
+        ).map(([icon, label]) => (
           <button
             className={activeNav === label ? "active" : ""}
             key={label}
@@ -1608,6 +1635,7 @@ function GameApp() {
         <StrategicWorkspace
           view={strategicView}
           onNavigate={(view) => navigate(view)}
+          onOpenCampaign={openCampaignFromGalactic}
           onNotice={setNotice}
         />
       ) : activeNav === "Forces" ? (
@@ -1631,13 +1659,22 @@ function GameApp() {
             <button onClick={() => void loadCampaignDirectory().then((selected) => selected ? loadCampaign(false, selected) : undefined)}>RETRY CAMPAIGN LINK</button>
           </section>
         </main>
+      ) : tacticalContext && campaignId && !tacticalProjectionReady ? (
+        <main className="operations-layout" aria-busy="true">
+          <section className="panel" style={{ gridColumn: "1 / -1", padding: "2rem" }}>
+            <span className="eyebrow">AUTHORITATIVE CAMPAIGN LINK</span>
+            <h2>Loading persistent operation state</h2>
+            <p>No demonstration campaign is shown while the live campaign, markers, and operation notes are loading.</p>
+          </section>
+        </main>
       ) : activeNav === "Reports" ? (
         <CampaignReports
           campaign={campaign}
           campaignId={campaignId ?? campaign.campaignId}
           demoUser={import.meta.env.DEV ? DEMO_USER : undefined}
           onReturnToCampaign={() => navigate("Campaigns")}
-          onReturnToGalactic={() => navigate("Galactic")}
+          onReturnToGalactic={() => navigate(import.meta.env.DEV ? "Galactic" : "Forces")}
+          strategicNavigationAvailable={import.meta.env.DEV}
         />
       ) : activeNav === "Campaigns" && (campaignDirectoryOpen || !campaignId) ? (
         <main className="campaign-directory-layout">
@@ -1838,7 +1875,9 @@ function GameApp() {
               <span>{campaign.outcome.result === "VICTORY" ? "MISSION ACCOMPLISHED" : "MISSION FAILED"}</span>
               <strong>{campaignOutcomeMessage(campaign)}</strong>
               <small>Round {campaign.outcome.round} · campaign state locked</small>
-              <small>Unit service records updated · Req reward remains balance required</small>
+              <small>{campaign.outcome.rewards.requisition.status === "PUBLISHED"
+                ? `Unit service records updated · ${campaign.outcome.rewards.requisition.amount} Req awarded per eligible commander`
+                : "Unit service records updated · Requisition award unavailable"}</small>
               <button onClick={() => navigate("Reports")}>OPEN AFTER-ACTION REPORT</button>
             </div>
           )}

@@ -250,6 +250,7 @@ INSERT INTO strategic_nodes (
   id, map_id, location_id, node_type, name, control_status, status,
   position_json, visibility_json, source_id, source_locator, metadata_json
 ) VALUES
+  ('node-corinth', 'strategic-map-corinth', 'location-corinth', 'PLANET', 'Corinth', 'CONTESTED', 'OPEN', '{"x":44,"y":47}', '{"public":true}', 'source-phase3-brief-2026-08-09', 'Initial World: CORINTH', '{"developmentFixture":true}'),
   ('node-corinth-high-orbit', 'strategic-map-corinth', 'location-corinth-high-orbit', 'ORBIT', 'Corinth High Orbit', 'FRIENDLY', 'OPEN', '{"x":48,"y":12}', '{"public":true}', 'source-phase3-brief-2026-08-09', 'Corinth Planetary Map: CORINTH HIGH ORBIT', '{}'),
   ('node-north-airbase', 'strategic-map-corinth', 'location-north-airbase', 'BASE', 'North Airbase', 'FRIENDLY', 'OPEN', '{"x":38,"y":34}', '{"public":true}', 'source-phase3-brief-2026-08-09', 'Corinth Planetary Map: NORTH AIRBASE', '{"supplyRole":"HQ_AIRFIELD"}'),
   ('node-kestrel-ridge', 'strategic-map-corinth', 'location-kestrel-ridge', 'OBJECTIVE', 'Kestrel Ridge', 'CONTESTED', 'OPEN', '{"x":27,"y":50}', '{"public":true}', 'source-phase3-brief-2026-08-09', 'Corinth Planetary Map: KESTREL RIDGE', '{}'),
@@ -257,7 +258,7 @@ INSERT INTO strategic_nodes (
   ('node-new-carthage', 'strategic-map-corinth', 'location-new-carthage', 'CITY', 'New Carthage', 'CONTESTED', 'OPEN', '{"x":62,"y":65}', '{"public":true}', 'source-phase3-brief-2026-08-09', 'Corinth Planetary Map: NEW CARTHAGE', '{}'),
   ('node-hive-basin', 'strategic-map-corinth', 'location-hive-basin', 'OBJECTIVE', 'Hive Basin', 'ENEMY', 'OPEN', '{"x":81,"y":75}', '{"public":true}', 'source-phase3-brief-2026-08-09', 'Corinth Planetary Map: HIVE BASIN', '{}'),
   ('node-junction-7', 'strategic-map-corinth', 'location-junction-7', 'JUNCTION', 'Junction 7', 'CONTESTED', 'OPEN', '{"x":52,"y":51}', '{"public":true}', 'source-phase3-brief-2026-08-09', 'Corinth Planetary Map: JUNCTION 7', '{}'),
-  ('node-corinth-ii', 'strategic-map-corinth', 'location-corinth-ii', 'PLANET', 'Corinth II', 'UNKNOWN', 'OPEN', '{"x":75,"y":18}', '{"public":true}', 'source-phase3-brief-2026-08-09', 'Initial World: CORINTH II', '{}'),
+  ('node-corinth-ii', 'strategic-map-corinth', 'location-corinth-ii', 'PLANET', 'Corinth II', 'UNKNOWN', 'OPEN', '{"x":74,"y":68}', '{"public":true}', 'source-phase3-brief-2026-08-09', 'Initial World: CORINTH II', '{}'),
   ('node-relay-kappa', 'strategic-map-corinth', 'location-relay-kappa', 'STATION', 'Relay Station Kappa', 'FRIENDLY', 'OPEN', '{"x":62,"y":8}', '{"public":true}', 'source-phase3-brief-2026-08-09', 'Initial World: RELAY STATION KAPPA', '{}'),
   ('node-helion-jump-point', 'strategic-map-corinth', 'location-helion-jump-point', 'JUMP_POINT', 'Helion Jump Point', 'NEUTRAL', 'OPEN', '{"x":89,"y":6}', '{"public":true}', 'source-phase3-brief-2026-08-09', 'Initial World: HELION JUMP POINT', '{}')
 ON CONFLICT(id) DO UPDATE SET

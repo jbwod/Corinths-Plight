@@ -162,6 +162,47 @@ export interface StrategicShipStateRow {
   revision: number;
 }
 
+export interface StrategicPlanetRow {
+  planet_id: string;
+  planet_name: string;
+  location_id: string;
+  node_id: string | null;
+  position_json: string | null;
+  control_status: string | null;
+  node_status: string | null;
+  environment_json: string;
+  war_state_json: string;
+}
+
+export interface StrategicCampaignMapRow {
+  campaign_id: string;
+  campaign_name: string;
+  campaign_status: "RECRUITING" | "ACTIVE" | "PAUSED";
+  strategic_status: "MUSTERING" | "ACTIVE";
+  planet_id: string;
+  planet_name: string;
+  planet_location_id: string;
+  strategic_node_id: string;
+  operation_id: string | null;
+  member_count: number;
+  viewer_deployment_count: number;
+  viewer_side: string;
+  viewer_role: string;
+  viewer_battalion_id: string | null;
+}
+
+export interface StrategicShipPresenceRow {
+  ship_id: string;
+  ship_name: string;
+  registry: string | null;
+  class_definition_id: string;
+  class_name: string;
+  ship_status: string;
+  task_force_id: string;
+  current_node_id: string | null;
+  is_primary: number;
+}
+
 export interface TaskForceRow {
   id: string;
   battalion_id: string;
@@ -382,6 +423,95 @@ export async function listStrategicShipStates(
               ORDER BY ships.id`)
     .bind(userId, battalionId, mapId)
     .all<StrategicShipStateRow>();
+  return result.results;
+}
+
+export async function listStrategicPlanets(
+  db: Env["DB"],
+  mapId: string,
+): Promise<StrategicPlanetRow[]> {
+  const result = await db.prepare(`WITH RECURSIVE map_locations(id) AS (
+      SELECT root_location_id FROM strategic_maps WHERE id=?1
+      UNION ALL
+      SELECT locations.id FROM strategic_locations AS locations
+      JOIN map_locations AS parent ON locations.parent_location_id=parent.id
+    )
+    SELECT planets.id AS planet_id,planets.name AS planet_name,
+      planets.strategic_location_id AS location_id,nodes.id AS node_id,
+      nodes.position_json,nodes.control_status,nodes.status AS node_status,
+      planets.environment_json,planets.war_state_json
+    FROM planets
+    JOIN map_locations ON map_locations.id=planets.strategic_location_id
+    LEFT JOIN strategic_nodes AS nodes
+      ON nodes.location_id=planets.strategic_location_id
+     AND nodes.map_id=?1
+     AND nodes.node_type='PLANET'
+    ORDER BY planets.name,planets.id`)
+    .bind(mapId).all<StrategicPlanetRow>();
+  return result.results;
+}
+
+/** Joined, non-terminal campaigns only. Draft and terminal records are not live map presence. */
+export async function listLiveMapCampaigns(
+  db: Env["DB"],
+  userId: string,
+  battalionId: string,
+  mapId: string,
+): Promise<StrategicCampaignMapRow[]> {
+  const result = await db.prepare(`SELECT campaigns.id AS campaign_id,campaigns.name AS campaign_name,
+      campaigns.status AS campaign_status,campaigns.strategic_status,
+      planets.id AS planet_id,planets.name AS planet_name,
+      planets.strategic_location_id AS planet_location_id,
+      nodes.id AS strategic_node_id,operations.id AS operation_id,
+      (SELECT COUNT(*) FROM campaign_memberships AS counted
+        WHERE counted.campaign_id=campaigns.id AND counted.role<>'GM') AS member_count,
+      (SELECT COUNT(*) FROM deployments
+        WHERE deployments.campaign_id=campaigns.id AND deployments.owner_id=?1
+          AND deployments.status IN ('READY','ACTIVE','IMMOBILISED')) AS viewer_deployment_count,
+      memberships.side AS viewer_side,memberships.role AS viewer_role,
+      memberships.battalion_id AS viewer_battalion_id
+    FROM campaign_memberships AS memberships
+    JOIN campaigns ON campaigns.id=memberships.campaign_id
+    JOIN planets ON planets.id=campaigns.planet_id
+    JOIN strategic_nodes AS nodes
+      ON nodes.id=campaigns.strategic_node_id AND nodes.map_id=?3
+    LEFT JOIN strategic_operations AS operations
+      ON operations.campaign_id=campaigns.id AND operations.map_id=nodes.map_id
+    WHERE memberships.user_id=?1
+      AND campaigns.status IN ('RECRUITING','ACTIVE','PAUSED')
+      AND campaigns.strategic_status IN ('MUSTERING','ACTIVE')
+      AND (memberships.battalion_id IS NULL OR memberships.battalion_id=?2)
+      AND EXISTS (SELECT 1 FROM battalion_memberships AS viewer
+        WHERE viewer.user_id=?1 AND viewer.battalion_id=?2 AND viewer.status='ACTIVE')
+    ORDER BY CASE campaigns.status WHEN 'ACTIVE' THEN 0 WHEN 'PAUSED' THEN 1 ELSE 2 END,
+      campaigns.name,campaigns.id`)
+    .bind(userId, battalionId, mapId).all<StrategicCampaignMapRow>();
+  return result.results;
+}
+
+/** Exact fleet data is limited to the viewer's active Battalion. */
+export async function listStrategicShipPresence(
+  db: Env["DB"],
+  userId: string,
+  battalionId: string,
+  mapId: string,
+): Promise<StrategicShipPresenceRow[]> {
+  const result = await db.prepare(`SELECT ships.id AS ship_id,ships.name AS ship_name,ships.registry,
+      ships.class_definition_id,classes.name AS class_name,ships.status AS ship_status,
+      forces.id AS task_force_id,forces.current_node_id,
+      CASE WHEN battalions.primary_ship_id=ships.id THEN 1 ELSE 0 END AS is_primary
+    FROM task_force_ships AS links
+    JOIN task_forces AS forces
+      ON forces.id=links.task_force_id AND forces.battalion_id=links.battalion_id
+    JOIN ships ON ships.id=links.ship_id AND ships.battalion_id=links.battalion_id
+    JOIN ship_class_definitions AS classes
+      ON classes.id=ships.class_definition_id AND classes.ruleset_id=ships.ruleset_id
+    JOIN battalions ON battalions.id=ships.battalion_id
+    WHERE links.status='ACTIVE' AND forces.map_id=?3 AND forces.battalion_id=?2
+      AND EXISTS (SELECT 1 FROM battalion_memberships AS viewer
+        WHERE viewer.user_id=?1 AND viewer.battalion_id=forces.battalion_id AND viewer.status='ACTIVE')
+    ORDER BY forces.name,ships.name,ships.id`)
+    .bind(userId, battalionId, mapId).all<StrategicShipPresenceRow>();
   return result.results;
 }
 

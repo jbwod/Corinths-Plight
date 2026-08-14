@@ -27,28 +27,28 @@ function localDemoHeaders(): HeadersInit | undefined {
 }
 
 const showcaseModes: { id: ShowcaseMode; label: string; detail: string }[] = [
-  { id: "STRATEGIC", label: "GALACTIC", detail: "The live theatre screen for formations, routes, supply and operations." },
-  { id: "TACTICAL", label: "CAMPAIGN", detail: "The live battlefield for simultaneous routes, facing and tactical actions." },
-  { id: "PERSISTENCE", label: "FORCES", detail: "The live registry for named veterans, equipment, damage and service history." },
+  { id: "STRATEGIC", label: "GALACTIC", detail: "An illustrative build capture of the planned multi-planet command layer." },
+  { id: "TACTICAL", label: "CAMPAIGN", detail: "A current build capture of simultaneous routes, facing and tactical actions." },
+  { id: "PERSISTENCE", label: "FORCES", detail: "A current build capture of named veterans, equipment, damage and service history." },
 ];
 
 function TheatreBrief() {
   return (
-    <aside className="home-theatre-brief home-reveal" data-home-reveal aria-label="Current Corinth theatre briefing">
-      <header><span>THEATRE SIGNAL</span><b>LIVE</b></header>
+    <aside className="home-theatre-brief home-reveal" data-home-reveal aria-label="Illustrative Corinth theatre briefing">
+      <header><span>GAME-TEST BRIEF</span><b>ILLUSTRATIVE</b></header>
       <div className="home-brief-location">
-        <small>HELION SYSTEM // CORINTH</small>
-        <strong>THE LINE IS HOLDING.</strong>
-        <p>For now.</p>
+        <small>CORINTH // AUTHORED TEST THEATRE</small>
+        <strong>THE LINE IS READY.</strong>
+        <p>For game testing.</p>
       </div>
       <dl>
-        <div><dt>CONTROL</dt><dd className="contested">CONTESTED</dd></div>
-        <div><dt>ENEMY PRESSURE</dt><dd className="danger">HIGH</dd></div>
-        <div><dt>STRATEGIC ROUND</dt><dd>028</dd></div>
+        <div><dt>SCOPE</dt><dd className="contested">TACTICAL</dd></div>
+        <div><dt>ENEMY PRESSURE</dt><dd className="danger">CONFIGURABLE</dd></div>
+        <div><dt>BUILD</dt><dd>GAME-TEST</dd></div>
       </dl>
       <footer>
-        <span><i /> CSV RESOLUTE</span>
-        <small>CORINTH HIGH ORBIT</small>
+        <span><i /> NOT LIVE CAMPAIGN STATE</span>
+        <small>ILLUSTRATIVE BRIEFING</small>
       </footer>
     </aside>
   );
@@ -168,7 +168,7 @@ function SignedOutHome({ authAvailable, initialMode }: { authAvailable: boolean;
           </div>
           <dl className="public-signal-grid">
             <div><dt>YOUR FORCE</dt><dd>Raise named units. Equip them. Carry their damage and victories forward.</dd></div>
-            <div><dt>YOUR BATTALION</dt><dd>Coordinate players, ships, Battlegroups and scarce supply.</dd></div>
+            <div><dt>YOUR BATTALION</dt><dd>Coordinate players, persistent units, deployments and campaign plans.</dd></div>
             <div><dt>YOUR ORDERS</dt><dd>Plan together. Lock intentions. Resolve the whole battlefield at once.</dd></div>
           </dl>
         </div>
@@ -221,14 +221,14 @@ function SignedOutHome({ authAvailable, initialMode }: { authAvailable: boolean;
         )}
       </section>
 
-      <section className="home-transmission" data-motion-section aria-label="Current theatre transmission">
-        <div><span>STRATEGIC ROUND 028</span><b>CSV RESOLUTE // CORINTH HIGH ORBIT</b><span>BUG PRESSURE: HIGH</span><b>OPERATION IRON RAIN // MUSTERING</b><span>KESTREL RIDGE: CONTESTED</span></div>
+      <section className="home-transmission" data-motion-section aria-label="Game-test build scope">
+        <div><span>GAME-TEST BUILD</span><b>AUTHENTICATED ACCOUNTS</b><span>PERSISTENT FORCES</span><b>TACTICAL CAMPAIGNS</b><span>GAME MASTER MAPS</span></div>
       </section>
 
       <section id="gameplay" className="home-gameplay" data-motion-section>
         <header className="home-section-heading home-reveal" data-home-reveal>
           <div><span className="eyebrow">THE COMMAND EXPERIENCE</span><h2>The war is bigger than one battle.</h2></div>
-          <p>Move across the theatre, commit a persistent force, then issue precise orders on the ground. These views mirror the systems already playable in the current build.</p>
+          <p>Join a Battalion, commit a persistent force, then issue precise orders on the ground. These are build captures; the current test-ready path is account, force, deployment, tactical campaign, outcome, and recovery.</p>
         </header>
         <div className="home-showcase-controls home-reveal" data-home-reveal aria-label="Gameplay example views">
           {showcaseModes.map((item, index) => <button key={item.id} type="button" aria-pressed={showcaseMode === item.id} className={showcaseMode === item.id ? "active" : ""} onClick={() => setShowcaseMode(item.id)}><span>0{index + 1}</span><b>{item.label}</b><small>{item.detail}</small></button>)}
@@ -242,15 +242,15 @@ function SignedOutHome({ authAvailable, initialMode }: { authAvailable: boolean;
       <section className="home-campaign-loop" data-motion-section>
         <header className="home-section-heading home-reveal" data-home-reveal><div><span className="eyebrow">A LIVING CAMPAIGN</span><h2>What survives changes what comes next.</h2></div></header>
         <div className="home-loop-grid">
-          <article className="home-reveal" data-home-reveal><span>01 // MUSTER</span><h3>Join the expedition.</h3><p>Enter a player Battalion, crew its ship and build a persistent combined-arms force.</p><small>CORINTH HIGH ORBIT</small></article>
-          <article className="home-reveal" data-home-reveal><span>02 // COMMIT</span><h3>Choose where to bleed.</h3><p>Strategic control, logistics and operation outcomes decide which roads and fronts open.</p><small>THE CORINTH EXPEDITION</small></article>
+          <article className="home-reveal" data-home-reveal><span>01 // MUSTER</span><h3>Join the expedition.</h3><p>Enter a player Battalion and build a persistent combined-arms force.</p><small>CORINTH GAME-TEST</small></article>
+          <article className="home-reveal" data-home-reveal><span>02 // COMMIT</span><h3>Choose where to bleed.</h3><p>Equip persistent units and commit a valid force to an authored operation.</p><small>DEPLOYMENT PLANNER</small></article>
           <article className="home-reveal" data-home-reveal><span>03 // COMMAND</span><h3>Make intentions visible.</h3><p>Allies coordinate routes, facing, targets and support before the simultaneous lock.</p><small>TACTICAL ROUND</small></article>
           <article className="home-reveal" data-home-reveal><span>04 // ENDURE</span><h3>Bring home who remains.</h3><p>Veterans retain service history, equipment, ammunition and damage. The dead stay named.</p><small>PERSISTENT FORCE REGISTRY</small></article>
         </div>
       </section>
 
       <section className="home-final-call home-reveal" data-home-reveal>
-        <span className="eyebrow">THE 33RD IS STILL TAKING NAMES</span>
+        <span className="eyebrow">CORINTH IS STILL TAKING NAMES</span>
         <h2>There is another round to plan.</h2>
         <p>Corinth does not need a hero. It needs a commander who will still be here when the consequences arrive.</p>
         <div><button className="primary" onClick={() => setMode("REGISTER")}>JOIN THE EXPEDITION</button><button onClick={() => setMode("LOGIN")}>RETURN TO COMMAND</button></div>

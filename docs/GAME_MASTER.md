@@ -2,7 +2,7 @@
 
 **Status:** Admin-only local vertical slice implemented; not deployed and not a public-release claim (2026-08-14)
 
-**Schema:** migrations `0019_game_master_authority.sql`, `0020_game_master_maps.sql`, and `0021_game_master_campaign_runtime.sql`
+**Schema:** migrations `0019_game_master_authority.sql`, `0020_game_master_maps.sql`, `0021_game_master_campaign_runtime.sql`, and `0022_game_master_skirmish_policy.sql`
 
 ## 1. Authority boundary
 
@@ -29,11 +29,17 @@ All Game Master routes require an authenticated identity. Mutations also pass th
 | `POST /api/game-master/campaigns/:id/pause` | Pauses a live campaign and projects `PAUSED` to D1 | Version-pinned and receipt-idempotent |
 | `POST /api/game-master/campaigns/:id/resume` | Resumes the stored pre-pause phase and projects `ACTIVE` to D1 | Version-pinned and receipt-idempotent |
 | `POST /api/game-master/campaigns/:id/resolve` | Invokes the ordinary deterministic lock/resolve path | It does not permit editing a combat result |
-| `POST /api/game-master/campaigns/:id/deployments/:deploymentId/revive` | Rejects with `REVIVE_RULE_DECISION_REQUIRED` | V5 permanent destruction and restoration state are unresolved; revival is not implemented |
+| `POST /api/game-master/campaigns/:id/deployments/:deploymentId/revive` | Applies the exact `game-master-recovery@1` exceptional correction | Requires a campaign paused from `PLANNING`, a genuinely destroyed deployment, a still-valid legal hex, and the current campaign revision; it is not an ordinary V5 repair or resurrection action |
 
 Every accepted command envelope carries an actor-scoped `commandId` and the relevant expected campaign or map revision. The server canonicalizes and SHA-256 hashes the request, stores the exact response receipt, rejects changed-payload command reuse, and writes a private audit event for committed command outcomes, including authoritative rejections such as blocked publication. Request-schema errors can fail before a command receipt exists. Map save, map publication, and campaign creation use a separate authoring receipt/audit family because no live campaign necessarily exists yet. Both command families reserve the actor/command pair before dispatch or mutation. A matching incomplete reservation younger than two minutes fails closed; an older exact-hash reservation is reclaimed by compare-and-set and retried through the Durable Object or D1 idempotency boundary.
 
 Campaign state and the Campaign Durable Object command receipt commit together. The D1 command receipt, registry projection, and audit event are written after the Durable Object response and can be recovered by an exact retry. D1 and Durable Object storage do not share a transaction, so this is an idempotent eventually projected boundary, not an atomic cross-store audit guarantee. Operator diagnostics and reconciliation remain release work.
+
+### Exceptional recovery boundary
+
+`game-master-recovery@1` is an owner-approved Corinth administrative correction, not canonical V5 and not available to an ordinary player action, equipment effect, repair workflow, or campaign result. The server accepts it only from an explicitly authorized global Game Master, only while the campaign is paused from `PLANNING`, and only when the target deployment is `DESTROYED`, has `locationState='DESTROYED'`, and has zero health. The original hex must still exist, have capacity, and be legal for that deployment's terrain capabilities.
+
+An accepted command returns the deployment to `ACTIVE` / `ON_MAP` at its existing hex, restores maximum health and each governed weapon's maximum ammunition, clears cooldowns, tactical statuses, non-permanent status effects, bombardment suppression, and damage, and restores governed subsystems to `OPERATIONAL`. Status effects explicitly marked permanent remain. A persistent deployment must be Allied; its D1 Player Unit, deployment snapshot, weapon mounts, subsystem rows, and non-permanent status-effect rows are reconciled to the same state, and a private `GAME_MASTER_RECOVERY` unit-history record names the policy, actor, command, campaign, deployment, and round. Exact command replay is idempotent. The DO mutation and D1 reconciliation remain the cross-store eventually projected boundary described above, so reconciliation diagnostics are still release work.
 
 ## 3. Deterministic map documents
 
@@ -62,13 +68,27 @@ An authorized Game Master can:
 
 `GET /api/game-master/maps` returns map metadata plus the available planets, enemy definitions, and the complete canonical biome/profile catalogue as locked review metadata. `GET /api/game-master/maps/:id` returns one complete saved document. `POST /api/game-master/maps` creates or revises a draft. `POST /api/game-master/maps/:id/publish` validates publication readiness. `POST /api/game-master/campaigns` creates a D1 campaign pinned to the exact map revision and content hash. A submitted mechanics review mapping is accepted only when every value exactly matches the biome's vocabulary-pinned profile; it cannot override the document.
 
-Campaign creation accepts only a `PUBLISHED` map and the caller's exact expected map revision. It creates a `RECRUITING` campaign, immutable map/content pin, Game Master membership, and deterministic insertion zone on a passable non-water hex. The ordinary campaign join and Battalion deployment workflow supplies Allied units. After at least one committed deployment, the Campaign Durable Object validates the pin and hash, materializes the exact map, and exposes the ordinary authenticated tactical runtime. Objectives and enemies intentionally start empty: the Game Master authors objectives and spawns governed enemies through the audited live controls rather than inheriting showcase fixtures.
+Campaign creation accepts only a `PUBLISHED` map and the caller's exact expected map revision. It creates a `RECRUITING` campaign, immutable map/content pin, Game Master membership, deterministic insertion zone on a passable non-water hex, and a version-2 custom-scenario row pinned to `game-master-skirmish@1` plus `public-v1-economy@1`. The ordinary campaign join and Battalion deployment workflow supplies Allied units. After at least one committed deployment, the Campaign Durable Object validates the pin, hash, scenario version, terminal policy, maximum round, and reward policy before it materializes the exact map and exposes the ordinary authenticated tactical runtime. Objectives and enemies intentionally start empty: the Game Master authors objectives and spawns governed enemies through the audited live controls rather than inheriting showcase fixtures.
 
 Large runtime states use a SHA-256-verified storage manifest and fixed 1 MiB chunks, below the configured SQLite-backed Durable Object key/value ceiling. Reads remain backward-compatible with the earlier inline state envelope; missing, malformed, truncated, or hash-mismatched chunks fail closed. A 96×96 generated battlefield with 9,216 hexes is covered by a storage round-trip test. Current pre-resolution snapshots still duplicate that map each round, so long-running maximum-size campaigns need immutable-map references plus dynamic deltas before cost/retention can be considered release-ready.
 
 Publication still fails closed if a document contains a missing, mismatched, or non-published biome/feature contract. The pinned `@2` vocabulary now provides a published rule for every generator biome and for City, Airfield, Town, Outpost, RADAR, Trench, Road, Path, River, Wall, and Bridge, so a valid current generated document has no balance placeholder. Older `@1` documents are not silently upgraded; they must be regenerated or explicitly migrated and rehashed.
 
-## 5. Custom-map terrain application profile
+## 5. Versioned custom-skirmish closure
+
+`game-master-skirmish@1` is an owner-approved Corinth application policy, not a canonical V5 scenario rule. It applies only to newly created Game Master scenario content at version `@2`:
+
+1. if no living or active Allied deployment remains, the campaign ends in defeat with `ALL_ALLIED_DEPLOYMENTS_LOST`;
+2. otherwise, if at least one enemy deployment has existed and every spawned enemy is now destroyed or withdrawn, the campaign ends in victory with `ALL_SPAWNED_ENEMIES_LOST`;
+3. otherwise, round 12 ends in defeat with `GAME_MASTER_SKIRMISH_ROUND_LIMIT_REACHED`;
+4. Allied loss is checked before enemy loss, while elimination of the last enemy on round 12 wins before the round-limit check;
+5. an empty initial enemy roster is not a victory.
+
+The terminal result uses `public-v1-economy@1`: every eligible Allied commander receives the published 5 Req mission award, and victory adds the published 20 Req campaign award. Existing result/effect receipts keep the ledger and campaign result idempotent. The generic campaign-result applier also closes deployments, keeps destroyed persistent units destroyed, returns surviving custom-campaign units to unlocated `RESERVE`, and unlocks their loadouts. Only a campaign linked to a strategic operation receives operation-node placement and the linked Battlegroup `RECOVERING` transition; this slice does not invent a strategic node for a standalone custom campaign.
+
+Migration `0022` preserves existing version-1 custom rows with null policy fields. Runtime supports only the exact version-2 key and policy tuple, so legacy `@1` campaigns are not silently upgraded and fail closed until an explicit migration/republication decision is made.
+
+## 6. Custom-map terrain application profile
 
 `corinth-custom-map-terrain-application@2` is a user-approved Corinth application interpretation. It is not claimed to be canonical V5 text and does not retroactively pin every legacy authored scenario default.
 
@@ -91,8 +111,10 @@ Publication still fails closed if a document contains a missing, mismatched, or 
 
 All requested visual biomes map to one explicit mechanical profile in the immutable vocabulary; the runtime never parses a biome name to decide movement. Arid, cold, rough, ridge, glacier, canyon, crater, dune, badland, and urban variants therefore carry fixed cost/elevation/LOS/capacity values even when the graphic changes. The route finder is deterministic and cost-aware, so it can prefer a legal bridge, road, or path over a slower river crossing. Player validation, resolver movement, simultaneous movement, and deterministic enemy path budgeting consume the same traversal state. Engineer Field Bridge construction marks the exact bidirectional bridge edge without deleting the underlying river; bridge attack/repair/durability lifecycle remains separately unresolved.
 
-## 6. Deployment and release status
+## 7. Deployment and release status
 
-The repository head is migration `0021_game_master_campaign_runtime.sql`. A fresh isolated D1 replay through all 21 migrations and all nine seeds twice passed integrity and foreign-key checks across 130 application tables. The recorded production deployment remains at migration `0007`; migrations `0008`–`0021`, the Game Master console, and the custom-map runtime are not active on the public origin.
+The repository head is migration `0022_game_master_skirmish_policy.sql`. A fresh isolated D1 replay through all 22 migrations and all nine seeds twice passes integrity and foreign-key checks across 130 application tables. The recorded production deployment remains at migration `0007`; migrations `0008`–`0022`, the Game Master console, and the custom-map runtime are not active on the public origin until a deployment is actually recorded.
 
-This slice does not close public-release readiness. Remaining Game Master work includes grant administration and MFA policy, rate limits and operational alerts, full early-rejection security auditing, cross-store reconciliation diagnostics, membership/announcement/award controls, revival rules, a versioned custom-scenario victory/reward/closure policy, bridge attack/repair durability, multi-account browser/security/accessibility evidence, production migration, and preview deployment rehearsal.
+The owner has authorized a narrowly scoped private production game-test operation and explicitly waived preview and pre-deployment backup as gates for that operation. That waiver is not evidence of a backup/restore rehearsal, does not close the preview or recovery roadmap items, and does not authorize a public-release claim. The production test-ready promise is limited to authenticated account/onboarding, Battalion and force management, deployment, tactical campaign/report/recovery, and explicitly granted Game Master map/campaign workflows; unfinished strategic and ship surfaces are outside that test scope.
+
+This slice does not close public-release readiness. Remaining Game Master work includes grant administration and MFA policy, rate limits and operational alerts, full early-rejection security auditing, cross-store reconciliation diagnostics, membership/announcement/award controls, standalone-custom-campaign strategic placement/recovery, bridge attack/repair durability, multi-account browser/security/accessibility evidence, and recorded production migration/deployment evidence.

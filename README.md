@@ -26,13 +26,12 @@ Requirements: a current Node.js release and npm.
 
 ```bash
 npm install
-npm run db:migrate:local
-npm run db:seed:local
+npm run db:sync:local
 npm run db:seed:demo:local
 npm run dev
 ```
 
-The development configuration enables the explicit `demo-user` identity and uses a five-minute round with a thirty-second lock lead. The separate demo seed creates the local Operation Iron Rain roster and must never be applied to production. Production configuration disables demo authentication and defaults to a 24-hour round.
+`db:sync:local` applies every schema migration before refreshing the idempotent rules, unit, equipment, and onboarding catalogues. Use it after pulling migration or catalogue changes so requisition authority cannot remain on stale `CATALOGUE_ONLY` or `PARTIAL` overlays. The development configuration enables the explicit `demo-user` identity and uses a five-minute round with a thirty-second lock lead. The separate demo seed creates the local Operation Iron Rain roster and must never be applied to production. Production configuration disables demo authentication and defaults to a 24-hour round.
 
 ## Verify
 

@@ -12,6 +12,7 @@ export type StrategicView = "Command" | "Battalion" | "Ship" | "Galactic";
 interface StrategicWorkspaceProps {
   view: StrategicView;
   onNavigate: (view: StrategicView | "Forces" | "Campaigns" | "Deployment") => void;
+  onOpenCampaign: (campaignId: string) => void;
   onNotice: (notice: { tone: "info" | "success" | "danger"; message: string }) => void;
 }
 
@@ -38,32 +39,49 @@ function ModeBanner({ mode, issues }: { mode: StrategicDataMode; issues: string[
   );
 }
 
-export function StrategicWorkspace({ view, onNavigate, onNotice }: StrategicWorkspaceProps) {
+export function StrategicWorkspace({ view, onNavigate, onOpenCampaign, onNotice }: StrategicWorkspaceProps) {
   const pageRef = useRef<HTMLElement>(null);
+  const refreshInFlightRef = useRef(false);
   const [snapshot, setSnapshot] = useState<StrategicSnapshot>(SHOWCASE_STRATEGIC_SNAPSHOT);
   const [mode, setMode] = useState<StrategicDataMode>("LOADING");
   const [issues, setIssues] = useState<string[]>([]);
 
-  const refresh = useCallback(async () => {
-    setMode("LOADING");
-    const result = await loadStrategicSnapshot();
-    setSnapshot(result.snapshot);
-    setIssues(result.issues);
-    setMode(result.mode);
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    void loadStrategicSnapshot().then((result) => {
-      if (!active) return;
+  const loadSnapshot = useCallback(async (silent: boolean) => {
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
+    if (!silent) setMode("LOADING");
+    try {
+      const result = await loadStrategicSnapshot();
       setSnapshot(result.snapshot);
       setIssues(result.issues);
       setMode(result.mode);
-    });
-    return () => {
-      active = false;
-    };
+    } finally {
+      refreshInFlightRef.current = false;
+    }
   }, []);
+
+  const refresh = useCallback(async () => loadSnapshot(false), [loadSnapshot]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => void loadSnapshot(true), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [loadSnapshot]);
+
+  useEffect(() => {
+    if (view !== "Galactic") return;
+    const silentRefresh = () => void loadSnapshot(true);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") silentRefresh();
+    };
+    const intervalId = window.setInterval(silentRefresh, 30_000);
+    window.addEventListener("focus", silentRefresh);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", silentRefresh);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [loadSnapshot, view]);
 
   useEffect(() => {
     pageRef.current?.scrollTo({ top: 0, left: 0 });
@@ -147,6 +165,7 @@ export function StrategicWorkspace({ view, onNavigate, onNotice }: StrategicWork
           snapshot={snapshot}
           mode={mode}
           onNavigate={onNavigate}
+          onOpenCampaign={onOpenCampaign}
           onNotice={onNotice}
           onRequestOperationDetail={requestOperationDetail}
           onStrategicChanged={refresh}

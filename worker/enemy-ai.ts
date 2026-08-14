@@ -192,7 +192,9 @@ function selectOrderType(
 }
 
 function primaryObjective(state: CampaignRuntimeState) {
-  const configured = state.scenarioPolicy?.primaryObjectiveId;
+  const configured = state.scenarioPolicy?.policyId === "HOLD_PRIMARY_OBJECTIVE"
+    ? state.scenarioPolicy.primaryObjectiveId
+    : undefined;
   if (configured) {
     const objective = state.objectives.find((candidate) => candidate.id === configured);
     if (objective) return objective;

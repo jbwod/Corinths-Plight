@@ -238,6 +238,8 @@ function normalizeCatalogue(value: unknown): ForceCatalogueView | undefined {
     implementationStatus: validImplementation(record.implementationStatus),
     requisitionStatus: validRequisition(record.requisitionStatus),
     availabilityStatus: validAvailability(record.availabilityStatus),
+    executable: record.executable === true,
+    purchasable: record.purchasable === true,
     availabilityReason: asString(record.availabilityReason, asString(record.availabilityReasonCode, asString(record.reasonCode))) || undefined,
     requisitionCost: typeof record.requisitionCost === "number" ? record.requisitionCost : null,
     initialEquipment,
@@ -923,7 +925,7 @@ function RequisitionDialog({
   const [error, setError] = useState<string>();
   const selected = catalogue.find((item) => item.id === selectedId);
   const eligible = Boolean(
-    live && selected && selected.implementationStatus !== "CATALOGUE_ONLY" &&
+    live && selected && selected.implementationStatus === "IMPLEMENTED" && selected.executable && selected.purchasable &&
       selected.availabilityStatus === "AVAILABLE" && selected.requisitionStatus === "PUBLISHED" &&
       selected.requisitionCost !== null && requisitionBalance !== null && requisitionBalance >= selected.requisitionCost,
   );

@@ -1,17 +1,31 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type WheelEvent as ReactWheelEvent,
+} from "react";
 import type {
   OperationView,
+  StrategicCampaignMapView,
   StrategicDataMode,
   StrategicNodeView,
+  StrategicPlanetView,
+  StrategicShipPresenceView,
   StrategicSnapshot,
 } from "../../strategic/model";
 import { resolveStrategicMap, submitStrategicOrder } from "../../strategic/api";
 import type { StrategicView } from "../StrategicWorkspace";
+import { ShipSprite } from "./ShipSprite";
 
 interface GalacticOperationsViewProps {
   snapshot: StrategicSnapshot;
   mode: StrategicDataMode;
   onNavigate: (view: StrategicView | "Forces" | "Campaigns" | "Deployment") => void;
+  onOpenCampaign: (campaignId: string) => void;
   onNotice: (notice: { tone: "info" | "success" | "danger"; message: string }) => void;
   onRequestOperationDetail: (operationId: string) => Promise<void>;
   onStrategicChanged: () => Promise<void>;
@@ -33,27 +47,59 @@ function routeLabel(value: number | null): string {
 }
 
 const systemNodeTypes = new Set(["ORBIT", "PLANET", "STATION", "JUMP_POINT"]);
+const systemPeerNodeTypes = new Set(["STATION", "JUMP_POINT"]);
+const MIN_ZOOM = .72;
+const MAX_ZOOM = 1.8;
+const DRAG_THRESHOLD = 5;
+
+interface MapTransform {
+  x: number;
+  y: number;
+  scale: number;
+}
+
+interface DragState {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  originX: number;
+  originY: number;
+  moved: boolean;
+}
 
 function isSystemNode(node: StrategicNodeView): boolean {
   return systemNodeTypes.has(node.type.toUpperCase());
 }
 
 function planetNodePosition(node: StrategicNodeView): { x: number; y: number } {
-  if (node.type.toUpperCase() === "ORBIT") return { x: 13, y: 24 };
+  if (node.type.toUpperCase() === "ORBIT") return { x: 50, y: 12 };
   return {
-    x: Math.max(20, Math.min(80, 15 + node.x * .7)),
-    y: Math.max(24, Math.min(80, 18 + node.y * .75)),
+    x: Number.isFinite(node.x) ? Math.max(8, Math.min(92, node.x)) : 50,
+    y: Number.isFinite(node.y) ? Math.max(12, Math.min(88, node.y)) : 50,
   };
 }
 
-function systemNodePosition(node: StrategicNodeView): { x: number; y: number } {
-  switch (node.type.toUpperCase()) {
-    case "ORBIT": return { x: 41, y: 26 };
-    case "STATION": return { x: 62, y: 39 };
-    case "PLANET": return { x: 76, y: 69 };
-    case "JUMP_POINT": return { x: 88, y: 18 };
-    default: return { x: node.x, y: node.y };
+function systemPlanetPosition(planet: StrategicPlanetView, index: number): { x: number; y: number } {
+  if (planet.position) {
+    return {
+      x: Math.max(12, Math.min(90, planet.position.x)),
+      y: Math.max(14, Math.min(86, planet.position.y)),
+    };
   }
+  const fallback = [
+    { x: 46, y: 46 },
+    { x: 73, y: 69 },
+    { x: 79, y: 28 },
+    { x: 32, y: 79 },
+  ];
+  return fallback[index % fallback.length];
+}
+
+function systemNodePosition(node: StrategicNodeView): { x: number; y: number } {
+  return {
+    x: Number.isFinite(node.x) ? Math.max(10, Math.min(92, node.x)) : 62,
+    y: Number.isFinite(node.y) ? Math.max(10, Math.min(90, node.y)) : 39,
+  };
 }
 
 function routePath(from: { x: number; y: number }, to: { x: number; y: number }, index: number, scale: MapScale): string {
@@ -66,11 +112,11 @@ function routePath(from: { x: number; y: number }, to: { x: number; y: number },
   return `M ${from.x} ${from.y} Q ${controlX} ${controlY} ${to.x} ${to.y}`;
 }
 
-function MapShipIcon() {
-  return <svg viewBox="0 0 32 18" aria-hidden="true"><path d="M2 11h5l4-6h9l3 3h6v3h-6l-3 3h-9l-4-2H2v-1Zm10-4-2 3h10l-2-3h-6Z" /></svg>;
+function readable(value: string): string {
+  return value.replaceAll("_", " ");
 }
 
-function PlanetProjection() {
+function PlanetProjection({ planet }: { planet?: StrategicPlanetView }) {
   return (
     <svg className="planet-projection" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
       <defs>
@@ -114,6 +160,7 @@ function PlanetProjection() {
         <circle cx="50" cy="50" r="38" fill="url(#corinth-shade)" />
       </g>
       <path className="planet-scan-mark" d="M10 50h5m70 0h5M50 10v5m0 70v5" />
+      {planet && <text className="planet-projection-label" x="50" y="95" textAnchor="middle">{planet.name.toUpperCase()}</text>}
     </svg>
   );
 }
@@ -138,6 +185,10 @@ function SystemProjection() {
       <circle className="system-orbit" cx="20" cy="52" r="59" />
       <circle className="system-star" cx="20" cy="52" r="6" fill="url(#helion-star)" />
       <path className="system-axis" d="M5 52h90M20 5v90" />
+      <g className="system-minor-bodies" aria-hidden="true">
+        <circle cx="58" cy="23" r=".5" /><circle cx="61" cy="25" r=".32" /><circle cx="64" cy="27" r=".42" />
+        <circle cx="67" cy="29" r=".26" /><circle cx="70" cy="31" r=".55" /><circle cx="73" cy="34" r=".3" />
+      </g>
     </svg>
   );
 }
@@ -146,32 +197,73 @@ export function GalacticOperationsView({
   snapshot,
   mode,
   onNavigate,
+  onOpenCampaign,
   onNotice,
   onRequestOperationDetail,
   onStrategicChanged,
 }: GalacticOperationsViewProps) {
   const [tab, setTab] = useState<OperationsTab>("MAP");
   const [presentation, setPresentation] = useState<MapPresentation>("VISUAL");
-  const [mapScale, setMapScale] = useState<MapScale>("PLANET");
-  const [selectedNodeId, setSelectedNodeId] = useState(snapshot.map.nodes[0]?.id ?? "");
+  const [mapScale, setMapScale] = useState<MapScale>("SYSTEM");
+  const [selectedNodeId, setSelectedNodeId] = useState("");
   const [selectedOperationId, setSelectedOperationId] = useState(snapshot.operations[0]?.id ?? "");
+  const [selectedCampaignId, setSelectedCampaignId] = useState(snapshot.map.campaigns[0]?.campaignId ?? "");
+  const [selectedPlanetId, setSelectedPlanetId] = useState(snapshot.map.planets[0]?.planetId ?? "");
   const [filters, setFilters] = useState<Set<MapFilter>>(new Set(["OPERATIONS", "FRIENDLY_FORCES", "SUPPLY", "ROUTES"]));
   const [selectedFormationId, setSelectedFormationId] = useState(snapshot.map.formations[0]?.id ?? "");
   const [submitting, setSubmitting] = useState(false);
+  const [mapTransform, setMapTransform] = useState<MapTransform>({ x: 0, y: 0, scale: 1 });
+  const [mapStatus, setMapStatus] = useState("Helion system map ready. Use arrow keys to pan or plus and minus to zoom.");
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<DragState | null>(null);
+  const suppressClickUntilRef = useRef(0);
 
   const nodeById = useMemo(() => new Map(snapshot.map.nodes.map((node) => [node.id, node])), [snapshot.map.nodes]);
+  const planetByLocation = useMemo(() => new Map(snapshot.map.planets.map((planet) => [planet.locationId, planet])), [snapshot.map.planets]);
+  const planetPositions = useMemo(() => new Map(snapshot.map.planets.map((planet, index) => [planet.planetId, systemPlanetPosition(planet, index)])), [snapshot.map.planets]);
   const primaryTaskForce = snapshot.map.formations.find((formation) =>
     formation.kind === "TASK_FORCE" &&
     (formation.id === snapshot.ship.taskForce.id || formation.name === snapshot.ship.taskForce.name),
   );
-  const currentShipNodeId = primaryTaskForce?.nodeId
+  const primaryShipPresence = snapshot.map.shipPresence.find((ship) => ship.primary)
+    ?? snapshot.map.shipPresence.find((ship) => ship.shipId === snapshot.ship.id);
+  const currentShipNodeId = primaryShipPresence?.nodeId
+    ?? primaryTaskForce?.nodeId
     ?? snapshot.map.nodes.find((node) => node.name === snapshot.ship.taskForce.location)?.id
     ?? "";
-  const planetaryNodes = snapshot.map.nodes.filter((node) => !isSystemNode(node) || node.type.toUpperCase() === "ORBIT");
-  const systemNodes = snapshot.map.nodes.filter(isSystemNode);
+  const currentShipNode = nodeById.get(currentShipNodeId);
+  const currentPlanet = currentShipNode?.planetLocationId ? planetByLocation.get(currentShipNode.planetLocationId) : undefined;
+  const selectedPlanet = snapshot.map.planets.find((planet) => planet.planetId === selectedPlanetId)
+    ?? currentPlanet
+    ?? snapshot.map.planets[0];
+  const liveCampaigns = snapshot.map.campaigns.filter((campaign) =>
+    campaign.status === "RECRUITING" || campaign.status === "ACTIVE" || campaign.status === "PAUSED"
+  );
+  const campaignsForSelectedPlanet = selectedPlanet
+    ? liveCampaigns.filter((campaign) => campaign.planetId === selectedPlanet.planetId)
+    : [];
+  const selectedCampaign = campaignsForSelectedPlanet.find((campaign) => campaign.campaignId === selectedCampaignId)
+    ?? campaignsForSelectedPlanet[0];
+  const planetaryNodes = snapshot.map.nodes.filter((node) => {
+    if (isSystemNode(node)) return false;
+    if (!selectedPlanet) return true;
+    return node.planetLocationId === selectedPlanet.locationId || node.locationId === selectedPlanet.locationId;
+  });
+  const planetRouteNodes = snapshot.map.nodes.filter((node) => {
+    if (!selectedPlanet) return !isSystemNode(node) || node.type.toUpperCase() === "ORBIT";
+    return node.planetLocationId === selectedPlanet.locationId || node.locationId === selectedPlanet.locationId;
+  });
+  const systemNodes = snapshot.map.nodes.filter((node) => systemPeerNodeTypes.has(node.type.toUpperCase()));
   const visibleNodes = mapScale === "PLANET" ? planetaryNodes : systemNodes;
-  const selectedNode = nodeById.get(selectedNodeId) ?? snapshot.map.nodes[0];
-  const selectedOperation = snapshot.operations.find((operation) => operation.id === selectedOperationId)
+  const selectedNode = nodeById.get(selectedNodeId)
+    ?? (selectedCampaign ? nodeById.get(selectedCampaign.strategicNodeId) : undefined)
+    ?? nodeById.get(currentShipNodeId)
+    ?? visibleNodes[0];
+  const campaignOperation = selectedCampaign?.operationId
+    ? snapshot.operations.find((operation) => operation.id === selectedCampaign.operationId)
+    : undefined;
+  const selectedOperation = campaignOperation
+    ?? snapshot.operations.find((operation) => operation.id === selectedOperationId)
     ?? (selectedNode ? operationAtNode(snapshot.operations, selectedNode)[0] : undefined)
     ?? snapshot.operations[0];
   const routesAtSelectedNode = selectedNode
@@ -224,6 +316,47 @@ export function GalacticOperationsView({
     selectedTaskForceSupply.largeCurrent > 0 &&
     (selectedTaskForceSupply.suppliedThroughRound ?? -1) < requiredSupplyRound,
   );
+
+  const systemPositionForNode = useCallback((node: StrategicNodeView): { x: number; y: number } => {
+    const owningPlanet = node.planetLocationId ? planetByLocation.get(node.planetLocationId) : undefined;
+    if (owningPlanet) return planetPositions.get(owningPlanet.planetId) ?? systemPlanetPosition(owningPlanet, 0);
+    const planetNode = snapshot.map.planets.find((planet) => planet.strategicNodeId === node.id || planet.locationId === node.locationId);
+    if (planetNode) return planetPositions.get(planetNode.planetId) ?? systemPlanetPosition(planetNode, 0);
+    return systemNodePosition(node);
+  }, [planetByLocation, planetPositions, snapshot.map.planets]);
+
+  const fleetGroups = useMemo(() => snapshot.map.formations.flatMap((formation) => {
+    if (formation.kind !== "TASK_FORCE") return [];
+    const shipIds = new Set(formation.shipIds);
+    const ships = snapshot.map.shipPresence.filter((ship) => ship.taskForceId === formation.id || shipIds.has(ship.shipId));
+    if (!ships.length) return [];
+    const nodeId = ships.find((ship) => ship.primary)?.nodeId ?? ships.find((ship) => ship.nodeId)?.nodeId ?? formation.nodeId;
+    const node = nodeById.get(nodeId ?? formation.nodeId);
+    if (!node) return [];
+    return [{ formation, ships, node }];
+  }), [nodeById, snapshot.map.formations, snapshot.map.shipPresence]);
+
+  useEffect(() => {
+    const nextPlanetId = !selectedPlanetId
+      ? (currentPlanet ?? snapshot.map.planets[0])?.planetId
+      : undefined;
+    const nextNodeId = !selectedNodeId ? currentShipNodeId : undefined;
+    if (!nextPlanetId && !nextNodeId) return;
+    const timeoutId = window.setTimeout(() => {
+      if (nextPlanetId) setSelectedPlanetId(nextPlanetId);
+      if (nextNodeId) setSelectedNodeId(nextNodeId);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [currentPlanet, currentShipNodeId, selectedNodeId, selectedPlanetId, snapshot.map.planets]);
+
+  useEffect(() => {
+    if (campaignsForSelectedPlanet.some((campaign) => campaign.campaignId === selectedCampaignId)) return;
+    const timeoutId = window.setTimeout(
+      () => setSelectedCampaignId(campaignsForSelectedPlanet[0]?.campaignId ?? ""),
+      0,
+    );
+    return () => window.clearTimeout(timeoutId);
+  }, [campaignsForSelectedPlanet, selectedCampaignId]);
 
   useEffect(() => {
     if (selectedOperationId) void onRequestOperationDetail(selectedOperationId);
@@ -305,8 +438,128 @@ export function GalacticOperationsView({
     setPresentation("VISUAL");
     const candidates = nextScale === "PLANET" ? planetaryNodes : systemNodes;
     if (!candidates.some((node) => node.id === selectedNodeId)) {
-      setSelectedNodeId(candidates.find((node) => node.id === currentShipNodeId)?.id ?? candidates[0]?.id ?? "");
+      setSelectedNodeId(nextScale === "PLANET"
+        ? campaignsForSelectedPlanet[0]?.strategicNodeId ?? candidates[0]?.id ?? ""
+        : currentShipNodeId || candidates[0]?.id || "");
     }
+    setMapTransform({ x: 0, y: 0, scale: 1 });
+    setMapStatus(nextScale === "PLANET" ? `${selectedPlanet?.name ?? "Planet"} surface map ready.` : "Helion system map ready.");
+  }
+
+  function selectPlanet(planet: StrategicPlanetView) {
+    setSelectedPlanetId(planet.planetId);
+    const planetCampaigns = liveCampaigns.filter((campaign) => campaign.planetId === planet.planetId);
+    setSelectedCampaignId(planetCampaigns[0]?.campaignId ?? "");
+    setSelectedNodeId(planetCampaigns[0]?.strategicNodeId ?? planet.strategicNodeId ?? "");
+    setMapScale("PLANET");
+    setPresentation("VISUAL");
+    setMapTransform({ x: 0, y: 0, scale: 1 });
+    setMapStatus(`${planet.name} selected. ${planetCampaigns.length} live campaign${planetCampaigns.length === 1 ? "" : "s"}.`);
+  }
+
+  function fitMap() {
+    setMapTransform({ x: 0, y: 0, scale: 1 });
+    setMapStatus("Map fitted to the viewport.");
+  }
+
+  function zoomMap(delta: number) {
+    setMapTransform((current) => {
+      const scale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number((current.scale + delta).toFixed(2))));
+      setMapStatus(`Map zoom ${Math.round(scale * 100)} percent.`);
+      return { ...current, scale };
+    });
+  }
+
+  function panMap(deltaX: number, deltaY: number) {
+    setMapTransform((current) => ({ ...current, x: current.x + deltaX, y: current.y + deltaY }));
+  }
+
+  function onMapPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0 || (event.target as HTMLElement).closest("button, a, input, select, textarea")) return;
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: mapTransform.x,
+      originY: mapTransform.y,
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function onMapPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+    if (!drag.moved && Math.hypot(deltaX, deltaY) >= DRAG_THRESHOLD) drag.moved = true;
+    if (!drag.moved) return;
+    setMapTransform((current) => ({ ...current, x: drag.originX + deltaX, y: drag.originY + deltaY }));
+  }
+
+  function finishMapDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (drag.moved) {
+      suppressClickUntilRef.current = performance.now() + 250;
+      setMapStatus("Map position changed.");
+    }
+    dragRef.current = null;
+  }
+
+  function onMapWheel(event: ReactWheelEvent<HTMLDivElement>) {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    event.preventDefault();
+    const bounds = viewport.getBoundingClientRect();
+    const cursorX = event.clientX - bounds.left - bounds.width / 2;
+    const cursorY = event.clientY - bounds.top - bounds.height / 2;
+    const delta = event.deltaY < 0 ? .12 : -.12;
+    setMapTransform((current) => {
+      const scale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number((current.scale + delta).toFixed(2))));
+      if (scale === current.scale) return current;
+      const ratio = scale / current.scale;
+      setMapStatus(`Map zoom ${Math.round(scale * 100)} percent.`);
+      return {
+        scale,
+        x: cursorX - (cursorX - current.x) * ratio,
+        y: cursorY - (cursorY - current.y) * ratio,
+      };
+    });
+  }
+
+  function onMapKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.target !== event.currentTarget) return;
+    const step = event.shiftKey ? 64 : 24;
+    if (event.key === "ArrowLeft") panMap(step, 0);
+    else if (event.key === "ArrowRight") panMap(-step, 0);
+    else if (event.key === "ArrowUp") panMap(0, step);
+    else if (event.key === "ArrowDown") panMap(0, -step);
+    else if (event.key === "+" || event.key === "=") zoomMap(.12);
+    else if (event.key === "-") zoomMap(-.12);
+    else if (event.key.toLowerCase() === "f" || event.key === "Home") fitMap();
+    else return;
+    event.preventDefault();
+  }
+
+  function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    const next = tab === "MAP" ? "BOARD" : "MAP";
+    setTab(next);
+    window.requestAnimationFrame(() => document.getElementById(`galactic-${next.toLowerCase()}-tab`)?.focus());
+    event.preventDefault();
+  }
+
+  function openCampaign(campaign: StrategicCampaignMapView) {
+    setSelectedCampaignId(campaign.campaignId);
+    setSelectedNodeId(campaign.strategicNodeId);
+    if (campaign.operationId) setSelectedOperationId(campaign.operationId);
+    if (campaign.canEnter) {
+      onOpenCampaign(campaign.campaignId);
+      return;
+    }
+    onNotice({ tone: "info", message: `${campaign.name} has no deployment you can enter from this account.` });
   }
 
   function renderMapNode(node: StrategicNodeView, position: { x: number; y: number }) {
@@ -319,15 +572,96 @@ export function GalacticOperationsView({
         className={`strategic-node node-${node.control.toLowerCase()} ${selectedNode?.id === node.id ? "selected" : ""} ${shipHere ? "current-ship-node" : ""}`}
         style={{ left: `${position.x}%`, top: `${position.y}%` }}
         aria-label={`${node.name}, ${node.control.toLowerCase()} ${node.type.toLowerCase()}, ${operations.length} operations, ${formations.length} formations${shipHere ? ", your ship is here" : ""}`}
+        aria-current={selectedNode?.id === node.id ? "location" : undefined}
         onClick={() => selectNode(node)}
         key={node.id}
       >
         <i />
         <span><b>{node.name}</b><small>{node.type.replaceAll("_", " ")}</small></span>
-        {shipHere && <u className="current-ship-flag"><MapShipIcon />YOUR SHIP</u>}
+        {shipHere && primaryShipPresence && <u className="current-ship-flag"><ShipSprite shipClass={primaryShipPresence.className} />YOUR SHIP</u>}
         {filters.has("OPERATIONS") && operations.length > 0 && <em>{operations.length}</em>}
         {filters.has("SUPPLY") && node.supplyAvailable && <strong>S</strong>}
         {filters.has("FRIENDLY_FORCES") && formations.length > 0 && <div className="node-formations">{formations.map((formation) => <mark className={formation.kind.toLowerCase()} key={formation.id}>{formation.kind === "TASK_FORCE" ? "TF" : "BG"}</mark>)}</div>}
+      </button>
+    );
+  }
+
+  function renderPlanet(planet: StrategicPlanetView) {
+    const position = planetPositions.get(planet.planetId) ?? systemPlanetPosition(planet, 0);
+    const campaignCount = liveCampaigns.filter((campaign) => campaign.planetId === planet.planetId).length;
+    const orbitNode = snapshot.map.nodes.find((node) => node.type.toUpperCase() === "ORBIT" && node.planetLocationId === planet.locationId);
+    const fleets = orbitNode ? fleetGroups.filter((fleet) => fleet.node.id === orbitNode.id) : [];
+    return (
+      <button
+        type="button"
+        className={`system-planet-node control-${planet.control.toLowerCase()} ${selectedPlanet?.planetId === planet.planetId ? "selected" : ""}`}
+        style={{ left: `${position.x}%`, top: `${position.y}%` }}
+        aria-label={`${planet.name}, ${readable(planet.control).toLowerCase()} control, ${campaignCount} live campaigns, ${fleets.length} task forces in orbit. Open planet map.`}
+        aria-current={selectedPlanet?.planetId === planet.planetId ? "location" : undefined}
+        onClick={() => selectPlanet(planet)}
+        key={planet.planetId}
+      >
+        <i className="system-planet-sphere" />
+        <span><b>{planet.name}</b><small>{campaignCount} LIVE CAMPAIGN{campaignCount === 1 ? "" : "S"}</small></span>
+      </button>
+    );
+  }
+
+  function renderFleet(
+    fleet: { formation: StrategicSnapshot["map"]["formations"][number]; ships: StrategicShipPresenceView[]; node: StrategicNodeView },
+    index: number,
+  ) {
+    const anchor = mapScale === "PLANET" ? planetNodePosition(fleet.node) : systemPositionForNode(fleet.node);
+    const primary = fleet.ships.find((ship) => ship.primary) ?? fleet.ships[0];
+    const planetAttached = Boolean(fleet.node.planetLocationId && planetByLocation.has(fleet.node.planetLocationId));
+    const position = mapScale === "PLANET"
+      ? { x: anchor.x + 8 + (index % 2) * 2.4, y: anchor.y + 1 + (index % 3) * 1.7 }
+      : planetAttached
+      ? { x: anchor.x + 6 + (index % 2) * 2.4, y: anchor.y - 7 - (index % 3) * 1.7 }
+      : { x: anchor.x + 3, y: anchor.y - 4 };
+    return (
+      <button
+        type="button"
+        className={`system-fleet-node ${primary.primary ? "primary" : ""}`}
+        style={{ left: `${position.x}%`, top: `${position.y}%` }}
+        aria-label={`${fleet.formation.name}, ${fleet.ships.length} ship${fleet.ships.length === 1 ? "" : "s"}, led by ${primary.name}, ${primary.className}.`}
+        aria-current={selectedNode?.id === fleet.node.id ? "location" : undefined}
+        data-ship-count={fleet.ships.length}
+        onClick={() => selectNode(fleet.node)}
+        key={fleet.formation.id}
+      >
+        <span className="fleet-sprite-stack" aria-hidden="true">
+          {fleet.ships.slice(0, 3).reverse().map((ship) => <ShipSprite key={ship.shipId} shipClass={ship.className} />)}
+        </span>
+        {fleet.ships.length > 1 && <strong aria-label={`${fleet.ships.length} ships`}>{fleet.ships.length}</strong>}
+        <span><b>{fleet.formation.name}</b><small>{primary.name} · {primary.registry ?? "UNREGISTERED"}</small></span>
+      </button>
+    );
+  }
+
+  function renderCampaignMarker(campaign: StrategicCampaignMapView, index: number) {
+    const node = nodeById.get(campaign.strategicNodeId);
+    if (!node) return null;
+    const anchor = planetNodePosition(node);
+    const position = {
+      x: Math.max(17, Math.min(83, anchor.x + ((index % 3) - 1) * 3.5)),
+      y: Math.max(20, Math.min(82, anchor.y + (index % 2) * 4)),
+    };
+    const operation = campaign.operationId ? snapshot.operations.find((candidate) => candidate.id === campaign.operationId) : undefined;
+    const objectives = campaign.live?.objectives.length ?? operation?.objectives.length;
+    return (
+      <button
+        type="button"
+        className={`campaign-map-marker status-${campaign.status.toLowerCase()} ${selectedCampaign?.campaignId === campaign.campaignId ? "selected" : ""}`}
+        style={{ left: `${position.x}%`, top: `${position.y}%` }}
+        aria-label={`Open campaign ${campaign.name}, ${campaign.status.toLowerCase()}, ${objectives ?? "objectives not reported"}, ${campaign.viewerDeploymentCount} of your deployed units.`}
+        aria-current={selectedCampaign?.campaignId === campaign.campaignId ? "location" : undefined}
+        onClick={() => openCampaign(campaign)}
+        key={campaign.campaignId}
+      >
+        <i />
+        <span><b>{campaign.name}</b><small>{campaign.status} · {campaign.viewerDeploymentCount} MY UNIT{campaign.viewerDeploymentCount === 1 ? "" : "S"}</small></span>
+        <em>{objectives ?? "?"}</em>
       </button>
     );
   }
@@ -341,21 +675,21 @@ export function GalacticOperationsView({
           <p>{snapshot.ship.taskForce.name} at {snapshot.ship.taskForce.location} · Strategic round {snapshot.clock.round}</p>
         </div>
         <div className="operations-tab-switch" role="tablist" aria-label="Galactic operations modes">
-          <button type="button" role="tab" aria-selected={tab === "MAP"} className={tab === "MAP" ? "active" : ""} onClick={() => setTab("MAP")}>COMMAND MAP</button>
-          <button type="button" role="tab" aria-selected={tab === "BOARD"} className={tab === "BOARD" ? "active" : ""} onClick={() => setTab("BOARD")}>OPERATIONS BOARD</button>
+          <button type="button" id="galactic-map-tab" role="tab" aria-selected={tab === "MAP"} aria-controls="galactic-map-panel" tabIndex={tab === "MAP" ? 0 : -1} className={tab === "MAP" ? "active" : ""} onKeyDown={onTabKeyDown} onClick={() => setTab("MAP")}>COMMAND MAP</button>
+          <button type="button" id="galactic-board-tab" role="tab" aria-selected={tab === "BOARD"} aria-controls="galactic-board-panel" tabIndex={tab === "BOARD" ? 0 : -1} className={tab === "BOARD" ? "active" : ""} onKeyDown={onTabKeyDown} onClick={() => setTab("BOARD")}>OPERATIONS BOARD</button>
         </div>
         <div className="map-version-block"><span>MAP VERSION</span><b>v{snapshot.map.version}</b><small>{snapshot.map.id}</small></div>
       </header>
 
       {tab === "MAP" ? (
-        <section className="galactic-map-layout" role="tabpanel">
+        <section className="galactic-map-layout" id="galactic-map-panel" role="tabpanel" aria-labelledby="galactic-map-tab">
           <aside className="strategic-map-sidebar panel-frame">
             <section className="galactic-theatre-summary">
               <span className="eyebrow">ACTIVE THEATRE</span>
-              <h2>CORINTH</h2>
+              <h2>{selectedPlanet?.name ?? "HELION SYSTEM"}</h2>
               <p>{snapshot.map.name}</p>
               <dl>
-                <div><dt>VISIBLE OPERATIONS</dt><dd>{snapshot.operations.length}</dd></div>
+                <div><dt>LIVE CAMPAIGNS</dt><dd>{liveCampaigns.length}</dd></div>
                 <div><dt>FRIENDLY FORMATIONS</dt><dd>{snapshot.map.formations.length}</dd></div>
                 <div><dt>STRATEGIC ROUND</dt><dd>{snapshot.clock.round}</dd></div>
               </dl>
@@ -366,7 +700,7 @@ export function GalacticOperationsView({
             <section>
               <span className="eyebrow">DISPLAY SCALE</span>
               <div className="galactic-scale-list">
-                <button className={mapScale === "PLANET" ? "active" : ""} type="button" aria-pressed={mapScale === "PLANET"} onClick={() => changeMapScale("PLANET")}><i className="planet" /><span><b>PLANET</b><small>Surface and high orbit</small></span></button>
+                <button className={mapScale === "PLANET" ? "active" : ""} type="button" aria-pressed={mapScale === "PLANET"} disabled={!selectedPlanet} onClick={() => changeMapScale("PLANET")}><i className="planet" /><span><b>PLANET</b><small>{selectedPlanet?.name ?? "Select a world"} surface</small></span></button>
                 <button className={mapScale === "SYSTEM" ? "active" : ""} type="button" aria-pressed={mapScale === "SYSTEM"} onClick={() => changeMapScale("SYSTEM")}><i className="system" /><span><b>HELION SYSTEM</b><small>Worlds, relay, jump point</small></span></button>
               </div>
             </section>
@@ -386,25 +720,53 @@ export function GalacticOperationsView({
               <div><i className="unknown" />Unknown</div>
             </section>
             <section className="map-boundary-card">
-              <strong>YOUR SHIP</strong>
-              <p>{snapshot.ship.name} is currently at <b>{snapshot.ship.taskForce.location}</b> with {snapshot.ship.taskForce.name}.</p>
+              <strong>YOUR TASK FORCE</strong>
+              <p>{snapshot.ship.name} is currently at <b>{snapshot.ship.taskForce.location}</b> with {snapshot.ship.taskForce.name}. {snapshot.map.shipPresence.some((ship) => ship.taskForceId === snapshot.ship.taskForce.id) ? `The fleet projection reports ${snapshot.map.shipPresence.filter((ship) => ship.taskForceId === snapshot.ship.taskForce.id).length} ship${snapshot.map.shipPresence.filter((ship) => ship.taskForceId === snapshot.ship.taskForce.id).length === 1 ? "" : "s"}.` : "Fleet count is not reported."}</p>
             </section>
           </aside>
 
           <div className="strategic-map-stage panel-frame">
             <div className="strategic-map-toolbar">
-              <div><span className="eyebrow">{mapScale === "PLANET" ? "PLANETARY COMMAND DISPLAY" : "SYSTEM NAVIGATION DISPLAY"}</span><strong>{mapScale === "PLANET" ? "CORINTH // SURFACE & HIGH ORBIT" : "HELION // LOCAL SYSTEM"}</strong></div>
+              <div><span className="eyebrow">{mapScale === "PLANET" ? "PLANETARY COMMAND DISPLAY" : "SYSTEM NAVIGATION DISPLAY"}</span><strong>{mapScale === "PLANET" ? `${selectedPlanet?.name.toUpperCase() ?? "PLANET"} // LIVE CAMPAIGNS` : "HELION // AUTHORITATIVE SYSTEM"}</strong></div>
+              <div className="strategic-map-zoom-controls" aria-label="Map viewport controls">
+                <button type="button" onClick={() => zoomMap(.12)} aria-label="Zoom in">ZOOM IN</button>
+                <button type="button" onClick={() => zoomMap(-.12)} aria-label="Zoom out">ZOOM OUT</button>
+                <button type="button" onClick={fitMap}>FIT MAP</button>
+                <output aria-label="Current map zoom">{Math.round(mapTransform.scale * 100)}%</output>
+              </div>
               <div className="map-presentation-switch">
                 <button type="button" className={presentation === "VISUAL" ? "active" : ""} onClick={() => setPresentation("VISUAL")}>DISPLAY</button>
                 <button type="button" className={presentation === "LIST" ? "active" : ""} onClick={() => setPresentation("LIST")}>LOCATION LIST</button>
               </div>
             </div>
 
-            <div className={`strategic-map-visual galactic-${mapScale.toLowerCase()}-view ${presentation === "LIST" ? "presentation-hidden" : ""}`}>
+            <div
+              ref={viewportRef}
+              className={`strategic-map-visual galactic-${mapScale.toLowerCase()}-view ${presentation === "LIST" ? "presentation-hidden" : ""}`}
+              role="region"
+              aria-label="Strategic map viewport"
+              aria-describedby="strategic-map-instructions"
+              aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight + - F Home"
+              tabIndex={presentation === "VISUAL" ? 0 : -1}
+              onKeyDown={onMapKeyDown}
+              onWheel={onMapWheel}
+              onPointerDown={onMapPointerDown}
+              onPointerMove={onMapPointerMove}
+              onPointerUp={finishMapDrag}
+              onPointerCancel={finishMapDrag}
+              onClickCapture={(event) => {
+                if (performance.now() < suppressClickUntilRef.current) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }
+              }}
+            >
+              <p id="strategic-map-instructions" className="sr-only">Drag to pan. Use arrow keys to pan, Shift plus an arrow to pan farther, plus or minus to zoom, and F or Home to fit the map.</p>
+              <div className="strategic-map-world" style={{ transform: `translate3d(${mapTransform.x}px, ${mapTransform.y}px, 0) scale(${mapTransform.scale})` }}>
               <div className="map-projection-frame">
-                {mapScale === "PLANET" ? <PlanetProjection /> : <SystemProjection />}
+                {mapScale === "PLANET" ? <PlanetProjection planet={selectedPlanet} /> : <SystemProjection />}
                 <svg className="galactic-route-overlay" viewBox="0 0 100 100" role="img" aria-labelledby="strategic-map-title strategic-map-description" preserveAspectRatio="xMidYMid meet">
-                  <title id="strategic-map-title">{mapScale === "PLANET" ? "Corinth planetary theatre" : "Helion system navigation"}</title>
+                  <title id="strategic-map-title">{mapScale === "PLANET" ? `${selectedPlanet?.name ?? "Planet"} planetary theatre` : "Helion system navigation"}</title>
                   <desc id="strategic-map-description">Select a strategic location to inspect its operations, formations, routes, and available orders.</desc>
                   <defs>
                     <marker id="route-arrow-open" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0 6 3 0 6Z" /></marker>
@@ -414,9 +776,10 @@ export function GalacticOperationsView({
                   {filters.has("ROUTES") && snapshot.map.routes.map((route, index) => {
                     const from = nodeById.get(route.fromNodeId);
                     const to = nodeById.get(route.toNodeId);
-                    if (!from || !to || !visibleNodes.some((node) => node.id === from.id) || !visibleNodes.some((node) => node.id === to.id)) return null;
-                    const fromPosition = mapScale === "PLANET" ? planetNodePosition(from) : systemNodePosition(from);
-                    const toPosition = mapScale === "PLANET" ? planetNodePosition(to) : systemNodePosition(to);
+                    const routeNodes = mapScale === "PLANET" ? planetRouteNodes : snapshot.map.nodes.filter(isSystemNode);
+                    if (!from || !to || !routeNodes.some((node) => node.id === from.id) || !routeNodes.some((node) => node.id === to.id)) return null;
+                    const fromPosition = mapScale === "PLANET" ? planetNodePosition(from) : systemPositionForNode(from);
+                    const toPosition = mapScale === "PLANET" ? planetNodePosition(to) : systemPositionForNode(to);
                     const status = route.status.toLowerCase();
                     const selected = selectedNode?.id === from.id || selectedNode?.id === to.id;
                     const path = routePath(fromPosition, toPosition, index, mapScale);
@@ -428,32 +791,64 @@ export function GalacticOperationsView({
                   {snapshot.map.formations.flatMap((formation) => formation.routeNodeIds.slice(0, -1).map((nodeId, index) => {
                     const from = nodeById.get(nodeId);
                     const to = nodeById.get(formation.routeNodeIds[index + 1]);
-                    if (!from || !to || !visibleNodes.some((node) => node.id === from.id) || !visibleNodes.some((node) => node.id === to.id)) return null;
-                    const fromPosition = mapScale === "PLANET" ? planetNodePosition(from) : systemNodePosition(from);
-                    const toPosition = mapScale === "PLANET" ? planetNodePosition(to) : systemNodePosition(to);
+                    const routeNodes = mapScale === "PLANET" ? planetRouteNodes : snapshot.map.nodes.filter(isSystemNode);
+                    if (!from || !to || !routeNodes.some((node) => node.id === from.id) || !routeNodes.some((node) => node.id === to.id)) return null;
+                    const fromPosition = mapScale === "PLANET" ? planetNodePosition(from) : systemPositionForNode(from);
+                    const toPosition = mapScale === "PLANET" ? planetNodePosition(to) : systemPositionForNode(to);
                     return <path key={`${formation.id}:plan:${nodeId}`} d={routePath(fromPosition, toPosition, index, mapScale)} className="planned-route" />;
                   }))}
                 </svg>
                 {mapScale === "SYSTEM" && <>
                   <div className="system-star-label"><b>HELION</b><small>LOCAL PRIMARY</small></div>
-                  <button type="button" className="system-primary-world" onClick={() => changeMapScale("PLANET")}><i /><span><b>CORINTH</b><small>PRIMARY THEATRE</small></span></button>
+                  {snapshot.map.planets.map(renderPlanet)}
+                  {filters.has("FRIENDLY_FORCES") && fleetGroups.map(renderFleet)}
                 </>}
-                {visibleNodes.map((node) => renderMapNode(node, mapScale === "PLANET" ? planetNodePosition(node) : systemNodePosition(node)))}
+                {mapScale === "PLANET" && <>
+                  {planetaryNodes.map((node) => renderMapNode(node, planetNodePosition(node)))}
+                  {filters.has("OPERATIONS") && campaignsForSelectedPlanet.map(renderCampaignMarker)}
+                  {filters.has("FRIENDLY_FORCES") && fleetGroups.filter((fleet) => fleet.node.planetLocationId === selectedPlanet?.locationId).map(renderFleet)}
+                </>}
+                {mapScale === "SYSTEM" && systemNodes.map((node) => renderMapNode(node, systemPositionForNode(node)))}
                 <div className="galactic-map-status">
                   <span><i className={`control-${selectedNode?.control.toLowerCase()}`} />{selectedNode?.name ?? "No location selected"}</span>
-                  <b>{mapScale === "PLANET" ? `${planetaryNodes.length} PLANETARY LOCATIONS` : `${systemNodes.length} SYSTEM LOCATIONS`}</b>
+                  <b>{mapScale === "PLANET" ? `${campaignsForSelectedPlanet.length} LIVE CAMPAIGNS` : `${snapshot.map.planets.length} WORLDS · ${fleetGroups.reduce((total, fleet) => total + fleet.ships.length, 0)} SHIPS`}</b>
                 </div>
               </div>
-              <div className="strategic-map-coordinate-readout">ROUTE CONNECTIONS ARE AUTHORITATIVE · DISPLAY DISTANCE IS NOT TRAVEL TIME</div>
+              </div>
+              <div className="strategic-map-coordinate-readout">AUTHORITATIVE STATE · ROUTE DISTANCE IS NOT TRAVEL TIME · DRAG OR USE ARROW KEYS TO PAN</div>
+              <div className="sr-only" role="status" aria-live="polite" aria-label="Strategic map status">{mapStatus}</div>
             </div>
 
-            <div className={`strategic-node-list ${presentation === "VISUAL" ? "list-collapsed" : ""}`} aria-label="Strategic nodes list">
+            <div className={`strategic-node-list ${presentation === "VISUAL" ? "list-collapsed" : ""}`} aria-label={mapScale === "PLANET" ? `${selectedPlanet?.name ?? "Planet"} campaign and location list` : "Helion system objects list"}>
+              {mapScale === "SYSTEM" && snapshot.map.planets.map((planet) => {
+                const campaigns = liveCampaigns.filter((campaign) => campaign.planetId === planet.planetId);
+                const orbitShipCount = fleetGroups.filter((fleet) => fleet.node.planetLocationId === planet.locationId).reduce((total, fleet) => total + fleet.ships.length, 0);
+                return (
+                  <button type="button" className={selectedPlanet?.planetId === planet.planetId ? "active" : ""} aria-current={selectedPlanet?.planetId === planet.planetId ? "location" : undefined} key={planet.planetId} onClick={() => selectPlanet(planet)}>
+                    <i className={planet.control.toLowerCase()} />
+                    <span><strong>{planet.name}</strong><small>PLANET · {planet.control}</small></span>
+                    <span><b>{campaigns.length}</b><small>CAMPAIGNS</small></span>
+                    <span><b>{orbitShipCount}</b><small>SHIPS</small></span>
+                    <span><b>{readable(planet.status)}</b><small>STATE</small></span>
+                  </button>
+                );
+              })}
+              {mapScale === "PLANET" && campaignsForSelectedPlanet.map((campaign) => (
+                <button type="button" className={`campaign-list-entry ${selectedCampaign?.campaignId === campaign.campaignId ? "active" : ""}`} aria-current={selectedCampaign?.campaignId === campaign.campaignId ? "location" : undefined} key={campaign.campaignId} onClick={() => openCampaign(campaign)}>
+                  <i className={campaign.status === "ACTIVE" ? "friendly" : "contested"} />
+                  <span><strong>{campaign.name}</strong><small>{campaign.status} · {campaign.planetName}</small></span>
+                  <span><b>{campaign.live?.objectives.length ?? "—"}</b><small>OBJECTIVES</small></span>
+                  <span><b>{campaign.viewerDeploymentCount}</b><small>MY UNITS</small></span>
+                  <span><b>{campaign.canEnter ? "OPEN" : "VIEW"}</b><small>ACCESS</small></span>
+                </button>
+              ))}
+              {mapScale === "PLANET" && !campaignsForSelectedPlanet.length && <p className="strategic-empty-copy">No active or paused campaign is present on {selectedPlanet?.name ?? "this planet"}.</p>}
               {visibleNodes.map((node) => {
                 const operations = operationAtNode(snapshot.operations, node);
                 const formations = snapshot.map.formations.filter((formation) => formation.nodeId === node.id);
                 const connected = snapshot.map.routes.filter((route) => route.fromNodeId === node.id || route.toNodeId === node.id);
                 return (
-                  <button type="button" className={selectedNode?.id === node.id ? "active" : ""} key={node.id} onClick={() => selectNode(node)}>
+                  <button type="button" className={selectedNode?.id === node.id ? "active" : ""} aria-current={selectedNode?.id === node.id ? "location" : undefined} key={node.id} onClick={() => selectNode(node)}>
                     <i className={node.control.toLowerCase()} />
                     <span><strong>{node.name}</strong><small>{node.type.replaceAll("_", " ")} · {node.control}</small></span>
                     <span><b>{operations.length}</b><small>OPS</small></span>
@@ -469,14 +864,40 @@ export function GalacticOperationsView({
             {selectedNode ? (
               <>
                 <header>
-                  <span className="eyebrow">SELECTED LOCATION</span>
-                  <h2>{selectedNode.name}</h2>
-                  <p>{selectedNode.parentName ?? snapshot.map.name} · {selectedNode.type.replaceAll("_", " ")}</p>
+                  <span className="eyebrow">{mapScale === "PLANET" && selectedCampaign ? "SELECTED CAMPAIGN" : "SELECTED LOCATION"}</span>
+                  <h2>{mapScale === "PLANET" && selectedCampaign ? selectedCampaign.name : selectedNode.name}</h2>
+                  <p>{mapScale === "PLANET" && selectedCampaign ? `${selectedCampaign.planetName} · ${selectedCampaign.status}` : `${selectedNode.parentName ?? snapshot.map.name} · ${selectedNode.type.replaceAll("_", " ")}`}</p>
                   <div className="selected-location-badges">
                     <b className={`control-badge ${selectedNode.control.toLowerCase()}`}>{selectedNode.control} CONTROL</b>
-                    {selectedNode.id === currentShipNodeId && <b className="ship-here-badge"><MapShipIcon />{snapshot.ship.name} IS HERE</b>}
+                    {selectedNode.id === currentShipNodeId && primaryShipPresence && <b className="ship-here-badge"><ShipSprite shipClass={primaryShipPresence.className} />{snapshot.ship.name} IS HERE</b>}
                   </div>
                 </header>
+                {mapScale === "PLANET" && selectedCampaign && (
+                  <section className="campaign-command-summary">
+                    <div className="campaign-summary-actions">
+                      <span><b>{selectedCampaign.status}</b><small>{selectedCampaign.memberCount} COMMAND MEMBER{selectedCampaign.memberCount === 1 ? "" : "S"}</small></span>
+                      <button type="button" disabled={!selectedCampaign.canEnter} onClick={() => openCampaign(selectedCampaign)}>{selectedCampaign.canEnter ? "OPEN CAMPAIGN" : "NO ACTIVE DEPLOYMENT"}</button>
+                    </div>
+                    <div className="inspector-section-title"><span>CURRENT OBJECTIVES</span><b>{selectedCampaign.live?.objectives.length ?? campaignOperation?.objectives.length ?? "—"}</b></div>
+                    <ol className="campaign-objective-summary">
+                      {selectedCampaign.live?.objectives.map((objective) => (
+                        <li key={objective.id}><span><b>{objective.name}</b><small>{objective.owner} · {readable(objective.status)}</small></span></li>
+                      ))}
+                      {!selectedCampaign.live?.objectives.length && campaignOperation?.objectives.map((objective) => <li key={objective}><span><b>{objective}</b><small>LIVE CONTROL NOT REPORTED</small></span></li>)}
+                      {!selectedCampaign.live?.objectives.length && !campaignOperation?.objectives.length && <li><span><b>Objectives not reported</b><small>Awaiting this campaign's projection</small></span></li>}
+                    </ol>
+                    <div className="inspector-section-title"><span>MY ACTIVE UNITS</span><b>{selectedCampaign.live?.viewerUnits.length ?? selectedCampaign.viewerDeploymentCount}</b></div>
+                    <div className="campaign-unit-summary">
+                      {selectedCampaign.live?.viewerUnits.map((unit) => (
+                        <article key={unit.id}>
+                          <span><b>{unit.callsign}</b><small>{readable(unit.status)} · {unit.position.q},{unit.position.r}</small></span>
+                          {unit.maxHealth ? <label><span>{unit.currentHealth}/{unit.maxHealth} HP</span><progress max={unit.maxHealth} value={Math.max(0, unit.currentHealth)} /></label> : <strong>{unit.currentHealth} HP</strong>}
+                        </article>
+                      ))}
+                      {!selectedCampaign.live?.viewerUnits.length && <p className="strategic-empty-copy">{selectedCampaign.viewerDeploymentCount ? `${selectedCampaign.viewerDeploymentCount} deployed unit${selectedCampaign.viewerDeploymentCount === 1 ? " is" : "s are"} recorded; live health detail is not currently available.` : "You have no active units in this campaign."}</p>}
+                    </div>
+                  </section>
+                )}
                 <section>
                   <div className="inspector-section-title"><span>VISIBLE OPERATIONS</span><b>{operationAtNode(snapshot.operations, selectedNode).length}</b></div>
                   <div className="mini-operation-list">
@@ -574,7 +995,7 @@ export function GalacticOperationsView({
           </aside>
         </section>
       ) : (
-        <section className="operations-board-layout" role="tabpanel">
+        <section className="operations-board-layout" id="galactic-board-panel" role="tabpanel" aria-labelledby="galactic-board-tab">
           <div className="operations-board">
             {statusOrder.map((status) => {
               const operations = snapshot.operations.filter((operation) => operation.status === status);

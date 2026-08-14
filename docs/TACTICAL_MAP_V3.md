@@ -67,9 +67,9 @@ The migration intentionally performs no backfill. A legacy `NULL` pin, an unavai
 ## Verification evidence
 
 - Pure topology and scenario tests cover all four maps.
-- Full TypeScript and ESLint gates pass locally; Vitest passes 834 tests across 105 files.
+- Full TypeScript and ESLint gates pass locally; Vitest passes 849 tests across 106 files.
 - The production bundle compiles locally: Worker 2,053.02 kB, client JavaScript 1,920.16 kB, and CSS 218.38 kB. The post-build verifier finds all 29 allowlisted tactical sheets and rejects inactive mech or chroma hashes. Wrangler emits its known sandbox log-path warning while exiting successfully.
-- All 21 migrations apply to an empty isolated D1; all nine seeds replay twice across 130 application tables with integrity and foreign keys clean.
+- All 22 migrations apply to an empty isolated D1; all nine seeds replay twice across 130 application tables with integrity and foreign keys clean.
 - A clean isolated browser workflow passes strategic deployment authorization, strategic round resolution, deployment validation/commit, persisted campaign bootstrap, scenario v3/311-hex API verification, keyboard cursor traversal, and keyboard route selection.
 - A 1920×1080 reduced-motion capture of the live authenticated demo workflow is retained at `/private/tmp/corinth-iron-rain-v3.png` for this local review. It is evidence of the renderer, not public multi-account proof.
 

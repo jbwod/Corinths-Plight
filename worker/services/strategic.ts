@@ -48,6 +48,7 @@ import {
   STRATEGIC_ENGINE_VERSION,
 } from "../../packages/rules-engine/src";
 import { commandHash } from "../forces-validation";
+import { campaignRoleHasRuntimeAccess } from "../auth";
 import type { Env } from "../env";
 import {
   getCommandContext,
@@ -64,16 +65,19 @@ import {
   listBattlegroups,
   listBattlegroupUnits,
   listOperations,
+  listLiveMapCampaigns,
   listRankPermissions,
   listShipCapabilities,
   listShipCargo,
   listShipModules,
   listShipUnitCargo,
   listStrategicNodes,
+  listStrategicPlanets,
   listStrategicOrders,
   listStrategicRoundEvents,
   listStrategicRoutes,
   listStrategicShipStates,
+  listStrategicShipPresence,
   listSupplyBalances,
   listTaskForceBattlegroups,
   listTaskForces,
@@ -86,11 +90,14 @@ import {
   type ShipModuleRow,
   type ShipRow,
   type StrategicMapRow,
+  type StrategicCampaignMapRow,
   type StrategicNodeRow,
+  type StrategicPlanetRow,
   type StrategicOrderRow,
   type StrategicRouteRow,
   type StrategicRoundRow,
   type StrategicShipStateRow,
+  type StrategicShipPresenceRow,
   type SupplyBalanceRow,
   type TaskForceRow,
 } from "../repositories/strategic";
@@ -506,6 +513,56 @@ function projectRoute(row: StrategicRouteRow): StrategicRouteDto {
   };
 }
 
+function projectPlanet(row: StrategicPlanetRow): StrategicMapProjectionDto["planets"][number] {
+  return {
+    planetId: row.planet_id,
+    name: row.planet_name,
+    locationId: row.location_id,
+    strategicNodeId: row.node_id,
+    position: parseJson<{ x: number; y: number } | null>(row.position_json, null),
+    control: (row.control_status ?? "UNKNOWN") as StrategicMapProjectionDto["planets"][number]["control"],
+    status: (row.node_status ?? "BLOCKED") as StrategicMapProjectionDto["planets"][number]["status"],
+    environment: parseJson<Record<string, unknown>>(row.environment_json, {}),
+    warState: parseJson<Record<string, unknown>>(row.war_state_json, {}),
+  };
+}
+
+function projectMapCampaign(row: StrategicCampaignMapRow): StrategicMapProjectionDto["campaigns"][number] {
+  return {
+    campaignId: row.campaign_id,
+    name: row.campaign_name,
+    status: row.campaign_status,
+    strategicStatus: row.strategic_status,
+    planetId: row.planet_id,
+    planetName: row.planet_name,
+    planetLocationId: row.planet_location_id,
+    strategicNodeId: row.strategic_node_id,
+    operationId: row.operation_id,
+    memberCount: Number(row.member_count),
+    viewerDeploymentCount: Number(row.viewer_deployment_count),
+    canEnter: campaignRoleHasRuntimeAccess(row.viewer_role),
+    viewerMembership: {
+      side: row.viewer_side as StrategicMapProjectionDto["campaigns"][number]["viewerMembership"]["side"],
+      role: row.viewer_role as StrategicMapProjectionDto["campaigns"][number]["viewerMembership"]["role"],
+      battalionId: row.viewer_battalion_id,
+    },
+  };
+}
+
+function projectShipPresence(row: StrategicShipPresenceRow): StrategicMapProjectionDto["shipPresence"][number] {
+  return {
+    shipId: row.ship_id,
+    name: row.ship_name,
+    registry: row.registry,
+    classDefinitionId: row.class_definition_id,
+    className: row.class_name,
+    status: row.ship_status as ShipStatus,
+    taskForceId: row.task_force_id,
+    nodeId: row.current_node_id,
+    primary: Number(row.is_primary) === 1,
+  };
+}
+
 function reinforcementPolicy(value: string): {
   status: OperationSummaryDto["reinforcementStatus"];
   closesAfter?: number | null;
@@ -817,7 +874,7 @@ export async function getStrategicMapProjection(
   const context = await activeContext(env, userId);
   const map = await getStrategicMap(env.DB, userId, context.battalionId, mapId);
   if (!map) throw new StrategicServiceError(404, "STRATEGIC_MAP_NOT_FOUND", "The strategic map is not available.");
-  const [round, nodeRows, routeRows, groups, units, forces, operations] = await Promise.all([
+  const [round, nodeRows, routeRows, groups, units, forces, operations, planets, campaigns, shipPresence] = await Promise.all([
     getStrategicRound(env.DB, map.id, map.current_round),
     listStrategicNodes(env.DB, map.id),
     listStrategicRoutes(env.DB, map.id),
@@ -825,6 +882,9 @@ export async function getStrategicMapProjection(
     listBattlegroupUnits(env.DB, userId, context.battalionId),
     taskForceSummaries(env, context, map.id),
     listOperations(env.DB, userId, context.battalionId, map.id),
+    listStrategicPlanets(env.DB, map.id),
+    listLiveMapCampaigns(env.DB, userId, context.battalionId, map.id),
+    listStrategicShipPresence(env.DB, userId, context.battalionId, map.id),
   ]);
   if (!round) throw new StrategicServiceError(409, "STRATEGIC_ROUND_MISSING", "The map has no current strategic round.");
   const visibleNodes = nodeRows.filter((row) => nodeVisible(row, context.battalionId));
@@ -846,6 +906,9 @@ export async function getStrategicMapProjection(
     taskForces: forces,
     battlegroups: battlegroupSummaries(groups, units),
     operations: operations.filter((operation) => visibleIds.has(operation.node_id)).map(operationSummary),
+    planets: planets.filter((planet) => planet.node_id === null || visibleIds.has(planet.node_id)).map(projectPlanet),
+    campaigns: campaigns.map(projectMapCampaign),
+    shipPresence: shipPresence.map(projectShipPresence),
     viewerPermissions: [...context.permissions].sort(),
     serverTime: Date.now(),
   };

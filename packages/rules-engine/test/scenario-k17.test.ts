@@ -29,7 +29,8 @@ describe("declarative Outpost K-17 scenario policy", () => {
     const permuted = structuredClone(state);
     permuted.deployments.reverse();
     permuted.objectives.reverse();
-    permuted.scenarioPolicy!.capturableObjectiveIds.reverse();
+    if (permuted.scenarioPolicy?.policyId !== "HOLD_PRIMARY_OBJECTIVE") throw new Error("fixture policy drift");
+    permuted.scenarioPolicy.capturableObjectiveIds.reverse();
     const second = evaluateScenarioRoundEnd(permuted);
 
     expect(second).toEqual(first);

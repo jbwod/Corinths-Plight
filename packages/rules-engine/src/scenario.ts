@@ -8,6 +8,7 @@ import type {
   ObjectiveState,
 } from "../../domain/src";
 import {
+  GAME_MASTER_SKIRMISH_MAX_ROUNDS,
   PUBLIC_V1_ECONOMY_POLICY_ID,
   publicV1CampaignReward,
 } from "../../domain/src";
@@ -94,13 +95,55 @@ export function evaluateScenarioRoundEnd(
 ): ScenarioRoundEndResult {
   const policy = state.scenarioPolicy;
   if (!policy) return { objectives: state.objectives, captures: [], outcome: state.outcome };
-  if (policy.policyId !== "HOLD_PRIMARY_OBJECTIVE" || policy.version !== 1) {
-    throw new Error("Unsupported campaign scenario policy.");
-  }
 
   const objectives = state.objectives
     .map((objective) => structuredClone(objective))
     .sort((left, right) => left.id.localeCompare(right.id));
+  if (state.outcome) return { objectives, captures: [], outcome: state.outcome };
+
+  const deployments = [...state.deployments].sort((left, right) => left.id.localeCompare(right.id));
+  if (policy.policyId === "game-master-skirmish") {
+    if (
+      policy.version !== 1 ||
+      policy.maxRounds !== GAME_MASTER_SKIRMISH_MAX_ROUNDS ||
+      policy.rewardPolicyId !== PUBLIC_V1_ECONOMY_POLICY_ID
+    ) {
+      throw new Error("Unsupported Game Master skirmish policy.");
+    }
+    const alliedSurvivors = deployments.filter(
+      ({ side, status }) => side === "ALLIED" && status !== "DESTROYED" && status !== "WITHDRAWN",
+    );
+    if (alliedSurvivors.length === 0) {
+      return {
+        objectives,
+        captures: [],
+        outcome: outcome(state, objectives, "DEFEAT", "ALL_ALLIED_DEPLOYMENTS_LOST"),
+      };
+    }
+    const enemyWasSpawned = deployments.some(({ side }) => side === "ENEMY");
+    const enemySurvivors = deployments.filter(
+      ({ side, status }) => side === "ENEMY" && status !== "DESTROYED" && status !== "WITHDRAWN",
+    );
+    if (enemyWasSpawned && enemySurvivors.length === 0) {
+      return {
+        objectives,
+        captures: [],
+        outcome: outcome(state, objectives, "VICTORY", "ALL_SPAWNED_ENEMIES_LOST"),
+      };
+    }
+    if (state.round >= policy.maxRounds) {
+      return {
+        objectives,
+        captures: [],
+        outcome: outcome(state, objectives, "DEFEAT", "GAME_MASTER_SKIRMISH_ROUND_LIMIT_REACHED"),
+      };
+    }
+    return { objectives, captures: [] };
+  }
+  if (policy.policyId !== "HOLD_PRIMARY_OBJECTIVE" || policy.version !== 1) {
+    throw new Error("Unsupported campaign scenario policy.");
+  }
+
   const objectiveIds = new Set(objectives.map((objective) => objective.id));
   const capturableIds = new Set(policy.capturableObjectiveIds);
   if (
@@ -122,11 +165,10 @@ export function evaluateScenarioRoundEnd(
   ) {
     throw new Error("Campaign scenario policy has an invalid duration.");
   }
-  if (state.outcome || state.round < policy.startRound) {
-    return { objectives, captures: [], outcome: state.outcome };
+  if (state.round < policy.startRound) {
+    return { objectives, captures: [] };
   }
 
-  const deployments = [...state.deployments].sort((left, right) => left.id.localeCompare(right.id));
   const captures: ObjectiveCaptureResult[] = [];
   for (const objective of objectives.filter(({ id }) => capturableIds.has(id))) {
     const occupants = deployments.filter(

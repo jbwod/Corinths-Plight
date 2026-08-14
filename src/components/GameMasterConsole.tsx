@@ -186,6 +186,7 @@ export interface CreateGameMasterCampaignInput {
   mapRevision: number;
   mapContentHash: string;
   roundDurationMs: number;
+  maximumPlayers: number;
 }
 
 export interface GameMasterOperationResult {
@@ -810,6 +811,7 @@ export function GameMasterConsole({ authorization, api, demoUser }: GameMasterCo
   const [campaignMapId, setCampaignMapId] = useState("");
   const [campaignDurationPresetId, setCampaignDurationPresetId] = useState("");
   const [campaignDurationMinutes, setCampaignDurationMinutes] = useState("");
+  const [campaignMaximumPlayers, setCampaignMaximumPlayers] = useState("8");
   const [createdCampaign, setCreatedCampaign] = useState<GameMasterCampaignSummary>();
 
   useEffect(() => {
@@ -1252,6 +1254,7 @@ export function GameMasterConsole({ authorization, api, demoUser }: GameMasterCo
         mapRevision: selectedMap.revision,
         mapContentHash: selectedMap.contentHash,
         roundDurationMs: durationMs,
+        maximumPlayers: Number(campaignMaximumPlayers),
       });
       setCreatedCampaign(result.campaign);
       setNotice(result.message ?? (result.campaign?.canEnter
@@ -1693,7 +1696,8 @@ export function GameMasterConsole({ authorization, api, demoUser }: GameMasterCo
                     <label>Published map<select required value={campaignMapId} onChange={(event) => setCampaignMapId(event.target.value)}><option value="">Select published map</option>{eligibleCampaignMaps.map((map) => <option value={map.mapId} key={map.mapId}>{map.name} · R{map.revision} · {map.preset.replaceAll("_", " ")}{map.planetId ? "" : " · UNPLACED"}</option>)}</select></label>
                     {durationPresets.length > 0 && <label>Round duration preset<select value={campaignDurationPresetId} onChange={(event) => setCampaignDurationPresetId(event.target.value)}><option value="">Manual duration</option>{durationPresets.filter((preset) => preset.durationMs > 0).map((preset) => <option value={preset.id} key={preset.id}>{preset.label} · {formatDuration(preset.durationMs)}</option>)}</select></label>}
                     {!campaignDurationPresetId && <label>Round duration in minutes<input required type="number" min="1" max="1440" step="1" value={campaignDurationMinutes} onChange={(event) => setCampaignDurationMinutes(event.target.value)} /></label>}
-                    <button className="wide" type="submit" disabled={busy !== "" || !campaignName.trim() || !campaignPlanetId || !campaignMapId || (!campaignDurationPresetId && !campaignDurationMinutes)}>CREATE AND PLACE CAMPAIGN</button>
+                    <label>Maximum players<input required type="number" min="1" max="64" step="1" value={campaignMaximumPlayers} onChange={(event) => setCampaignMaximumPlayers(event.target.value)} /></label>
+                    <button className="wide" type="submit" disabled={busy !== "" || !campaignName.trim() || !campaignPlanetId || !campaignMapId || !campaignMaximumPlayers || (!campaignDurationPresetId && !campaignDurationMinutes)}>CREATE AND PLACE CAMPAIGN</button>
                     <p className="gm-boundary-note wide">Only the exact revision and content hash of an immutable published map can be pinned. Availability is reported from the authoritative <code>canJoin</code>, <code>canEnter</code>, and runtime status.</p>
                     {!publishedMaps.length && <p className="gm-blocker wide">Publish a fully governed map revision before creating a campaign.</p>}
                     {publishedMaps.length > 0 && campaignPlanetId && !eligibleCampaignMaps.length && <p className="gm-blocker wide">No published map is compatible with this planet. Publish an unplaced map or one assigned here.</p>}

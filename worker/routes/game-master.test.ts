@@ -14,6 +14,23 @@ interface RuntimeReceipt {
   created_at: number;
 }
 
+interface RecoveryHarnessState {
+  deploymentId: string;
+  unitId: string;
+  deploymentStatus: "DESTROYED" | "ACTIVE";
+  unitStatus: "DESTROYED" | "DEPLOYED";
+  locationKind: "DESTROYED" | "CAMPAIGN";
+  locationState: "DESTROYED" | "ON_MAP";
+  locationId: string | null;
+  currentHealth: number;
+  ammunitionJson: string;
+  damageJson: string;
+  subsystemStates: string[];
+  weaponMounts: Array<{ weaponId: string; ammo: number; cooldown: number; state: string }>;
+  statusEffects: Array<{ permanent: boolean; removed: boolean }>;
+  history: Map<string, { eventType: string; payload: Record<string, unknown> }>;
+}
+
 function fakeEnv(options: {
   admin?: boolean;
   campaigns?: FakeRow[];
@@ -21,19 +38,44 @@ function fakeEnv(options: {
   doResponse?: Response;
   doHandler?: (request: Request) => Promise<Response>;
   campaignStatus?: string;
+  recovery?: Partial<Omit<RecoveryHarnessState, "history">>;
 } = {}): {
   env: Env;
   doCalls: string[];
   batches: number[];
   receipts: Map<string, RuntimeReceipt>;
   registry: { campaignStatus: string; roundDurationMs: number };
+  recovery: RecoveryHarnessState;
+  audits: Set<string>;
 } {
   const doCalls: string[] = [];
   const batches: number[] = [];
   const receipts = new Map<string, RuntimeReceipt>();
+  const audits = new Set<string>();
   const registry = {
     campaignStatus: options.campaignStatus ?? "ACTIVE",
     roundDurationMs: 300_000,
+  };
+  const recovery: RecoveryHarnessState = {
+    deploymentId: options.recovery?.deploymentId ?? "deployment-recovery-1",
+    unitId: options.recovery?.unitId ?? "unit-recovery-1",
+    deploymentStatus: options.recovery?.deploymentStatus ?? "DESTROYED",
+    unitStatus: options.recovery?.unitStatus ?? "DESTROYED",
+    locationKind: options.recovery?.locationKind ?? "DESTROYED",
+    locationState: options.recovery?.locationState ?? "DESTROYED",
+    locationId: options.recovery?.locationId ?? null,
+    currentHealth: options.recovery?.currentHealth ?? 0,
+    ammunitionJson: options.recovery?.ammunitionJson ?? JSON.stringify({ "weapon-rifle": 0 }),
+    damageJson: options.recovery?.damageJson ?? JSON.stringify(["DESTROYED"]),
+    subsystemStates: options.recovery?.subsystemStates ?? ["DISABLED", "DAMAGED"],
+    weaponMounts: options.recovery?.weaponMounts ?? [
+      { weaponId: "weapon-rifle", ammo: 0, cooldown: 2, state: "DISABLED" },
+    ],
+    statusEffects: options.recovery?.statusEffects ?? [
+      { permanent: false, removed: false },
+      { permanent: true, removed: false },
+    ],
+    history: new Map(),
   };
   const prepare = (query: string) => {
     const statement = {
@@ -60,6 +102,8 @@ function fakeEnv(options: {
     batches,
     receipts,
     registry,
+    recovery,
+    audits,
     env: {
       ENVIRONMENT: "development",
       ALLOW_DEMO_AUTH: "true",
@@ -122,6 +166,130 @@ function fakeEnv(options: {
                 registry.roundDurationMs = Number(statement.bindings[0]);
               }
             }
+            if (query?.includes("UPDATE player_units SET status='DEPLOYED'")) {
+              const receipt = receipts.get(`${statement.bindings[5]}:${statement.bindings[6]}`);
+              if (
+                recovery.unitId === statement.bindings[3] &&
+                recovery.deploymentId === statement.bindings[4] &&
+                recovery.unitStatus === "DESTROYED" &&
+                recovery.deploymentStatus === "DESTROYED" &&
+                receipt !== undefined &&
+                receipt.campaign_id === statement.bindings[2] &&
+                receipt.reservation_token === statement.bindings[7] &&
+                receipt.operation === statement.bindings[8] &&
+                receipt.status_code !== null
+              ) {
+                recovery.unitStatus = "DEPLOYED";
+                recovery.locationKind = "CAMPAIGN";
+                recovery.locationState = "ON_MAP";
+                recovery.locationId = String(statement.bindings[2]);
+                recovery.currentHealth = Number(statement.bindings[1]);
+                recovery.ammunitionJson = String(statement.bindings[0]);
+                recovery.damageJson = "[]";
+              }
+            }
+            if (query?.includes("UPDATE deployments SET status='ACTIVE',withdrawn_at=NULL")) {
+              const receipt = receipts.get(`${statement.bindings[7]}:${statement.bindings[8]}`);
+              if (
+                recovery.deploymentId === statement.bindings[5] &&
+                recovery.unitId === statement.bindings[6] &&
+                recovery.deploymentStatus === "DESTROYED" &&
+                receipt !== undefined &&
+                receipt.campaign_id === statement.bindings[4] &&
+                receipt.reservation_token === statement.bindings[9] &&
+                receipt.operation === statement.bindings[10] &&
+                receipt.status_code !== null
+              ) recovery.deploymentStatus = "ACTIVE";
+            }
+            if (query?.includes("UPDATE player_unit_weapon_mounts SET state='OPERATIONAL'")) {
+              const receipt = receipts.get(`${statement.bindings[3]}:${statement.bindings[4]}`);
+              if (
+                recovery.unitId === statement.bindings[0] &&
+                recovery.deploymentId === statement.bindings[2] &&
+                recovery.deploymentStatus === "ACTIVE" &&
+                receipt !== undefined &&
+                receipt.campaign_id === statement.bindings[1] &&
+                receipt.reservation_token === statement.bindings[5] &&
+                receipt.operation === statement.bindings[6] &&
+                receipt.status_code !== null
+              ) {
+                for (const mount of recovery.weaponMounts) {
+                  mount.state = "OPERATIONAL";
+                  mount.cooldown = 0;
+                }
+              }
+            }
+            if (query?.includes("UPDATE player_unit_weapon_mounts SET current_ammo=")) {
+              const receipt = receipts.get(`${statement.bindings[5]}:${statement.bindings[6]}`);
+              if (
+                recovery.unitId === statement.bindings[2] &&
+                recovery.deploymentId === statement.bindings[4] &&
+                recovery.deploymentStatus === "ACTIVE" &&
+                receipt !== undefined &&
+                receipt.campaign_id === statement.bindings[3] &&
+                receipt.reservation_token === statement.bindings[7] &&
+                receipt.operation === statement.bindings[8] &&
+                receipt.status_code !== null
+              ) {
+                for (const mount of recovery.weaponMounts.filter((item) => item.weaponId === statement.bindings[1])) {
+                  mount.ammo = Number(statement.bindings[0]);
+                  mount.cooldown = 0;
+                  mount.state = "OPERATIONAL";
+                }
+              }
+            }
+            if (query?.includes("UPDATE player_unit_subsystems SET state='OPERATIONAL'")) {
+              const receipt = receipts.get(`${statement.bindings[3]}:${statement.bindings[4]}`);
+              if (
+                recovery.unitId === statement.bindings[0] &&
+                recovery.deploymentId === statement.bindings[2] &&
+                recovery.deploymentStatus === "ACTIVE" &&
+                receipt !== undefined &&
+                receipt.campaign_id === statement.bindings[1] &&
+                receipt.reservation_token === statement.bindings[5] &&
+                receipt.operation === statement.bindings[6] &&
+                receipt.status_code !== null
+              ) recovery.subsystemStates = recovery.subsystemStates.map(() => "OPERATIONAL");
+            }
+            if (query?.includes("UPDATE player_unit_status_effects SET removed_at=unixepoch()")) {
+              const receipt = receipts.get(`${statement.bindings[3]}:${statement.bindings[4]}`);
+              if (
+                recovery.unitId === statement.bindings[0] &&
+                recovery.deploymentId === statement.bindings[2] &&
+                recovery.deploymentStatus === "ACTIVE" &&
+                receipt !== undefined &&
+                receipt.campaign_id === statement.bindings[1] &&
+                receipt.reservation_token === statement.bindings[5] &&
+                receipt.operation === statement.bindings[6] &&
+                receipt.status_code !== null
+              ) {
+                for (const effect of recovery.statusEffects) {
+                  if (!effect.permanent) effect.removed = true;
+                }
+              }
+            }
+            if (query?.includes("INSERT INTO unit_history")) {
+              const receipt = receipts.get(`${statement.bindings[6]}:${statement.bindings[7]}`);
+              if (
+                recovery.unitId === statement.bindings[1] &&
+                recovery.deploymentId === statement.bindings[10] &&
+                recovery.unitStatus === "DEPLOYED" &&
+                recovery.deploymentStatus === "ACTIVE" &&
+                receipt !== undefined &&
+                receipt.campaign_id === statement.bindings[2] &&
+                receipt.reservation_token === statement.bindings[8] &&
+                receipt.operation === statement.bindings[9] &&
+                receipt.status_code !== null
+              ) {
+                recovery.history.set(String(statement.bindings[0]), {
+                  eventType: "GAME_MASTER_RECOVERY",
+                  payload: JSON.parse(String(statement.bindings[4])) as Record<string, unknown>,
+                });
+              }
+            }
+            if (query?.includes("INSERT INTO game_master_audit_events")) {
+              audits.add(String(statement.bindings[0]));
+            }
             if (query?.includes("UPDATE game_master_command_receipts")) {
               if (query.includes("SET reservation_token")) {
                 const key = `${statement.bindings[2]}:${statement.bindings[3]}`;
@@ -147,13 +315,24 @@ function fakeEnv(options: {
                   registry.campaignStatus === "ACTIVE") &&
                 (!query.includes("SELECT 1 FROM campaigns WHERE id=?8 AND round_duration_ms=?9") ||
                   registry.roundDurationMs === Number(statement.bindings[8]));
+              const recoveryGuardSatisfied =
+                !query.includes("FROM deployments JOIN player_units AS units") || (
+                  recovery.deploymentId === statement.bindings[8] &&
+                  recovery.unitId === statement.bindings[9] &&
+                  recovery.deploymentStatus === "DESTROYED" &&
+                  recovery.unitStatus === "DESTROYED" &&
+                  recovery.locationKind === "DESTROYED" &&
+                  recovery.locationState === "DESTROYED" &&
+                  recovery.currentHealth === 0
+                );
               if (
                 receipt &&
                 receipt.reservation_token === statement.bindings[5] &&
                 receipt.operation === statement.bindings[6] &&
                 receipt.campaign_id === statement.bindings[7] &&
                 receipt.status_code === null &&
-                registryGuardSatisfied
+                registryGuardSatisfied &&
+                recoveryGuardSatisfied
               ) {
                 receipt.status_code = Number(statement.bindings[0]);
                 receipt.response_json = String(statement.bindings[1]);
@@ -199,7 +378,7 @@ describe("Game Master routes", () => {
     expect(await allowed?.json()).toMatchObject({
       authorized: true,
       grantSource: "DEVELOPMENT_DEMO",
-      capabilities: expect.arrayContaining(["MAP_WRITE", "CAMPAIGN_CREATE"]),
+      capabilities: expect.arrayContaining(["MAP_WRITE", "CAMPAIGN_CREATE", "DEPLOYMENT_REVIVE"]),
     });
     expect(await denied?.json()).toEqual({
       authenticated: true,
@@ -309,6 +488,172 @@ describe("Game Master routes", () => {
     }, "PLAYER"), harness.env);
     expect(response?.status).toBe(403);
     expect(harness.doCalls).toHaveLength(0);
+  });
+
+  it("reconciles an allied persistent recovery through the owned receipt and replays it once", async () => {
+    const harness = fakeEnv({
+      doHandler: async (request) => {
+        const command = await request.json() as {
+          operation: string;
+          deploymentId: string;
+          commandId: string;
+          expectedCampaignVersion: number;
+        };
+        return new Response(JSON.stringify({
+          operation: "DEPLOYMENT_REVIVE",
+          commandId: command.commandId,
+          campaignId: "campaign-1",
+          campaignVersion: command.expectedCampaignVersion + 1,
+          appliedAt: 10,
+          resource: {
+            id: command.deploymentId,
+            campaignId: "campaign-1",
+            persistentUnitId: "unit-recovery-1",
+            ownerId: "player-1",
+            side: "ALLIED",
+            definitionId: "unit-infantry-squad",
+            callsign: "ROOK-1",
+            status: "ACTIVE",
+            position: { q: 0, r: 0 },
+            facing: 0,
+            stats: {
+              healthModel: "FORCE_STRENGTH",
+              maxHealth: 6,
+              armor: 0,
+              defense: 1,
+              speed: 1,
+              sensors: 3,
+              capacity: 0,
+            },
+            currentHealth: 6,
+            weapons: [{
+              id: "weapon-rifle",
+              name: "Rifle",
+              damage: { count: 1, sides: 6 },
+              range: 1,
+              armorPiercing: 0,
+              ammoCapacity: 8,
+              tags: ["PERSONNEL"],
+            }],
+            ammunition: { "weapon-rifle": 8 },
+            cooldowns: {},
+            statuses: [],
+            equipmentIds: [],
+            statusEffects: [{
+              id: "permanent",
+              definitionId: "status-irregular-progression-public-v1",
+              status: "ACTIVE",
+            }],
+            subsystems: [
+              { subsystemId: "mobility", state: "OPERATIONAL" },
+              { subsystemId: "sensors", state: "OPERATIONAL" },
+            ],
+            locationState: "ON_MAP",
+            recoveryPolicyId: "game-master-recovery@1",
+            recoveryRound: 4,
+          },
+        }), { headers: { "content-type": "application/json" } });
+      },
+    });
+    const body = JSON.stringify({
+      commandId: "revive-command-0001",
+      expectedCampaignVersion: 8,
+    });
+    const send = () => routeGameMasterRequest(request(
+      `/api/game-master/campaigns/campaign-1/deployments/${harness.recovery.deploymentId}/revive`,
+      { method: "POST", body },
+    ), harness.env);
+
+    const first = await send();
+    const replay = await send();
+
+    expect(first?.status).toBe(200);
+    expect(replay?.status).toBe(200);
+    expect(await replay?.json()).toEqual(await first?.json());
+    expect(harness.doCalls).toHaveLength(1);
+    expect(harness.recovery).toMatchObject({
+      deploymentStatus: "ACTIVE",
+      unitStatus: "DEPLOYED",
+      locationKind: "CAMPAIGN",
+      locationState: "ON_MAP",
+      locationId: "campaign-1",
+      currentHealth: 6,
+      ammunitionJson: JSON.stringify({ "weapon-rifle": 8 }),
+      damageJson: "[]",
+      subsystemStates: ["OPERATIONAL", "OPERATIONAL"],
+      weaponMounts: [{ weaponId: "weapon-rifle", ammo: 8, cooldown: 0, state: "OPERATIONAL" }],
+      statusEffects: [
+        { permanent: false, removed: true },
+        { permanent: true, removed: false },
+      ],
+    });
+    expect(harness.recovery.history).toHaveLength(1);
+    expect([...harness.recovery.history.values()][0]).toMatchObject({
+      eventType: "GAME_MASTER_RECOVERY",
+      payload: {
+        policyId: "game-master-recovery@1",
+        operation: "EXCEPTIONAL_ADMIN_CORRECTION",
+        campaignId: "campaign-1",
+        deploymentId: harness.recovery.deploymentId,
+      },
+    });
+    expect(harness.receipts.get("demo-admin:revive-command-0001")).toMatchObject({ status_code: 200 });
+    expect(harness.audits).toContain("gm-audit:demo-admin:revive-command-0001");
+  });
+
+  it("leaves recovery reserved and persistent state untouched when the DO response violates the policy", async () => {
+    const harness = fakeEnv({
+      doResponse: new Response(JSON.stringify({
+        operation: "DEPLOYMENT_REVIVE",
+        commandId: "revive-command-tampered",
+        campaignId: "campaign-1",
+        campaignVersion: 9,
+        appliedAt: 10,
+        resource: {
+          id: "deployment-recovery-1",
+          campaignId: "campaign-1",
+          persistentUnitId: "unit-recovery-1",
+          side: "ALLIED",
+          status: "ACTIVE",
+          locationState: "ON_MAP",
+          currentHealth: 5,
+          stats: { maxHealth: 6 },
+          weapons: [],
+          ammunition: {},
+          cooldowns: {},
+          statuses: [],
+          statusEffects: [],
+          subsystems: [],
+          recoveryPolicyId: "game-master-recovery@1",
+          recoveryRound: 4,
+        },
+      }), { headers: { "content-type": "application/json" } }),
+    });
+
+    const operation = routeGameMasterRequest(request(
+      "/api/game-master/campaigns/campaign-1/deployments/deployment-recovery-1/revive",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          commandId: "revive-command-tampered",
+          expectedCampaignVersion: 8,
+        }),
+      },
+    ), harness.env);
+
+    await expect(operation).rejects.toThrow("GAME_MASTER_RECOVERY_RESPONSE_INVALID");
+    expect(harness.recovery).toMatchObject({
+      deploymentStatus: "DESTROYED",
+      unitStatus: "DESTROYED",
+      locationKind: "DESTROYED",
+      locationState: "DESTROYED",
+      currentHealth: 0,
+    });
+    expect(harness.recovery.history).toHaveLength(0);
+    expect(harness.receipts.get("demo-admin:revive-command-tampered")).toMatchObject({
+      status_code: null,
+      response_json: null,
+    });
   });
 
   it("keeps the campaign registry coherent across audited pause and resume commands", async () => {

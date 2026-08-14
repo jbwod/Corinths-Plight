@@ -1497,7 +1497,12 @@ export function HexMap({
           ? `${keyboardUnits.length} projected ${keyboardUnits.length === 1 ? "unit" : "units"}: ${keyboardUnits.map((unit) => unit.callsign).join(", ")}.`
           : "No projected units."
       } ${keyboardObjective
-        ? tacticalObjectiveAriaLabel(keyboardObjective, campaign.scenarioPolicy?.primaryObjectiveId)
+        ? tacticalObjectiveAriaLabel(
+            keyboardObjective,
+            campaign.scenarioPolicy?.policyId === "HOLD_PRIMARY_OBJECTIVE"
+              ? campaign.scenarioPolicy.primaryObjectiveId
+              : undefined,
+          )
         : "No objective."}`;
 
   useEffect(() => {
@@ -1796,7 +1801,9 @@ export function HexMap({
         ctx,
         objective,
         point,
-        campaign.scenarioPolicy?.primaryObjectiveId,
+        campaign.scenarioPolicy?.policyId === "HOLD_PRIMARY_OBJECTIVE"
+          ? campaign.scenarioPolicy.primaryObjectiveId
+          : undefined,
         viewport.zoom,
         animationTime,
         reducedMotion,

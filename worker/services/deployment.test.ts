@@ -234,6 +234,10 @@ describe("custom campaign deployment activation", () => {
       query.includes("game_master_campaign_scenarios") &&
       query.includes("maps.status='PUBLISHED'") &&
       query.includes("EXISTS (SELECT 1 FROM deployments"))).toBe(true);
+    expect(commitStatements.some((query) =>
+      query.includes("UPDATE strategic_operations") &&
+      query.includes("status='ACTIVE'") &&
+      query.includes("strategic_node_id"))).toBe(true);
   });
 
   it("fails before mutating a custom campaign whose exact published pin is unavailable", async () => {

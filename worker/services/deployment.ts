@@ -67,12 +67,12 @@ function assertGameMasterScenarioAvailable(
   }
 }
 
-function activateGameMasterCampaignStatement(
+function activateGameMasterCampaignStatements(
   env: Env,
   campaignId: string,
   mapRevisionId: string,
-): D1PreparedStatement {
-  return env.DB.prepare(`UPDATE campaigns SET status='ACTIVE',strategic_status='ACTIVE',
+): D1PreparedStatement[] {
+  return [env.DB.prepare(`UPDATE campaigns SET status='ACTIVE',strategic_status='ACTIVE',
       strategic_revision=CASE WHEN status='RECRUITING' THEN strategic_revision+1 ELSE strategic_revision END
     WHERE id=?1 AND status IN ('RECRUITING','ACTIVE') AND game_master_map_revision_id=?2
       AND EXISTS (SELECT 1 FROM game_master_campaign_scenarios AS custom
@@ -80,8 +80,11 @@ function activateGameMasterCampaignStatement(
         JOIN game_master_maps AS maps ON maps.id=revisions.map_id
         WHERE custom.campaign_id=campaigns.id
           AND custom.scenario_id='scenario-' || campaigns.id
-          AND custom.scenario_version=1
+          AND custom.scenario_version=2
           AND custom.scenario_content_key=campaigns.scenario_content_key
+          AND custom.application_policy_key='game-master-skirmish@1'
+          AND custom.maximum_rounds=12
+          AND custom.reward_policy_id='public-v1-economy@1'
           AND custom.map_revision_id=campaigns.game_master_map_revision_id
           AND custom.map_content_hash=revisions.content_hash
           AND campaigns.map_source_key='admin-map/' || maps.id || '@' || revisions.revision || ':' || revisions.content_hash
@@ -90,7 +93,29 @@ function activateGameMasterCampaignStatement(
       AND EXISTS (SELECT 1 FROM deployments
         WHERE campaign_id=campaigns.id AND side='ALLIED'
           AND status IN ('READY','ACTIVE','IMMOBILISED'))`)
-    .bind(campaignId, mapRevisionId);
+    .bind(campaignId, mapRevisionId),
+  env.DB.prepare(`UPDATE strategic_operations
+      SET status='ACTIVE',starts_at=COALESCE(starts_at,unixepoch()),revision=revision+1,updated_at=unixepoch()
+      WHERE campaign_id=?1 AND status='MUSTERING'
+        AND node_id=(SELECT strategic_node_id FROM campaigns WHERE id=?1 AND status='ACTIVE'
+          AND strategic_status='ACTIVE' AND game_master_map_revision_id=?2)`)
+    .bind(campaignId, mapRevisionId)];
+}
+
+function activateAuthoredCampaignStatements(
+  env: Env,
+  campaignId: string,
+): D1PreparedStatement[] {
+  return [env.DB.prepare(`UPDATE campaigns
+      SET status='ACTIVE',strategic_status='ACTIVE',
+          strategic_revision=CASE WHEN status='RECRUITING' THEN strategic_revision+1 ELSE strategic_revision END
+      WHERE id=?1 AND status IN ('RECRUITING','ACTIVE')
+        AND game_master_map_revision_id IS NULL
+        AND scenario_content_key IS NOT NULL
+        AND EXISTS (SELECT 1 FROM deployments
+          WHERE campaign_id=campaigns.id AND side='ALLIED'
+            AND status IN ('READY','ACTIVE','IMMOBILISED'))`)
+    .bind(campaignId)];
 }
 
 function reinforcementWindow(authority: NonNullable<Awaited<ReturnType<typeof getDeploymentAuthority>>>): {
@@ -703,12 +728,14 @@ export async function commitPlan(
         strategic_revision=strategic_revision+1 WHERE id=?1 AND status IN ('DRAFT','RECRUITING','ACTIVE')`)
       .bind(row.campaign_id),
     );
-  } else if (!authority.operation_id && isGameMasterCampaign(authority)) {
-    statements.push(activateGameMasterCampaignStatement(
+  } else if (isGameMasterCampaign(authority)) {
+    statements.push(...activateGameMasterCampaignStatements(
       env,
       row.campaign_id,
       authority.game_master_map_revision_id,
     ));
+  } else {
+    statements.push(...activateAuthoredCampaignStatements(env, row.campaign_id));
   }
   const response = {
     planId,
@@ -746,16 +773,16 @@ async function attachReinforcementSync(env: Env, actorId: string, committed: unk
   let authority = await getDeploymentAuthority(env.DB, actorId, record.campaignId);
   if (!authority) return { ...record, reinforcementSync: { status: "PENDING", reason: "CAMPAIGN_ACCESS_CHANGED" } };
   assertGameMasterScenarioAvailable(authority);
-  if (isGameMasterCampaign(authority) && authority.campaign_status === "RECRUITING") {
-    await env.DB.batch([
-      activateGameMasterCampaignStatement(env, record.campaignId, authority.game_master_map_revision_id),
-    ]);
+  if (authority.campaign_status === "RECRUITING") {
+    await env.DB.batch(isGameMasterCampaign(authority)
+      ? activateGameMasterCampaignStatements(env, record.campaignId, authority.game_master_map_revision_id)
+      : activateAuthoredCampaignStatements(env, record.campaignId));
     authority = await getDeploymentAuthority(env.DB, actorId, record.campaignId);
     if (!authority || authority.campaign_status !== "ACTIVE") {
       throw new ForceServiceError(
         500,
         "CAMPAIGN_ACTIVATION_INCOMPLETE",
-        "The committed custom campaign deployment has not entered its active registry state.",
+        "The committed campaign deployment has not entered its active registry state.",
       );
     }
     assertGameMasterScenarioAvailable(authority);

@@ -37,7 +37,7 @@ This overlay records current capability without adding, deleting, closing, or ch
 | Seed secrecy and hidden information | Partial/unsafe | Stored seeds are omitted from ordinary views and reports, and state projection redacts unseen deployments. Socket invalidations are per-viewer and identifier-free with bounded projected sequence catch-up. Reports still use present-time rather than event-time visibility. |
 | Canonical roster and support/aerospace systems | Partial/catalogued | D1 catalogues all thirteen canonical classes plus three companion-only classes, while generated tactical execution now covers a playable subset for every canonical allied class. Companion-only classes remain non-executable; no legacy class may fill those definitions. |
 
-At the current local reconciliation point, the full root suite passes **105 Vitest files / 834 tests** (the committed Phase-0 baseline was 32/201). Those results verify only the covered helpers and contracts, not the unimplemented canonical rules or release boundaries described below.
+At the current local reconciliation point, the full root suite passes **106 Vitest files / 849 tests** (the committed Phase-0 baseline was 32/201). Those results verify only the covered helpers and contracts, not the unimplemented canonical rules or release boundaries described below.
 
 ## Phase 2 catalogue overlay (non-conflict)
 

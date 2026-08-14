@@ -336,8 +336,11 @@ export async function getDeploymentAuthority(
         JOIN game_master_maps AS maps ON maps.id=revisions.map_id
         WHERE custom.campaign_id=campaigns.id
           AND custom.scenario_id='scenario-' || campaigns.id
-          AND custom.scenario_version=1
+          AND custom.scenario_version=2
           AND custom.scenario_content_key=campaigns.scenario_content_key
+          AND custom.application_policy_key='game-master-skirmish@1'
+          AND custom.maximum_rounds=12
+          AND custom.reward_policy_id='public-v1-economy@1'
           AND custom.map_revision_id=campaigns.game_master_map_revision_id
           AND custom.map_content_hash=revisions.content_hash
           AND campaigns.map_source_key='admin-map/' || maps.id || '@' || revisions.revision || ':' || revisions.content_hash

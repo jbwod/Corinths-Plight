@@ -110,6 +110,8 @@ export interface ForceCatalogueView {
   implementationStatus: ImplementationStatus;
   requisitionStatus: RequisitionStatus;
   availabilityStatus: AvailabilityStatus;
+  executable: boolean;
+  purchasable: boolean;
   availabilityReason?: string;
   requisitionCost: number | null;
   initialEquipment: ForceEquipmentView[];
@@ -362,6 +364,8 @@ function catalogueItem(input: CatalogueInput): ForceCatalogueView {
     implementationStatus: input.implementationStatus ?? "IMPLEMENTED",
     requisitionStatus: "BALANCE_REQUIRED",
     availabilityStatus: input.availabilityStatus ?? "DEV_ONLY",
+    executable: false,
+    purchasable: false,
     availabilityReason: input.availabilityReason ?? "Local showcase definitions cannot be persistently requisitioned.",
     requisitionCost: null,
     initialEquipment: [],

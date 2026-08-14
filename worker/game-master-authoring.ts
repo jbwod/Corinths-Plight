@@ -6,10 +6,16 @@ import {
   validateAdminMap,
   type AdminMapDocumentV1,
 } from "../packages/rules-engine/src";
+import {
+  GAME_MASTER_SKIRMISH_MAX_ROUNDS,
+  GAME_MASTER_SKIRMISH_POLICY_KEY,
+  PUBLIC_V1_ECONOMY_POLICY_ID,
+} from "../packages/domain/src";
 import type { GameMasterAccessDecision } from "./auth";
 import { campaignCommandHash, canonicalCampaignJson } from "./campaign-contracts";
 import type { Env } from "./env";
 import {
+  GAME_MASTER_SCENARIO_VERSION,
   GameMasterRuntimeValidationError,
   gameMasterScenarioContentKey,
   gameMasterScenarioId,
@@ -52,6 +58,15 @@ interface PriorReceiptRow {
   status_code: number | null;
   response_json: string | null;
   created_at: number;
+}
+
+interface StrategicCampaignAnchorRow {
+  map_id: string;
+  map_revision: number;
+  ruleset_id: string;
+  planet_location_id: string;
+  planet_node_id: string;
+  planet_position_json: string;
 }
 
 type AuthoringReservation =
@@ -259,6 +274,25 @@ async function committedResponse(
 
 function deterministicAuthoringId(prefix: "gm-map" | "gm-campaign", hash: string): string {
   return `${prefix}-${hash.slice(0, 32)}`;
+}
+
+function strategicCampaignPosition(hash: string, planetPositionJson: string): { x: number; y: number } {
+  let origin = { x: 50, y: 50 };
+  try {
+    const parsed = JSON.parse(planetPositionJson) as { x?: unknown; y?: unknown };
+    if (typeof parsed.x === "number" && Number.isFinite(parsed.x) &&
+        typeof parsed.y === "number" && Number.isFinite(parsed.y)) {
+      origin = { x: parsed.x, y: parsed.y };
+    }
+  } catch {
+    // A node position is presentation-only; retain a deterministic safe origin.
+  }
+  const angleSeed = Number.parseInt(hash.slice(0, 8), 16) / 0xffffffff;
+  const angle = angleSeed * Math.PI * 2;
+  return {
+    x: Number((origin.x + Math.cos(angle) * 8).toFixed(3)),
+    y: Number((origin.y + Math.sin(angle) * 8).toFixed(3)),
+  };
 }
 
 async function listMaps(env: Env, url: URL): Promise<Response> {
@@ -560,16 +594,32 @@ async function createCampaign(
     }
     throw error;
   }
-  const [planet, ruleset, duplicate] = await Promise.all([
-    env.DB.prepare(`SELECT id,name FROM planets WHERE id=?1 LIMIT 1`).bind(intent.planetId)
-      .first<{ id: string; name: string }>(),
-    env.DB.prepare(`SELECT id FROM rulesets WHERE status='ACTIVE' ORDER BY published_at DESC,id LIMIT 1`)
-      .first<{ id: string }>(),
+  const [planet, strategicAnchor, duplicate] = await Promise.all([
+    env.DB.prepare(`SELECT id,name,strategic_location_id FROM planets WHERE id=?1 LIMIT 1`).bind(intent.planetId)
+      .first<{ id: string; name: string; strategic_location_id: string | null }>(),
+    env.DB.prepare(`SELECT maps.id AS map_id,maps.revision AS map_revision,maps.ruleset_id,
+        planets.strategic_location_id AS planet_location_id,nodes.id AS planet_node_id,
+        nodes.position_json AS planet_position_json
+      FROM planets
+      JOIN strategic_nodes AS nodes
+        ON nodes.location_id=planets.strategic_location_id AND nodes.node_type='PLANET'
+      JOIN strategic_maps AS maps
+        ON maps.id=nodes.map_id AND maps.status IN ('ACTIVE','PAUSED')
+      JOIN rulesets ON rulesets.id=maps.ruleset_id AND rulesets.status='ACTIVE'
+      WHERE planets.id=?1
+      ORDER BY CASE maps.status WHEN 'ACTIVE' THEN 0 ELSE 1 END,maps.id
+      LIMIT 1`).bind(intent.planetId).first<StrategicCampaignAnchorRow>(),
     env.DB.prepare(`SELECT id FROM campaigns WHERE planet_id=?1 AND name=?2 LIMIT 1`)
       .bind(intent.planetId, intent.name).first<{ id: string }>(),
   ]);
   if (!planet) return errorResponse(404, "PLANET_NOT_FOUND", "The selected planet does not exist.");
-  if (!ruleset) return errorResponse(409, "ACTIVE_RULESET_REQUIRED", "No active ruleset is available for campaign authoring.");
+  if (!planet.strategic_location_id || !strategicAnchor) {
+    return errorResponse(
+      409,
+      "ACTIVE_STRATEGIC_MAP_REQUIRED",
+      "The selected planet must have a PLANET node on an active system map before a campaign can be created.",
+    );
+  }
   if (duplicate && duplicate.id !== campaignId) {
     return errorResponse(409, "CAMPAIGN_NAME_EXISTS", "That planet already has a campaign with this name.");
   }
@@ -578,6 +628,11 @@ async function createCampaign(
   const scenarioContentKey = gameMasterScenarioContentKey(campaignId);
   const mapSourceKey = `admin-map/${map.id}@${map.revision}:${map.content_hash}`;
   const insertionZoneId = `${campaignId}:insertion:primary`;
+  const strategicSourceId = `source-${campaignId}`;
+  const strategicLocationId = `location-${campaignId}`;
+  const strategicNodeId = `node-${campaignId}`;
+  const strategicOperationId = `operation-${campaignId}`;
+  const strategicPosition = strategicCampaignPosition(hash, strategicAnchor.planet_position_json);
   const responsePayload = {
     message: "Recruiting campaign created from the exact published map. Join and deploy a Battalion force to enter tactical play.",
     campaign: {
@@ -590,6 +645,7 @@ async function createCampaign(
       round: 1,
       clockState: "WAITING_FOR_DEPLOYMENT",
       roundDurationMs: intent.roundDurationMs,
+      maximumPlayers: intent.maximumPlayers,
       objectives: [],
       deployments: [],
       mapId: map.id,
@@ -597,6 +653,10 @@ async function createCampaign(
       mapContentHash: map.content_hash,
       mapSourceKey,
       scenarioContentKey,
+      strategicMapId: strategicAnchor.map_id,
+      strategicNodeId,
+      strategicOperationId,
+      strategicPosition,
       insertionZones: [{
         insertionZoneId,
         coord: insertionHex.coord,
@@ -612,30 +672,101 @@ async function createCampaign(
     intent.commandId, hash, intent);
   if (reservation.kind === "RESPONSE") return reservation.response;
   const forcePolicy = canonicalCampaignJson({ reinforcementStatus: "OPEN" });
+  const strategicReinforcementPolicy = canonicalCampaignJson({ status: "OPEN" });
+  const strategicSourceLocator = `${map.id}@${map.revision}:${map.content_hash}`;
   const statements = [
     env.DB.prepare(`INSERT INTO campaigns
       (id,planet_id,ruleset_id,name,status,round_duration_ms,map_source_key,scenario_content_key,
        minimum_players,maximum_players,created_by,force_policy_json,strategic_status,strategic_revision,
        game_master_map_revision_id)
-      SELECT ?1,?2,?3,?4,'RECRUITING',?5,?6,?7,1,1,?8,?9,'MUSTERING',1,?10
+      SELECT ?1,?2,?3,?4,'RECRUITING',?5,?6,?7,1,?8,?9,?10,'MUSTERING',1,?11
       WHERE EXISTS (
         SELECT 1 FROM game_master_maps AS maps
-        JOIN game_master_map_revisions AS revisions ON revisions.id=?10 AND revisions.map_id=maps.id
-        WHERE maps.id=?11 AND maps.status='PUBLISHED' AND maps.revision=?12
-          AND maps.content_hash=?13 AND revisions.revision=?12 AND revisions.content_hash=?13)
-      ON CONFLICT DO NOTHING`).bind(campaignId, intent.planetId, ruleset.id, intent.name,
-      intent.roundDurationMs, mapSourceKey, scenarioContentKey, actor.userId, forcePolicy, revisionId,
-      map.id, map.revision, map.content_hash),
+        JOIN game_master_map_revisions AS revisions ON revisions.id=?11 AND revisions.map_id=maps.id
+        WHERE maps.id=?12 AND maps.status='PUBLISHED' AND maps.revision=?13
+          AND maps.content_hash=?14 AND revisions.revision=?13 AND revisions.content_hash=?14)
+      ON CONFLICT DO NOTHING`).bind(campaignId, intent.planetId, strategicAnchor.ruleset_id, intent.name,
+      intent.roundDurationMs, mapSourceKey, scenarioContentKey, intent.maximumPlayers, actor.userId,
+      forcePolicy, revisionId, map.id, map.revision, map.content_hash),
+    env.DB.prepare(`INSERT INTO strategic_content_sources
+      (id,source_path,source_locator,source_kind,notes)
+      SELECT ?1,?2,?3,'ADMIN_AUTHORED',?4
+      WHERE EXISTS (SELECT 1 FROM campaigns WHERE id=?5 AND game_master_map_revision_id=?6)
+      ON CONFLICT(id) DO NOTHING`).bind(
+      strategicSourceId,
+      `game-master/campaigns/${campaignId}`,
+      strategicSourceLocator,
+      "Game Master campaign linked to its exact published tactical map revision.",
+      campaignId,
+      revisionId,
+    ),
+    env.DB.prepare(`INSERT INTO strategic_locations
+      (id,parent_location_id,location_type,name,description,status,metadata_json)
+      SELECT ?1,?2,'CAMPAIGN',?3,'','ACTIVE',?4
+      WHERE EXISTS (SELECT 1 FROM campaigns WHERE id=?5 AND planet_id=?6)
+      ON CONFLICT(id) DO NOTHING`).bind(
+      strategicLocationId,
+      strategicAnchor.planet_location_id,
+      `${intent.name} [${campaignId.slice(-8)}]`,
+      canonicalCampaignJson({ campaignId, planetId: intent.planetId }),
+      campaignId,
+      intent.planetId,
+    ),
+    env.DB.prepare(`INSERT INTO strategic_nodes
+      (id,map_id,location_id,node_type,name,control_status,status,position_json,visibility_json,
+       source_id,source_locator,metadata_json)
+      SELECT ?1,?2,?3,'CAMPAIGN',?4,'UNKNOWN','OPEN',?5,'{"public":true}',?6,?7,?8
+      WHERE EXISTS (SELECT 1 FROM strategic_maps
+        WHERE id=?2 AND status IN ('ACTIVE','PAUSED') AND revision=?9)
+        AND EXISTS (SELECT 1 FROM strategic_locations WHERE id=?3 AND parent_location_id=?10)
+        AND EXISTS (SELECT 1 FROM strategic_content_sources WHERE id=?6 AND source_kind='ADMIN_AUTHORED')
+      ON CONFLICT(id) DO NOTHING`).bind(
+      strategicNodeId,
+      strategicAnchor.map_id,
+      strategicLocationId,
+      `${intent.name} — ${planet.name}`,
+      canonicalCampaignJson(strategicPosition),
+      strategicSourceId,
+      strategicSourceLocator,
+      canonicalCampaignJson({ campaignId, planetId: intent.planetId, presentationOnlyPosition: true }),
+      strategicAnchor.map_revision,
+      strategicAnchor.planet_location_id,
+    ),
+    env.DB.prepare(`UPDATE campaigns SET strategic_node_id=?1
+      WHERE id=?2 AND strategic_node_id IS NULL
+        AND EXISTS (SELECT 1 FROM strategic_nodes WHERE id=?1 AND map_id=?3)`)
+      .bind(strategicNodeId, campaignId, strategicAnchor.map_id),
+    env.DB.prepare(`INSERT INTO strategic_operations
+      (id,map_id,node_id,campaign_id,ruleset_id,code,name,role_summary,status,threat_level,
+       objectives_json,recommended_capabilities_json,deployment_rules_json,reinforcement_policy_json,
+       known_enemy_json,effect_rules_json,source_id,source_locator)
+      SELECT ?1,?2,?3,?4,?5,?6,?7,'','MUSTERING','UNKNOWN','[]','[]','{}',?8,'{}','[]',?9,?10
+      WHERE EXISTS (SELECT 1 FROM campaigns
+        WHERE id=?4 AND strategic_node_id=?3 AND strategic_status='MUSTERING')
+      ON CONFLICT(id) DO NOTHING`).bind(
+      strategicOperationId,
+      strategicAnchor.map_id,
+      strategicNodeId,
+      campaignId,
+      strategicAnchor.ruleset_id,
+      `GM-${hash.slice(0, 12).toUpperCase()}`,
+      intent.name,
+      strategicReinforcementPolicy,
+      strategicSourceId,
+      strategicSourceLocator,
+    ),
     env.DB.prepare(`INSERT INTO game_master_campaign_scenarios
       (campaign_id,scenario_id,scenario_version,scenario_content_key,map_revision_id,map_content_hash,
-       objectives_json,enemy_deployments_json,created_by_user_id)
-      SELECT campaigns.id,?1,1,?2,?3,?4,'[]','[]',?5
-      FROM campaigns JOIN game_master_map_revisions AS revisions ON revisions.id=?3
-      WHERE campaigns.id=?6 AND campaigns.game_master_map_revision_id=revisions.id
-        AND campaigns.map_source_key=?7 AND campaigns.scenario_content_key=?2
-        AND revisions.content_hash=?4
-      ON CONFLICT DO NOTHING`).bind(scenarioId, scenarioContentKey, revisionId, map.content_hash,
-      actor.userId, campaignId, mapSourceKey),
+       objectives_json,enemy_deployments_json,application_policy_key,maximum_rounds,reward_policy_id,
+       created_by_user_id)
+      SELECT campaigns.id,?1,?2,?3,?4,?5,'[]','[]',?6,?7,?8,?9
+      FROM campaigns JOIN game_master_map_revisions AS revisions ON revisions.id=?4
+      WHERE campaigns.id=?10 AND campaigns.game_master_map_revision_id=revisions.id
+        AND campaigns.map_source_key=?11 AND campaigns.scenario_content_key=?3
+        AND revisions.content_hash=?5
+      ON CONFLICT DO NOTHING`).bind(scenarioId, GAME_MASTER_SCENARIO_VERSION, scenarioContentKey,
+      revisionId, map.content_hash, GAME_MASTER_SKIRMISH_POLICY_KEY, GAME_MASTER_SKIRMISH_MAX_ROUNDS,
+      PUBLIC_V1_ECONOMY_POLICY_ID, actor.userId, campaignId, mapSourceKey),
     env.DB.prepare(`INSERT INTO campaign_insertion_zones
       (id,campaign_id,hex_q,hex_r,allowed_methods_json,status,environment_json)
       SELECT ?1,campaign_id,?2,?3,'["STANDARD_GROUND"]','OPEN',?4
@@ -649,10 +780,22 @@ async function createCampaign(
       reservation.token, response, responsePayload,
       `EXISTS (SELECT 1 FROM campaign_memberships WHERE campaign_id=?10 AND user_id=?11 AND role='GM')
        AND EXISTS (SELECT 1 FROM game_master_campaign_scenarios
-         WHERE campaign_id=?10 AND map_revision_id=?12 AND map_content_hash=?13)
+         WHERE campaign_id=?10 AND map_revision_id=?12 AND map_content_hash=?13
+           AND scenario_content_key=?15 AND scenario_version=2
+           AND application_policy_key=?16 AND maximum_rounds=?17 AND reward_policy_id=?18)
        AND EXISTS (SELECT 1 FROM campaign_insertion_zones
-         WHERE id=?14 AND campaign_id=?10 AND status='OPEN')`,
-      [campaignId, actor.userId, revisionId, map.content_hash, insertionZoneId]),
+         WHERE id=?14 AND campaign_id=?10 AND status='OPEN')
+       AND EXISTS (SELECT 1 FROM campaigns
+         WHERE id=?10 AND strategic_node_id=?19 AND strategic_status='MUSTERING')
+       AND EXISTS (SELECT 1 FROM strategic_nodes
+         WHERE id=?19 AND map_id=?20 AND location_id=?21 AND node_type='CAMPAIGN')
+       AND EXISTS (SELECT 1 FROM strategic_operations
+         WHERE id=?22 AND campaign_id=?10 AND node_id=?19 AND status='MUSTERING'
+           AND threat_level='UNKNOWN' AND objectives_json='[]')`,
+      [campaignId, actor.userId, revisionId, map.content_hash, insertionZoneId, scenarioContentKey,
+        GAME_MASTER_SKIRMISH_POLICY_KEY, GAME_MASTER_SKIRMISH_MAX_ROUNDS,
+        PUBLIC_V1_ECONOMY_POLICY_ID, strategicNodeId, strategicAnchor.map_id,
+        strategicLocationId, strategicOperationId]),
   ];
   await env.DB.batch(statements);
   const conflictPayload = { error: { code: "CAMPAIGN_CREATE_CONFLICT", message: "The recruiting campaign could not be created from the exact published map revision." } };

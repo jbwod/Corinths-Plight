@@ -1,7 +1,9 @@
 import type {
+  CampaignDeployment,
   GameMasterCapability,
   GameMasterSessionDto,
 } from "../../packages/domain/src";
+import { GAME_MASTER_RECOVERY_POLICY_ID } from "../../packages/domain/src";
 import {
   authenticate,
   authorizeGameMaster,
@@ -39,6 +41,7 @@ const capabilities: GameMasterCapability[] = [
   "CAMPAIGN_CREATE",
   "MAP_WRITE",
   "OBJECTIVE_WRITE",
+  "DEPLOYMENT_REVIVE",
   "ENEMY_SPAWN",
   "AUDIT_READ",
 ];
@@ -79,6 +82,99 @@ interface RuntimeCommandReceiptRow {
 type RuntimeCommandReservation =
   | { kind: "OWNER"; token: string }
   | { kind: "RESPONSE"; response: Response };
+
+type GameMasterRecoveryResource = CampaignDeployment & {
+  recoveryPolicyId: typeof GAME_MASTER_RECOVERY_POLICY_ID;
+  recoveryRound: number;
+};
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function parseRecoveryResponse(
+  responseJson: string,
+  campaignId: string,
+  commandId: string,
+  deploymentId: string,
+): GameMasterRecoveryResource {
+  const envelope = record(JSON.parse(responseJson));
+  const resource = record(envelope?.resource);
+  if (
+    envelope?.operation !== "DEPLOYMENT_REVIVE" ||
+    envelope.commandId !== commandId ||
+    envelope.campaignId !== campaignId ||
+    resource?.id !== deploymentId ||
+    resource.campaignId !== campaignId ||
+    resource.recoveryPolicyId !== GAME_MASTER_RECOVERY_POLICY_ID ||
+    typeof resource.recoveryRound !== "number" ||
+    !Number.isSafeInteger(resource.recoveryRound) ||
+    resource.recoveryRound <= 0 ||
+    resource.status !== "ACTIVE" ||
+    resource.locationState !== "ON_MAP" ||
+    !["ALLIED", "ENEMY", "NEUTRAL"].includes(String(resource.side)) ||
+    (resource.persistentUnitId !== undefined && (
+      typeof resource.persistentUnitId !== "string" ||
+      resource.persistentUnitId.length < 1 ||
+      resource.persistentUnitId.length > 256 ||
+      resource.side !== "ALLIED"
+    )) ||
+    typeof resource.currentHealth !== "number" ||
+    !Number.isSafeInteger(resource.currentHealth) ||
+    resource.currentHealth <= 0
+  ) {
+    throw new Error("GAME_MASTER_RECOVERY_RESPONSE_INVALID");
+  }
+  const stats = record(resource.stats);
+  if (
+    typeof stats?.maxHealth !== "number" ||
+    !Number.isSafeInteger(stats.maxHealth) ||
+    stats.maxHealth !== resource.currentHealth
+  ) {
+    throw new Error("GAME_MASTER_RECOVERY_RESPONSE_INVALID");
+  }
+  const ammunition = record(resource.ammunition);
+  const cooldowns = record(resource.cooldowns);
+  if (
+    !ammunition ||
+    Object.values(ammunition).some((amount) =>
+      typeof amount !== "number" || !Number.isSafeInteger(amount) || amount < 0) ||
+    !cooldowns || Object.keys(cooldowns).length !== 0 ||
+    !Array.isArray(resource.statuses) || resource.statuses.length !== 0 ||
+    !Array.isArray(resource.statusEffects) ||
+    !Array.isArray(resource.weapons) ||
+    !Array.isArray(resource.subsystems) ||
+    resource.bombardmentSuppression !== undefined
+  ) {
+    throw new Error("GAME_MASTER_RECOVERY_RESPONSE_INVALID");
+  }
+  for (const candidate of resource.weapons) {
+    const weapon = record(candidate);
+    if (!weapon || typeof weapon.id !== "string") {
+      throw new Error("GAME_MASTER_RECOVERY_RESPONSE_INVALID");
+    }
+    if (weapon.ammoCapacity !== undefined && (
+      typeof weapon.ammoCapacity !== "number" ||
+      !Number.isSafeInteger(weapon.ammoCapacity) ||
+      ammunition[weapon.id] !== weapon.ammoCapacity
+    )) {
+      throw new Error("GAME_MASTER_RECOVERY_RESPONSE_INVALID");
+    }
+  }
+  for (const candidate of resource.subsystems) {
+    const subsystem = record(candidate);
+    if (
+      !subsystem || typeof subsystem.subsystemId !== "string" ||
+      subsystem.state !== "OPERATIONAL" ||
+      subsystem.damageSourceId !== undefined || subsystem.damagedRound !== undefined
+    ) {
+      throw new Error("GAME_MASTER_RECOVERY_RESPONSE_INVALID");
+    }
+  }
+  return resource as unknown as GameMasterRecoveryResource;
+}
 
 function method(request: Request, expected: string): Response | undefined {
   if (request.method === expected) return undefined;
@@ -131,6 +227,7 @@ async function completeRuntimeCommand(
   commandId: string,
   reservationToken: string,
   response: Response,
+  targetId?: string,
 ): Promise<void> {
   const responseText = await response.clone().text();
   const responseJson = responseText || "{}";
@@ -138,6 +235,7 @@ async function completeRuntimeCommand(
   const auditId = `gm-audit:${actor.userId}:${commandId}`;
   const statements: D1PreparedStatement[] = [];
   let registryCompletionGuard = "";
+  let completeReceiptBeforeProjection = false;
   const receiptBindings: unknown[] = [
     response.status, responseJson, now, actor.userId, commandId, reservationToken, operation, campaignId,
   ];
@@ -176,14 +274,176 @@ async function completeRuntimeCommand(
     registryCompletionGuard = `AND EXISTS (
       SELECT 1 FROM campaigns WHERE id=?8 AND status='ACTIVE')`;
   }
-  statements.push(
-    env.DB.prepare(`UPDATE game_master_command_receipts
+  if (operation === "DEPLOYMENT_REVIVE" && response.ok) {
+    if (!targetId) throw new Error("GAME_MASTER_RECOVERY_TARGET_MISSING");
+    const recovery = parseRecoveryResponse(responseJson, campaignId, commandId, targetId);
+    if (recovery.persistentUnitId) {
+      const unitId = recovery.persistentUnitId;
+      const ammunitionJson = JSON.stringify(recovery.ammunition);
+      const statusEffectsJson = JSON.stringify(recovery.statusEffects);
+      const subsystemsJson = JSON.stringify(recovery.subsystems);
+      const historyId = `gm-recovery:${actor.userId}:${commandId}:${unitId}`;
+      const historyPayload = JSON.stringify({
+        policyId: GAME_MASTER_RECOVERY_POLICY_ID,
+        operation: "EXCEPTIONAL_ADMIN_CORRECTION",
+        actorUserId: actor.userId,
+        commandId,
+        campaignId,
+        deploymentId: recovery.id,
+        round: recovery.recoveryRound,
+        restored: {
+          status: "DEPLOYED",
+          locationState: "ON_MAP",
+          currentHealth: recovery.currentHealth,
+          ammunition: recovery.ammunition,
+          subsystemState: "OPERATIONAL",
+          transientStatusesCleared: true,
+        },
+      });
+      statements.push(
+        env.DB.prepare(`UPDATE player_units SET status='DEPLOYED',
+            location_kind='CAMPAIGN',location_state='ON_MAP',location_id=?3,
+            current_health=?2,ammunition_json=?1,damage_json='[]',
+            destroyed_at=NULL,destroyed_campaign_id=NULL,destroyed_round=NULL,destroyed_cause=NULL,
+            version=version+1,updated_at=unixepoch()
+          WHERE id=?4 AND status='DESTROYED'
+            AND EXISTS (SELECT 1 FROM deployments AS deployment
+              WHERE deployment.id=?5 AND deployment.campaign_id=?3
+                AND deployment.player_unit_id=player_units.id
+                AND deployment.side='ALLIED' AND deployment.status='DESTROYED')
+            AND EXISTS (SELECT 1 FROM game_master_command_receipts AS receipts
+              WHERE receipts.actor_user_id=?6 AND receipts.command_id=?7
+                AND receipts.reservation_token=?8 AND receipts.operation=?9
+                AND receipts.campaign_id=?3 AND receipts.status_code IS NOT NULL)`)
+          .bind(ammunitionJson, recovery.currentHealth, campaignId, unitId, recovery.id,
+            actor.userId, commandId, reservationToken, operation),
+        env.DB.prepare(`UPDATE deployments SET status='ACTIVE',withdrawn_at=NULL,
+            snapshot_json=json_remove(json_set(snapshot_json,
+              '$.currentHealth',?1,'$.ammunition',json(?2),'$.cooldowns',json('{}'),
+              '$.statuses',json('[]'),'$.statusEffects',json(?3),'$.subsystems',json(?4),
+              '$.damage',json('[]'),'$.locationState','ON_MAP'),
+              '$.bombardmentSuppression')
+          WHERE campaign_id=?5 AND id=?6 AND player_unit_id=?7
+            AND side='ALLIED' AND status='DESTROYED'
+            AND EXISTS (SELECT 1 FROM game_master_command_receipts AS receipts
+              WHERE receipts.actor_user_id=?8 AND receipts.command_id=?9
+                AND receipts.reservation_token=?10 AND receipts.operation=?11
+                AND receipts.campaign_id=?5 AND receipts.status_code IS NOT NULL)`)
+          .bind(recovery.currentHealth, ammunitionJson, statusEffectsJson, subsystemsJson,
+            campaignId, recovery.id, unitId, actor.userId, commandId, reservationToken, operation),
+        env.DB.prepare(`UPDATE player_unit_weapon_mounts SET state='OPERATIONAL',
+            cooldown_remaining=0,updated_at=unixepoch()
+          WHERE player_unit_id=?1
+            AND EXISTS (SELECT 1 FROM deployments WHERE campaign_id=?2 AND id=?3
+              AND player_unit_id=?1 AND side='ALLIED' AND status='ACTIVE')
+            AND EXISTS (SELECT 1 FROM game_master_command_receipts AS receipts
+              WHERE receipts.actor_user_id=?4 AND receipts.command_id=?5
+                AND receipts.reservation_token=?6 AND receipts.operation=?7
+                AND receipts.campaign_id=?2 AND receipts.status_code IS NOT NULL)`)
+          .bind(unitId, campaignId, recovery.id, actor.userId, commandId, reservationToken, operation),
+        env.DB.prepare(`UPDATE campaign_weapon_states SET ready_at_round=NULL,
+            revision=revision+1
+          WHERE snapshot_id IN (SELECT snapshots.id
+            FROM campaign_loadout_snapshots AS snapshots
+            JOIN deployments ON deployments.campaign_id=snapshots.campaign_id
+              AND deployments.player_unit_id=snapshots.player_unit_id
+            WHERE snapshots.campaign_id=?1 AND snapshots.player_unit_id=?2
+              AND deployments.id=?3 AND deployments.side='ALLIED' AND deployments.status='ACTIVE')
+            AND EXISTS (SELECT 1 FROM game_master_command_receipts AS receipts
+              WHERE receipts.actor_user_id=?4 AND receipts.command_id=?5
+                AND receipts.reservation_token=?6 AND receipts.operation=?7
+                AND receipts.campaign_id=?1 AND receipts.status_code IS NOT NULL)`)
+          .bind(campaignId, unitId, recovery.id, actor.userId, commandId, reservationToken, operation),
+        env.DB.prepare(`UPDATE player_unit_subsystems SET state='OPERATIONAL',
+            damaged_campaign_id=NULL,damaged_round=NULL,repaired_at=unixepoch(),
+            state_json='{}',revision=revision+1,updated_at=unixepoch()
+          WHERE player_unit_id=?1
+            AND EXISTS (SELECT 1 FROM deployments WHERE campaign_id=?2 AND id=?3
+              AND player_unit_id=?1 AND side='ALLIED' AND status='ACTIVE')
+            AND EXISTS (SELECT 1 FROM game_master_command_receipts AS receipts
+              WHERE receipts.actor_user_id=?4 AND receipts.command_id=?5
+                AND receipts.reservation_token=?6 AND receipts.operation=?7
+                AND receipts.campaign_id=?2 AND receipts.status_code IS NOT NULL)`)
+          .bind(unitId, campaignId, recovery.id, actor.userId, commandId, reservationToken, operation),
+        env.DB.prepare(`UPDATE player_unit_status_effects SET removed_at=unixepoch()
+          WHERE player_unit_id=?1 AND removed_at IS NULL
+            AND NOT EXISTS (SELECT 1 FROM status_effect_definitions AS definitions
+              WHERE definitions.id=player_unit_status_effects.status_effect_id
+                AND definitions.ruleset_id=player_unit_status_effects.ruleset_id
+                AND COALESCE(json_extract(definitions.definition_json,'$.permanent'),0)=1)
+            AND EXISTS (SELECT 1 FROM deployments WHERE campaign_id=?2 AND id=?3
+              AND player_unit_id=?1 AND side='ALLIED' AND status='ACTIVE')
+            AND EXISTS (SELECT 1 FROM game_master_command_receipts AS receipts
+              WHERE receipts.actor_user_id=?4 AND receipts.command_id=?5
+                AND receipts.reservation_token=?6 AND receipts.operation=?7
+                AND receipts.campaign_id=?2 AND receipts.status_code IS NOT NULL)`)
+          .bind(unitId, campaignId, recovery.id, actor.userId, commandId, reservationToken, operation),
+      );
+      for (const [weaponId, amount] of Object.entries(recovery.ammunition)) {
+        statements.push(
+          env.DB.prepare(`UPDATE player_unit_weapon_mounts SET current_ammo=?1,
+              cooldown_remaining=0,state='OPERATIONAL',updated_at=unixepoch()
+            WHERE player_unit_id=?3 AND weapon_definition_id=?2
+              AND EXISTS (SELECT 1 FROM deployments WHERE campaign_id=?4 AND id=?5
+                AND player_unit_id=?3 AND side='ALLIED' AND status='ACTIVE')
+              AND EXISTS (SELECT 1 FROM game_master_command_receipts AS receipts
+                WHERE receipts.actor_user_id=?6 AND receipts.command_id=?7
+                  AND receipts.reservation_token=?8 AND receipts.operation=?9
+                  AND receipts.campaign_id=?4 AND receipts.status_code IS NOT NULL)`)
+            .bind(amount, weaponId, unitId, campaignId, recovery.id,
+              actor.userId, commandId, reservationToken, operation),
+          env.DB.prepare(`UPDATE campaign_weapon_states SET ammo_remaining=?1,
+              ready_at_round=NULL,revision=revision+1
+            WHERE weapon_id=?2 AND snapshot_id IN (SELECT snapshots.id
+              FROM campaign_loadout_snapshots AS snapshots
+              JOIN deployments ON deployments.campaign_id=snapshots.campaign_id
+                AND deployments.player_unit_id=snapshots.player_unit_id
+              WHERE snapshots.campaign_id=?3 AND snapshots.player_unit_id=?4
+                AND deployments.id=?5 AND deployments.side='ALLIED' AND deployments.status='ACTIVE')
+              AND EXISTS (SELECT 1 FROM game_master_command_receipts AS receipts
+                WHERE receipts.actor_user_id=?6 AND receipts.command_id=?7
+                  AND receipts.reservation_token=?8 AND receipts.operation=?9
+                  AND receipts.campaign_id=?3 AND receipts.status_code IS NOT NULL)`)
+            .bind(amount, weaponId, campaignId, unitId, recovery.id,
+              actor.userId, commandId, reservationToken, operation),
+        );
+      }
+      statements.push(env.DB.prepare(`INSERT INTO unit_history (
+          id,player_unit_id,event_type,campaign_id,round_number,payload_json,
+          occurred_at,idempotency_key,summary,actor_user_id,visibility
+        ) SELECT ?1,units.id,'GAME_MASTER_RECOVERY',?3,?4,?5,unixepoch(),?1,?6,?7,'OWNER'
+          FROM player_units AS units JOIN deployments
+            ON deployments.player_unit_id=units.id AND deployments.campaign_id=?3
+          WHERE units.id=?2 AND units.status='DEPLOYED'
+            AND units.location_kind='CAMPAIGN' AND units.location_state='ON_MAP'
+            AND deployments.id=?11 AND deployments.side='ALLIED' AND deployments.status='ACTIVE'
+            AND EXISTS (SELECT 1 FROM game_master_command_receipts AS receipts
+              WHERE receipts.actor_user_id=?7 AND receipts.command_id=?8
+                AND receipts.reservation_token=?9 AND receipts.operation=?10
+                AND receipts.campaign_id=?3 AND receipts.status_code IS NOT NULL)
+          ON CONFLICT(idempotency_key) DO NOTHING`)
+        .bind(historyId, unitId, campaignId, recovery.recoveryRound, historyPayload,
+          `Global Game Master recovery under ${GAME_MASTER_RECOVERY_POLICY_ID}.`, actor.userId,
+          commandId, reservationToken, operation, recovery.id));
+      registryCompletionGuard = `AND EXISTS (
+          SELECT 1 FROM deployments JOIN player_units AS units
+            ON units.id=deployments.player_unit_id
+          WHERE deployments.campaign_id=?8 AND deployments.id=?9
+            AND deployments.player_unit_id=?10 AND deployments.side='ALLIED'
+            AND deployments.status='DESTROYED' AND units.status='DESTROYED'
+            AND units.location_kind='DESTROYED' AND units.location_state='DESTROYED'
+            AND units.current_health=0)`;
+      receiptBindings.push(recovery.id, unitId);
+      completeReceiptBeforeProjection = true;
+    }
+  }
+  const receiptCompletion = env.DB.prepare(`UPDATE game_master_command_receipts
       SET status_code=?1,response_json=?2,completed_at=?3
       WHERE actor_user_id=?4 AND command_id=?5 AND reservation_token=?6
         AND operation=?7 AND campaign_id=?8 AND status_code IS NULL
         ${registryCompletionGuard}`)
-      .bind(...receiptBindings),
-    env.DB.prepare(`INSERT INTO game_master_audit_events
+      .bind(...receiptBindings);
+  const auditCompletion = env.DB.prepare(`INSERT INTO game_master_audit_events
       (id,actor_user_id,grant_source,operation,campaign_id,command_id,request_hash,request_json,response_status,response_json,occurred_at)
       SELECT ?1,receipts.actor_user_id,?2,receipts.operation,receipts.campaign_id,receipts.command_id,
         receipts.request_hash,receipts.request_json,receipts.status_code,receipts.response_json,?3
@@ -191,9 +451,10 @@ async function completeRuntimeCommand(
       WHERE receipts.actor_user_id=?4 AND receipts.command_id=?5 AND receipts.reservation_token=?6
         AND receipts.status_code IS NOT NULL
       ON CONFLICT(actor_user_id,command_id) DO NOTHING`)
-      .bind(auditId, actor.source, now, actor.userId, commandId, reservationToken),
-  );
-  await env.DB.batch(statements);
+      .bind(auditId, actor.source, now, actor.userId, commandId, reservationToken);
+  await env.DB.batch(completeReceiptBeforeProjection
+    ? [receiptCompletion, ...statements, auditCompletion]
+    : [...statements, receiptCompletion, auditCompletion]);
   const completed = await env.DB.prepare(`SELECT operation,campaign_id,request_hash,reservation_token,status_code,response_json,created_at
       FROM game_master_command_receipts WHERE actor_user_id=?1 AND command_id=?2 LIMIT 1`)
     .bind(actor.userId, commandId).first<RuntimeCommandReceiptRow>();
@@ -426,6 +687,7 @@ export async function routeGameMasterRequest(request: Request, env: Env): Promis
       commandId,
       reservation.token,
       response,
+      reviveMatch?.[2],
     );
     return response;
   } catch (error) {

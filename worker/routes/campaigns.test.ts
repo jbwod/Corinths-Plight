@@ -304,7 +304,7 @@ describe("campaign directory", () => {
       status: "RECRUITING",
       planet_name: "Corinth",
       map_source_key: "admin-map/map-1234567890abcdef1234567890abcdef@2:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      scenario_content_key: "scenario-gm-campaign-1234567890abcdef1234567890abcdef@1",
+      scenario_content_key: "scenario-gm-campaign-1234567890abcdef1234567890abcdef@2",
       side: "ALLIED",
       role: "PLAYER",
       joined_at: 1,

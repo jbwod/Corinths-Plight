@@ -204,6 +204,7 @@ describe("game master command validation", () => {
       mapRevision: 7,
       mapContentHash,
       roundDurationMs: 300_000,
+      maximumPlayers: 8,
     });
     expect(() => parseGameMasterCampaignCreate({
       commandId: "gm-campaign-0003",

@@ -2,10 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { ModuleView, ShipCapacityView, StrategicDataMode, StrategicSnapshot } from "../../strategic/model";
 import { EquipmentIcon } from "../EquipmentVisual";
 import { UnitPortrait } from "../UnitVisual";
-import battleshipSprite from "../../../image/units/sprites/orbitals/battleship.png";
-import corvetteSprite from "../../../image/units/sprites/orbitals/corvette.png";
-import cruiserSprite from "../../../image/units/sprites/orbitals/cruiser.png";
-import destroyerSprite from "../../../image/units/sprites/orbitals/destroyer.png";
+import { ShipSprite, shipClassKey } from "./ShipSprite";
 
 const DEMO_HEADERS = import.meta.env.DEV ? { "x-demo-user": "demo-user" } : undefined;
 const JSON_HEADERS = { "content-type": "application/json", ...(DEMO_HEADERS ?? {}) };
@@ -113,26 +110,11 @@ function ShipIcon({ name }: { name: ShipIconName }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d={paths[name]} /></svg>;
 }
 
-const SHIP_SPRITES = {
-  battleship: battleshipSprite,
-  corvette: corvetteSprite,
-  cruiser: cruiserSprite,
-  destroyer: destroyerSprite,
-} as const;
-
-function shipClassKey(shipClass: string): keyof typeof SHIP_SPRITES {
-  const normalized = shipClass.toLowerCase();
-  if (normalized.includes("battleship")) return "battleship";
-  if (normalized.includes("corvette")) return "corvette";
-  if (normalized.includes("cruiser")) return "cruiser";
-  return "destroyer";
-}
-
 function ShipSchematic({ shipClass, compact = false }: { shipClass: string; compact?: boolean }) {
   const classKey = shipClassKey(shipClass);
   return (
     <div className={`ship-schematic${compact ? " compact" : ""}`} data-ship-class={classKey} aria-hidden="true">
-      <img src={SHIP_SPRITES[classKey]} alt="" draggable={false} />
+      <ShipSprite shipClass={shipClass} />
       <svg className="ship-schematic-overlay" viewBox="0 0 300 120">
         <path d="M12 95h276M26 91v8m31-6v4m31-4v4m31-6v8m31-6v4m31-4v4m31-6v8m31-6v4m31-4v4" />
         <path d="M18 28v-8h48m216 8v-8h-48M18 82v8h48m216-8v8h-48" />

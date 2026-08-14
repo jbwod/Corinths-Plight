@@ -39,6 +39,7 @@ interface CampaignReportsProps {
   demoUser?: string;
   onReturnToCampaign: () => void;
   onReturnToGalactic: () => void;
+  strategicNavigationAvailable?: boolean;
 }
 
 async function reportError(response: Response): Promise<string> {
@@ -60,6 +61,7 @@ export function CampaignReports({
   demoUser,
   onReturnToCampaign,
   onReturnToGalactic,
+  strategicNavigationAvailable = false,
 }: CampaignReportsProps) {
   const [reportIndex, setReportIndex] = useState<{
     campaignId: string;
@@ -68,7 +70,9 @@ export function CampaignReports({
   }>();
   const indexedReports = reportIndex?.campaignId === campaignId ? reportIndex.reports : undefined;
   const locallyResolvedRounds = useMemo(() => {
-    const scenarioStart = campaign.scenarioPolicy?.startRound ?? 1;
+    const scenarioStart = campaign.scenarioPolicy?.policyId === "HOLD_PRIMARY_OBJECTIVE"
+      ? campaign.scenarioPolicy.startRound
+      : 1;
     const rounds = new Set(
       campaign.events
         .filter((event) => event.type === "ROUND_FINISHED" && event.round >= scenarioStart)
@@ -228,7 +232,9 @@ export function CampaignReports({
                         ))}
                       </div>
                     ) : <p>No additional node, route, or follow-on operation change was authored for this result.</p>}
-                    <button type="button" onClick={onReturnToGalactic}>RETURN SURVIVORS TO GALACTIC OPERATIONS</button>
+                    <button type="button" onClick={onReturnToGalactic}>{strategicNavigationAvailable
+                      ? "RETURN SURVIVORS TO GALACTIC OPERATIONS"
+                      : "RETURN SURVIVORS TO FORCE REGISTRY"}</button>
                   </section>
                 </>
               )}

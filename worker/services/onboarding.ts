@@ -7,7 +7,7 @@ import type {
   OnboardingStatusDto,
   StarterUnitOptionDto,
 } from "../../packages/domain/src";
-import { getTacticalUnitClass } from "../../packages/rules-engine/src";
+import { getUnitClass } from "../../packages/rules-engine/src";
 import { V5_CORE_CURATED_2_CONTENT_HASH } from "../../packages/rules-engine/src/generated/v5-core-curated-2";
 import type { Env } from "../env";
 import type {
@@ -143,7 +143,7 @@ function invitation(row: InvitationRow): BattalionInvitationDto {
 }
 
 function starter(row: StarterDefinitionRow): StarterUnitOptionDto {
-  const definition = getTacticalUnitClass(row.id);
+  const definition = getUnitClass(row.id);
   const summaries: Record<string, string> = {
     "unit-infantry-squad": "Flexible personnel formation with direct fire, movement, and facing fully available in the foundation rules.",
     "unit-light-vehicle": "Fast mobile weapons platform with vehicle durability and a base rapid-fire mount.",
@@ -927,7 +927,7 @@ export async function grantStarterUnit(env: Env, userId: string, command: GrantS
   if (!definition) throw new OnboardingServiceError(422, "STARTER_CLASS_UNAVAILABLE", "That class is not available for the starter grant.");
   let governedDefinition;
   try {
-    governedDefinition = getTacticalUnitClass(definition.id);
+    governedDefinition = getUnitClass(definition.id);
   } catch {
     throw new OnboardingServiceError(422, "STARTER_CLASS_UNAVAILABLE", "That class is not executable in the active rules catalogue.");
   }
