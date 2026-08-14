@@ -28,7 +28,7 @@ Five authored campaigns load committed D1 force snapshots into exact version-`@3
 
 ## 3. Implemented D1 schema
 
-The twenty-two migrations create the following table families. Field lists below reflect landed SQL, not a claim that every service workflow is executable. The latest isolated replay contains 130 application tables. Production remains recorded at `0007` and must be checked separately before any authorized migration.
+The twenty-two migrations create the following table families. Field lists below reflect landed SQL, not a claim that every service workflow is executable. The latest isolated replay contains 130 application tables, and production is deployed through `0022`.
 
 ### 3.1 Identity and sessions
 

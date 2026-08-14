@@ -1,6 +1,6 @@
 # Corinth's Plight Guided Enlistment
 
-**Status:** onboarding deployed with migration `0007` on 2026-08-10; migration `0008` invitation-abuse and expiry operations are locally verified, not deployed
+**Status:** onboarding and `0008` invitation-abuse/expiry operations deployed through migration `0022` on 2026-08-14
 
 ## Product outcome
 
@@ -85,8 +85,6 @@ The hourly scheduled job first claims at most 10 due delivery jobs under five-mi
 
 ## Production verification
 
-Cloudflare Worker version `f34fa674-b242-4bda-9a7d-dd06cddc7363` serves the guided flow at `https://corinthplight.qnetica.com.au`. At that recorded release, production D1 was current through migration `0007` and had three open NPC recruitment Battalions, the exact 100 Req grant / 100 Req cost / one-charter policy, one onboarding/grant row for the one verified human account present at rollout, and zero foreign-key violations. Live smoke checks passed for health, signed-out auth availability, unauthenticated onboarding rejection, cross-origin mutation rejection, and SPA/security-header delivery. No live account or invitation was created for the smoke test.
-
-That production statement describes the migration `0007` release only. Migration `0008`, its cron trigger, and its invitation controls have local evidence but no production deployment evidence yet.
+Cloudflare Worker version `e88137dd-19ae-4bf5-8050-3accf8f14343` serves the guided flow at `https://corinthplight.qnetica.com.au`. Production D1 is current through migration `0022`; the approved onboarding economy is 20 Req grant / 20 Req charter cost / one creator-charter. Live smoke checks passed for health, signed-out auth availability, unauthenticated Game Master rejection, SPA delivery, CSP, and security headers.
 
 The `0008` local evidence includes an empty eight-migration replay, both idempotent seed passes, clean integrity/foreign-key checks, focused invitation/security/schedule tests, a real scheduled-event cleanup smoke, and the shared 37-file / 256-test gate. No remote database, cron trigger, account, or invitation was mutated while collecting it.

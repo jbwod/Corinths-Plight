@@ -113,7 +113,7 @@ All requested visual biomes map to one explicit mechanical profile in the immuta
 
 ## 7. Deployment and release status
 
-The repository head is migration `0022_game_master_skirmish_policy.sql`. A fresh isolated D1 replay through all 22 migrations and all nine seeds twice passes integrity and foreign-key checks across 130 application tables. The recorded production deployment remains at migration `0007`; migrations `0008`–`0022`, the Game Master console, and the custom-map runtime are not active on the public origin until a deployment is actually recorded.
+The repository and production head is migration `0022_game_master_skirmish_policy.sql`. A fresh isolated D1 replay through all 22 migrations and all ten seeds twice passes integrity and foreign-key checks across 130 application tables. Cloudflare version `e88137dd-19ae-4bf5-8050-3accf8f14343` deploys the Game Master console, custom-map runtime, recovery policy, and strategic campaign placement. Production has no active global Game Master grant until the owner explicitly approves the exact account privilege change.
 
 The owner has authorized a narrowly scoped private production game-test operation and explicitly waived preview and pre-deployment backup as gates for that operation. That waiver is not evidence of a backup/restore rehearsal, does not close the preview or recovery roadmap items, and does not authorize a public-release claim. The production test-ready promise is limited to authenticated account/onboarding, Battalion and force management, deployment, tactical campaign/report/recovery, and explicitly granted Game Master map/campaign workflows; unfinished strategic and ship surfaces are outside that test scope.
 

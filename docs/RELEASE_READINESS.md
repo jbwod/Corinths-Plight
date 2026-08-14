@@ -2,15 +2,17 @@
 
 **Assessment date:** 2026-08-14 (Australia/Sydney)
 
-**Assessed commit:** `61b2de2` plus the current uncommitted implementation slices; no release commit is claimed
+**Assessed commit:** `d5dc372`
 
 **Target:** Honest public release
 
 **Decision:** **NO-GO**
 
+**Private game-test decision:** **GO**, deployed as Cloudflare version `e88137dd-19ae-4bf5-8050-3accf8f14343` through D1 migration `0022`. This does not change the public-release decision.
+
 This is the live release checklist. A checked local build item is not permission to deploy and is not evidence of a complete player workflow. Production migrations, seed changes, deployment, external email/messages, push, and irreversible data operations require explicit authorization for the specific release operation.
 
-The owner has separately authorized a private production game-test operation and has explicitly waived preview plus a pre-deployment backup as gates for that operation. This does not change the public-release decision, satisfy recovery evidence, or authorize public invitations. The test-ready product claim is limited to authenticated account/onboarding, Battalion and force management, deployment, tactical campaigns/reports/recovery, and explicitly granted Game Master authoring. Strategic Command/Galactic and Ship are outside that production game-test scope and must not be presented there as ready gameplay.
+The owner separately authorized the private production game-test operation and explicitly waived preview plus a pre-deployment backup as gates for it. The test-ready product claim is limited to authenticated account/onboarding, Battalion and force management, deployment, tactical campaigns/reports/recovery, the live Galactic campaign map, and explicitly granted Game Master authoring. Command and Ship acquisition/configuration remain outside that scope.
 
 ## Current release blockers
 
@@ -18,14 +20,14 @@ The owner has separately authorized a private production game-test operation and
 |---|---:|---|
 | Split D1/compiled/adaptor rules truth | partial P0 | CP-200's generated `@2` catalogue now materializes playable starter/Force/unit/weapon/action/order data through tactical resolution; CP-201 preserves D1 profile/status/link data and fails closed before unsupported classes execute. D1 still carries legacy `@1` relational/FK identity and lacks immutable `@2` publication. |
 | Conflict provenance mismatch | open P0 | D1 has 12 obsolete conflict IDs instead of the 72-record canonical register. |
-| No recorded production game-test content | open P0 | A local production-safe K-17 campaign/insertion seed exists, but the recorded `0007` deployment has no newly verified game-test content or current smoke evidence; the wider strategic world remains development-only. |
+| Recorded production game-test content | private-test resolved | K-17 plus the non-demo `game-test-strategic-world@1` Helion/Corinth foundation are seeded; remote queries verified the active map, open round, five nodes, and exact K-17 pin/placement. |
 | Production client truth boundary | partial P0 | Demo identities/default campaign IDs and showcase fallback are development-only. Production Forces, Strategic, and tactical campaign loading fail closed without substituting local state; authenticated browser evidence and removal/hardening of retained in-memory development fixtures remain open. Strategic Galactic/Ship surfaces are outside the private production game-test scope and must remain unadvertised there. |
 | Strategic product boundary | partial P0 when advertised | Supported strategic orders and approval-gated resolution execute locally; unresolved movement timing/intent families, PREPARED/cryptographic recovery, production world publication, and separate acceptance evidence remain open. |
 | Tactical persistent-effect journal | partial P0 | Supported effects now acknowledge before the next planning round opens and retry through stable receipts. PREPARED/input-output hashing, protected seeds, payload-collision detection, attempt diagnostics, full effect coverage, and crash-injection evidence remain open. |
 | WebSocket/report fog | partial P0 security | Socket invalidations are viewer-specific, identifier-free and provide bounded projected catch-up; reports still use current-time rather than event-time visibility. |
 | Runtime schema/fail-closed authoritative JSON | partial P0 | Campaign order/clock intents and v1 current/snapshot state validate and fail closed. The five authored scenarios now require an exact immutable content key and reject unpinned, unavailable, or stored-state-mismatched campaigns; remaining routes, DTOs, rules and stored documents are not comprehensively versioned. |
 | Preview environment | blocked P0 | Preview D1 is a placeholder and has no deploy/migrate/smoke proof. |
-| Auth retention/session operations/invite abuse controls | partial P0 | Local migration `0008` adds bounded cleanup, invitation limits/audit and a durable background delivery outbox; it is not deployed, and idle/device/revoke/opt-out/monitoring work remains. |
+| Auth retention/session operations/invite abuse controls | partial P0 | Migration `0008` is deployed with bounded cleanup, invitation limits/audit and a durable background delivery outbox; idle/device/revoke/opt-out/monitoring work remains. |
 | Observability, diagnostics, SLOs and release manifest | open P0 | No journal/schedule/effect/socket operational dashboard or alerts. |
 | Backup/restore/rollback rehearsal | open P0 | No recorded RPO/RTO or coordinated D1/DO recovery proof. |
 | Browser E2E/accessibility/performance/security suites | partial P0 | Twenty local Playwright journeys and CI evidence retention exist; no production-like multi-user scenario, Axe/manual accessibility, performance or load proof. |
@@ -40,13 +42,13 @@ The owner has separately authorized a private production game-test operation and
 | `npm run seed:check` | macOS local, Node project toolchain | PASS | 49 definitions; 43 active; 225 SQL definitions; 13 canonical and 16 Phase-2 allied classes; 7 enemy roles; 4 operations; 9 equipment effects; 6 deployment methods; 8 source hashes. |
 | `npm run typecheck` | local | PASS | TypeScript 6.0.3. |
 | `npm run lint` | local | PASS | ESLint 10.8.1. |
-| `npm test` | local | PASS | Vitest 4.1.10; 106 files / 849 tests. |
+| `npm test` | local | PASS | Vitest 4.1.10; 107 files / 855 tests. |
 | `npm run build` | local development config | PASS | Worker 2,053.02 kB; client JS 1,920.16 kB; CSS 218.38 kB. The explicit manifest bundles 29 active tactical sheets (7.77 MiB); only the QA-passed light-v3, medium-v4 and heavy-v3 mech revisions enter the client. The post-build hash verifier confirms inactive revisions and chroma sources are absent. Wrangler emitted only its known sandboxed debug-log warning. Bundle/performance budgets remain open under CP-802. |
 | `WRANGLER_WRITE_LOGS=false npm run build:production` | local production config | PASS | Compile/bundle only; no deployment. |
-| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0022 applied; all nine seeds replay twice across 130 application tables with integrity/FK clean. |
-| Nine seeds, twice | same isolated D1 | PASS | Core, Phase 2, companion classes, equipment, Store, onboarding and three development fixtures replayed twice. |
+| Empty D1 migrations | isolated Wrangler persist directory | PASS | Migrations 0001–0022 applied; all ten seeds replay twice across 130 application tables with integrity/FK clean. |
+| Ten seeds, twice | same isolated D1 | PASS | Core, Phase 2, companion classes, equipment, Store, onboarding, production-safe strategic world and three development fixtures replayed twice. |
 | SQLite integrity | isolated D1 database | PASS | `integrity_check=ok`; `foreign_key_check` empty. |
-| `npm run ci:verify:d1` | isolated local D1 | PASS | Twenty-two migrations; nine seeds twice; stable table fingerprints/counts; 130 checked application tables. |
+| `npm run ci:verify:d1` | isolated local D1 | PASS | Twenty-two migrations; ten seeds twice; stable table fingerprints/counts; 130 checked application tables. |
 | `npm run test:browser` | local Chromium + Cloudflare/Vite dev server | PASS | 20/20 journeys pass: public auth, Battalion/ship/force persistence, exact Game Master map publication/bootstrap, strategic deployment, persisted scenario V3/311-hex tactical play, four-round outcome/replay, forged-action rejection, keyboard traversal/selection, and 390px overflow. |
 | `git diff --check` | local Phase-1 tree | PASS | No whitespace errors at final gate. |
 | `npm audit --audit-level=high` | npm advisory service | PASS | Zero known vulnerabilities at assessment time; the result is time-sensitive. |
@@ -87,21 +89,21 @@ The workflow is a Phase-0 baseline, not a complete release pipeline. Official ac
 | 0005 | `0005_equipment_deployment_vertical_slice.sql` | Equipment effects, refits, deployment plans and campaign snapshots | pass |
 | 0006 | `0006_production_identity.sql` | Email challenges, throttling and auth audit | pass |
 | 0007 | `0007_guided_onboarding_and_battalions.sql` | Onboarding policies/progress/receipts and recruitment/invites | pass |
-| 0008 | `0008_auth_retention_and_invitation_abuse.sql` | Auth/invitation retention, abuse audit/rate state and durable invitation delivery | local pass; not deployed |
-| 0009 | `0009_campaign_join_receipts.sql` | Campaign-owned join receipts and deployable starter-Battlegroup backfill | local pass; not deployed |
-| 0010 | `0010_campaign_results.sql` | Durable tactical results for directory, reports and strategic projection | local pass; not deployed |
-| 0011 | `0011_battlegroup_management.sql` | Battlegroup mutations and idempotent receipts | local pass; not deployed |
-| 0012 | `0012_active_battalion_switching.sql` | Persistent active-Battalion switching receipts | local pass; not deployed |
-| 0013 | `0013_battalion_departures.sql` | Battalion departure and removal receipts | local pass; not deployed |
-| 0014 | `0014_battalion_rank_administration.sql` | Rank administration mutations and receipts | local pass; not deployed |
-| 0015 | `0015_battalion_command_transfer.sql` | Battalion command-transfer mutations and receipts | local pass; not deployed |
-| 0016 | `0016_ship_identity_mutations.sql` | Primary-ship identity mutations and receipts | local pass; not deployed |
-| 0017 | `0017_public_v1_economy.sql` | Approved application economy policy and ledger support | local pass; not deployed |
-| 0018 | `0018_campaign_scenario_content_pins.sql` | Nullable exact authored-scenario content pin; no legacy backfill or automatic upgrade | local pass; not deployed |
-| 0019 | `0019_game_master_authority.sql` | Explicit global grants, campaign command receipts, and private audit; no default production grant | local pass; not deployed |
-| 0020 | `0020_game_master_maps.sql` | Versioned map drafts/revisions/publication, authoring receipts/audit, and exact published custom-campaign pins | local pass; not deployed |
-| 0021 | `0021_game_master_campaign_runtime.sql` | Immutable custom-scenario bootstrap bound to one exact published map revision and hash | local pass; not deployed |
-| 0022 | `0022_game_master_skirmish_policy.sql` | Legacy custom `@1` preservation plus exact version-2 `game-master-skirmish@1`, round-12, and `public-v1-economy@1` pins | local pass; not deployed |
+| 0008 | `0008_auth_retention_and_invitation_abuse.sql` | Auth/invitation retention, abuse audit/rate state and durable invitation delivery | deployed; local replay pass |
+| 0009 | `0009_campaign_join_receipts.sql` | Campaign-owned join receipts and deployable starter-Battlegroup backfill | deployed; local replay pass |
+| 0010 | `0010_campaign_results.sql` | Durable tactical results for directory, reports and strategic projection | deployed; local replay pass |
+| 0011 | `0011_battlegroup_management.sql` | Battlegroup mutations and idempotent receipts | deployed; local replay pass |
+| 0012 | `0012_active_battalion_switching.sql` | Persistent active-Battalion switching receipts | deployed; local replay pass |
+| 0013 | `0013_battalion_departures.sql` | Battalion departure and removal receipts | deployed; local replay pass |
+| 0014 | `0014_battalion_rank_administration.sql` | Rank administration mutations and receipts | deployed; local replay pass |
+| 0015 | `0015_battalion_command_transfer.sql` | Battalion command-transfer mutations and receipts | deployed; local replay pass |
+| 0016 | `0016_ship_identity_mutations.sql` | Primary-ship identity mutations and receipts | deployed; local replay pass |
+| 0017 | `0017_public_v1_economy.sql` | Approved application economy policy and ledger support | deployed; local replay pass |
+| 0018 | `0018_campaign_scenario_content_pins.sql` | Nullable exact authored-scenario content pin; no legacy backfill or automatic upgrade | deployed; local replay pass |
+| 0019 | `0019_game_master_authority.sql` | Explicit global grants, campaign command receipts, and private audit; no default production grant | deployed; local replay pass |
+| 0020 | `0020_game_master_maps.sql` | Versioned map drafts/revisions/publication, authoring receipts/audit, and exact published custom-campaign pins | deployed; local replay pass |
+| 0021 | `0021_game_master_campaign_runtime.sql` | Immutable custom-scenario bootstrap bound to one exact published map revision and hash | deployed; local replay pass |
+| 0022 | `0022_game_master_skirmish_policy.sql` | Legacy custom `@1` preservation plus exact version-2 `game-master-skirmish@1`, round-12, and `public-v1-economy@1` pins | deployed; local replay pass |
 
 ### Production-approved seed families
 
