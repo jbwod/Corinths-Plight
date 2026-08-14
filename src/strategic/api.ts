@@ -892,7 +892,7 @@ function liveCampaignIdsFromMap(payload: unknown): string[] {
     const campaign = asRecord(value);
     const id = identifier(campaign ?? {}, "campaignId", "id");
     const status = normalizedStatus(campaign?.status);
-    return id && ["RECRUITING", "ACTIVE", "PAUSED"].includes(status) ? [id] : [];
+    return id && campaign?.canEnter === true && ["RECRUITING", "ACTIVE", "PAUSED"].includes(status) ? [id] : [];
   }))];
 }
 

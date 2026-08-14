@@ -5094,14 +5094,14 @@ summary:focus-visible {
 .galactic-scale-list button span small { margin-top: 5px; color: var(--dim); font-size: 7px; line-height: 1.25; }
 .map-boundary-card p b { color: #a8bcba; }
 
-.strategic-map-stage { grid-template-rows: 62px minmax(620px, 1fr); }
+.strategic-map-stage { grid-template-rows: auto minmax(620px, 1fr); }
 .strategic-map-toolbar { padding: 10px 14px; background: #0b191b; }
 .strategic-map-toolbar strong { font-size: 9px; }
 .map-presentation-switch button { min-width: 88px; }
 .strategic-map-visual { min-height: 620px; display: grid; place-items: center; isolation: isolate; overflow: hidden; background: #050d0f; }
 .strategic-map-visual::before { inset: 0; border: 0; border-radius: 0; background-image: radial-gradient(circle at 50% 45%, rgba(52, 105, 105, .16), transparent 53%), linear-gradient(rgba(87, 130, 130, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(87, 130, 130, .035) 1px, transparent 1px); background-size: auto, 26px 26px, 26px 26px; }
 .strategic-map-visual.presentation-hidden { display: none; }
-.map-projection-frame { width: min(610px, calc(100% - 28px)); aspect-ratio: 1; position: relative; z-index: 1; overflow: visible; }
+.map-projection-frame { width: min(680px, calc(100% - 44px), calc(100vh - 300px)); aspect-ratio: 1; position: relative; z-index: 1; overflow: visible; }
 .planet-projection,
 .system-projection,
 .galactic-route-overlay { width: 100%; height: 100%; position: absolute; inset: 0; overflow: visible; }
@@ -5114,7 +5114,7 @@ summary:focus-visible {
 .planet-scan-sweep { fill: rgba(142, 241, 230, .075); filter: drop-shadow(0 0 2px rgba(112, 217, 207, .28)); animation: galactic-scan-sweep 8s linear infinite; }
 .planet-scan-mark { fill: none; stroke: rgba(112, 217, 207, .55); stroke-width: .45; }
 .system-orbit { fill: none; stroke: rgba(112, 217, 207, .14); stroke-width: .35; stroke-dasharray: 1 1.5; }
-.system-star { stroke: rgba(255, 228, 154, .6); stroke-width: .45; }
+.system-star { stroke: rgba(255, 228, 154, .72); stroke-width: .45; filter: drop-shadow(0 0 3px rgba(218, 184, 96, .42)); }
 .system-axis { fill: none; stroke: rgba(112, 217, 207, .06); stroke-width: .2; }
 .galactic-route-overlay { z-index: 2; pointer-events: none; }
 .galactic-route-overlay path { fill: none; vector-effect: non-scaling-stroke; }
@@ -5141,11 +5141,11 @@ summary:focus-visible {
 .current-ship-flag { min-width: 82px; height: 23px; position: absolute; bottom: calc(100% + 5px); left: 50%; display: flex; gap: 5px; align-items: center; justify-content: center; padding: 0 7px; transform: translateX(-50%); border: 1px solid var(--gold); background: #17140b; color: var(--gold); font: 700 6px/1 var(--mono); text-decoration: none; white-space: nowrap; }
 .current-ship-flag svg { width: 18px; height: 10px; fill: currentColor; }
 .system-primary-world { width: 88px; height: 88px; position: absolute; z-index: 2; top: 52%; left: 41%; display: block; padding: 0; transform: translate(-50%, -50%); border: 1px solid rgba(112, 217, 207, .4); border-radius: 50%; background: #102d31; color: var(--teal-bright); }
-.system-star-label { position: absolute; z-index: 2; top: 60%; left: 20%; transform: translateX(-50%); text-align: center; pointer-events: none; }
+.system-star-label { min-width: 76px; position: absolute; z-index: 2; top: 60%; left: 20%; padding: 5px 8px; transform: translateX(-50%); border-top: 1px solid rgba(210, 182, 111, .2); background: rgba(8, 14, 12, .72); text-align: center; pointer-events: none; }
 .system-star-label b,
 .system-star-label small { display: block; }
-.system-star-label b { color: #d6c17c; font: 700 8px/1 var(--mono); }
-.system-star-label small { margin-top: 4px; color: #786d4c; font: 600 5px/1 var(--mono); }
+.system-star-label b { color: #e2cc86; font: 700 9px/1 var(--mono); letter-spacing: .1em; }
+.system-star-label small { margin-top: 5px; color: #9b8d62; font: 600 6px/1 var(--mono); }
 .system-primary-world > i { width: 66px; height: 66px; position: absolute; inset: 10px; border-radius: 50%; background: radial-gradient(circle at 32% 28%, #528e88, #193e42 56%, #071719 78%); }
 .system-primary-world > i::after { position: absolute; inset: -10px; border: 1px solid rgba(112, 217, 207, .22); border-radius: 50%; content: ""; }
 .system-primary-world > span { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); white-space: nowrap; }
@@ -5257,26 +5257,34 @@ summary:focus-visible {
 .strategic-map-world .map-projection-frame { flex: none; }
 .planet-projection-label { fill: rgba(191, 220, 216, .72); font: 700 2.1px/1 var(--mono); letter-spacing: .25em; }
 .system-minor-bodies { fill: rgba(180, 201, 196, .35); }
+.galactic-system-view .strategic-map-world::before { width: min(760px, 88%); aspect-ratio: 1; position: absolute; border: 1px solid rgba(112, 217, 207, .055); border-radius: 50%; background: radial-gradient(circle, rgba(28, 66, 67, .11), transparent 62%); content: ""; pointer-events: none; }
 
 .system-planet-node { width: 78px; height: 78px; position: absolute; z-index: 3; padding: 0; transform: translate(-50%, -50%); border: 0; border-radius: 50%; background: transparent; color: var(--teal-bright); }
 .system-planet-node::before,
 .system-planet-node::after { position: absolute; border: 1px solid rgba(112, 217, 207, .22); border-radius: 50%; content: ""; pointer-events: none; }
 .system-planet-node::before { inset: -8px; }
 .system-planet-node::after { inset: -15px; border-color: rgba(112, 217, 207, .09); border-style: dashed; }
-.system-planet-node .system-planet-sphere { position: absolute; inset: 8px; border: 1px solid rgba(156, 220, 212, .38); border-radius: 50%; background: radial-gradient(circle at 31% 25%, #699b8d 0 7%, #315f5a 24%, #14373b 58%, #061316 79%); box-shadow: inset -10px -9px 17px rgba(0, 0, 0, .62), 0 0 20px rgba(112, 217, 207, .13); }
+.system-planet-node .system-planet-sphere { position: absolute; inset: 8px; border: 1px solid rgba(156, 220, 212, .38); border-radius: 50%; background: radial-gradient(circle at 31% 25%, #77a999 0 6%, #315f5a 23%, #14373b 58%, #061316 79%); box-shadow: inset -10px -9px 17px rgba(0, 0, 0, .62), 0 0 20px rgba(112, 217, 207, .13); }
+.system-planet-node.system-world-1 .system-planet-sphere { background: radial-gradient(circle at 33% 27%, #aab7b4 0 5%, #566b70 22%, #273c45 57%, #08151b 80%); }
+.system-planet-node.system-world-2 .system-planet-sphere { background: radial-gradient(circle at 34% 26%, #c2a875 0 5%, #786143 24%, #3b2d28 58%, #140d0d 81%); }
+.system-planet-node.system-world-3 .system-planet-sphere { background: radial-gradient(circle at 33% 25%, #8f91aa 0 5%, #4c4c67 24%, #25253c 57%, #0b0c18 81%); }
 .system-planet-node.control-unknown .system-planet-sphere { filter: saturate(.38); }
 .system-planet-node.control-contested .system-planet-sphere { border-color: rgba(210, 182, 111, .78); box-shadow: inset -10px -9px 17px rgba(0, 0, 0, .62), 0 0 20px rgba(210, 182, 111, .16); }
 .system-planet-node.selected::before { border-color: var(--teal-bright); box-shadow: 0 0 12px rgba(112, 217, 207, .28); }
-.system-planet-node > span { min-width: 150px; position: absolute; top: calc(100% + 18px); left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; }
+.system-planet-node > span { min-width: 144px; position: absolute; top: calc(100% + 16px); left: 50%; padding: 6px 9px; transform: translateX(-50%); border-top: 1px solid rgba(112, 217, 207, .2); background: rgba(4, 13, 15, .78); text-align: center; pointer-events: none; }
 .system-planet-node b,
 .system-planet-node small { display: block; }
 .system-planet-node b { color: #d7e7e4; font: 700 12px/1 var(--mono); letter-spacing: .08em; }
-.system-planet-node small { margin-top: 6px; color: #90a7a3; font: 600 9px/1 var(--mono); }
+.system-planet-node small { margin-top: 6px; color: #90a7a3; font: 600 8px/1 var(--mono); letter-spacing: .04em; }
 
-.system-fleet-node { width: 160px; min-height: 56px; position: absolute; z-index: 7; display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 9px; align-items: center; padding: 7px 10px 7px 6px; transform: translate(-50%, -50%); border: 1px solid rgba(112, 217, 207, .48); background: rgba(4, 13, 16, .96); color: var(--teal-bright); text-align: left; box-shadow: 0 7px 18px rgba(0, 0, 0, .5); }
+.system-fleet-node { width: 146px; min-height: 50px; position: absolute; z-index: 7; display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 8px; align-items: center; padding: 6px 9px 6px 6px; transform: translate(-50%, -50%); border: 1px solid rgba(112, 217, 207, .48); background: rgba(4, 13, 16, .96); color: var(--teal-bright); text-align: left; box-shadow: 0 7px 18px rgba(0, 0, 0, .5); }
 .system-fleet-node.primary { border-color: rgba(210, 182, 111, .72); }
-.fleet-sprite-stack { width: 56px; height: 38px; position: relative; display: block; }
-.fleet-sprite-stack img { width: 54px; height: 34px; position: absolute; left: 0; top: 2px; object-fit: contain; image-rendering: auto; filter: sepia(.12) saturate(.72) hue-rotate(112deg) brightness(1.18); }
+.system-fleet-node.orbit-right::before,
+.system-fleet-node.orbit-left::before { width: 18px; position: absolute; top: 50%; border-top: 1px dashed rgba(112, 217, 207, .42); content: ""; pointer-events: none; }
+.system-fleet-node.orbit-right::before { right: 100%; }
+.system-fleet-node.orbit-left::before { left: 100%; }
+.fleet-sprite-stack { width: 48px; height: 34px; position: relative; display: block; }
+.fleet-sprite-stack img { width: 46px; height: 30px; position: absolute; left: 0; top: 2px; object-fit: contain; image-rendering: auto; filter: sepia(.12) saturate(.72) hue-rotate(112deg) brightness(1.18); }
 .fleet-sprite-stack img:nth-child(2) { transform: translate(-5px, -4px); opacity: .7; }
 .fleet-sprite-stack img:nth-child(3) { transform: translate(-9px, -7px); opacity: .42; }
 .system-fleet-node > strong { min-width: 20px; height: 20px; position: absolute; top: -9px; right: -9px; display: grid; place-content: center; border: 1px solid var(--gold); border-radius: 50%; background: #17130a; color: var(--gold); font: 700 8px/1 var(--mono); }
@@ -5284,6 +5292,9 @@ summary:focus-visible {
 .system-fleet-node > span:last-child small { display: block; max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .system-fleet-node > span:last-child b { color: #d4e4e1; font: 700 10px/1.15 var(--mono); }
 .system-fleet-node > span:last-child small { margin-top: 5px; color: #91a7a3; font: 600 8px/1 var(--mono); }
+
+.galactic-system-view .map-projection-frame .strategic-node { width: 128px; min-width: 128px; min-height: 42px; }
+.galactic-system-view .map-projection-frame .strategic-node > span b { max-width: 92px; }
 
 .campaign-map-marker { min-width: 144px; min-height: 52px; position: absolute; z-index: 8; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; padding: 7px 28px 7px 9px; transform: translate(-50%, -50%); border: 1px solid rgba(230, 109, 82, .7); background: rgba(30, 11, 10, .94); color: #ffc0b2; text-align: left; box-shadow: 0 8px 22px rgba(0, 0, 0, .65); }
 .campaign-map-marker.status-recruiting { border-color: rgba(112, 217, 207, .72); background: rgba(7, 31, 31, .96); color: #8ce7dc; }

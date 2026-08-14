@@ -514,16 +514,21 @@ function projectRoute(row: StrategicRouteRow): StrategicRouteDto {
 }
 
 function projectPlanet(row: StrategicPlanetRow): StrategicMapProjectionDto["planets"][number] {
+  const warState = parseJson<Record<string, unknown>>(row.war_state_json, {});
+  const storedControl = row.control_status ?? (typeof warState.control === "string" ? warState.control.toUpperCase() : "UNKNOWN");
+  const control = ["FRIENDLY", "ENEMY", "CONTESTED", "NEUTRAL", "UNKNOWN"].includes(storedControl)
+    ? storedControl
+    : "UNKNOWN";
   return {
     planetId: row.planet_id,
     name: row.planet_name,
     locationId: row.location_id,
     strategicNodeId: row.node_id,
     position: parseJson<{ x: number; y: number } | null>(row.position_json, null),
-    control: (row.control_status ?? "UNKNOWN") as StrategicMapProjectionDto["planets"][number]["control"],
+    control: control as StrategicMapProjectionDto["planets"][number]["control"],
     status: (row.node_status ?? "BLOCKED") as StrategicMapProjectionDto["planets"][number]["status"],
     environment: parseJson<Record<string, unknown>>(row.environment_json, {}),
-    warState: parseJson<Record<string, unknown>>(row.war_state_json, {}),
+    warState,
   };
 }
 

@@ -102,6 +102,50 @@ function systemNodePosition(node: StrategicNodeView): { x: number; y: number } {
   };
 }
 
+function systemFleetPosition(
+  anchor: { x: number; y: number },
+  orbitIndex: number,
+): { x: number; y: number } {
+  const side = anchor.x > 64 ? -1 : 1;
+  const verticalSlots = [-11, 11, -19, 19];
+  return {
+    x: Math.max(16, Math.min(84, anchor.x + side * (20 + Math.floor(orbitIndex / verticalSlots.length) * 4))),
+    y: Math.max(13, Math.min(87, anchor.y + verticalSlots[orbitIndex % verticalSlots.length])),
+  };
+}
+
+function separateSystemNodes(
+  nodes: StrategicNodeView[],
+  occupied: Array<{ x: number; y: number }>,
+): Map<string, { x: number; y: number }> {
+  const resolved = new Map<string, { x: number; y: number }>();
+  const offsets = [
+    { x: 0, y: 0 }, { x: 0, y: 14 }, { x: 0, y: -14 },
+    { x: 16, y: 0 }, { x: -16, y: 0 }, { x: 15, y: 13 },
+    { x: -15, y: 13 }, { x: 15, y: -13 }, { x: -15, y: -13 },
+    { x: 25, y: 0 }, { x: -25, y: 0 },
+  ];
+  const placed = [...occupied];
+  for (const node of nodes) {
+    const base = systemNodePosition(node);
+    const candidates = offsets.map((offset) => ({
+      x: Math.max(12, Math.min(88, base.x + offset.x)),
+      y: Math.max(12, Math.min(86, base.y + offset.y)),
+    }));
+    const score = (candidate: { x: number; y: number }) => {
+      const clearance = placed.length
+        ? Math.min(...placed.map((item) => Math.hypot(candidate.x - item.x, candidate.y - item.y)))
+        : 100;
+      const displacement = Math.hypot(candidate.x - base.x, candidate.y - base.y);
+      return Math.min(clearance, 24) * 4 - displacement;
+    };
+    const position = candidates.reduce((best, candidate) => score(candidate) > score(best) ? candidate : best);
+    resolved.set(node.id, position);
+    placed.push(position);
+  }
+  return resolved;
+}
+
 function routePath(from: { x: number; y: number }, to: { x: number; y: number }, index: number, scale: MapScale): string {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
@@ -244,6 +288,7 @@ export function GalacticOperationsView({
     : [];
   const selectedCampaign = campaignsForSelectedPlanet.find((campaign) => campaign.campaignId === selectedCampaignId)
     ?? campaignsForSelectedPlanet[0];
+  const campaignNodeIds = new Set(campaignsForSelectedPlanet.map((campaign) => campaign.strategicNodeId));
   const planetaryNodes = snapshot.map.nodes.filter((node) => {
     if (isSystemNode(node)) return false;
     if (!selectedPlanet) return true;
@@ -253,12 +298,20 @@ export function GalacticOperationsView({
     if (!selectedPlanet) return !isSystemNode(node) || node.type.toUpperCase() === "ORBIT";
     return node.planetLocationId === selectedPlanet.locationId || node.locationId === selectedPlanet.locationId;
   });
-  const systemNodes = snapshot.map.nodes.filter((node) => systemPeerNodeTypes.has(node.type.toUpperCase()));
+  const systemNodes = useMemo(
+    () => snapshot.map.nodes.filter((node) => systemPeerNodeTypes.has(node.type.toUpperCase())),
+    [snapshot.map.nodes],
+  );
   const visibleNodes = mapScale === "PLANET" ? planetaryNodes : systemNodes;
-  const selectedNode = nodeById.get(selectedNodeId)
-    ?? (selectedCampaign ? nodeById.get(selectedCampaign.strategicNodeId) : undefined)
-    ?? nodeById.get(currentShipNodeId)
-    ?? visibleNodes[0];
+  const requestedNode = nodeById.get(selectedNodeId);
+  const requestedNodeVisible = requestedNode && (mapScale === "SYSTEM"
+    ? isSystemNode(requestedNode)
+    : !isSystemNode(requestedNode));
+  const selectedNode = requestedNodeVisible
+    ? requestedNode
+    : mapScale === "PLANET"
+      ? (selectedCampaign ? nodeById.get(selectedCampaign.strategicNodeId) : undefined) ?? visibleNodes[0]
+      : nodeById.get(currentShipNodeId) ?? visibleNodes[0];
   const campaignOperation = selectedCampaign?.operationId
     ? snapshot.operations.find((operation) => operation.id === selectedCampaign.operationId)
     : undefined;
@@ -317,7 +370,7 @@ export function GalacticOperationsView({
     (selectedTaskForceSupply.suppliedThroughRound ?? -1) < requiredSupplyRound,
   );
 
-  const systemPositionForNode = useCallback((node: StrategicNodeView): { x: number; y: number } => {
+  const systemAnchorForNode = useCallback((node: StrategicNodeView): { x: number; y: number } => {
     const owningPlanet = node.planetLocationId ? planetByLocation.get(node.planetLocationId) : undefined;
     if (owningPlanet) return planetPositions.get(owningPlanet.planetId) ?? systemPlanetPosition(owningPlanet, 0);
     const planetNode = snapshot.map.planets.find((planet) => planet.strategicNodeId === node.id || planet.locationId === node.locationId);
@@ -336,27 +389,28 @@ export function GalacticOperationsView({
     return [{ formation, ships, node }];
   }), [nodeById, snapshot.map.formations, snapshot.map.shipPresence]);
 
-  useEffect(() => {
-    const nextPlanetId = !selectedPlanetId
-      ? (currentPlanet ?? snapshot.map.planets[0])?.planetId
-      : undefined;
-    const nextNodeId = !selectedNodeId ? currentShipNodeId : undefined;
-    if (!nextPlanetId && !nextNodeId) return;
-    const timeoutId = window.setTimeout(() => {
-      if (nextPlanetId) setSelectedPlanetId(nextPlanetId);
-      if (nextNodeId) setSelectedNodeId(nextNodeId);
-    }, 0);
-    return () => window.clearTimeout(timeoutId);
-  }, [currentPlanet, currentShipNodeId, selectedNodeId, selectedPlanetId, snapshot.map.planets]);
+  const systemFleetPositions = useMemo(() => {
+    const positions = new Map<string, { x: number; y: number }>();
+    const orbitCounts = new Map<string, number>();
+    for (const fleet of fleetGroups) {
+      const planetKey = fleet.node.planetLocationId ?? fleet.node.id;
+      const orbitIndex = orbitCounts.get(planetKey) ?? 0;
+      orbitCounts.set(planetKey, orbitIndex + 1);
+      positions.set(fleet.formation.id, systemFleetPosition(systemAnchorForNode(fleet.node), orbitIndex));
+    }
+    return positions;
+  }, [fleetGroups, systemAnchorForNode]);
 
-  useEffect(() => {
-    if (campaignsForSelectedPlanet.some((campaign) => campaign.campaignId === selectedCampaignId)) return;
-    const timeoutId = window.setTimeout(
-      () => setSelectedCampaignId(campaignsForSelectedPlanet[0]?.campaignId ?? ""),
-      0,
-    );
-    return () => window.clearTimeout(timeoutId);
-  }, [campaignsForSelectedPlanet, selectedCampaignId]);
+  const systemPeerPositions = useMemo(() => separateSystemNodes(
+    systemNodes,
+    [
+      ...planetPositions.values(),
+      ...systemFleetPositions.values(),
+    ],
+  ), [planetPositions, systemFleetPositions, systemNodes]);
+
+  const systemPositionForNode = useCallback((node: StrategicNodeView): { x: number; y: number } =>
+    systemPeerPositions.get(node.id) ?? systemAnchorForNode(node), [systemAnchorForNode, systemPeerPositions]);
 
   useEffect(() => {
     if (selectedOperationId) void onRequestOperationDetail(selectedOperationId);
@@ -586,7 +640,7 @@ export function GalacticOperationsView({
     );
   }
 
-  function renderPlanet(planet: StrategicPlanetView) {
+  function renderPlanet(planet: StrategicPlanetView, index: number) {
     const position = planetPositions.get(planet.planetId) ?? systemPlanetPosition(planet, 0);
     const campaignCount = liveCampaigns.filter((campaign) => campaign.planetId === planet.planetId).length;
     const orbitNode = snapshot.map.nodes.find((node) => node.type.toUpperCase() === "ORBIT" && node.planetLocationId === planet.locationId);
@@ -594,7 +648,7 @@ export function GalacticOperationsView({
     return (
       <button
         type="button"
-        className={`system-planet-node control-${planet.control.toLowerCase()} ${selectedPlanet?.planetId === planet.planetId ? "selected" : ""}`}
+        className={`system-planet-node system-world-${index % 4} control-${planet.control.toLowerCase()} ${selectedPlanet?.planetId === planet.planetId ? "selected" : ""}`}
         style={{ left: `${position.x}%`, top: `${position.y}%` }}
         aria-label={`${planet.name}, ${readable(planet.control).toLowerCase()} control, ${campaignCount} live campaigns, ${fleets.length} task forces in orbit. Open planet map.`}
         aria-current={selectedPlanet?.planetId === planet.planetId ? "location" : undefined}
@@ -611,18 +665,18 @@ export function GalacticOperationsView({
     fleet: { formation: StrategicSnapshot["map"]["formations"][number]; ships: StrategicShipPresenceView[]; node: StrategicNodeView },
     index: number,
   ) {
-    const anchor = mapScale === "PLANET" ? planetNodePosition(fleet.node) : systemPositionForNode(fleet.node);
+    const anchor = mapScale === "PLANET" ? planetNodePosition(fleet.node) : systemAnchorForNode(fleet.node);
     const primary = fleet.ships.find((ship) => ship.primary) ?? fleet.ships[0];
     const planetAttached = Boolean(fleet.node.planetLocationId && planetByLocation.has(fleet.node.planetLocationId));
     const position = mapScale === "PLANET"
       ? { x: anchor.x + 8 + (index % 2) * 2.4, y: anchor.y + 1 + (index % 3) * 1.7 }
       : planetAttached
-      ? { x: anchor.x + 6 + (index % 2) * 2.4, y: anchor.y - 7 - (index % 3) * 1.7 }
+      ? systemFleetPositions.get(fleet.formation.id) ?? systemFleetPosition(anchor, index)
       : { x: anchor.x + 3, y: anchor.y - 4 };
     return (
       <button
         type="button"
-        className={`system-fleet-node ${primary.primary ? "primary" : ""}`}
+        className={`system-fleet-node ${primary.primary ? "primary" : ""} ${planetAttached ? (anchor.x > 64 ? "orbit-left" : "orbit-right") : ""}`}
         style={{ left: `${position.x}%`, top: `${position.y}%` }}
         aria-label={`${fleet.formation.name}, ${fleet.ships.length} ship${fleet.ships.length === 1 ? "" : "s"}, led by ${primary.name}, ${primary.className}.`}
         aria-current={selectedNode?.id === fleet.node.id ? "location" : undefined}
@@ -804,7 +858,9 @@ export function GalacticOperationsView({
                   {filters.has("FRIENDLY_FORCES") && fleetGroups.map(renderFleet)}
                 </>}
                 {mapScale === "PLANET" && <>
-                  {planetaryNodes.map((node) => renderMapNode(node, planetNodePosition(node)))}
+                  {planetaryNodes
+                    .filter((node) => !filters.has("OPERATIONS") || !campaignNodeIds.has(node.id))
+                    .map((node) => renderMapNode(node, planetNodePosition(node)))}
                   {filters.has("OPERATIONS") && campaignsForSelectedPlanet.map(renderCampaignMarker)}
                   {filters.has("FRIENDLY_FORCES") && fleetGroups.filter((fleet) => fleet.node.planetLocationId === selectedPlanet?.locationId).map(renderFleet)}
                 </>}

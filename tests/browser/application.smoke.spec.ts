@@ -1360,6 +1360,34 @@ test("strategic UI submits and resolves a Battlegroup disembark order", async ({
   }).toBe(true);
 });
 
+test("Galactic Operations projects a joined recruiting campaign before tactical launch", async ({ page }) => {
+  const projectionResponse = await page.request.get("/api/strategic/maps/strategic-map-corinth", {
+    headers: { "x-demo-user": "demo-user" },
+  });
+  expect(projectionResponse.status()).toBe(200);
+  const projection = await projectionResponse.json() as {
+    campaigns: Array<{ campaignId: string; name: string; status: string; strategicStatus: string; canEnter: boolean }>;
+  };
+  expect(projection.campaigns.find((campaign) => campaign.campaignId === "operation-iron-rain")).toMatchObject({
+    name: "Operation Iron Rain",
+    status: "RECRUITING",
+    strategicStatus: "MUSTERING",
+    canEnter: true,
+  });
+
+  await page.goto("/?view=galactic");
+  await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();
+  await page.getByRole("button", { name: "LOCATION LIST" }).click();
+  const systemLocations = page.locator('[aria-label="Helion system objects list"]');
+  await systemLocations.getByRole("button", { name: /^Corinth PLANET/ }).click();
+
+  const viewport = page.getByRole("region", { name: "Strategic map viewport" });
+  const recruitingMarker = viewport.locator(".campaign-map-marker").filter({ hasText: "Operation Iron Rain" });
+  await expect(recruitingMarker).toBeVisible();
+  await expect(recruitingMarker).toHaveAttribute("aria-label", /Operation Iron Rain, recruiting/);
+  await expect(viewport.locator(".campaign-map-marker").filter({ hasText: "Operation Broken Road" })).toHaveCount(0);
+});
+
 test("strategic deployment authorization boots a persistent tactical operation", async ({ page }) => {
   type StrategicProjection = {
     map: { version: number };
@@ -1475,6 +1503,202 @@ test("strategic deployment authorization boots a persistent tactical operation",
   await expect(cursorStatus).toContainText(/Hex -6\.1/);
   await tacticalCanvas.press("Enter");
   await expect(page.getByText(/1 HEX/).first()).toBeVisible();
+});
+
+test("Galactic Operations links the live campaign, fleet, and interactive system map", async ({ page }) => {
+  type MapProjection = {
+    planets: Array<{ planetId: string; name: string; locationId: string }>;
+    nodes: Array<{ id: string; name: string; type: string; planetLocationId?: string }>;
+    campaigns: Array<{
+      campaignId: string;
+      name: string;
+      status: string;
+      planetId: string;
+      planetName: string;
+      viewerDeploymentCount: number;
+      canEnter: boolean;
+    }>;
+    taskForces: Array<{ id: string; name: string; shipIds: string[] }>;
+    shipPresence: Array<{
+      shipId: string;
+      name: string;
+      className: string;
+      taskForceId: string;
+      nodeId?: string;
+      primary: boolean;
+    }>;
+  };
+  type CampaignSummary = {
+    campaignId: string;
+    objectives: Array<{ id: string; name: string }>;
+    viewerUnits: Array<{ id: string; callsign: string }>;
+  };
+  type DirectoryEntry = { campaignId: string; name: string; planetName: string; status: string };
+  const headers = { "x-demo-user": "demo-user" };
+
+  const projectionResponse = await page.request.get("/api/strategic/maps/strategic-map-corinth", { headers });
+  expect(projectionResponse.status()).toBe(200);
+  const projection = await projectionResponse.json() as MapProjection;
+  expect(projection.planets.map((planet) => planet.name)).toEqual(expect.arrayContaining(["Corinth", "Corinth II"]));
+  expect(projection.campaigns.every((campaign) => ["RECRUITING", "ACTIVE", "PAUSED"].includes(campaign.status))).toBe(true);
+
+  const ironRain = projection.campaigns.find((campaign) => campaign.campaignId === "operation-iron-rain");
+  expect(ironRain, "the joined Iron Rain campaign should project onto Corinth").toMatchObject({
+    name: "Operation Iron Rain",
+    planetName: "Corinth",
+    canEnter: true,
+  });
+  expect(ironRain!.viewerDeploymentCount).toBeGreaterThan(0);
+
+  const summaryResponse = await page.request.get(`/api/campaigns/${ironRain!.campaignId}/summary`, { headers });
+  expect(summaryResponse.status()).toBe(200);
+  const summary = await summaryResponse.json() as CampaignSummary;
+  expect(summary.campaignId).toBe(ironRain!.campaignId);
+  expect(summary.objectives.length).toBeGreaterThan(0);
+  expect(summary.viewerUnits.length).toBeGreaterThan(0);
+
+  const directoryResponse = await page.request.get("/api/campaigns", { headers });
+  expect(directoryResponse.status()).toBe(200);
+  const directory = await directoryResponse.json() as {
+    campaigns?: DirectoryEntry[];
+    availableCampaigns?: DirectoryEntry[];
+  };
+  const nonMapCorinthCampaigns = [
+    ...(directory.campaigns ?? []),
+    ...(directory.availableCampaigns ?? []),
+  ].filter((campaign) => campaign.planetName === "Corinth" && !["RECRUITING", "ACTIVE", "PAUSED"].includes(campaign.status));
+
+  const primaryShip = projection.shipPresence.find((ship) => ship.primary) ?? projection.shipPresence[0];
+  expect(primaryShip, "the strategic projection should include the player's real ship").toBeDefined();
+  const primaryTaskForce = projection.taskForces.find((force) => force.id === primaryShip.taskForceId);
+  expect(primaryTaskForce).toBeDefined();
+  const fleetShips = projection.shipPresence.filter((ship) => ship.taskForceId === primaryShip.taskForceId);
+  expect(fleetShips.length).toBeGreaterThan(0);
+  const corinth = projection.planets.find((planet) => planet.name === "Corinth")!;
+  expect(projection.nodes.find((node) => node.id === primaryShip.nodeId)).toMatchObject({
+    type: "ORBIT",
+    planetLocationId: corinth.locationId,
+  });
+
+  await page.goto("/?view=galactic");
+  await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^HELION SYSTEM/ })).toHaveAttribute("aria-pressed", "true");
+
+  const viewport = page.getByRole("region", { name: "Strategic map viewport" });
+  const mapWorld = viewport.locator(".strategic-map-world");
+  await expect(viewport).toBeVisible();
+  const corinthPlanet = viewport.getByRole("button", { name: /^Corinth,/ });
+  await expect(corinthPlanet).toBeVisible();
+  await expect(viewport.getByRole("button", { name: /^Corinth II,/ })).toBeVisible();
+  await expect(viewport.locator(".strategic-node").filter({ hasText: "Corinth High Orbit" })).toHaveCount(0);
+
+  const fleetMarker = viewport.locator(".system-fleet-node").filter({ hasText: primaryTaskForce!.name });
+  await expect(fleetMarker).toHaveCount(1);
+  await expect(fleetMarker).toHaveAttribute("data-ship-count", `${fleetShips.length}`);
+  await expect(fleetMarker).toHaveAttribute("aria-label", new RegExp(`${fleetShips.length} ship`));
+  const expectedSpriteClass = primaryShip.className.toLowerCase().includes("battleship")
+    ? "battleship"
+    : primaryShip.className.toLowerCase().includes("corvette")
+      ? "corvette"
+      : primaryShip.className.toLowerCase().includes("cruiser")
+        ? "cruiser"
+        : "destroyer";
+  await expect(fleetMarker.locator("img").first()).toHaveAttribute("data-ship-class", expectedSpriteClass);
+
+  const zoom = page.getByLabel("Current map zoom");
+  await expect(zoom).toHaveText("100%");
+  await page.getByRole("button", { name: "Zoom in" }).click();
+  await expect(zoom).toHaveText("112%");
+  await page.getByRole("button", { name: "Zoom out" }).click();
+  await expect(zoom).toHaveText("100%");
+
+  const initialTransform = await mapWorld.evaluate((element) => (element as HTMLElement).style.transform);
+  await viewport.focus();
+  await expect(viewport).toBeFocused();
+  await viewport.press("Shift+ArrowRight");
+  await expect.poll(() => mapWorld.evaluate((element) => (element as HTMLElement).style.transform)).not.toBe(initialTransform);
+  await viewport.press("=");
+  await expect(zoom).toHaveText("112%");
+  await viewport.press("Home");
+  await expect(zoom).toHaveText("100%");
+  await expect.poll(() => mapWorld.evaluate((element) => (element as HTMLElement).style.transform)).toBe(initialTransform);
+
+  const dragStart = await viewport.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    for (let y = bounds.top + 28; y < bounds.bottom - 72; y += 24) {
+      for (let x = bounds.left + 28; x < bounds.right - 72; x += 24) {
+        const hit = document.elementFromPoint(x, y) as HTMLElement | null;
+        if (hit && element.contains(hit) && !hit.closest("button, a, input, select, textarea")) return { x, y };
+      }
+    }
+    throw new Error("No non-interactive strategic viewport point was available for dragging.");
+  });
+  await page.mouse.move(dragStart.x, dragStart.y);
+  await page.mouse.down();
+  await page.mouse.move(dragStart.x + 42, dragStart.y + 26, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(() => mapWorld.evaluate((element) => (element as HTMLElement).style.transform)).not.toBe(initialTransform);
+  await expect(page.getByRole("status", { name: "Strategic map status" })).toHaveText("Map position changed.");
+  await page.getByRole("button", { name: "FIT MAP" }).click();
+  await expect.poll(() => mapWorld.evaluate((element) => (element as HTMLElement).style.transform)).toBe(initialTransform);
+
+  await page.getByRole("button", { name: "LOCATION LIST" }).click();
+  await expect(viewport).toBeHidden();
+  const systemLocations = page.locator('[aria-label="Helion system objects list"]');
+  await expect(systemLocations).toBeVisible();
+  await systemLocations.getByRole("button", { name: /^Corinth PLANET/ }).click();
+  await expect(page.getByRole("button", { name: /^PLANET/ })).toHaveAttribute("aria-pressed", "true");
+
+  const campaignMarker = viewport.locator(".campaign-map-marker").filter({ hasText: ironRain!.name });
+  await expect(campaignMarker).toBeVisible();
+  await expect(campaignMarker).toHaveAttribute("aria-label", new RegExp(`${ironRain!.viewerDeploymentCount} of your deployed units`));
+  for (const campaign of nonMapCorinthCampaigns) {
+    await expect(viewport.locator(".campaign-map-marker").filter({ hasText: campaign.name })).toHaveCount(0);
+  }
+
+  const campaignSummary = page.locator(".campaign-command-summary");
+  await expect(campaignSummary.getByText("CURRENT OBJECTIVES", { exact: true })).toBeVisible();
+  await expect(campaignSummary.getByText("MY ACTIVE UNITS", { exact: true })).toBeVisible();
+  for (const objective of summary.objectives) {
+    await expect(campaignSummary.getByText(objective.name, { exact: true })).toBeVisible();
+  }
+  for (const unit of summary.viewerUnits) {
+    await expect(campaignSummary.getByText(unit.callsign, { exact: true })).toBeVisible();
+  }
+
+  await page.getByRole("button", { name: "LOCATION LIST" }).click();
+  const corinthLocations = page.locator('[aria-label="Corinth campaign and location list"]');
+  await expect(corinthLocations).toBeVisible();
+  await expect(corinthLocations.locator(".campaign-list-entry").filter({ hasText: ironRain!.name })).toBeVisible();
+  await page.getByRole("button", { name: "DISPLAY", exact: true }).click();
+
+  await campaignMarker.click();
+  await expect.poll(() => {
+    const url = new URL(page.url());
+    return { view: url.searchParams.get("view"), campaign: url.searchParams.get("campaign") };
+  }).toEqual({ view: "campaigns", campaign: ironRain!.campaignId });
+  await expect(page.getByRole("region", { name: "Tactical operations map" })).toBeVisible();
+});
+
+test("Galactic Operations remains operable on mobile with reduced motion", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/?view=galactic");
+  await expect(page.getByRole("status").filter({ hasText: "Persistent world connected" })).toBeVisible();
+
+  const viewport = page.getByRole("region", { name: "Strategic map viewport" });
+  await page.getByRole("button", { name: "LOCATION LIST" }).click();
+  const systemLocations = page.locator('[aria-label="Helion system objects list"]');
+  await expect(systemLocations).toBeVisible();
+  await systemLocations.getByRole("button", { name: /^Corinth PLANET/ }).click();
+  await expect(viewport.locator(".planet-projection")).toBeVisible();
+  const animations = await viewport.locator(".planet-surface-drift, .planet-scan-sweep").evaluateAll((elements) =>
+    elements.map((element) => getComputedStyle(element).animationName));
+  expect(animations).toEqual(["none", "none"]);
+
+  await page.getByRole("button", { name: "LOCATION LIST" }).click();
+  await expect(page.locator('[aria-label="Corinth campaign and location list"]')).toBeVisible();
+  await expectNoDocumentOverflow(page);
 });
 
 test("Task Force resupply consumes one Large Supply and extends strategic access", async ({ page }) => {
