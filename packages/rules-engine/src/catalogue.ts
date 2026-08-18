@@ -8,6 +8,17 @@ import type {
   WeaponProfile,
 } from "../../domain/src";
 import { RULESET_VERSION } from "../../domain/src";
+import { getTacticalActionRule, getTacticalOrderRule } from "./tactical-grammar";
+import { COMPANION_ARTILLERY_CREW_DEFINITION_ID, getCompanionArtilleryCrewProfile, getPublicV1CompanionArtilleryProfile, isCompanionArtilleryDefinitionId } from "./companion-artillery";
+import { getPowerArmouredInfantryPublicV1Class } from "./power-armoured-infantry";
+import { getPublicV1CompanionTankProfile, isCompanionTankDefinitionId } from "./companion-tanks";
+import { getMechanizedInfantryPublicV1Class, MECHANIZED_INFANTRY_DEFINITION_ID } from "./mechanized-infantry";
+import { getIrregularPublicV1Class } from "./irregular-progression";
+import { getSapperPublicV1Class } from "./sapper-construction";
+import { getSpecialForcesPublicV1Class } from "./special-forces";
+import { getCompanionMechV1Class } from "./companion-mechs";
+import { getCompanionVtolPublicV1Class, isCompanionVtolTransportDefinitionId } from "./companion-vtol-transports";
+import { getTacticalUnitClass } from "./tactical-unit-catalogue";
 
 const v5 = (section: string) => `Meta - Core Rules (V5).md — ${section}`;
 const slots = (primary = 0, secondary = 0, internal = 0) => ({ primary, secondary, internal });
@@ -72,13 +83,13 @@ export const unitClasses: UnitClassDefinition[] = [
     name: "Infantry Squad",
     description: "Six-person line infantry able to hold ground and dig in.",
     category: "INFANTRY",
-    tags: ["GROUND", "PERSONNEL", "DIG_IN"],
+    tags: ["GROUND", "PERSONNEL", "INFANTRY", "DIG_IN"],
     stats: { healthModel: "FORCE_STRENGTH", maxHealth: 6, armor: 0, defense: 0, speed: 1, sensors: 4, capacity: 1 },
     weapons: [weapons.infantryRifle],
     requisitionCost: null,
     slots: slots(4, 4, 0),
     allowedOrders: ["HOLD", "ADVANCE", "RUSH", "MELEE_CHARGE", "STEALTH"],
-    allowedActions: ["ATTACK", "DIG_IN", "GARRISON", "LOAD", "UNLOAD"],
+    allowedActions: ["ATTACK", "DIG_IN", "LOAD", "UNLOAD"],
     rulesetVersion: RULESET_VERSION,
     source: v5("Starting Unit Classes / Infantry Squad"),
     status: "active",
@@ -97,7 +108,7 @@ export const unitClasses: UnitClassDefinition[] = [
     requisitionCost: null,
     slots: { primary: 0, secondary: 2, internal: 0, engineer: 3 },
     allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
-    allowedActions: ["DIG_IN", "REPAIR", "CONSTRUCT", "LOAD", "UNLOAD"],
+    allowedActions: ["DIG_IN", "ARTILLERY_DIG_IN", "REPAIR", "CONSTRUCT", "LOAD", "UNLOAD"],
     rulesetVersion: RULESET_VERSION,
     source: v5("Starting Unit Classes / Engineers"),
     status: "active",
@@ -150,7 +161,7 @@ export const unitClasses: UnitClassDefinition[] = [
     requisitionCost: null,
     slots: slots(0, 1, 2),
     allowedOrders: ["HOLD", "ADVANCE"],
-    allowedActions: ["DEPLOY", "PACK_UP", "BOMBARDMENT", "ATTACK", "RELOAD"],
+    allowedActions: ["DEPLOY", "PACK_UP", "BOMBARDMENT", "FUNNEL", "ATTACK", "RELOAD"],
     rulesetVersion: RULESET_VERSION,
     source: v5("Starting Unit Classes / Artillery"),
     status: "active",
@@ -253,8 +264,8 @@ export const equipment: EquipmentDefinition[] = [
     tags: ["ANTI_ARMOUR", "AMMO"],
     rulesetVersion: RULESET_VERSION,
     source: "The Store - Equipment List.html row 10",
-    status: "experimental",
-    notes: "Catalogued companion content pending an executable weapon profile.",
+    status: "active",
+    notes: "Executable finite-ammunition weapon grant in the equipment/deployment vertical slice.",
   },
   {
     id: "equipment-vehicle-optics",
@@ -267,14 +278,15 @@ export const equipment: EquipmentDefinition[] = [
     allowedClasses: ["unit-light-vehicle", "unit-main-battle-tank"],
     requiredEquipment: [],
     incompatibleEquipment: [],
-    statModifiers: { sensors: 1 },
+    statModifiers: {},
     abilityGrants: ["SCAN"],
     consumable: false,
     rulesText: "Action: Optics — reveal a hex at edge of LOS.",
     tags: ["SENSOR"],
     rulesetVersion: RULESET_VERSION,
     source: "The Store - Equipment List.html row 43",
-    status: "active",
+    status: "experimental",
+    notes: "Catalogue-only until Scan applies a governed visibility-state effect; no passive sensor bonus is sourced.",
   },
 ];
 
@@ -300,34 +312,56 @@ export const orderTypeDefinitions: OrderTypeRuleDefinition[] = (
     kind: "order-type" as const,
     name,
     orderType: name,
-    executable: name === "HOLD" || name === "ADVANCE" || name === "RUSH",
+    executable: name === "HOLD" || name === "ADVANCE" || name === "RUSH" || name === "EVASIVE",
     description: `Structured ${name.toLowerCase().replaceAll("_", " ")} order definition.`,
     tags: ["ORDER"],
     rulesetVersion: RULESET_VERSION,
     source: v5("Standard and Special Order Types"),
     status: "active" as const,
     notes:
-      name === "HOLD" || name === "ADVANCE" || name === "RUSH"
+      name === "HOLD" || name === "ADVANCE" || name === "RUSH" || name === "EVASIVE"
         ? "Executable in the foundation resolver."
         : "Canonical rule retained as data; deterministic resolution hook is deferred.",
   }));
 
 const actionProfiles: Record<
-  "ATTACK" | "DIG_IN" | "REPAIR" | "CONSTRUCT" | "BOMBARDMENT" | "RELOAD",
+  "ATTACK" | "DIG_IN" | "ARTILLERY_DIG_IN" | "DEPLOY" | "PACK_UP" | "REPAIR" | "CREW_REPAIR" | "CONSTRUCT" | "TRENCH_UPGRADE" | "BOMBARDMENT" | "FUNNEL" | "RELOAD" | "LOAD" | "UNLOAD" | "AIRDROP" | "LAND" | "TAKE_OFF" | "REARM_AEROSPACE" | "SCAN" | "DEPLOY_DRONE",
   { economy: ActionEconomy; speedCost: number; usesAttack: boolean; executable: boolean }
 > = {
   ATTACK: { economy: "STANDARD", speedCost: 0, usesAttack: true, executable: true },
-  DIG_IN: { economy: "STANDARD", speedCost: 1, usesAttack: false, executable: false },
-  REPAIR: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
-  CONSTRUCT: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
-  BOMBARDMENT: { economy: "PRIMARY", speedCost: 0, usesAttack: true, executable: false },
-  RELOAD: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
+  DIG_IN: { economy: "STANDARD", speedCost: 1, usesAttack: false, executable: true },
+  ARTILLERY_DIG_IN: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  DEPLOY: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  PACK_UP: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  REPAIR: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  CREW_REPAIR: { economy: "PRIMARY", speedCost: 0, usesAttack: false, executable: true },
+  CONSTRUCT: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  TRENCH_UPGRADE: { economy: "PRIMARY", speedCost: 0, usesAttack: true, executable: true },
+  BOMBARDMENT: { economy: "PRIMARY", speedCost: 0, usesAttack: true, executable: true },
+  FUNNEL: { economy: "PRIMARY", speedCost: 0, usesAttack: true, executable: true },
+  RELOAD: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  LOAD: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  UNLOAD: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  AIRDROP: { economy: "INCIDENTAL", speedCost: 0, usesAttack: false, executable: true },
+  LAND: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  TAKE_OFF: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: true },
+  REARM_AEROSPACE: { economy: "PRIMARY", speedCost: 0, usesAttack: false, executable: true },
+  SCAN: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
+  DEPLOY_DRONE: { economy: "STANDARD", speedCost: 0.5, usesAttack: false, executable: false },
 };
 
 export const actionDefinitions: ActionRuleDefinition[] = (
-  ["ATTACK", "DIG_IN", "REPAIR", "CONSTRUCT", "BOMBARDMENT", "RELOAD"] as const
+  ["ATTACK", "DIG_IN", "ARTILLERY_DIG_IN", "DEPLOY", "PACK_UP", "REPAIR", "CREW_REPAIR", "CONSTRUCT", "TRENCH_UPGRADE", "BOMBARDMENT", "FUNNEL", "RELOAD", "LOAD", "UNLOAD", "AIRDROP", "LAND", "TAKE_OFF", "REARM_AEROSPACE", "SCAN", "DEPLOY_DRONE"] as const
 ).map((name) => ({
-    id: `action-${name.toLowerCase().replaceAll("_", "-")}`,
+    id: name === "LOAD"
+      ? "action-load-cargo"
+      : name === "UNLOAD"
+        ? "action-unload-cargo"
+        : name === "DEPLOY"
+          ? "action-deploy-platform"
+          : name === "PACK_UP"
+            ? "action-pack-platform"
+            : `action-${name.toLowerCase().replaceAll("_", "-")}`,
     kind: "action" as const,
     name,
     actionType: name,
@@ -341,6 +375,39 @@ export const actionDefinitions: ActionRuleDefinition[] = (
       ? "Executable in the foundation resolver."
       : "Canonical rule retained as data; deterministic resolution hook is deferred.",
   }));
+
+actionDefinitions.push(
+  {
+    id: "action-abandon-guns-public-v1",
+    kind: "action",
+    name: "ABANDON_GUNS",
+    actionType: "ABANDON_GUNS",
+    economy: "PRIMARY",
+    speedCost: 0,
+    usesAttack: true,
+    executable: true,
+    description: "Transform deployed Light or Heavy Artillery into an unarmed CREW.",
+    tags: ["ACTION", "ARTILLERY"],
+    rulesetVersion: RULESET_VERSION,
+    source: "Classes.html / companion artillery public-v1",
+    status: "active",
+  },
+  {
+    id: "action-replace-guns-public-v1",
+    kind: "action",
+    name: "REPLACE_GUNS",
+    actionType: "REPLACE_GUNS",
+    economy: "PRIMARY",
+    speedCost: 0,
+    usesAttack: true,
+    executable: true,
+    description: "Restore abandoned artillery at a friendly Supply Point for half Req rounded up.",
+    tags: ["ACTION", "ARTILLERY"],
+    rulesetVersion: RULESET_VERSION,
+    source: "Classes.html / companion artillery public-v1",
+    status: "active",
+  },
+);
 
 export const supportingDefinitions: GameDefinition[] = [
   ...orderTypeDefinitions,
@@ -361,10 +428,13 @@ export const supportingDefinitions: GameDefinition[] = [
     status: "active" as const,
   })),
   ...[
-    ["structure-trench", "Trench Line"],
-    ["structure-supply-depot", "Supply Depot"],
-    ["structure-sensor-tower", "Sensor Tower"],
-  ].map(([id, name]) => ({
+    ["structure-sandbag-line", "Sandbag Line", "active"],
+    ["structure-razor-wire", "Razor Wire", "active"],
+    ["structure-tank-traps", "Tank Traps", "active"],
+    ["structure-trench", "Trench Line", "active"],
+    ["structure-supply-depot", "Supply Depot", "experimental"],
+    ["structure-sensor-tower", "Sensor Tower", "experimental"],
+  ].map(([id, name, status]) => ({
     id,
     kind: "structure" as const,
     name,
@@ -372,8 +442,10 @@ export const supportingDefinitions: GameDefinition[] = [
     tags: ["STRUCTURE"],
     rulesetVersion: RULESET_VERSION,
     source: "Build and Supply System.html",
-    status: "experimental" as const,
-    notes: "Health/build conversion remains unresolved; see RULE_CONFLICTS.md.",
+    status: status as "active" | "experimental",
+    notes: status === "active"
+      ? "Executable V5 fieldwork; durability remains unresolved under RC-BUILD-006."
+      : "Health/build conversion remains unresolved; see RULE_CONFLICTS.md.",
   })),
 ];
 
@@ -384,19 +456,44 @@ export const allDefinitions: GameDefinition[] = [
 ];
 
 export function getUnitClass(id: string): UnitClassDefinition {
-  const definition = unitClasses.find((candidate) => candidate.id === id);
-  if (!definition) throw new Error(`Unknown unit class: ${id}`);
-  return definition;
+  if (id === "unit-power-armoured-infantry") return getPowerArmouredInfantryPublicV1Class(0);
+  if (id === "unit-irregular") return getIrregularPublicV1Class(0);
+  if (id === "unit-special-forces") return getSpecialForcesPublicV1Class(0);
+  if (id === "unit-sappers") return getSapperPublicV1Class(0);
+  if (id === MECHANIZED_INFANTRY_DEFINITION_ID) return getMechanizedInfantryPublicV1Class(0);
+  if (isCompanionTankDefinitionId(id)) return getPublicV1CompanionTankProfile(id, 0);
+  if (id === COMPANION_ARTILLERY_CREW_DEFINITION_ID) return getCompanionArtilleryCrewProfile(0);
+  if (isCompanionArtilleryDefinitionId(id)) return getPublicV1CompanionArtilleryProfile(id, 0);
+  if (isCompanionVtolTransportDefinitionId(id)) return getCompanionVtolPublicV1Class(id, 0);
+  if (id === "unit-medium-mech" || id === "unit-heavy-mech") return getCompanionMechV1Class(id, 0);
+  const enemy = unitClasses.find((candidate) => candidate.id === id && candidate.kind === "enemy");
+  if (enemy) return enemy;
+  return getTacticalUnitClass(id);
 }
 
 export function getOrderTypeDefinition(orderType: OrderType): OrderTypeRuleDefinition {
   const definition = orderTypeDefinitions.find((candidate) => candidate.orderType === orderType);
   if (!definition) throw new Error(`Unknown order type: ${orderType}`);
-  return definition;
+  const governed = getTacticalOrderRule(orderType);
+  return {
+    ...definition,
+    id: governed.id,
+    executable: governed.executable,
+    rulesetVersion: governed.catalogueRulesetVersion,
+  };
 }
 
 export function getActionDefinition(actionType: ActionType): ActionRuleDefinition {
   const definition = actionDefinitions.find((candidate) => candidate.actionType === actionType);
   if (!definition) throw new Error(`Unknown action type: ${actionType}`);
-  return definition;
+  const governed = getTacticalActionRule(actionType);
+  return {
+    ...definition,
+    id: governed.id,
+    economy: governed.economy,
+    speedCost: governed.speedCost,
+    usesAttack: governed.usesAttack,
+    executable: governed.executable,
+    rulesetVersion: governed.catalogueRulesetVersion,
+  };
 }

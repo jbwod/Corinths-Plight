@@ -25,9 +25,9 @@ This milestone establishes the requested platform and one honest vertical gamepl
 - [x] Seven required foundation documents written and reconciled to the implementation.
 - [x] V5-first curated rules profile, source provenance, and 72-item conflict register established.
 - [x] D1 migrations and idempotent 30-definition seed validated from an empty database.
-- [x] Pure deterministic engine, server projections, clock state machine, and 79-test regression suite passing.
+- [x] Pure deterministic engine, server projections, clock state machine, and 80-test regression suite passing.
 - [x] Campaign Durable Object, alarms, Hibernation WebSockets, authenticated API boundary, and replay guard exercised locally.
 - [x] Responsive Canvas campaign prototype visually verified at desktop and tablet widths.
 - [x] Type checking, lint, production build, raw production Wrangler dry run, CSP asset policy, and dependency audit passing.
-- [ ] Remote production resource/deployment: blocked pending explicit approval to create a potentially billable D1 database in the authenticated Cloudflare account.
+- [x] Production D1 provisioned, migrated, seeded, and Worker deployed at `https://corinthplight.qnetica.com.au`.
 - [ ] Post-foundation protocol work: PREPARED/SHA-256 round journal, transactional D1 persistent-effect applier/ack gate, persistent schedule records, and real production login/provider.

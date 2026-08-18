@@ -102,6 +102,17 @@ describe("target legality", () => {
     });
   });
 
+  it("rejects fire while the weapon subsystem is disabled", () => {
+    const attacker = makeDeployment("attacker", { q: 0, r: 0 });
+    attacker.subsystems = [{ subsystemId: "WEAPONS", state: "DISABLED" }];
+    const target = makeDeployment("target", { q: 1, r: 0 }, "ENEMY");
+
+    expect(canTarget(attacker, target, baseWeapon, openMap)).toEqual({
+      legal: false,
+      reason: "The unit's weapon systems are disabled.",
+    });
+  });
+
   it("blocks direct fire through terrain while allowing an indirect profile", () => {
     const map = [
       makeHex(0, 0),
@@ -174,11 +185,27 @@ describe("armor, AP, rear arcs, Hits, and FS caps", () => {
     });
   });
 
-  it("ignores Armor and dug-in Defense from the direct rear", () => {
+  it("uses active bombardment stacks to reduce Defense without going below zero", () => {
+    const attacker = makeDeployment("attacker", { q: 0, r: -1 });
+    const target = makeDeployment("target", { q: 0, r: 0 }, "ENEMY", {
+      facing: 0,
+      stats: { healthModel: "HITS", maxHealth: 3, armor: 0, defense: 3 },
+      currentHealth: 3,
+      bombardmentSuppression: { stacks: 2, lastAppliedRound: 4 },
+    });
+
+    expect(resolveAttackRoll(attacker, target, cannon, map, fixedRandom(2))).toMatchObject({
+      targetDefense: 1,
+      threshold: 1,
+      penetrated: true,
+    });
+  });
+
+  it("ignores ground vehicle Armor from the direct rear without clearing unrelated Defense", () => {
     const attacker = makeDeployment("attacker", { q: 0, r: 1 });
     const target = makeDeployment("target", { q: 0, r: 0 }, "ENEMY", {
       facing: 0,
-      statuses: ["DUG_IN"],
+      tags: ["GROUND", "VEHICLE"],
       stats: { healthModel: "HITS", maxHealth: 3, armor: 5, defense: 2 },
       currentHealth: 3,
     });
@@ -189,10 +216,83 @@ describe("armor, AP, rear arcs, Hits, and FS caps", () => {
       rearAttack: true,
       targetArmor: 5,
       effectiveArmor: 0,
+      targetDefense: 2,
+      threshold: 2,
+      penetrated: false,
+    });
+  });
+
+  it("removes only dug-in Defense from rear-attacked ground infantry", () => {
+    const attacker = makeDeployment("attacker", { q: 0, r: 1 });
+    const target = makeDeployment("target", { q: 0, r: 0 }, "ENEMY", {
+      facing: 0,
+      tags: ["GROUND", "PERSONNEL", "INFANTRY"],
+      statuses: ["DUG_IN"],
+      stats: { healthModel: "FORCE_STRENGTH", maxHealth: 6, armor: 2, defense: 0 },
+      currentHealth: 6,
+    });
+
+    expect(resolveAttackRoll(attacker, target, cannon, map, fixedRandom(1))).toMatchObject({
+      rearAttack: true,
+      targetArmor: 2,
+      effectiveArmor: 1,
       targetDefense: 0,
-      threshold: 0,
-      penetrated: true,
-      healthLoss: 1,
+      digInDefense: 0,
+      threshold: 1,
+      penetrated: false,
+    });
+  });
+
+  it("adds two Defense for dug-in ground infantry outside the rear arc", () => {
+    const attacker = makeDeployment("attacker", { q: 0, r: -1 });
+    const target = makeDeployment("target", { q: 0, r: 0 }, "ENEMY", {
+      facing: 0,
+      tags: ["GROUND", "PERSONNEL", "INFANTRY"],
+      statuses: ["DUG_IN"],
+      stats: { healthModel: "FORCE_STRENGTH", maxHealth: 6, armor: 1, defense: 0 },
+      currentHealth: 6,
+    });
+
+    expect(resolveAttackRoll(attacker, target, cannon, map, fixedRandom(2))).toMatchObject({
+      rearAttack: false,
+      digInDefense: 2,
+      targetDefense: 2,
+      threshold: 2,
+      penetrated: false,
+    });
+  });
+
+  it("adds one non-stacking Armor for personnel attacked from outside forest cover", () => {
+    const attacker = makeDeployment("attacker", { q: 0, r: 0 });
+    const target = makeDeployment("target", { q: 1, r: 0 }, "ENEMY", {
+      tags: ["GROUND", "PERSONNEL", "INFANTRY"],
+      stats: { healthModel: "FORCE_STRENGTH", maxHealth: 6, armor: 0, defense: 0 },
+      currentHealth: 6,
+    });
+    const forestMap = [makeHex(0, 0), makeHex(1, 0, { terrainId: "terrain-forest" })];
+
+    expect(resolveAttackRoll(attacker, target, { ...cannon, armorPiercing: 0 }, forestMap, fixedRandom(1))).toMatchObject({
+      targetArmor: 0,
+      coverArmor: 1,
+      effectiveArmor: 1,
+      threshold: 1,
+    });
+  });
+
+  it("does not grant rear-attack benefits against aerospace targets", () => {
+    const attacker = makeDeployment("attacker", { q: 0, r: 1 });
+    const target = makeDeployment("target", { q: 0, r: 0 }, "ENEMY", {
+      facing: 0,
+      tags: ["AEROSPACE", "VEHICLE"],
+      stats: { healthModel: "HITS", maxHealth: 2, armor: 3, defense: 1 },
+      currentHealth: 2,
+    });
+
+    expect(resolveAttackRoll(attacker, target, cannon, map, fixedRandom(6))).toMatchObject({
+      rearAttack: false,
+      effectiveArmor: 2,
+      targetDefense: 1,
+      threshold: 3,
     });
   });
 
@@ -210,6 +310,96 @@ describe("armor, AP, rear arcs, Hits, and FS caps", () => {
 
     expect(result.roll).toEqual({ raw: 6, modified: 6, capped: 2 });
     expect(result.healthLoss).toBe(2);
+  });
+
+  it("adds one damage from higher ground before the personnel FS cap", () => {
+    const elevatedMap = [
+      makeHex(0, -1, { elevation: 1 }),
+      makeHex(0, 0, { elevation: 0 }),
+    ];
+    const attacker = makeDeployment("attacker", { q: 0, r: -1 }, "ALLIED", {
+      tags: ["GROUND", "PERSONNEL"],
+      currentHealth: 3,
+      stats: { healthModel: "FORCE_STRENGTH", maxHealth: 6 },
+    });
+    const target = makeDeployment("target", { q: 0, r: 0 }, "ENEMY", {
+      tags: ["GROUND", "PERSONNEL"],
+      currentHealth: 6,
+    });
+
+    expect(resolveAttackRoll(attacker, target, baseWeapon, elevatedMap, fixedRandom(2))).toMatchObject({
+      roll: { raw: 2, modified: 3, capped: 3 },
+      highGroundModifier: 1,
+      damageResult: 3,
+      healthLoss: 3,
+    });
+    attacker.currentHealth = 2;
+    expect(resolveAttackRoll(attacker, target, baseWeapon, elevatedMap, fixedRandom(6))).toMatchObject({
+      roll: { raw: 6, modified: 7, capped: 2 },
+      highGroundModifier: 1,
+      damageResult: 2,
+    });
+  });
+
+  it("does not grant the high-ground modifier to aerospace fire", () => {
+    const elevatedMap = [
+      makeHex(0, -1, { elevation: 2 }),
+      makeHex(0, 0, { elevation: 0 }),
+    ];
+    const attacker = makeDeployment("air", { q: 0, r: -1 }, "ALLIED", { tags: ["AEROSPACE", "VEHICLE"] });
+    const target = makeDeployment("ground", { q: 0, r: 0 }, "ENEMY", { tags: ["GROUND", "VEHICLE"] });
+
+    expect(resolveAttackRoll(attacker, target, baseWeapon, elevatedMap, fixedRandom(2))).toMatchObject({
+      roll: { raw: 2, modified: 2 },
+      highGroundModifier: 0,
+    });
+  });
+
+  it("doubles a Rapid Fire damage result against Horde before mitigation", () => {
+    const attacker = makeDeployment("rapid", { q: 0, r: 0 }, "ALLIED", {
+      tags: ["VEHICLE", "RAPID_FIRE"],
+      stats: { healthModel: "HITS", maxHealth: 2 },
+      currentHealth: 2,
+    });
+    const horde = makeDeployment("horde", { q: 1, r: 0 }, "ENEMY", {
+      tags: ["PERSONNEL", "HORDE"],
+      stats: { healthModel: "FORCE_STRENGTH", maxHealth: 8, armor: 0, defense: 1 },
+      currentHealth: 8,
+    });
+    const ordinary = structuredClone(horde);
+    ordinary.id = "ordinary";
+    ordinary.tags = ["PERSONNEL"];
+
+    const rapidWeapon = { ...baseWeapon, tags: ["RAPID_FIRE"] };
+    expect(resolveAttackRoll(attacker, horde, rapidWeapon, map, fixedRandom(3))).toMatchObject({
+      roll: { raw: 3, modified: 3, capped: 3 },
+      rapidFireMultiplier: 2,
+      damageResult: 6,
+      threshold: 1,
+      healthLoss: 5,
+    });
+    expect(resolveAttackRoll(attacker, ordinary, rapidWeapon, map, fixedRandom(3))).toMatchObject({
+      rapidFireMultiplier: 1,
+      damageResult: 3,
+      healthLoss: 2,
+    });
+  });
+
+  it("still converts a Rapid Fire penetration against a Hits target to one Hit", () => {
+    const attacker = makeDeployment("rapid", { q: 0, r: 0 }, "ALLIED", {
+      tags: ["RAPID_FIRE"],
+    });
+    const target = makeDeployment("horde-vehicle", { q: 1, r: 0 }, "ENEMY", {
+      tags: ["HORDE", "VEHICLE"],
+      stats: { healthModel: "HITS", maxHealth: 4, armor: 0, defense: 0 },
+      currentHealth: 4,
+    });
+
+    expect(resolveAttackRoll(attacker, target, { ...baseWeapon, tags: ["RAPID_FIRE"] }, map, fixedRandom(4))).toMatchObject({
+      rapidFireMultiplier: 2,
+      damageResult: 8,
+      healthLoss: 1,
+    });
   });
 
   it("converts any positive penetration against a vehicle to exactly one Hit", () => {
@@ -241,18 +431,18 @@ describe("ammo, cooldown, Supply, build, and equipment restrictions", () => {
   });
 
   it("transfers positive integral Supply without mutating either inventory", () => {
-    const source = { SMALL: 5, MEDIUM: 1 };
-    const destination = { SMALL: 2 };
+    const source = { SMALL_SUPPLY: 5, MEDIUM_SUPPLY: 1 };
+    const destination = { SMALL_SUPPLY: 2 };
 
-    expect(transferSupply(source, destination, "SMALL", 3)).toEqual({
+    expect(transferSupply(source, destination, "SMALL_SUPPLY", 3)).toEqual({
       legal: true,
-      source: { SMALL: 2, MEDIUM: 1 },
-      destination: { SMALL: 5 },
+      source: { SMALL_SUPPLY: 2, MEDIUM_SUPPLY: 1 },
+      destination: { SMALL_SUPPLY: 5 },
     });
-    expect(source).toEqual({ SMALL: 5, MEDIUM: 1 });
-    expect(destination).toEqual({ SMALL: 2 });
+    expect(source).toEqual({ SMALL_SUPPLY: 5, MEDIUM_SUPPLY: 1 });
+    expect(destination).toEqual({ SMALL_SUPPLY: 2 });
     for (const invalid of [0, -1, 1.5, 6]) {
-      expect(transferSupply(source, destination, "SMALL", invalid).legal).toBe(false);
+      expect(transferSupply(source, destination, "SMALL_SUPPLY", invalid).legal).toBe(false);
     }
   });
 
@@ -286,14 +476,15 @@ describe("ammo, cooldown, Supply, build, and equipment restrictions", () => {
     const infantry = getUnitClass("unit-infantry-squad");
     const tank = getUnitClass("unit-main-battle-tank");
     const flak = equipment.find((item) => item.id === "equipment-flak-vests")!;
-    const experimentalAt = equipment.find((item) => item.id === "equipment-light-at")!;
+    const lightAt = equipment.find((item) => item.id === "equipment-light-at")!;
 
     expect(canEquip(infantry, flak, [], new Map())).toEqual({ legal: true });
     expect(canEquip(tank, flak, [], new Map())).toMatchObject({
       legal: false,
       reason: "Unit class is not eligible for this equipment.",
     });
-    expect(canEquip(infantry, experimentalAt, [], new Map())).toMatchObject({
+    expect(canEquip(infantry, lightAt, [], new Map())).toEqual({ legal: true });
+    expect(canEquip(infantry, { ...lightAt, status: "experimental" }, [], new Map())).toMatchObject({
       legal: false,
       reason: "Equipment is not active.",
     });

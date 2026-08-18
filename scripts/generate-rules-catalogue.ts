@@ -1,0 +1,1810 @@
+import { parseArgs } from "node:util";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { dirname, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+
+import {
+  assertJsonValue,
+  canonicalJson,
+  compareUnicodeCodePoints,
+  sha256Hex,
+  type JsonObject,
+  type JsonValue,
+} from "../packages/domain/src/json-contract";
+import {
+  RULES_CATALOGUE_SCHEMA_VERSION,
+  createRulesCatalogueEnvelope,
+  parseRulesCatalogueEnvelope,
+  type RuleDefinitionKindV1,
+  type RuleDefinitionRecordV1,
+  type RuleDefinitionStatusV1,
+  type RuleEngineHandlerV1,
+  type RuleImplementationOverlayV1,
+  type RuleNullableNumberV1,
+  type RuleRelationEndpointV1,
+  type RuleRelationRecordV1,
+  type RuleSourceV1,
+  type RulesCatalogueContentV1,
+  type RulesCatalogueEnvelopeV1,
+} from "../packages/domain/src/rules-catalogue-contract";
+
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const canonicalCataloguePath = resolve(repositoryRoot, "rules/catalogue/v5-core-curated@2/catalogue.json");
+const generatedCataloguePath = resolve(repositoryRoot, "packages/rules-engine/src/generated/v5-core-curated-2.ts");
+const publishedRulesetId = "ruleset-v5-core-curated-2";
+const publishedRulesetVersion = "v5-core-curated@2";
+
+export const legacyRulesSeedFiles = [
+  "seeds/v5-core-curated.sql",
+  "seeds/v5-phase2-combined-arms.sql",
+  "seeds/v5-classes-catalogue.sql",
+  "seeds/v5-equipment-deployment.sql",
+  "seeds/v5-store-catalogue.sql",
+] as const;
+
+/**
+ * This is the complete set of rules/profile/relation tables populated by the
+ * three production-safe rules seeds. It exists only to bootstrap the first
+ * canonical publication; generated artefacts never read D1 at runtime.
+ */
+export const legacyCatalogueTables = [
+  "rulesets",
+  "ruleset_sources",
+  "rule_conflicts",
+  "unit_class_definitions",
+  "weapon_definitions",
+  "equipment_definitions",
+  "action_definitions",
+  "order_type_definitions",
+  "structure_definitions",
+  "terrain_definitions",
+  "ship_class_definitions",
+  "enemy_definitions",
+  "movement_profile_definitions",
+  "durability_profile_definitions",
+  "cargo_profile_definitions",
+  "supply_profile_definitions",
+  "deployment_profile_definitions",
+  "tag_definitions",
+  "ability_definitions",
+  "status_effect_definitions",
+  "unit_definition_profiles",
+  "unit_definition_tags",
+  "unit_definition_abilities",
+  "unit_definition_weapons",
+  "unit_equipment_slot_definitions",
+  "equipment_eligibility_rules",
+  "ruleset_implementation_overlays",
+  "ship_capability_definitions",
+  "ship_module_capability_grants",
+  "equipment_effect_definitions",
+  "deployment_method_definitions",
+] as const;
+
+type LegacyCatalogueTable = (typeof legacyCatalogueTables)[number];
+
+interface TableColumn {
+  name: string;
+  primaryKeyPosition: number;
+}
+
+export interface LegacyCatalogueSnapshot extends JsonObject {
+  schemaVersion: 1;
+  source: "FINAL_PRODUCTION_RULES_SEEDS";
+  seedFiles: string[];
+  tables: Record<LegacyCatalogueTable, JsonObject[]>;
+}
+
+export interface CanonicalConflictRegisterRecord extends JsonObject {
+  id: string;
+  title: string;
+  section: string;
+  bodyMarkdown: string;
+  fields: JsonObject;
+}
+
+export const legacyDefinitionTables = {
+  units: "unit_class_definitions",
+  weapons: "weapon_definitions",
+  equipment: "equipment_definitions",
+  actions: "action_definitions",
+  orders: "order_type_definitions",
+  structures: "structure_definitions",
+  terrain: "terrain_definitions",
+  ships: "ship_class_definitions",
+  enemies: "enemy_definitions",
+} as const satisfies Record<string, LegacyCatalogueTable>;
+
+function quoteIdentifier(identifier: string): string {
+  return `"${identifier.replaceAll('"', '""')}"`;
+}
+
+function compareJsonScalars(left: JsonValue | undefined, right: JsonValue | undefined): number {
+  if (left === right) return 0;
+  if (left === undefined) return -1;
+  if (right === undefined) return 1;
+  if (typeof left === "number" && typeof right === "number") return left - right;
+  return compareUnicodeCodePoints(canonicalJson(left), canonicalJson(right));
+}
+
+function compareRows(columns: readonly string[], left: JsonObject, right: JsonObject): number {
+  for (const column of columns) {
+    const difference = compareJsonScalars(left[column], right[column]);
+    if (difference !== 0) return difference;
+  }
+  return compareUnicodeCodePoints(canonicalJson(left), canonicalJson(right));
+}
+
+function normalizeSqlValue(column: string, value: SQLInputValue): JsonValue {
+  if (value instanceof Uint8Array) return Buffer.from(value).toString("hex");
+  if (typeof value === "bigint") {
+    const numeric = Number(value);
+    if (!Number.isSafeInteger(numeric)) {
+      throw new Error(`${column} contains an integer outside JSON's safe range.`);
+    }
+    return numeric;
+  }
+  if (typeof value === "string" && column.endsWith("_json")) {
+    try {
+      return assertJsonValue(JSON.parse(value), `$.${column}`);
+    } catch (error) {
+      throw new Error(`${column} does not contain valid JSON.`, { cause: error });
+    }
+  }
+  return assertJsonValue(value, `$.${column}`);
+}
+
+function tableColumns(database: DatabaseSync, table: string): TableColumn[] {
+  const statement = database.prepare(`PRAGMA table_info(${quoteIdentifier(table)})`);
+  return (statement.all() as Array<Record<string, SQLInputValue>>).map((row) => ({
+    name: String(row.name),
+    primaryKeyPosition: Number(row.pk),
+  }));
+}
+
+function tableRows(database: DatabaseSync, table: LegacyCatalogueTable): JsonObject[] {
+  const columns = tableColumns(database, table);
+  const primaryKey = columns
+    .filter((column) => column.primaryKeyPosition > 0)
+    .sort((left, right) => left.primaryKeyPosition - right.primaryKeyPosition)
+    .map((column) => column.name);
+  const fallbackOrder = columns.map((column) => column.name).sort(compareUnicodeCodePoints);
+  const rows = database.prepare(`SELECT * FROM ${quoteIdentifier(table)}`).all() as Array<Record<string, SQLInputValue>>;
+  return rows
+    .map((row) => Object.fromEntries(
+      Object.entries(row).map(([column, value]) => [column, normalizeSqlValue(column, value)]),
+    ))
+    .sort((left, right) => compareRows(primaryKey.length > 0 ? primaryKey : fallbackOrder, left, right));
+}
+
+export async function readLegacyCatalogueSnapshot(root = repositoryRoot): Promise<LegacyCatalogueSnapshot> {
+  const database = new DatabaseSync(":memory:");
+  try {
+    const migrationDirectory = resolve(root, "migrations");
+    const migrations = (await readdir(migrationDirectory))
+      .filter((file) => /^\d+.*\.sql$/.test(file))
+      .sort(compareUnicodeCodePoints);
+    for (const migration of migrations) {
+      database.exec(await readFile(resolve(migrationDirectory, migration), "utf8"));
+    }
+    for (const seed of legacyRulesSeedFiles) {
+      database.exec(await readFile(resolve(root, seed), "utf8"));
+    }
+
+    const tables = Object.fromEntries(
+      legacyCatalogueTables.map((table) => [table, tableRows(database, table)]),
+    ) as Record<LegacyCatalogueTable, JsonObject[]>;
+    return {
+      schemaVersion: 1,
+      source: "FINAL_PRODUCTION_RULES_SEEDS",
+      seedFiles: [...legacyRulesSeedFiles],
+      tables,
+    };
+  } finally {
+    database.close();
+  }
+}
+
+export function legacyTopLevelDefinitionCount(snapshot: LegacyCatalogueSnapshot): number {
+  return Object.values(legacyDefinitionTables)
+    .reduce((total, table) => total + snapshot.tables[table].length, 0);
+}
+
+export function legacyDefinitionCounts(snapshot: LegacyCatalogueSnapshot): Record<keyof typeof legacyDefinitionTables, number> {
+  return Object.fromEntries(
+    Object.entries(legacyDefinitionTables).map(([kind, table]) => [kind, snapshot.tables[table].length]),
+  ) as Record<keyof typeof legacyDefinitionTables, number>;
+}
+
+export function legacyUnitPublicationSplit(snapshot: LegacyCatalogueSnapshot): {
+  canonicalUnitIds: string[];
+  companionUnitIds: string[];
+} {
+  const canonicalUnitIds: string[] = [];
+  const companionUnitIds: string[] = [];
+  const companionIds = new Set([
+    "unit-power-armoured-infantry", "unit-irregular", "unit-special-forces", "unit-sappers",
+    "unit-mechanized-infantry", "unit-light-battle-tank", "unit-heavy-battle-tank", "unit-super-heavy-tank",
+    "unit-light-artillery", "unit-heavy-artillery", "unit-self-propelled-artillery",
+    "unit-vtol-troop-airlift", "unit-vtol-multipurpose-airlift", "unit-vtol-heavy-lift",
+    "unit-medium-mech", "unit-heavy-mech",
+  ]);
+  for (const unit of snapshot.tables.unit_class_definitions) {
+    const id = String(unit.id);
+    if (companionIds.has(id)) companionUnitIds.push(id);
+    else if (unit.definition_status === "active") canonicalUnitIds.push(id);
+    else if (unit.definition_status === "legacy") companionUnitIds.push(id);
+    else throw new Error(`${id} has no canonical/companion publication classification.`);
+  }
+  return { canonicalUnitIds, companionUnitIds };
+}
+
+function parseConflictFields(bodyMarkdown: string): JsonObject {
+  const fields: JsonObject = {};
+  for (const line of bodyMarkdown.split("\n")) {
+    const match = /^- \*\*(.+?):\*\*\s*(.*)$/.exec(line);
+    if (!match) continue;
+    const [, label, value] = match;
+    if (fields[label] !== undefined) {
+      throw new Error(`Conflict register repeats the ${label} field within one record.`);
+    }
+    fields[label] = value;
+  }
+  return fields;
+}
+
+/**
+ * Parses the canonical Markdown audit without interpreting or rewriting its
+ * evidence. `bodyMarkdown` is retained byte-for-byte except for separator
+ * blank lines, while `fields` supplies a deterministic structural index.
+ */
+export async function readCanonicalConflictRegister(root = repositoryRoot): Promise<CanonicalConflictRegisterRecord[]> {
+  const markdown = await readFile(resolve(root, "docs/RULE_CONFLICTS.md"), "utf8");
+  const records: CanonicalConflictRegisterRecord[] = [];
+  let section = "";
+  let current: { id: string; title: string; section: string } | undefined;
+  let bodyLines: string[] = [];
+
+  const flush = () => {
+    if (!current) return;
+    while (bodyLines.at(-1) === "") bodyLines.pop();
+    const bodyMarkdown = bodyLines.join("\n");
+    records.push({ ...current, bodyMarkdown, fields: parseConflictFields(bodyMarkdown) });
+    current = undefined;
+    bodyLines = [];
+  };
+
+  for (const line of markdown.split("\n")) {
+    const conflictHeading = /^### (RC-[A-Z0-9-]+) — (.+)$/.exec(line);
+    if (conflictHeading) {
+      flush();
+      current = { id: conflictHeading[1], title: conflictHeading[2], section };
+      continue;
+    }
+    if (line.startsWith("## ")) {
+      flush();
+      section = line.slice(3);
+      continue;
+    }
+    if (current) bodyLines.push(line);
+  }
+  flush();
+
+  const ids = new Set<string>();
+  for (const record of records) {
+    if (ids.has(record.id)) throw new Error(`Conflict register repeats ${record.id}.`);
+    ids.add(record.id);
+  }
+  return records;
+}
+
+export function referencedConflictIds(snapshot: LegacyCatalogueSnapshot): string[] {
+  const ids = new Set<string>();
+  const visit = (value: JsonValue): void => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (value === null || typeof value !== "object") return;
+    for (const [key, child] of Object.entries(value)) {
+      if (key === "conflictIds" && Array.isArray(child)) {
+        for (const id of child) {
+          if (typeof id !== "string") throw new Error("A conflictIds entry is not a string.");
+          ids.add(id);
+        }
+      }
+      visit(child);
+    }
+  };
+  visit(snapshot.tables);
+  return [...ids].sort(compareUnicodeCodePoints);
+}
+
+export async function legacySourceHashMismatches(
+  snapshot: LegacyCatalogueSnapshot,
+  root = repositoryRoot,
+): Promise<Array<{ id: string; expected: string; actual: string }>> {
+  const mismatches: Array<{ id: string; expected: string; actual: string }> = [];
+  for (const source of snapshot.tables.ruleset_sources) {
+    const expected = source.source_sha256;
+    if (typeof expected !== "string") continue;
+    const actual = await sha256Hex(await readFile(resolve(root, String(source.source_path))));
+    if (actual !== expected) mismatches.push({ id: String(source.id), expected, actual });
+  }
+  return mismatches;
+}
+
+function requiredString(row: JsonObject, key: string): string {
+  const value = row[key];
+  if (typeof value !== "string") throw new Error(`${key} must be a string.`);
+  return value;
+}
+
+function optionalString(row: JsonObject, key: string): string | null {
+  const value = row[key];
+  if (value === null) return null;
+  if (typeof value !== "string") throw new Error(`${key} must be a string or null.`);
+  return value;
+}
+
+function requiredNumber(row: JsonObject, key: string): number {
+  const value = row[key];
+  if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${key} must be a finite number.`);
+  return value;
+}
+
+function optionalNumber(row: JsonObject, key: string): number | null {
+  const value = row[key];
+  if (value === null) return null;
+  if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${key} must be a finite number or null.`);
+  return value;
+}
+
+function jsonObject(row: JsonObject, key: string): JsonObject {
+  const value = row[key];
+  if (value === null || Array.isArray(value) || typeof value !== "object") throw new Error(`${key} must be a JSON object.`);
+  return value;
+}
+
+function published(value: number): RuleNullableNumberV1 {
+  return { status: "PUBLISHED", value };
+}
+
+function unpublished(status: Exclude<RuleNullableNumberV1["status"], "PUBLISHED">): RuleNullableNumberV1 {
+  return { status, value: null };
+}
+
+function nullableNumber(value: number | null, missingStatus: Exclude<RuleNullableNumberV1["status"], "PUBLISHED">): RuleNullableNumberV1 {
+  return value === null ? unpublished(missingStatus) : published(value);
+}
+
+interface DefinitionSource {
+  sourceId: string | null;
+  sourcePath: string | null;
+  sourceLocator: string | null;
+}
+
+function sourceIdForLabel(label: string): string | undefined {
+  const mappings: Array<[RegExp, string]> = [
+    [/^(?:V5(?:\b|\s*\/)|rules\/Meta - Core Rules \(V5\)\.md)/, "source-v5-core"],
+    [/^(?:Classes(?:\.html)?|rules\/Classes\.html)/, "source-classes"],
+    [/^(?:The Store|Store|rules\/The Store)/, "source-store"],
+    [/^(?:Build sheet|Build and Supply|rules\/Build and Supply)/, "source-build"],
+    [/^(?:Actions|legacy action sheet|rules\/Actions)/, "source-actions"],
+    [/^(?:Orders|rules\/Order Formatting)/, "source-orders"],
+    [/^phase2-forces\.md/, "source-phase2-forces-plan"],
+    [/^gameplan\.md/, "source-product-brief"],
+  ];
+  return mappings.find(([pattern]) => pattern.test(label))?.[1];
+}
+
+function definitionSource(pathOrCitation: string, locator: string | null = null): DefinitionSource {
+  const sourceId = sourceIdForLabel(pathOrCitation);
+  return sourceId
+    ? { sourceId, sourcePath: null, sourceLocator: locator ?? pathOrCitation }
+    : { sourceId: null, sourcePath: pathOrCitation, sourceLocator: locator };
+}
+
+function definitionStatus(row: JsonObject): RuleDefinitionStatusV1 {
+  const value = row.definition_status;
+  if (value === "active" || value === "experimental" || value === "legacy" || value === "incomplete") return value;
+  if (value === undefined) return "unspecified";
+  throw new Error(`Unknown definition status: ${String(value)}.`);
+}
+
+function baseDefinition(
+  row: JsonObject,
+  kind: RuleDefinitionKindV1,
+  source: DefinitionSource,
+  sourcedNumbers: Record<string, RuleNullableNumberV1>,
+  parameters: JsonObject,
+): RuleDefinitionRecordV1 {
+  return {
+    id: requiredString(row, "id"),
+    kind,
+    name: requiredString(row, "name"),
+    definitionStatus: definitionStatus(row),
+    ...source,
+    notes: typeof row.notes === "string" ? row.notes : "",
+    sourcedNumbers,
+    references: [],
+    parameters,
+  };
+}
+
+function overlayFor(snapshot: LegacyCatalogueSnapshot, definitionId: string): JsonObject | undefined {
+  return snapshot.tables.ruleset_implementation_overlays.find((row) => row.definition_id === definitionId);
+}
+
+function requisitionValue(row: JsonObject, snapshot: LegacyCatalogueSnapshot, field: string): RuleNullableNumberV1 {
+  const value = optionalNumber(row, field);
+  const status = overlayFor(snapshot, requiredString(row, "id"))?.requisition_status;
+  if (status === "PUBLISHED") {
+    if (value === null) throw new Error(`${row.id} has a published requisition status but no numeric value.`);
+    return published(value);
+  }
+  if (status === "BALANCE_REQUIRED") return unpublished("BALANCE_REQUIRED");
+  if (status === "NOT_APPLICABLE" || status === undefined) return unpublished("NOT_APPLICABLE");
+  throw new Error(`${row.id} has an unknown requisition status.`);
+}
+
+function supportingDefinition(
+  row: JsonObject,
+  kind: RuleDefinitionKindV1,
+  sourcedNumbers: Record<string, RuleNullableNumberV1>,
+  parameters: JsonObject,
+): RuleDefinitionRecordV1 {
+  const sourcePath = requiredString(row, "source_path");
+  return baseDefinition(
+    row,
+    kind,
+    definitionSource(sourcePath, requiredString(row, "source_locator")),
+    sourcedNumbers,
+    parameters,
+  );
+}
+
+const foundationUnitExecution: Record<string, JsonObject> = {
+  "unit-aerospace-bomber": {
+    capacity: 1,
+    tags: ["AEROSPACE", "ATMO_FLIGHT", "VEHICLE", "BOMBER", "FLY_OVER", "CANNOT_SPOT_GROUND"],
+    allowedOrders: ["HOLD", "ADVANCE"],
+    allowedActions: ["ATTACK", "LAND", "TAKE_OFF", "REARM_AEROSPACE"],
+  },
+  "unit-aerospace-fighter": {
+    capacity: 1,
+    tags: ["AEROSPACE", "ATMO_FLIGHT", "VEHICLE", "RAPID_FIRE", "EVASIVE", "LIMITED_FORWARD_ARC", "AEROSPACE_INTERCEPTOR", "CANNOT_SPOT_GROUND"],
+    allowedOrders: ["HOLD", "ADVANCE", "EVASIVE"],
+    allowedActions: ["ATTACK", "LAND", "TAKE_OFF", "REARM_AEROSPACE"],
+  },
+  "unit-artillery": {
+    capacity: 1,
+    tags: ["GROUND", "PERSONNEL", "ARTILLERY", "INDIRECT", "DEPLOYABLE"],
+    allowedOrders: ["HOLD", "ADVANCE"],
+    allowedActions: ["ATTACK", "BOMBARDMENT", "FUNNEL", "DEPLOY", "PACK_UP", "RELOAD", "LOAD", "UNLOAD"],
+  },
+  "unit-combat-medic": {
+    capacity: 1,
+    tags: ["GROUND", "PERSONNEL", "INFANTRY", "MEDICAL"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+    allowedActions: ["DIG_IN", "HEAL", "RELOAD", "LOAD", "UNLOAD"],
+  },
+  "unit-engineers": {
+    capacity: 1,
+    tags: ["GROUND", "PERSONNEL", "ENGINEER", "BUILDER", "REPAIR"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+    allowedActions: ["DIG_IN", "ARTILLERY_DIG_IN", "REPAIR", "CONSTRUCT", "LOAD", "UNLOAD"],
+  },
+  "unit-heavy-air-transport": {
+    capacity: 1,
+    tags: ["AEROSPACE", "ATMO_FLIGHT", "VEHICLE", "TRANSPORT", "LOGISTICS", "AIRDROP", "CANNOT_SPOT_GROUND"],
+    allowedOrders: ["HOLD", "ADVANCE"],
+    allowedActions: ["LOAD", "AIRDROP", "LAND", "TAKE_OFF"],
+  },
+  "unit-infantry-squad": {
+    capacity: 1,
+    tags: ["GROUND", "PERSONNEL", "INFANTRY", "DIG_IN"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+    allowedActions: ["ATTACK", "DIG_IN", "TRENCH_UPGRADE", "LOAD", "UNLOAD"],
+  },
+  "unit-infantry-fighting-vehicle": {
+    capacity: 1,
+    tags: ["GROUND", "VEHICLE", "ARMOURED", "HEAVY", "SUBSYSTEMS", "TRANSPORT"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+    allowedActions: ["ATTACK", "CREW_REPAIR", "LOAD", "UNLOAD"],
+  },
+  "unit-light-vehicle": {
+    capacity: 1,
+    tags: ["GROUND", "VEHICLE", "LIGHT_VEHICLE", "SUB_SYSTEM", "EVASIVE"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH", "EVASIVE"],
+    allowedActions: ["ATTACK", "LOAD", "UNLOAD"],
+  },
+  "unit-light-mech": {
+    capacity: 1,
+    tags: ["GROUND", "VEHICLE", "ARMOURED", "MECH", "SUBSYSTEMS", "EVASIVE"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH", "EVASIVE"],
+    allowedActions: ["ATTACK"],
+  },
+  "unit-logi-truck": {
+    capacity: 1,
+    tags: ["GROUND", "VEHICLE", "LOGISTICS", "TRANSPORT"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+    allowedActions: ["RESUPPLY", "LOAD", "UNLOAD"],
+  },
+  "unit-main-battle-tank": {
+    capacity: 1,
+    tags: ["GROUND", "VEHICLE", "ARMOURED", "HEAVY", "SUBSYSTEMS", "REAR_WEAK_SPOT", "ARMOUR_TARGET_PRIORITY"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH"],
+    allowedActions: ["ATTACK", "CREW_REPAIR"],
+  },
+  "unit-vtol": {
+    capacity: 1,
+    tags: ["AEROSPACE", "VTOL", "VEHICLE", "ARMOURED", "TRANSPORT", "CANNOT_SPOT_GROUND"],
+    allowedOrders: ["HOLD", "ADVANCE"],
+    allowedActions: ["ATTACK", "LOAD", "UNLOAD", "LAND", "TAKE_OFF"],
+  },
+  "unit-special-forces": {
+    capacity: 1,
+    tags: ["GROUND", "PERSONNEL", "INFANTRY", "SPECIAL_FORCES", "INFANTRY_STEALTH"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH", "STEALTH"],
+    allowedActions: ["ATTACK", "PLACE_DELAYED_CHARGE", "DETONATE_DELAYED_CHARGE"],
+  },
+  "unit-sappers": {
+    capacity: 1,
+    tags: ["GROUND", "PERSONNEL", "INFANTRY", "ENGINEER", "SAPPER", "INFANTRY_STEALTH", "BUILD_SUPPLY"],
+    allowedOrders: ["HOLD", "ADVANCE", "RUSH", "STEALTH"],
+    allowedActions: ["ATTACK", "SAPPER_CONSTRUCT", "RELOAD_BUILD_SUPPLY"],
+  },
+};
+
+function buildDefinitionGroups(snapshot: LegacyCatalogueSnapshot): Record<string, RuleDefinitionRecordV1[]> {
+  const units = snapshot.tables.unit_class_definitions.map((row) => {
+    const definition = jsonObject(row, "definition_json");
+    return baseDefinition(row, "UNIT", definitionSource(requiredString(row, "source")), {
+      maxHealth: published(requiredNumber(row, "max_health")),
+      armor: published(requiredNumber(row, "armor")),
+      defense: published(requiredNumber(row, "defense")),
+      speedQuarters: published(requiredNumber(row, "speed_quarters")),
+      sensorRange: unpublished("SCENARIO_DEFINED"),
+      requisitionCost: requisitionValue(row, snapshot, "requisition_cost"),
+    }, {
+      category: requiredString(row, "category"),
+      healthModel: requiredString(row, "health_model"),
+      legacyProjectionSensorRange: requiredNumber(row, "sensor_range"),
+      execution: foundationUnitExecution[requiredString(row, "id")] ?? null,
+      definition,
+    });
+  });
+
+  const weapons = snapshot.tables.weapon_definitions.map((row) => baseDefinition(
+    row,
+    "WEAPON",
+    definitionSource(requiredString(row, "source")),
+    {
+      damageDiceCount: published(requiredNumber(row, "damage_dice_count")),
+      damageDieSides: published(requiredNumber(row, "damage_die_sides")),
+      damageModifier: published(requiredNumber(row, "damage_modifier")),
+      armorPiercing: published(requiredNumber(row, "armor_piercing")),
+      rangeHexes: published(requiredNumber(row, "range_hexes")),
+      ammoCapacity: nullableNumber(optionalNumber(row, "ammo_capacity"), "NOT_APPLICABLE"),
+      cooldownRounds: nullableNumber(optionalNumber(row, "cooldown_rounds"), "NOT_APPLICABLE"),
+    },
+    { indirect: row.indirect === 1, definition: jsonObject(row, "definition_json") },
+  ));
+
+  const equipment = snapshot.tables.equipment_definitions.map((row) => baseDefinition(
+    row,
+    "EQUIPMENT",
+    definitionSource(requiredString(row, "source")),
+    { requisitionCost: requisitionValue(row, snapshot, "requisition_cost") },
+    {
+      category: requiredString(row, "category"),
+      slotType: requiredString(row, "slot_type"),
+      consumable: row.consumable === 1,
+      definition: jsonObject(row, "definition_json"),
+    },
+  ));
+
+  const actions = snapshot.tables.action_definitions.map((row) => {
+    const id = requiredString(row, "id");
+    const definition = jsonObject(row, "definition_json");
+    if (id === "action-airdrop") {
+      definition.costPerCargoSlotQuarters = 0;
+      definition.canonicalException = "HAT_CLEAR_IN_FLIGHT_EXIT_NO_SPEED_COST";
+    }
+    return baseDefinition(
+      row,
+      "ACTION",
+      definitionSource(requiredString(row, "source")),
+      { speedCostQuarters: published(id === "action-airdrop" ? 0 : requiredNumber(row, "speed_cost_quarters")) },
+      { economy: id === "action-airdrop" ? "INCIDENTAL" : requiredString(row, "economy"), definition },
+    );
+  });
+
+  const orders = snapshot.tables.order_type_definitions.map((row) => baseDefinition(
+    row,
+    "ORDER",
+    definitionSource(requiredString(row, "source")),
+    {},
+    { definition: jsonObject(row, "definition_json") },
+  ));
+
+  const structures = snapshot.tables.structure_definitions.map((row) => baseDefinition(
+    row,
+    "STRUCTURE",
+    definitionSource(requiredString(row, "source")),
+    {
+      buildPoints: nullableNumber(optionalNumber(row, "build_points"), "BALANCE_REQUIRED"),
+      health: nullableNumber(optionalNumber(row, "health"), "BALANCE_REQUIRED"),
+    },
+    { buildCost: jsonObject(row, "build_cost_json"), definition: jsonObject(row, "definition_json") },
+  ));
+
+  const terrain = snapshot.tables.terrain_definitions.map((row) => baseDefinition(
+    row,
+    "TERRAIN",
+    definitionSource(requiredString(row, "source")),
+    {
+      movementCostQuarters: published(requiredNumber(row, "movement_cost_quarters")),
+      capacity: published(requiredNumber(row, "capacity")),
+    },
+    { blocksLos: row.blocks_los === 1, definition: jsonObject(row, "definition_json") },
+  ));
+
+  const ships = snapshot.tables.ship_class_definitions.map((row) => baseDefinition(
+    row,
+    "SHIP",
+    definitionSource(requiredString(row, "source")),
+    {
+      health: published(requiredNumber(row, "health")),
+      armor: published(requiredNumber(row, "armor")),
+      speed: published(requiredNumber(row, "speed")),
+      externalSlots: published(requiredNumber(row, "external_slots")),
+      internalSlots: published(requiredNumber(row, "internal_slots")),
+      cargoCapacity: published(requiredNumber(row, "cargo_capacity")),
+      atmoFuel: nullableNumber(optionalNumber(row, "atmo_fuel"), "BALANCE_REQUIRED"),
+    },
+    { definition: jsonObject(row, "definition_json") },
+  ));
+
+  const enemies = snapshot.tables.enemy_definitions.map((row) => baseDefinition(
+    row,
+    "ENEMY",
+    definitionSource(requiredString(row, "source")),
+    {},
+    {
+      factionId: requiredString(row, "faction_id"),
+      doctrine: jsonObject(row, "doctrine_json"),
+      unitDefinition: jsonObject(row, "unit_definition_json"),
+    },
+  ));
+
+  const movementProfiles = snapshot.tables.movement_profile_definitions.map((row) => supportingDefinition(row, "MOVEMENT_PROFILE", {}, {
+    domain: requiredString(row, "domain"),
+    usesFacing: row.uses_facing === 1,
+    allowsHostilePassage: row.allows_hostile_passage === 1,
+    requiresFlightPath: row.requires_flight_path === 1,
+    canLand: row.can_land === 1,
+    canEnterOrbit: row.can_enter_orbit === 1,
+    terrainCosts: jsonObject(row, "terrain_costs_json"),
+    definition: jsonObject(row, "definition_json"),
+  }));
+  const durabilityProfiles = snapshot.tables.durability_profile_definitions.map((row) => supportingDefinition(row, "DURABILITY_PROFILE", {}, {
+    model: requiredString(row, "model"),
+    outputScalesWithCurrent: row.output_scales_with_current === 1,
+    supportsSubsystems: row.supports_subsystems === 1,
+    definition: jsonObject(row, "definition_json"),
+  }));
+  const cargoProfiles = snapshot.tables.cargo_profile_definitions.map((row) => supportingDefinition(row, "CARGO_PROFILE", {}, {
+    capacity: jsonObject(row, "capacity_json"),
+    loadingRules: jsonObject(row, "loading_rules_json"),
+    definition: jsonObject(row, "definition_json"),
+  }));
+  const supplyProfiles = snapshot.tables.supply_profile_definitions.map((row) => supportingDefinition(row, "SUPPLY_PROFILE", {}, {
+    capacities: jsonObject(row, "capacities_json"),
+    reloadRules: jsonObject(row, "reload_rules_json"),
+    definition: jsonObject(row, "definition_json"),
+  }));
+  const deploymentProfiles = snapshot.tables.deployment_profile_definitions.map((row) => supportingDefinition(row, "DEPLOYMENT_PROFILE", {}, {
+    requirements: jsonObject(row, "requirements_json"),
+    dropModes: row.drop_modes_json!,
+    definition: jsonObject(row, "definition_json"),
+  }));
+  const deploymentMethods = snapshot.tables.deployment_method_definitions.map((row) => supportingDefinition(row, "DEPLOYMENT_METHOD", {}, {
+    implementationStatus: requiredString(row, "implementation_status"),
+    requirements: jsonObject(row, "requirements_json"),
+  }));
+  const tags = snapshot.tables.tag_definitions.map((row) => supportingDefinition(row, "TAG", {}, {
+    definition: jsonObject(row, "definition_json"),
+  }));
+  const abilities = snapshot.tables.ability_definitions.map((row) => supportingDefinition(row, "ABILITY", {}, {
+    actionDefinitionId: optionalString(row, "action_definition_id"),
+    targetSelector: jsonObject(row, "target_selector_json"),
+    effect: jsonObject(row, "effect_json"),
+    definition: jsonObject(row, "definition_json"),
+  }));
+  const statusEffects = snapshot.tables.status_effect_definitions.map((row) => supportingDefinition(row, "STATUS", {}, {
+    stackingRule: requiredString(row, "stacking_rule"),
+    visibility: requiredString(row, "visibility"),
+    definition: jsonObject(row, "definition_json"),
+  }));
+  const shipCapabilities = snapshot.tables.ship_capability_definitions.map((row) => supportingDefinition(row, "SHIP_CAPABILITY", {}, {
+    valueKind: requiredString(row, "value_kind"),
+    definition: jsonObject(row, "definition_json"),
+  }));
+
+  const groups: Record<string, RuleDefinitionRecordV1[]> = {
+    units, weapons, equipment, actions, orders, structures, terrain, ships, enemies,
+    movementProfiles, durabilityProfiles, cargoProfiles, supplyProfiles, deploymentProfiles,
+    deploymentMethods, tags, abilities, statusEffects, shipCapabilities,
+  };
+  const kindById = new Map<string, RuleDefinitionKindV1>();
+  for (const definition of Object.values(groups).flat()) {
+    if (kindById.has(definition.id)) throw new Error(`Definition ID ${definition.id} is not globally unique.`);
+    kindById.set(definition.id, definition.kind);
+  }
+  const collectReferences = (value: JsonValue, references: Map<string, RuleDefinitionKindV1>): void => {
+    if (Array.isArray(value)) return value.forEach((item) => collectReferences(item, references));
+    if (value !== null && typeof value === "object") {
+      Object.values(value).forEach((item) => collectReferences(item, references));
+      return;
+    }
+    if (typeof value !== "string") return;
+    const kind = kindById.get(value);
+    if (kind) references.set(value, kind);
+  };
+  for (const definition of Object.values(groups).flat()) {
+    const references = new Map<string, RuleDefinitionKindV1>();
+    collectReferences(definition.parameters, references);
+    references.delete(definition.id);
+    definition.references = [...references]
+      .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
+      .map(([definitionId, definitionKind]) => ({ definitionKind, definitionId }));
+  }
+  return groups;
+}
+
+function canonicalConflictStatus(sourceStatus: string): RulesCatalogueContentV1["conflicts"][number]["status"] {
+  const match = /`(RESOLVED-MVP|PROVISIONAL-MVP|CATALOGUED|DEFERRED|BLOCKED|REJECTED-BY-PROFILE)`/.exec(sourceStatus);
+  if (!match) throw new Error(`Canonical conflict status is missing or unknown: ${sourceStatus}`);
+  return match[1] as RulesCatalogueContentV1["conflicts"][number]["status"];
+}
+
+function conflictSourceIds(text: string): string[] {
+  const candidates = [
+    [/(?:`V5|\bV5\b)/, "source-v5-core"],
+    [/(?:`Classes|Classes\.html)/, "source-classes"],
+    [/(?:`Store|Store entries|Store values|Store item|Store section)/, "source-store"],
+    [/(?:`Build|Build Points|Build sheet)/, "source-build"],
+    [/(?:`Actions|legacy action sheet)/, "source-actions"],
+    [/(?:`Orders|Order Formatting)/, "source-orders"],
+  ] as const;
+  return candidates
+    .filter(([pattern]) => pattern.test(text))
+    .map(([, sourceId]) => sourceId)
+    .sort(compareUnicodeCodePoints);
+}
+
+function buildConflicts(
+  snapshot: LegacyCatalogueSnapshot,
+  canonical: CanonicalConflictRegisterRecord[],
+): RulesCatalogueContentV1["conflicts"] {
+  const canonicalRecords = canonical.map((record) => {
+    const sourceStatus = typeof record.fields.Status === "string" ? record.fields.Status : "";
+    const disposition = typeof record.fields.Disposition === "string"
+      ? record.fields.Disposition
+      : typeof record.fields["MVP disposition"] === "string"
+        ? record.fields["MVP disposition"]
+        : "See preserved canonical record.";
+    return {
+      id: record.id,
+      category: record.id.split("-")[1] ?? "RULE",
+      summary: record.title,
+      sourceIds: conflictSourceIds(record.bodyMarkdown),
+      disposition,
+      status: canonicalConflictStatus(sourceStatus),
+      notes: `Canonical section: ${record.section}\nCanonical status: ${sourceStatus}\n\n${record.bodyMarkdown}`,
+    } satisfies RulesCatalogueContentV1["conflicts"][number];
+  });
+  const legacyRecords = snapshot.tables.rule_conflicts.map((row) => {
+    const sourceEvidence = row.sources_json;
+    const evidenceText = canonicalJson(sourceEvidence);
+    const status = requiredString(row, "status") as RulesCatalogueContentV1["conflicts"][number]["status"];
+    return {
+      id: requiredString(row, "id"),
+      category: requiredString(row, "category"),
+      summary: requiredString(row, "summary"),
+      sourceIds: conflictSourceIds(evidenceText),
+      disposition: requiredString(row, "disposition"),
+      status,
+      notes: `Legacy compatibility record retained from v5-core-curated@1.\nSource evidence: ${evidenceText}${typeof row.notes === "string" && row.notes.length > 0 ? `\n${row.notes}` : ""}`,
+    } satisfies RulesCatalogueContentV1["conflicts"][number];
+  });
+  return [...canonicalRecords, ...legacyRecords]
+    .sort((left, right) => compareUnicodeCodePoints(left.id, right.id));
+}
+
+const foundationUnitIds = [
+  "unit-aerospace-bomber",
+  "unit-aerospace-fighter",
+  "unit-artillery",
+  "unit-combat-medic",
+  "unit-engineers",
+  "unit-heavy-air-transport",
+  "unit-infantry-squad",
+  "unit-infantry-fighting-vehicle",
+  "unit-light-vehicle",
+  "unit-light-mech",
+  "unit-logi-truck",
+  "unit-main-battle-tank",
+  "unit-vtol",
+] as const;
+
+const companionExecutableUnitIds = [
+  "unit-irregular",
+  "unit-special-forces",
+  "unit-sappers",
+  "unit-light-artillery",
+  "unit-heavy-artillery",
+  "unit-self-propelled-artillery",
+  "unit-vtol-troop-airlift",
+  "unit-vtol-multipurpose-airlift",
+  "unit-vtol-heavy-lift",
+  "unit-mechanized-infantry",
+  "unit-light-battle-tank",
+  "unit-heavy-battle-tank",
+  "unit-super-heavy-tank",
+] as const;
+
+const foundationOrderIds = [
+  "order-advance",
+  "order-evasive",
+  "order-hold",
+  "order-rush",
+] as const;
+
+const foundationActionIds = [
+  "action-airdrop",
+  "action-attack",
+  "action-artillery-dig-in",
+  "action-bombardment",
+  "action-funnel",
+  "action-construct",
+  "action-crew-repair",
+  "action-deploy-platform",
+  "action-dig-in",
+  "action-first-aid",
+  "action-trench-upgrade",
+  "action-load-cargo",
+  "action-land",
+  "action-pack-platform",
+  "action-repair",
+  "action-transfer-supply",
+  "action-reload",
+  "action-rearm-aerospace",
+  "action-take-off",
+  "action-unload-cargo",
+  "action-place-delayed-charge-public-v1",
+  "action-detonate-delayed-charge-public-v1",
+  "action-sapper-construct-public-v1",
+  "action-reload-build-supply-public-v1",
+  "action-recruit-irregular-public-v1",
+  "action-abandon-guns-public-v1",
+  "action-replace-guns-public-v1",
+  "action-shield-wall-public-v1",
+  "action-mount-magnetic-clamps-public-v1",
+  "action-dismount-magnetic-clamps-public-v1",
+] as const;
+
+const implementationCorrections: Record<string, Partial<RuleImplementationOverlayV1> & { explanation: string }> = {
+  "UNIT:unit-combat-medic": {
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class", reasonCode: null,
+    parameters: {
+      implementedSubset: ["FS", "NON_COMBAT", "FIRST_AID", "MEDICAL_SUPPLY_CURRENT_FS", "SMALL_SUPPLY_RELOAD", "DIG_IN", "PERSISTENCE"],
+      missing: [],
+      excludedCompanionMechanics: ["MASH"],
+    },
+    explanation: "The selected V5 Combat Medic profile executes D6/current-FS-capped First Aid, exact Medical Supply consumption/refill, Dig In, persistence and reports. MASH belongs to the rejected companion profile under RC-UNIT-002 and is not a missing V5 class mechanic.",
+  },
+  "UNIT:unit-mechanized-infantry": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-mechanized-infantry-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-classes@1",
+      implementedSubset: ["HITS", "ARMOURED_VEHICLE", "AUTOCANNON", "FORWARD_LINE_CONTROL", "MIXED_INFANTRY_VEHICLE_EQUIPMENT", "SUBSYSTEMS", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Mechanized Infantry executes its armoured Hits chassis, D4 autocannon, mixed equipment exception, vehicle subsystem damage, occupied-objective Forward Line control, and Req 10 acquisition.",
+  },
+  "UNIT:unit-light-battle-tank": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-tanks-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-classes@1",
+      implementedSubset: ["HITS", "D4_AP2_RANGE2", "REAR_WEAK_SPOT", "SUBSYSTEMS", "HAT_CLEAR_AIRDROP", "HEAVY_LIFT", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Light Battle Tank executes its approved 3-Hit chassis, D4 AP2 cannon, rear weak spot, subsystem damage, clear HAT airdrop, Heavy Lift transport, and Req 10 acquisition.",
+  },
+  "UNIT:unit-heavy-battle-tank": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-tanks-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-classes@1",
+      implementedSubset: ["HITS", "D8_AP2_RANGE3", "REAR_WEAK_SPOT", "SUBSYSTEMS", "NO_HAT", "HEAVY_LIFT", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Heavy Battle Tank executes its approved 3-Hit chassis, D8 AP2 long cannon, rear weak spot, subsystem damage, Heavy-Lift-only air transport, and Req 14 acquisition.",
+  },
+  "UNIT:unit-super-heavy-tank": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-tanks-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-classes@1",
+      implementedSubset: ["HITS", "TWO_D8_AP5_RANGE3_PRIMARY_SHOTS", "REAR_WEAK_SPOT", "SUBSYSTEMS", "HEAVY_LIFT_ONLY", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Super Heavy Tank executes its approved 4-Hit chassis, two server-owned D8 AP5 shots in one Primary activation, rear weak spot, subsystem damage, Heavy Lift transport, and Req 20 acquisition.",
+  },
+  "UNIT:unit-power-armoured-infantry": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-power-armour-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-power-armoured-infantry@1",
+      implementedSubset: ["FORCE_STRENGTH", "ARMOR_TWO", "DIG_IN", "SHIELD_WALL", "MAGNETIC_CLAMPS", "HEAVY_DROP_POD", "BACK_LIGHT_LASER", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Power Armoured Infantry executes its armoured FS profile, Shield Wall, paired Magnetic Clamp ride lifecycle, Heavy Drop Pod insertion, persistent back-laser unlock, and Req 10 acquisition.",
+  },
+  "UNIT:unit-medium-mech": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-mechs-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "companion-v1-mechs@1",
+      implementedSubset: ["HITS", "FITTED_MULTIWEAPON", "SUPPLY_POINT_RELOAD", "LEG_HEIGHT_ONE", "CROUCH_COVER", "SUBSYSTEMS", "MAGNETIC_CLAMPS", "HEAVY_LIFT", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Medium Mech executes its approved 4-Hit chassis, fitted public-v1 weapon subset, Primary multiweapon fire, Supply Point reload, leg-height LOS, crouch cover, transport links, and Req 14 acquisition.",
+  },
+  "UNIT:unit-heavy-mech": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-mechs-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "companion-v1-mechs@1",
+      implementedSubset: ["HITS", "FITTED_MULTIWEAPON", "SUPPLY_POINT_RELOAD", "LEG_HEIGHT_ONE", "SUBSYSTEMS", "MAGNETIC_CLAMPS", "HEAVY_LIFT", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Heavy Mech executes its approved 5-Hit chassis, fitted public-v1 weapon subset, Primary multiweapon fire, Supply Point reload, leg-height LOS, transport links, and Req 18 acquisition.",
+  },
+  ...Object.fromEntries([
+    "equipment-mech-heavy-machine-weapon",
+    "equipment-mech-autocannon",
+    "equipment-mech-light-laser",
+    "equipment-mech-medium-laser",
+    "equipment-mech-large-laser",
+  ].map((id) => [`EQUIPMENT:${id}`, {
+    implementationStatus: "IMPLEMENTED" as const, requisitionStatus: "PUBLISHED" as const,
+    availabilityStatus: "AVAILABLE" as const, executable: true, purchasable: true,
+    handlerId: "equipment-mech-weapons-public-v1", reasonCode: null,
+    parameters: { applicationProfileId: "companion-v1-mechs@1", effect: "FITTED_MECH_WEAPON" },
+    explanation: "The Store weapon is materialized through the bounded public-v1 mech weapon conversion and fitted only to approved mech external slots.",
+  }])),
+  "EQUIPMENT:equipment-ballistic-shields": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "equipment-power-armour-public-v1", reasonCode: null,
+    parameters: { applicationProfileId: "public-v1-power-armoured-infantry@1", effect: "SHIELD_WALL" },
+    explanation: "Ballistic Shields grant the executable full-movement Shield Wall action to Power Armoured Infantry.",
+  },
+  "EQUIPMENT:equipment-mech-magnetic-clamps": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "equipment-power-armour-public-v1", reasonCode: null,
+    parameters: { applicationProfileId: "public-v1-power-armoured-infantry@1", effect: "MAGNETIC_CLAMP_CARRIER" },
+    explanation: "Magnetic Clamps execute the paired one-rider lifecycle on Medium and Heavy Mechs.",
+  },
+  "EQUIPMENT:equipment-power-armour-back-light-laser-public-v1": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "equipment-power-armour-public-v1", reasonCode: null,
+    parameters: { applicationProfileId: "public-v1-power-armoured-infantry@1", minimumCompletedMissions: 1 },
+    explanation: "The D4 back-mounted Light Laser becomes requisitionable for Req 1 after one completed mission and persists its heat/cooldown state.",
+  },
+  "UNIT:unit-irregular": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-irregular-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-irregular@1",
+      implementedSubset: ["FS", "QUARTER_DAMAGE", "RECRUITMENT", "PROGRESSION", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "The public-v1 Irregular profile executes quartered damage, Population Center recruitment, persistent progression authority, and Req 4 acquisition.",
+  },
+  "UNIT:unit-special-forces": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-special-forces-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-special-forces@1",
+      implementedSubset: ["FS", "QUIET_RIFLE", "INFANTRY_STEALTH", "DELAYED_CHARGE", "REQUISITION"],
+      missing: [],
+      economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "The approved public-v1 Special Forces profile executes stealth, its D4 quiet rifle, persistent delayed-charge placement/detonation, and Req 8 acquisition.",
+  },
+  "UNIT:unit-sappers": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-sappers-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-sappers@1",
+      implementedSubset: ["FS", "QUIET_CARBINE", "INFANTRY_STEALTH", "BUILD_SUPPLY", "PERSISTENT_PROJECTS", "MINES", "SENSOR_TOWER", "WEAPON_EMPLACEMENT", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "The public-v1 Sapper profile executes quiet construction, persistent projects, its bounded fieldworks/mines, separate Build Supply economy, and Req 6 acquisition.",
+  },
+  "UNIT:unit-light-artillery": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-artillery-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-artillery@1",
+      implementedSubset: ["FORCE_STRENGTH", "DEPLOY_PACK", "TWO_AREA_SHOTS", "SPLIT_TARGETS", "ABANDON_GUNS", "ONE_REPLACEMENT", "HAT_AIRDROP", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Light Artillery executes its fixed-damage two-shot area fire, platform state, abandonment/replacement lifecycle, HAT airdrop, and Req 8 acquisition.",
+  },
+  "UNIT:unit-heavy-artillery": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-artillery-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-artillery@1",
+      implementedSubset: ["FORCE_STRENGTH", "DEPLOY_PACK", "THREE_AREA_SHOTS", "SPLIT_TARGETS", "ABANDON_GUNS", "ONE_REPLACEMENT", "HAT_CARGO", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Heavy Artillery executes its fixed-damage three-shot area fire, platform state, abandonment/replacement lifecycle, HAT cargo, and Req 12 acquisition.",
+  },
+  "UNIT:unit-self-propelled-artillery": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-artillery-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-artillery@1",
+      implementedSubset: ["HITS", "ARMOURED", "AREA_FIRE", "MINIMUM_RANGE_TWO", "FIVE_FINITE_ROUNDS", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "Self-Propelled Artillery executes mobile D6 area fire at Range 2-4 with five finite rounds and Req 10 acquisition.",
+  },
+  "UNIT:unit-vtol-troop-airlift": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-vtol-transports-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-vtol-transports@1",
+      implementedSubset: ["HITS", "VTOL_FLIGHT", "ONE_SHOT_LIGHT_GUN", "TWO_INFANTRY_OR_SUPPLY", "RAPPEL_GARRISON", "LAND_TAKEOFF", "REARM", "CARRIER_LOSS", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "The companion Troop Airlift executes VTOL flight, its one-shot gun, two-Infantry-or-one-Supply cargo, route-bound authored-building rappel, carrier-loss adjudication, and Req 12 acquisition.",
+  },
+  "UNIT:unit-vtol-multipurpose-airlift": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-vtol-transports-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-vtol-transports@1",
+      implementedSubset: ["HITS", "VTOL_FLIGHT", "ONE_SHOT_LIGHT_GUN", "INFANTRY_OR_SUPPLY_PLUS_LIGHT_VEHICLE", "LAND_TAKEOFF", "REARM", "CARRIER_LOSS", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "The companion Multi-Purpose Airlift executes VTOL flight, its one-shot gun, simultaneous personnel-or-Supply plus Light Vehicle cargo, carrier-loss adjudication, and Req 12 acquisition.",
+  },
+  "UNIT:unit-vtol-heavy-lift": {
+    implementationStatus: "IMPLEMENTED", requisitionStatus: "PUBLISHED",
+    availabilityStatus: "AVAILABLE", executable: true, purchasable: true,
+    handlerId: "companion-vtol-transports-public-v1", reasonCode: null,
+    parameters: {
+      applicationProfileId: "public-v1-companion-vtol-transports@1",
+      implementedSubset: ["HITS", "VTOL_FLIGHT", "ONE_EXTERNAL_HEAVY_LOAD", "OBJECTIVE_CARGO", "SUPPLY_CARGO", "LAND_TAKEOFF", "CARRIER_LOSS", "REQUISITION"],
+      missing: [], economyPolicyId: "public-v1-companion-classes@1",
+    },
+    explanation: "The companion Heavy Lift executes its armoured VTOL chassis, one governed external heavy/objective/Supply load, carrier-loss adjudication, and Req 14 acquisition.",
+  },
+  "UNIT:unit-heavy-air-transport": {
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
+    parameters: {
+      implementedSubset: ["HITS", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "FIVE_SLOT_CARGO", "CLEAR_ROUTE_AIRDROP", "COORDINATED_SUPPLY_DROP", "LAND_TAKEOFF_STATE", "NO_GROUND_SPOTTING", "CARRIER_LOSS_ADJUDICATION"],
+      missing: [],
+      failClosed: ["HAZARDOUS_DROP_DESTINATION"],
+    },
+    explanation: "The V5 Heavy Air Transport executes its chassis, five-slot conversion table, flight, loading, clear route-bound Infantry/Light Vehicle drops, paired Logi Supply drops, landing state, no-ground spotting and carrier-loss adjudication. RC-V5-018 deliberately rejects hazardous destinations instead of inventing casualty results.",
+  },
+  "UNIT:unit-aerospace-bomber": {
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
+    parameters: {
+      implementedSubset: ["HITS", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "FLY_OVER_TARGETING", "ORDNANCE_AMMO_ONE", "LAND_TAKEOFF_STATE", "REARM_FACILITY", "NO_GROUND_SPOTTING"],
+      missing: [],
+    },
+    explanation: "The V5 Bomber sortie executes its chassis, one-shot D6 ordnance, terrain-independent flight, route-bound fly-over attack, friendly-airfield landing/takeoff, Primary rearm, and no-ground-spotting rule.",
+  },
+  "UNIT:unit-aerospace-fighter": {
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
+    parameters: {
+      implementedSubset: ["HITS", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "RAPID_FIRE", "EVASIVE", "FORWARD_180_ARC", "MAIN_AMMO_ONE", "LAND_TAKEOFF_STATE", "REARM_FACILITY", "INTERCEPTOR", "NO_GROUND_SPOTTING"],
+      missing: [],
+    },
+    explanation: "The V5 Fighter sortie executes its chassis, one-shot Snub-HMG, terrain-independent flight, Evasive order, travel-path forward arc, friendly-airfield landing/takeoff, Primary rearm, Aerospace Interceptor target restriction, and no-ground-spotting rule.",
+  },
+  "UNIT:unit-artillery": {
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
+    parameters: {
+      implementedSubset: ["FS", "MOVEMENT", "DEPLOY_PACK_STATE", "BOMBARDMENT", "FUNNEL", "TOWING"],
+      missing: [],
+      excludedByProfile: ["ANTI_ORBITAL"],
+    },
+    explanation: "The ground-tactical Artillery profile executes deploy/pack, Bombardment and the public-v1 whole-hex Funnel displacement. Anti-orbital fire is excluded from this profile under DEC-012 until orbital hull combat is activated; the unsupported experimental direct ground Attack is not advertised.",
+  },
+  "UNIT:unit-infantry-squad": {
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
+    parameters: {
+      implementedSubset: ["FS", "ATTACK", "MOVEMENT", "FACING", "DIG_IN", "TRENCH_UPGRADE", "GARRISON", "FLAK_VESTS", "LIGHT_AT"],
+      missing: [],
+    },
+    explanation: "V5 Dig In, Sandbag-to-Trench upgrade, movement-derived building garrison, Flak Vests, and Lightweight Anti-armour execute. Light AT spends one to three fitted charges at Range 1 to add the same amount of AP to the Infantry rifle's single attack die.",
+  },
+  "UNIT:unit-engineers": {
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
+    parameters: {
+      implementedSubset: ["FS", "MOVEMENT", "REPAIR_ACTION", "ARTILLERY_DIG_IN", "SANDBAG_LINE_CONSTRUCTION", "RAZOR_WIRE", "TANK_TRAPS", "RIVER_EDGE_BRIDGE"],
+      missing: [],
+    },
+    explanation: "Engineer Repair, deployed-Artillery Dig In, Sandbags, Razor Wire, Tank Traps and the Req-free two-Small-Supply river-edge Field Bridge execute and persist. Bridge durability remains non-attackable under the bounded public-v1 lifecycle.",
+  },
+  "UNIT:unit-infantry-fighting-vehicle": {
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
+    parameters: {
+      implementedSubset: ["HITS", "ARMOUR", "AP", "ATTACK", "MOVEMENT", "SUBSYSTEMS", "INFANTRY_CARGO", "CREW_REPAIR"],
+      missing: [],
+    },
+    explanation: "The V5 Infantry Fighting Vehicle is playable end to end: acquisition, deployment, Snub Auto-Cannon combat, six-FS infantry cargo, subsystem consequences, stationary Armor-exposed Crew Repair, persistence, replay, reports, AI response and visual presentation are active.",
+  },
+  "UNIT:unit-logi-truck": {
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
+    parameters: {
+      implementedSubset: ["HITS", "MOVEMENT", "TYPED_PARTIAL_SAME_RESOURCE_TRANSFER", "COORDINATED_AIRDROP", "SUPPLY_CARGO", "PASSENGER_CARGO", "ARTILLERY_TOWING", "CARRIER_LOSS_ADJUDICATION"],
+      missing: [],
+    },
+    explanation: "The generated tactical handler executes the V5 Logi chassis, typed capacity-bounded same-resource transfer, paired route-bound HAT Supply drop, unit/Supply cargo, packed Artillery towing and carrier-loss adjudication without resource aliasing.",
+  },
+  "UNIT:unit-light-vehicle": {
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
+    parameters: {
+      implementedSubset: ["HITS", "ATTACK", "MOVEMENT", "SUBSYSTEMS", "RAPID_FIRE", "EVASIVE", "PASSENGER_OR_SUPPLY_CARGO"],
+      missing: [],
+    },
+    explanation: "The V5 Light Vehicle is playable end to end: acquisition, deployment, Rapid Fire, Evasive movement, governed cargo, subsystem consequences, persistence, replay, reports, AI response and visual presentation are active; rejected companion slots remain catalogue provenance only.",
+  },
+  "UNIT:unit-light-mech": {
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
+    parameters: {
+      implementedSubset: ["HITS", "ARMOUR", "ATTACK", "MOVEMENT", "HOSTILE_PASSAGE", "SUBSYSTEMS", "EVASIVE"],
+      missing: [],
+    },
+    explanation: "The V5 Light Mech chassis, Light Laser Cannon, hostile-ground passage, subsystem failures, and Evasive movement execute through the generated tactical handler.",
+  },
+  "UNIT:unit-main-battle-tank": {
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
+    parameters: {
+      implementedSubset: ["HITS", "ARMOUR", "AP", "FACING", "REAR_ATTACK", "SUBSYSTEMS", "CREW_REPAIR"],
+      missing: [],
+    },
+    explanation: "The V5 Main Battle Tank is playable end to end: acquisition, deployment, facing and rear-arc armour loss, D6 AP-3 cannon combat, anti-armour target priority, subsystem consequences, stationary Armor-exposed Crew Repair, persistence, replay, reports, AI response and visual presentation are active.",
+  },
+  "UNIT:unit-vtol": {
+    implementationStatus: "IMPLEMENTED", executable: true, handlerId: "foundation-generated-unit-class",
+    reasonCode: null,
+    parameters: {
+      implementedSubset: ["HITS", "ARMOUR", "ATTACK", "AEROSPACE_MOVEMENT", "HOSTILE_PASSAGE", "LAND_TAKEOFF_STATE", "NO_GROUND_SPOTTING", "ALTERNATIVE_CARGO"],
+      missing: [],
+    },
+    explanation: "The generic V5 VTOL executes its chassis, nose gun, terrain-independent flight, hostile-ground passage, no-ground-spotting rule, and mutually exclusive infantry/Supply cargo; HAT and fixed-wing mechanics remain separate.",
+  },
+  "EQUIPMENT:equipment-drone-operator": {
+    implementationStatus: "PARTIAL", availabilityStatus: "BLOCKED", executable: false, purchasable: false, handlerId: null,
+    reasonCode: "MISSING_VISIBILITY_STATE_EFFECT",
+    explanation: "Deploy Drone currently emits an event/cooldown but does not apply its advertised visibility effect.",
+  },
+  "EQUIPMENT:equipment-vehicle-optics": {
+    implementationStatus: "PARTIAL", availabilityStatus: "BLOCKED", executable: false, purchasable: false, handlerId: null,
+    reasonCode: "UNAUTHORISED_SENSOR_MODIFIER_AND_MISSING_VISIBILITY_STATE_EFFECT",
+    explanation: "The passive sensor modifier is not source-authorised and Scan does not apply its advertised visibility effect.",
+  },
+};
+
+function buildHandlers(): RuleEngineHandlerV1[] {
+  return [
+    {
+      id: "foundation-generated-unit-class",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/tactical-unit-catalogue.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: [...foundationUnitIds],
+      },
+    },
+    {
+      id: "companion-tanks-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/companion-tanks.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-light-battle-tank", "unit-heavy-battle-tank", "unit-super-heavy-tank"],
+      },
+    },
+    {
+      id: "companion-mechanized-infantry-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/mechanized-infantry.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-mechanized-infantry"],
+      },
+    },
+    {
+      id: "companion-mechs-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/companion-mechs.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-medium-mech", "unit-heavy-mech"],
+      },
+    },
+    {
+      id: "companion-irregular-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/irregular-progression.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-irregular"],
+      },
+    },
+    {
+      id: "companion-power-armour-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/power-armoured-infantry.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-power-armoured-infantry"],
+      },
+    },
+    {
+      id: "companion-special-forces-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/special-forces.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: [...companionExecutableUnitIds],
+      },
+    },
+    {
+      id: "companion-sappers-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/sapper-construction.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-sappers"],
+      },
+    },
+    {
+      id: "companion-artillery-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/companion-artillery.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-light-artillery", "unit-heavy-artillery", "unit-self-propelled-artillery"],
+      },
+    },
+    {
+      id: "companion-vtol-transports-public-v1",
+      kind: "UNIT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/companion-vtol-transports.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["unit-vtol-troop-airlift", "unit-vtol-multipurpose-airlift", "unit-vtol-heavy-lift"],
+      },
+    },
+    {
+      id: "foundation-order-handler",
+      kind: "ORDER",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/catalogue.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: [...foundationOrderIds],
+      },
+    },
+    {
+      id: "foundation-action-handler",
+      kind: "ACTION",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/catalogue.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: [...foundationActionIds],
+      },
+    },
+    {
+      id: "foundation-fieldwork-handler",
+      kind: "STRUCTURE",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/fieldworks.ts",
+        resolverPath: "packages/rules-engine/src/resolver.ts",
+        definitionIds: ["structure-bridge", "structure-razor-wire", "structure-sandbag-line", "structure-tank-traps", "structure-trench"],
+      },
+    },
+    {
+      id: "equipment-effect-flak-vests",
+      kind: "EQUIPMENT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/equipment.ts",
+        definitionId: "equipment-flak-vests",
+        effectTypes: ["STAT_SET_IF"],
+      },
+    },
+    {
+      id: "equipment-effect-light-at",
+      kind: "EQUIPMENT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/light-at.ts",
+        definitionId: "equipment-light-at",
+        effectTypes: ["ATTACK_AP_MODIFIER", "AMMO_GRANT"],
+      },
+    },
+    {
+      id: "equipment-power-armour-public-v1",
+      kind: "EQUIPMENT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/power-armoured-infantry.ts",
+        definitionIds: ["equipment-ballistic-shields", "equipment-mech-magnetic-clamps", "equipment-power-armour-back-light-laser-public-v1"],
+      },
+    },
+    {
+      id: "equipment-mech-weapons-public-v1",
+      kind: "EQUIPMENT",
+      evidence: {
+        sourcePath: "packages/rules-engine/src/companion-mechs.ts",
+        definitionIds: ["equipment-mech-heavy-machine-weapon", "equipment-mech-autocannon", "equipment-mech-light-laser", "equipment-mech-medium-laser", "equipment-mech-large-laser"],
+      },
+    },
+  ];
+}
+
+function handlerForOverlay(kind: string, id: string): string | null {
+  if (kind === "UNIT" && foundationUnitIds.includes(id as (typeof foundationUnitIds)[number])) return "foundation-generated-unit-class";
+  if (kind === "UNIT" && id === "unit-irregular") return "companion-irregular-public-v1";
+  if (kind === "UNIT" && id === "unit-power-armoured-infantry") return "companion-power-armour-public-v1";
+  if (kind === "UNIT" && id === "unit-mechanized-infantry") return "companion-mechanized-infantry-public-v1";
+  if (kind === "UNIT" && ["unit-medium-mech", "unit-heavy-mech"].includes(id)) return "companion-mechs-public-v1";
+  if (kind === "UNIT" && ["unit-light-battle-tank", "unit-heavy-battle-tank", "unit-super-heavy-tank"].includes(id)) return "companion-tanks-public-v1";
+  if (kind === "UNIT" && id === "unit-special-forces") return "companion-special-forces-public-v1";
+  if (kind === "UNIT" && id === "unit-sappers") return "companion-sappers-public-v1";
+  if (kind === "UNIT" && ["unit-light-artillery", "unit-heavy-artillery", "unit-self-propelled-artillery"].includes(id)) return "companion-artillery-public-v1";
+  if (kind === "UNIT" && ["unit-vtol-troop-airlift", "unit-vtol-multipurpose-airlift", "unit-vtol-heavy-lift"].includes(id)) return "companion-vtol-transports-public-v1";
+  if (kind === "STRUCTURE" && ["structure-bridge", "structure-razor-wire", "structure-sandbag-line", "structure-tank-traps", "structure-trench"].includes(id)) return "foundation-fieldwork-handler";
+  if (kind === "EQUIPMENT" && id === "equipment-flak-vests") return "equipment-effect-flak-vests";
+  if (kind === "EQUIPMENT" && id === "equipment-light-at") return "equipment-effect-light-at";
+  if (kind === "EQUIPMENT" && ["equipment-ballistic-shields", "equipment-mech-magnetic-clamps", "equipment-power-armour-back-light-laser-public-v1"].includes(id)) return "equipment-power-armour-public-v1";
+  if (kind === "EQUIPMENT" && ["equipment-mech-heavy-machine-weapon", "equipment-mech-autocannon", "equipment-mech-light-laser", "equipment-mech-medium-laser", "equipment-mech-large-laser"].includes(id)) return "equipment-mech-weapons-public-v1";
+  return null;
+}
+
+function buildOverlays(snapshot: LegacyCatalogueSnapshot): RuleImplementationOverlayV1[] {
+  const seeded = snapshot.tables.ruleset_implementation_overlays.map((row) => {
+    const definitionKind = requiredString(row, "definition_kind") as RuleImplementationOverlayV1["definitionKind"];
+    const definitionId = requiredString(row, "definition_id");
+    const key = `${definitionKind}:${definitionId}`;
+    const seedOverlay = {
+      implementationStatus: requiredString(row, "implementation_status"),
+      requisitionStatus: requiredString(row, "requisition_status"),
+      availabilityStatus: requiredString(row, "availability_status"),
+      executable: row.executable === 1,
+      purchasable: row.purchasable === 1,
+      reasonCode: optionalString(row, "reason_code"),
+    };
+    const correction = implementationCorrections[key];
+    const base: RuleImplementationOverlayV1 = {
+      definitionKind,
+      definitionId,
+      implementationStatus: seedOverlay.implementationStatus as RuleImplementationOverlayV1["implementationStatus"],
+      requisitionStatus: seedOverlay.requisitionStatus as RuleImplementationOverlayV1["requisitionStatus"],
+      availabilityStatus: seedOverlay.availabilityStatus as RuleImplementationOverlayV1["availabilityStatus"],
+      executable: seedOverlay.executable,
+      purchasable: seedOverlay.purchasable,
+      handlerId: handlerForOverlay(definitionKind, definitionId),
+      reasonCode: seedOverlay.reasonCode,
+      sourcePath: requiredString(row, "source_path"),
+      sourceLocator: requiredString(row, "source_locator"),
+      parameters: jsonObject(row, "overlay_json"),
+    };
+    if (!correction) return base;
+    const { explanation, ...changes } = correction;
+    const publicEconomy = definitionKind === "UNIT" &&
+      foundationUnitIds.includes(definitionId as (typeof foundationUnitIds)[number])
+      ? {
+          requisitionStatus: "PUBLISHED" as const,
+          availabilityStatus: "AVAILABLE" as const,
+          purchasable: true,
+          reasonCode: null,
+        }
+      : {};
+    return {
+      ...base,
+      ...changes,
+      ...publicEconomy,
+      parameters: {
+        ...base.parameters,
+        ...(changes.parameters ?? {}),
+        publicationCorrection: {
+          reason: explanation,
+          seedOverlay,
+        },
+        ...(definitionKind === "UNIT" && foundationUnitIds.includes(definitionId as (typeof foundationUnitIds)[number])
+          ? { economyPolicyId: "public-v1-economy@1" }
+          : definitionKind === "UNIT" && companionExecutableUnitIds.includes(definitionId as (typeof companionExecutableUnitIds)[number])
+            ? { economyPolicyId: "public-v1-companion-classes@1" }
+            : {}),
+      },
+    };
+  });
+  const foundationGrammar: RuleImplementationOverlayV1[] = [
+    ...foundationOrderIds.map((definitionId): RuleImplementationOverlayV1 => ({
+      definitionKind: "ORDER",
+      definitionId,
+      implementationStatus: "PARTIAL",
+      requisitionStatus: "NOT_APPLICABLE",
+      availabilityStatus: "AVAILABLE",
+      executable: true,
+      purchasable: false,
+      handlerId: "foundation-order-handler",
+      reasonCode: "FOUNDATION_PARTIAL_HANDLER",
+      sourcePath: "packages/rules-engine/src/catalogue.ts",
+      sourceLocator: "orderTypes",
+      parameters: {
+        runtimeEvidence: "Existing deterministic resolver grammar; later mechanics remain separately gated.",
+      },
+    })),
+    ...foundationActionIds.map((definitionId): RuleImplementationOverlayV1 => ({
+      definitionKind: "ACTION",
+      definitionId,
+      implementationStatus: "PARTIAL",
+      requisitionStatus: "NOT_APPLICABLE",
+      availabilityStatus: "AVAILABLE",
+      executable: true,
+      purchasable: false,
+      handlerId: "foundation-action-handler",
+      reasonCode: "FOUNDATION_PARTIAL_HANDLER",
+      sourcePath: "packages/rules-engine/src/catalogue.ts",
+      sourceLocator: "actionProfiles",
+      parameters: {
+        runtimeEvidence: "Existing deterministic resolver grammar; visibility-only no-op actions are excluded.",
+      },
+    })),
+  ];
+  return [...seeded, ...foundationGrammar].sort((left, right) =>
+    compareUnicodeCodePoints(left.definitionKind, right.definitionKind)
+      || compareUnicodeCodePoints(left.definitionId, right.definitionId),
+  );
+}
+
+function relationSource(row: JsonObject): Pick<RuleRelationRecordV1, "sourceId" | "sourcePath" | "sourceLocator"> {
+  if (typeof row.source_path !== "string") return { sourceId: null, sourcePath: null, sourceLocator: null };
+  return definitionSource(row.source_path, typeof row.source_locator === "string" ? row.source_locator : null);
+}
+
+function endpoint(definitionKind: RuleDefinitionKindV1, definitionId: string): RuleRelationEndpointV1 {
+  return { definitionKind, definitionId };
+}
+
+function relation(
+  id: string,
+  kind: RuleRelationRecordV1["kind"],
+  from: RuleRelationEndpointV1,
+  to: RuleRelationEndpointV1 | null,
+  ordinal: number | null,
+  row: JsonObject,
+  sourcedNumbers: Record<string, RuleNullableNumberV1>,
+  parameters: JsonObject,
+): RuleRelationRecordV1 {
+  return { id, kind, from, to, ordinal, ...relationSource(row), sourcedNumbers, parameters };
+}
+
+function actionDefinitionId(action: JsonValue): string | undefined {
+  if (typeof action !== "string") return undefined;
+  if (action === "LOAD") return "action-load-cargo";
+  if (action === "UNLOAD") return "action-unload-cargo";
+  return `action-${action.toLowerCase().replaceAll("_", "-")}`;
+}
+
+function buildRelations(snapshot: LegacyCatalogueSnapshot): RulesCatalogueContentV1["relations"] {
+  const profileKinds = [
+    ["movement_profile_id", "MOVEMENT_PROFILE", "movement"],
+    ["durability_profile_id", "DURABILITY_PROFILE", "durability"],
+    ["cargo_profile_id", "CARGO_PROFILE", "cargo"],
+    ["supply_profile_id", "SUPPLY_PROFILE", "supply"],
+    ["deployment_profile_id", "DEPLOYMENT_PROFILE", "deployment"],
+  ] as const;
+  const unitProfiles = snapshot.tables.unit_definition_profiles.flatMap((row) => profileKinds.flatMap(([field, kind, suffix]) => {
+    const profileId = row[field];
+    if (typeof profileId !== "string") return [];
+    const unitId = requiredString(row, "unit_definition_id");
+    return [relation(
+      `unit-profile:${unitId}:${suffix}`,
+      "UNIT_PROFILE",
+      endpoint("UNIT", unitId),
+      endpoint(kind, profileId),
+      null,
+      row,
+      {},
+      { profile: jsonObject(row, "profile_json"), profileRole: suffix },
+    )];
+  }));
+  const unitTags = snapshot.tables.unit_definition_tags.map((row) => {
+    const unitId = requiredString(row, "unit_definition_id");
+    const tagId = requiredString(row, "tag_id");
+    return relation(`unit-tag:${unitId}:${tagId}`, "UNIT_TAG", endpoint("UNIT", unitId), endpoint("TAG", tagId), null, row, {}, {});
+  });
+  const unitAbilities = snapshot.tables.unit_definition_abilities.map((row) => {
+    const unitId = requiredString(row, "unit_definition_id");
+    const abilityId = requiredString(row, "ability_id");
+    const sourceKind = requiredString(row, "source_kind");
+    return relation(`unit-ability:${unitId}:${abilityId}:${sourceKind.toLowerCase()}`, "UNIT_ABILITY", endpoint("UNIT", unitId), endpoint("ABILITY", abilityId), null, row, {}, { sourceKind });
+  });
+  const unitWeapons = snapshot.tables.unit_definition_weapons.map((row) => {
+    const unitId = requiredString(row, "unit_definition_id");
+    const weaponId = requiredString(row, "weapon_definition_id");
+    const mountRole = requiredString(row, "mount_role");
+    const mountIndex = requiredNumber(row, "mount_index");
+    return relation(`unit-weapon:${unitId}:${mountRole.toLowerCase()}:${mountIndex}`, "UNIT_WEAPON", endpoint("UNIT", unitId), endpoint("WEAPON", weaponId), mountIndex, row, {}, { mountRole, state: jsonObject(row, "state_json") });
+  });
+  const unitEquipmentSlots = snapshot.tables.unit_equipment_slot_definitions.map((row) => {
+    const unitId = requiredString(row, "unit_definition_id");
+    const slotType = requiredString(row, "slot_type");
+    return relation(`unit-equipment-slot:${unitId}:${slotType.toLowerCase()}`, "UNIT_EQUIPMENT_SLOT", endpoint("UNIT", unitId), null, null, row, { slotCount: published(requiredNumber(row, "slot_count")) }, { slotType, eligibility: jsonObject(row, "eligibility_json") });
+  });
+  const equipmentEligibility = snapshot.tables.equipment_eligibility_rules.map((row) => {
+    const equipmentId = requiredString(row, "equipment_definition_id");
+    return relation(`equipment-eligibility:${equipmentId}`, "EQUIPMENT_ELIGIBILITY", endpoint("EQUIPMENT", equipmentId), null, null, row, {
+      maximumEquipped: nullableNumber(optionalNumber(row, "maximum_equipped"), "NOT_APPLICABLE"),
+    }, {
+      requiredTagsAll: row.required_tags_all_json!,
+      requiredTagsAny: row.required_tags_any_json!,
+      forbiddenTags: row.forbidden_tags_json!,
+      allowedUnitDefinitions: row.allowed_unit_definitions_json!,
+      slotTypes: row.slot_types_json!,
+      rule: jsonObject(row, "rule_json"),
+    });
+  });
+  const equipmentEffects = snapshot.tables.equipment_effect_definitions.map((row) => {
+    const equipmentId = requiredString(row, "equipment_definition_id");
+    const effectIndex = requiredNumber(row, "effect_index");
+    const effect = jsonObject(row, "effect_json");
+    let to: RuleRelationEndpointV1 | null = null;
+    if (typeof effect.weaponId === "string") to = endpoint("WEAPON", effect.weaponId);
+    else if (typeof effect.abilityId === "string") to = endpoint("ABILITY", effect.abilityId);
+    else {
+      const actionId = actionDefinitionId(effect.action);
+      if (actionId) to = endpoint("ACTION", actionId);
+    }
+    return relation(`equipment-effect:${equipmentId}:${effectIndex}`, "EQUIPMENT_EFFECT", endpoint("EQUIPMENT", equipmentId), to, effectIndex, row, {}, {
+      effectType: requiredString(row, "effect_type"), effect,
+    });
+  });
+  const shipModuleCapabilityGrants = snapshot.tables.ship_module_capability_grants.map((row) => {
+    const equipmentId = requiredString(row, "equipment_definition_id");
+    const capabilityId = requiredString(row, "capability_id");
+    return relation(`ship-module-capability:${equipmentId}:${capabilityId}`, "SHIP_MODULE_CAPABILITY_GRANT", endpoint("EQUIPMENT", equipmentId), endpoint("SHIP_CAPABILITY", capabilityId), null, row, {
+      capacityDelta: published(requiredNumber(row, "capacity_delta")),
+    }, { grant: jsonObject(row, "grant_json") });
+  });
+  return { unitProfiles, unitTags, unitAbilities, unitWeapons, unitEquipmentSlots, equipmentEligibility, equipmentEffects, shipModuleCapabilityGrants };
+}
+
+function buildSources(snapshot: LegacyCatalogueSnapshot): RuleSourceV1[] {
+  return snapshot.tables.ruleset_sources.map((row) => ({
+    id: requiredString(row, "id"),
+    path: requiredString(row, "source_path"),
+    sha256: optionalString(row, "source_sha256"),
+    authorityRank: requiredNumber(row, "authority_rank"),
+    status: requiredString(row, "source_status") as RuleSourceV1["status"],
+    notes: typeof row.notes === "string" ? row.notes : "",
+  }));
+}
+
+export async function buildCanonicalCatalogueEnvelope(root = repositoryRoot): Promise<RulesCatalogueEnvelopeV1> {
+  const [snapshot, canonicalConflicts] = await Promise.all([
+    readLegacyCatalogueSnapshot(root),
+    readCanonicalConflictRegister(root),
+  ]);
+  const topLevelDefinitionCount = legacyTopLevelDefinitionCount(snapshot);
+  if (topLevelDefinitionCount !== 226) throw new Error(`The final seed snapshot must contain exactly 226 top-level definitions; received ${topLevelDefinitionCount}.`);
+  if (canonicalConflicts.length !== 72) throw new Error("The canonical conflict register must contain exactly 72 records.");
+  const sourceMismatches = await legacySourceHashMismatches(snapshot, root);
+  if (sourceMismatches.length > 0) throw new Error(`Rules source hashes drifted: ${canonicalJson(sourceMismatches)}`);
+  const canonicalConflictIds = new Set(canonicalConflicts.map((conflict) => conflict.id));
+  const missingConflicts = referencedConflictIds(snapshot).filter((id) => !canonicalConflictIds.has(id));
+  if (missingConflicts.length > 0) throw new Error(`Seeded conflict references are absent from the canonical register: ${missingConflicts.join(", ")}.`);
+
+  const ruleset = snapshot.tables.rulesets[0];
+  if (!ruleset) throw new Error("The final seed snapshot has no ruleset row.");
+  const split = legacyUnitPublicationSplit(snapshot);
+  const groups = buildDefinitionGroups(snapshot);
+  const content: RulesCatalogueContentV1 = {
+    schemaVersion: RULES_CATALOGUE_SCHEMA_VERSION,
+    ruleset: {
+      id: publishedRulesetId,
+      version: publishedRulesetVersion,
+      name: requiredString(ruleset, "name"),
+      engineVersion: requiredString(ruleset, "engine_version"),
+      authorityNotes: requiredString(ruleset, "authority_notes"),
+    },
+    sources: buildSources(snapshot),
+    conflicts: buildConflicts(snapshot, canonicalConflicts),
+    canonicalUnitIds: split.canonicalUnitIds,
+    companionUnitIds: split.companionUnitIds,
+    units: groups.units,
+    weapons: groups.weapons,
+    equipment: groups.equipment,
+    actions: groups.actions,
+    orders: groups.orders,
+    structures: groups.structures,
+    terrain: groups.terrain,
+    ships: groups.ships,
+    enemies: groups.enemies,
+    movementProfiles: groups.movementProfiles,
+    durabilityProfiles: groups.durabilityProfiles,
+    cargoProfiles: groups.cargoProfiles,
+    supplyProfiles: groups.supplyProfiles,
+    deploymentProfiles: groups.deploymentProfiles,
+    deploymentMethods: groups.deploymentMethods,
+    tags: groups.tags,
+    abilities: groups.abilities,
+    statusEffects: groups.statusEffects,
+    shipCapabilities: groups.shipCapabilities,
+    handlers: buildHandlers(),
+    overlays: buildOverlays(snapshot),
+    relations: buildRelations(snapshot),
+  };
+  const registeredHandlers = new Set(content.handlers.map((handler) => `${handler.kind}:${handler.id}`));
+  const missingExecutableHandlers = content.overlays
+    .filter((overlay) => overlay.executable && (overlay.handlerId === null || !registeredHandlers.has(`${overlay.definitionKind}:${overlay.handlerId}`)))
+    .map((overlay) => `${overlay.definitionKind}:${overlay.definitionId}:${overlay.handlerId ?? "NONE"}`);
+  if (missingExecutableHandlers.length) throw new Error(`Executable overlays missing handlers: ${missingExecutableHandlers.join(", ")}`);
+  return createRulesCatalogueEnvelope(content);
+}
+
+async function bootstrapLegacySnapshot(destination: string): Promise<void> {
+  const snapshot = await readLegacyCatalogueSnapshot();
+  const topLevelDefinitions = legacyTopLevelDefinitionCount(snapshot);
+  if (topLevelDefinitions !== 226) {
+    throw new Error(`Expected 226 final seeded top-level definitions; received ${topLevelDefinitions}.`);
+  }
+  await writeFile(destination, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
+  console.log(`Bootstrapped ${topLevelDefinitions} definitions to ${relative(repositoryRoot, destination)}.`);
+}
+
+export function renderGeneratedCatalogueModule(envelope: RulesCatalogueEnvelopeV1): string {
+  return `/* This file is generated by scripts/generate-rules-catalogue.ts. Do not edit. */
+import type { RulesCatalogueEnvelopeV1 } from "../../../domain/src/rules-catalogue-contract";
+
+export type DeepReadonly<T> =
+  T extends (...args: never[]) => unknown ? T :
+  T extends readonly unknown[] ? { readonly [K in keyof T]: DeepReadonly<T[K]> } :
+  T extends object ? { readonly [K in keyof T]: DeepReadonly<T[K]> } :
+  T;
+
+function deepFreeze<T>(value: T): DeepReadonly<T> {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child);
+    Object.freeze(value);
+  }
+  return value as DeepReadonly<T>;
+}
+
+const snapshot = ${JSON.stringify(envelope, null, 2)} as const satisfies RulesCatalogueEnvelopeV1;
+
+export const V5_CORE_CURATED_2_CATALOGUE = deepFreeze(snapshot);
+export const V5_CORE_CURATED_2_CONTENT_HASH = ${JSON.stringify(envelope.contentHash)} as const;
+export const V5_CORE_CURATED_2_RULESET_VERSION = ${JSON.stringify(envelope.content.ruleset.version)} as const;
+`;
+}
+
+async function readCanonicalEnvelope(): Promise<RulesCatalogueEnvelopeV1> {
+  const source = JSON.parse(await readFile(canonicalCataloguePath, "utf8"));
+  return parseRulesCatalogueEnvelope(source);
+}
+
+async function writeGeneratedModule(envelope: RulesCatalogueEnvelopeV1): Promise<void> {
+  await mkdir(dirname(generatedCataloguePath), { recursive: true });
+  await writeFile(generatedCataloguePath, renderGeneratedCatalogueModule(envelope), "utf8");
+}
+
+async function bootstrapCanonicalCatalogue(): Promise<void> {
+  const envelope = await buildCanonicalCatalogueEnvelope();
+  await mkdir(dirname(canonicalCataloguePath), { recursive: true });
+  await writeFile(canonicalCataloguePath, `${JSON.stringify(envelope, null, 2)}\n`, "utf8");
+  await writeGeneratedModule(envelope);
+  console.log(`Published ${envelope.content.ruleset.version} (${envelope.contentHash}) to ${relative(repositoryRoot, canonicalCataloguePath)}.`);
+}
+
+async function generateFromCanonicalCatalogue(): Promise<void> {
+  const envelope = await readCanonicalEnvelope();
+  await writeGeneratedModule(envelope);
+  console.log(`Generated ${relative(repositoryRoot, generatedCataloguePath)} from ${envelope.content.ruleset.version}.`);
+}
+
+async function checkCanonicalCatalogue(): Promise<void> {
+  const [canonical, rebuilt] = await Promise.all([
+    readCanonicalEnvelope(),
+    buildCanonicalCatalogueEnvelope(),
+  ]);
+  if (canonicalJson(canonical) !== canonicalJson(rebuilt)) {
+    throw new Error("Canonical catalogue drifted from its source rules, conflict register, or final production seed state. Run the deliberate --bootstrap publication flow and review the diff.");
+  }
+  const expectedGenerated = renderGeneratedCatalogueModule(canonical);
+  let actualGenerated: string;
+  try {
+    actualGenerated = await readFile(generatedCataloguePath, "utf8");
+  } catch {
+    throw new Error(`Generated catalogue is missing: ${relative(repositoryRoot, generatedCataloguePath)}.`);
+  }
+  if (actualGenerated !== expectedGenerated) {
+    throw new Error("Generated TypeScript catalogue drifted from the canonical JSON. Run npm run catalogue:generate.");
+  }
+  console.log(`Catalogue check passed: ${canonical.content.ruleset.version} ${canonical.contentHash}.`);
+}
+
+async function main(): Promise<void> {
+  const { values } = parseArgs({
+    options: {
+      "bootstrap-legacy": { type: "string" },
+      bootstrap: { type: "boolean" },
+      write: { type: "boolean" },
+      check: { type: "boolean" },
+    },
+    strict: true,
+  });
+  if (values["bootstrap-legacy"]) {
+    await bootstrapLegacySnapshot(resolve(repositoryRoot, values["bootstrap-legacy"]));
+    return;
+  }
+  const operations = [values.bootstrap, values.write, values.check].filter(Boolean).length;
+  if (operations !== 1) throw new Error("Choose exactly one of --bootstrap, --write, or --check.");
+  if (values.bootstrap) await bootstrapCanonicalCatalogue();
+  else if (values.write) await generateFromCanonicalCatalogue();
+  else await checkCanonicalCatalogue();
+}
+
+const invokedPath = process.argv[1] ? resolve(process.argv[1]) : undefined;
+if (invokedPath === fileURLToPath(import.meta.url)) {
+  await main().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}

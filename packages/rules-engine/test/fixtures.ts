@@ -40,7 +40,7 @@ export function makeHex(
     blocksLineOfSight: false,
     lineOfSightModifier: 0,
     capacity: 3,
-    edges: { rivers: [], roads: [] },
+    edges: { rivers: [], roads: [], bridges: [] },
     structureIds: [],
     control: "NEUTRAL",
     environment: [],
@@ -53,6 +53,9 @@ export function makeHex(
     edges: {
       rivers: overrides.edges?.rivers ?? [],
       roads: overrides.edges?.roads ?? [],
+      bridges: overrides.edges?.bridges ?? [],
+      ...(overrides.edges?.paths ? { paths: overrides.edges.paths } : {}),
+      ...(overrides.edges?.walls ? { walls: overrides.edges.walls } : {}),
     },
   };
 }

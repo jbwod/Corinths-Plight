@@ -20,6 +20,10 @@ export type CampaignAccessDecision =
   | { allowed: true; viewer: ViewerContext }
   | { allowed: false; reason: "NOT_FOUND" | "FORBIDDEN" | "ROLE_UNSUPPORTED" };
 
+export type GameMasterAccessDecision =
+  | { allowed: true; userId: string; source: "GLOBAL_GRANT" | "DEVELOPMENT_DEMO" }
+  | { allowed: false; userId: string };
+
 export const LOCAL_DEMO_CAMPAIGN_ID = "outpost-k17";
 const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
 const knownEnvironments = new Set(["development", "preview", "production"]);
@@ -68,6 +72,15 @@ export function requestIsExplicitlyCrossOrigin(request: Request): boolean {
   return request.headers.get("sec-fetch-site")?.toLowerCase() === "cross-site";
 }
 
+export function requestIsEmailVerificationNavigation(request: Request): boolean {
+  if (request.method.toUpperCase() !== "GET" || request.headers.has("origin")) return false;
+  if (new URL(request.url).pathname !== "/api/auth/verify") return false;
+  return (
+    request.headers.get("sec-fetch-mode")?.toLowerCase() === "navigate" &&
+    request.headers.get("sec-fetch-dest")?.toLowerCase() === "document"
+  );
+}
+
 export async function authenticate(request: Request, env: Env): Promise<AuthenticatedIdentity | null> {
   // Browsers cannot attach custom headers to a WebSocket handshake. The query
   // fallback is available only in an explicitly opted-in local environment.
@@ -114,8 +127,7 @@ export function campaignAccessFromRow(
   if (!row) return { allowed: false, reason: "NOT_FOUND" };
   if (!row.role || !row.side) return { allowed: false, reason: "FORBIDDEN" };
 
-  if (row.role === "OBSERVER") return { allowed: false, reason: "ROLE_UNSUPPORTED" };
-  if (row.role !== "PLAYER" && row.role !== "BATTALION_COMMAND" && row.role !== "GM") {
+  if (!campaignRoleHasRuntimeAccess(row.role)) {
     return { allowed: false, reason: "ROLE_UNSUPPORTED" };
   }
   if (row.side !== "ALLIED" && row.side !== "ENEMY" && !(row.side === "NEUTRAL" && row.role === "GM")) {
@@ -133,16 +145,19 @@ export function campaignAccessFromRow(
   };
 }
 
+export function campaignRoleHasRuntimeAccess(
+  role: string,
+): role is "PLAYER" | "BATTALION_COMMAND" | "GM" {
+  return role === "PLAYER" || role === "BATTALION_COMMAND" || role === "GM";
+}
+
 export async function authorizeCampaign(
   identity: AuthenticatedIdentity,
   campaignId: string,
   env: Env,
 ): Promise<CampaignAccessDecision> {
-  if (identity.kind === "DEMO") {
-    return demoAuthEnabled(env) && campaignId === LOCAL_DEMO_CAMPAIGN_ID
-      ? { allowed: true, viewer: identity.viewer }
-      : { allowed: false, reason: "NOT_FOUND" };
-  }
+  if (identity.kind === "DEMO" && !demoAuthEnabled(env)) return { allowed: false, reason: "NOT_FOUND" };
+  const userId = identity.kind === "DEMO" ? identity.viewer.userId : identity.userId;
 
   const row = await env.DB.prepare(
     `SELECT c.id AS campaign_id, m.side, m.role, m.battalion_id
@@ -150,12 +165,33 @@ export async function authorizeCampaign(
        LEFT JOIN campaign_memberships m
          ON m.campaign_id = c.id AND m.user_id = ?2
       WHERE c.id = ?1
-        AND c.status IN ('ACTIVE', 'PAUSED', 'COMPLETE', 'FAILED')
+        AND c.status IN ('RECRUITING', 'ACTIVE', 'PAUSED', 'COMPLETE', 'FAILED')
       LIMIT 1`,
   )
-    .bind(campaignId, identity.userId)
+    .bind(campaignId, userId)
     .first<CampaignMembershipRow>();
-  return campaignAccessFromRow(identity.userId, row);
+  return campaignAccessFromRow(userId, row);
+}
+
+export async function authorizeGameMaster(
+  identity: AuthenticatedIdentity,
+  env: Env,
+): Promise<GameMasterAccessDecision> {
+  if (identity.kind === "DEMO") {
+    return demoAuthEnabled(env) && identity.viewer.role === "ADMIN"
+      ? { allowed: true, userId: identity.viewer.userId, source: "DEVELOPMENT_DEMO" }
+      : { allowed: false, userId: identity.viewer.userId };
+  }
+  const grant = await env.DB.prepare(`SELECT grants.user_id
+      FROM game_master_grants AS grants
+      JOIN users ON users.id=grants.user_id AND users.status='ACTIVE'
+      WHERE grants.user_id=?1 AND grants.status='ACTIVE'
+      LIMIT 1`)
+    .bind(identity.userId)
+    .first<{ user_id: string }>();
+  return grant
+    ? { allowed: true, userId: identity.userId, source: "GLOBAL_GRANT" }
+    : { allowed: false, userId: identity.userId };
 }
 
 export function internalViewerHeaders(viewer: ViewerContext): Headers {

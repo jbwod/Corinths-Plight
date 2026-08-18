@@ -14,6 +14,7 @@ The current slice includes:
 - pure seeded TypeScript rules engine with replay-stable movement and simultaneous combat
 - campaign-scoped Durable Object state, alarms, accelerated clock presets, and hibernating WebSockets
 - versioned D1 schema and idempotent `v5-core-curated@1` seed catalogue
+- Phase 2 persistent Forces registry with combined-arms profiles, owner-scoped inspection, requisition/rename receipts, ship-aware readiness, and a responsive Forces screen
 - viewer-specific battlefield/event projection and local-only demo authentication
 - V1 audit, rule conflict catalogue, data model, resolution protocol, and Cloudflare ADRs
 
@@ -25,12 +26,12 @@ Requirements: a current Node.js release and npm.
 
 ```bash
 npm install
-npm run db:migrate:local
-npm run db:seed:local
+npm run db:sync:local
+npm run db:seed:demo:local
 npm run dev
 ```
 
-The development configuration enables the explicit `demo-user` identity and uses a five-minute round with a thirty-second lock lead. Production configuration disables demo authentication and defaults to a 24-hour round.
+`db:sync:local` applies every schema migration before refreshing the idempotent rules, unit, equipment, and onboarding catalogues. Use it after pulling migration or catalogue changes so requisition authority cannot remain on stale `CATALOGUE_ONLY` or `PARTIAL` overlays. The development configuration enables the explicit `demo-user` identity and uses a five-minute round with a thirty-second lock lead. The separate demo seed creates the local Operation Iron Rain roster and must never be applied to production. Production configuration disables demo authentication and defaults to a 24-hour round.
 
 ## Verify
 
@@ -43,7 +44,7 @@ npm run build
 npm run build:production
 ```
 
-Remote migration/deployment requires a provisioned Cloudflare D1 database, an authenticated Wrangler session, and replacement of the documented placeholder database ID. After that, run `npm run deploy:dry` and `npm run deploy`. The production scripts always select the production Wrangler environment.
+Production is deployed at [corinthplight.qnetica.com.au](https://corinthplight.qnetica.com.au), with the `workers.dev` route retained as a fallback. Later releases should run `npm run deploy:dry` before `npm run deploy`; both scripts select the production Wrangler environment and its provisioned D1 binding.
 
 ## Repository map
 

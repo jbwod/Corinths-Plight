@@ -1,9 +1,9 @@
-import { allDefinitions } from "../packages/rules-engine/src";
 import {
   authConfigurationIsSafe,
   authenticate,
   authorizeCampaign,
   internalViewerHeaders,
+  requestIsEmailVerificationNavigation,
   requestIsExplicitlyCrossOrigin,
   requestIsSameOrigin,
   requestRequiresSameOrigin,
@@ -11,15 +11,28 @@ import {
 import { CampaignDurableObject } from "./campaign-durable-object";
 import type { Env } from "./env";
 import { errorResponse, json } from "./http";
+import { routeForcesRequest } from "./routes/forces";
+import { routeBattlegroupRequest } from "./routes/battlegroups";
+import { routeBattalionAdminRequest } from "./routes/battalion-admin";
+import { routeAuthRequest } from "./routes/auth";
+import { routeDeploymentRequest } from "./routes/deployment";
+import { routeCampaignDirectoryRequest } from "./routes/campaigns";
+import { routeOnboardingRequest } from "./routes/onboarding";
+import { routeShipAdminRequest } from "./routes/ship-admin";
+import { routeStrategicRequest } from "./routes/strategic";
+import { routeGameMasterRequest } from "./routes/game-master";
+import { rulesCatalogueResponse } from "./rules-catalogue";
+import { scheduleSecurityMaintenance } from "./security-maintenance";
+import { StrategicMapDurableObject } from "./strategic-map-durable-object";
 
-export { CampaignDurableObject };
+export { CampaignDurableObject, StrategicMapDurableObject };
 
 const campaignPath = /^\/api\/campaigns\/([a-z0-9][a-z0-9-]{0,63})(\/.*)?$/;
 
 function withSecurityHeaders(response: Response, requestId: string): Response {
   const headers = new Headers(response.headers);
   headers.set("x-content-type-options", "nosniff");
-  headers.set("referrer-policy", "strict-origin-when-cross-origin");
+  if (!headers.has("referrer-policy")) headers.set("referrer-policy", "strict-origin-when-cross-origin");
   headers.set("permissions-policy", "camera=(), microphone=(), geolocation=()");
   headers.set("cross-origin-opener-policy", "same-origin");
   headers.set("x-frame-options", "DENY");
@@ -33,7 +46,7 @@ function withSecurityHeaders(response: Response, requestId: string): Response {
   });
 }
 
-async function route(request: Request, env: Env, requestId: string): Promise<Response> {
+async function route(request: Request, env: Env, requestId: string, context: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   if (!authConfigurationIsSafe(env)) {
     return errorResponse(503, "AUTH_CONFIGURATION_UNSAFE", "Authentication configuration is not safe to serve requests.");
@@ -41,7 +54,7 @@ async function route(request: Request, env: Env, requestId: string): Promise<Res
   if (requestRequiresSameOrigin(request) && !requestIsSameOrigin(request)) {
     return errorResponse(403, "SAME_ORIGIN_REQUIRED", "This operation requires a same-origin request.");
   }
-  if (requestIsExplicitlyCrossOrigin(request)) {
+  if (requestIsExplicitlyCrossOrigin(request) && !requestIsEmailVerificationNavigation(request)) {
     return errorResponse(403, "CROSS_ORIGIN_FORBIDDEN", "Cross-origin API access is not permitted.");
   }
   if (url.pathname === "/api/health" && request.method === "GET") {
@@ -54,18 +67,38 @@ async function route(request: Request, env: Env, requestId: string): Promise<Res
     });
   }
   if (url.pathname === "/api/rulesets/v5-core-curated" && request.method === "GET") {
-    return json({
-      id: "v5-core-curated",
-      version: "v5-core-curated@1",
-      status: "active",
-      definitions: allDefinitions,
-      summary: {
-        active: allDefinitions.filter((definition) => definition.status === "active").length,
-        experimental: allDefinitions.filter((definition) => definition.status === "experimental").length,
-        legacy: allDefinitions.filter((definition) => definition.status === "legacy").length,
-      },
-    });
+    return rulesCatalogueResponse();
   }
+
+  const authResponse = await routeAuthRequest(request, env);
+  if (authResponse) return authResponse;
+
+  const onboardingResponse = await routeOnboardingRequest(request, env, context);
+  if (onboardingResponse) return onboardingResponse;
+
+  const forcesResponse = await routeForcesRequest(request, env);
+  if (forcesResponse) return forcesResponse;
+
+  const battlegroupResponse = await routeBattlegroupRequest(request, env);
+  if (battlegroupResponse) return battlegroupResponse;
+
+  const battalionAdminResponse = await routeBattalionAdminRequest(request, env);
+  if (battalionAdminResponse) return battalionAdminResponse;
+
+  const shipAdminResponse = await routeShipAdminRequest(request, env);
+  if (shipAdminResponse) return shipAdminResponse;
+
+  const deploymentResponse = await routeDeploymentRequest(request, env);
+  if (deploymentResponse) return deploymentResponse;
+
+  const campaignDirectoryResponse = await routeCampaignDirectoryRequest(request, env);
+  if (campaignDirectoryResponse) return campaignDirectoryResponse;
+
+  const strategicResponse = await routeStrategicRequest(request, env);
+  if (strategicResponse) return strategicResponse;
+
+  const gameMasterResponse = await routeGameMasterRequest(request, env);
+  if (gameMasterResponse) return gameMasterResponse;
 
   const match = url.pathname.match(campaignPath);
   if (match) {
@@ -92,6 +125,7 @@ async function route(request: Request, env: Env, requestId: string): Promise<Res
     headers.delete("authorization");
     headers.delete("x-demo-user");
     headers.delete("x-demo-role");
+    headers.delete("x-corinth-global-game-master");
     for (const [name, value] of internalViewerHeaders(access.viewer)) headers.set(name, value);
     const internalSearch = new URLSearchParams(url.search);
     internalSearch.delete("demo_user");
@@ -111,12 +145,12 @@ async function route(request: Request, env: Env, requestId: string): Promise<Res
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, context: ExecutionContext): Promise<Response> {
     const requestId = request.headers.get("cf-ray") ?? crypto.randomUUID();
     const url = new URL(request.url);
     const startedAt = Date.now();
     try {
-      const response = await route(request, env, requestId);
+      const response = await route(request, env, requestId, context);
       console.log(
         JSON.stringify({
           level: "info",
@@ -146,5 +180,8 @@ export default {
         requestId,
       );
     }
+  },
+  async scheduled(controller: ScheduledController, env: Env, context: ExecutionContext): Promise<void> {
+    scheduleSecurityMaintenance(controller, env, context);
   },
 } satisfies ExportedHandler<Env>;

@@ -90,6 +90,25 @@ describe("order validation", () => {
       /does not match the campaign-bound ruleset/i,
     );
   });
+
+  it("requires Evasive capability and at least half-Speed declared displacement", () => {
+    const unit = makeDeployment("evasive-check", { q: 0, r: 0 }, "ALLIED", {
+      tags: ["EVASIVE"],
+      stats: { speed: 4 },
+    });
+    const shortOrder = makeOrder(unit, {
+      orderType: "EVASIVE",
+      route: [unit.position, { q: 1, r: 0 }],
+    });
+    const state = makeState([unit], [makeHex(0, 0), makeHex(1, 0)]);
+
+    expect(validateOrder(shortOrder, unit, makeRoundInput(state, [shortOrder])).reasons).toContain(
+      "EVASIVE must end at least 2 hexes from the starting position.",
+    );
+    expect(validateOrder(shortOrder, { ...unit, tags: [] }, makeRoundInput(state, [shortOrder])).reasons).toContain(
+      "This unit is not capable of Evasive movement.",
+    );
+  });
 });
 
 describe("seeded round reproducibility and replay", () => {
@@ -214,6 +233,59 @@ describe("simultaneous combat and capacity resolution", () => {
     expect(output.events.filter((event) => event.type === "DAMAGE_APPLIED")).toHaveLength(2);
     expect(output.events.filter((event) => event.type === "UNIT_DESTROYED")).toHaveLength(2);
     expect(output.state.deployments.every((deployment) => deployment.status === "DESTROYED")).toBe(true);
+    expect(output.state.deployments.every((deployment) => deployment.locationState === "DESTROYED")).toBe(true);
+    expect(output.persistentEffects
+      .filter((effect) => effect.type === "UNIT_STATE_UPDATED")
+      .map((effect) => effect.payload.locationState))
+      .toEqual(["DESTROYED", "DESTROYED"]);
+  });
+
+  it("freezes carried units and emits RC-V5-030 adjudication when a transport is destroyed", () => {
+    const attacker = makeDeployment("attacker", { q: 0, r: 0 }, "ALLIED", {
+      weapons: [{ ...baseWeapon, damage: { count: 1, sides: 2, modifier: 2 } }],
+    });
+    const carrier = makeDeployment("carrier", { q: 1, r: 0 }, "ENEMY", {
+      stats: { healthModel: "HITS", maxHealth: 1 },
+      currentHealth: 1,
+      cargo: [{
+        id: "cargo-passenger",
+        kind: "PERSONNEL",
+        quantity: 4,
+        tags: ["INFANTRY"],
+        transportMode: "EMBARKED",
+        unitId: "passenger",
+      }],
+    });
+    const passenger = makeDeployment("passenger", { q: 1, r: 0 }, "ENEMY", {
+      locationState: "EMBARKED",
+    });
+    const order = attackOrder(attacker, carrier);
+    const state = makeState([attacker, carrier, passenger], [makeHex(0, 0), makeHex(1, 0)], [order]);
+
+    const output = resolveRound(makeRoundInput(state, [order], [], { seed: "carrier-loss" }));
+
+    expect(output.state.deployments.find((deployment) => deployment.id === carrier.id)).toMatchObject({
+      status: "DESTROYED",
+      locationState: "DESTROYED",
+      cargo: [expect.objectContaining({ unitId: passenger.id, transportMode: "EMBARKED" })],
+    });
+    expect(output.state.deployments.find((deployment) => deployment.id === passenger.id)).toMatchObject({
+      status: "ACTIVE",
+      locationState: "EMBARKED",
+      position: carrier.position,
+    });
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "CARGO_DESTRUCTION_REQUIRES_ADJUDICATION",
+      actor: carrier.id,
+      visibility: "ENEMY",
+      payload: expect.objectContaining({
+        conflictId: "RC-V5-030",
+        frozenAt: carrier.position,
+        requiresAdjudication: true,
+        resolution: "FROZEN_WITH_DESTROYED_CARRIER",
+        cargo: [expect.objectContaining({ cargoDeploymentId: passenger.id, kind: "PERSONNEL" })],
+      }),
+    }));
   });
 
   it("blocks movement into an already full destination hex", () => {
@@ -258,6 +330,119 @@ describe("simultaneous combat and capacity resolution", () => {
 
     expect(output.state.deployments.find((unit) => unit.id === alpha.id)?.position).toEqual({ q: -1, r: 0 });
     expect(output.state.deployments.find((unit) => unit.id === bravo.id)?.position).toEqual({ q: 0, r: -1 });
+  });
+
+  it("persists the legal route prefix and reports the hostile block increment", () => {
+    const mover = makeDeployment("mover", { q: -2, r: 0 }, "ALLIED");
+    const hostile = makeDeployment("hostile", { q: 0, r: 0 }, "ENEMY");
+    const route = [mover.position, { q: -1, r: 0 }, hostile.position];
+    const order = makeOrder(mover, { orderType: "ADVANCE", route, endHex: hostile.position });
+    const state = makeState(
+      [mover, hostile],
+      [makeHex(-2, 0), makeHex(-1, 0), makeHex(0, 0)],
+      [order],
+    );
+
+    const output = resolveRound(makeRoundInput(state, [order]));
+
+    expect(output.state.deployments.find((unit) => unit.id === mover.id)?.position).toEqual({ q: -1, r: 0 });
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "UNIT_MOVED",
+      actor: mover.id,
+      payload: expect.objectContaining({
+        route: [{ q: -2, r: 0 }, { q: -1, r: 0 }],
+        declaredDestination: { q: 0, r: 0 },
+      }),
+    }));
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "UNIT_BLOCKED",
+      actor: mover.id,
+      payload: expect.objectContaining({ reason: "HOSTILE_FORMATION", distanceIncrement: 2 }),
+    }));
+  });
+
+  it("fires every eligible fitted weapon once in stable identifier order", () => {
+    const weapons: WeaponProfile[] = [
+      { ...baseWeapon, id: "weapon-zeta", name: "Zeta", ammoCapacity: 2 },
+      { ...baseWeapon, id: "weapon-alpha", name: "Alpha", ammoCapacity: 2 },
+      { ...baseWeapon, id: "weapon-cooling", name: "Cooling", ammoCapacity: 2 },
+    ];
+    const attacker = makeDeployment("multiweapon", { q: 0, r: 0 }, "ALLIED", {
+      weapons,
+      ammunition: { "weapon-zeta": 2, "weapon-alpha": 2, "weapon-cooling": 2 },
+      cooldowns: { "weapon-cooling": 2 },
+    });
+    const target = makeDeployment("multi-target", { q: 1, r: 0 }, "ENEMY", {
+      stats: { maxHealth: 100 },
+      currentHealth: 100,
+    });
+    const order = attackOrder(attacker, target);
+    // A legacy selected weapon must not narrow the server-owned activation.
+    order.actions[0].weaponId = "weapon-zeta";
+    const state = makeState([attacker, target], [makeHex(0, 0), makeHex(1, 0)], [order]);
+
+    const output = resolveRound(makeRoundInput(state, [order], [], { seed: "multiweapon" }));
+    const rolls = output.events.filter((event) => event.type === "DICE_ROLLED");
+
+    expect(rolls.map((event) => event.payload.weaponId)).toEqual(["weapon-alpha", "weapon-zeta"]);
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "WEAPON_SKIPPED",
+      payload: expect.objectContaining({ weaponId: "weapon-cooling", reason: "Weapon is cooling down." }),
+    }));
+    const resolvedAttacker = output.state.deployments.find((deployment) => deployment.id === attacker.id)!;
+    expect(resolvedAttacker.ammunition).toMatchObject({ "weapon-alpha": 1, "weapon-zeta": 1, "weapon-cooling": 2 });
+  });
+
+  it("applies Evasive attack and defense modifiers only after completing the minimum displacement", () => {
+    const evasive = makeDeployment("evasive", { q: 0, r: 0 }, "ALLIED", {
+      tags: ["GROUND", "VEHICLE", "EVASIVE"],
+      stats: { speed: 4 },
+    });
+    const enemy = makeDeployment("evasive-target", { q: 3, r: 0 }, "ENEMY");
+    const evasiveOrder = attackOrder(evasive, enemy, {
+      orderType: "EVASIVE",
+      route: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }],
+    });
+    const enemyOrder = attackOrder(enemy, evasive);
+    const map = [makeHex(0, 0), makeHex(1, 0), makeHex(2, 0), makeHex(3, 0)];
+    const state = makeState([evasive, enemy], map, [evasiveOrder, enemyOrder]);
+
+    const output = resolveRound(makeRoundInput(state, [evasiveOrder], [enemyOrder], { seed: "evasive-modifiers" }));
+    const evasiveRoll = output.events.find((event) => event.type === "DICE_ROLLED" && event.actor === evasive.id)!;
+    const attackOnEvasive = output.events.find((event) => event.type === "UNIT_ATTACKED" && event.actor === enemy.id)!;
+
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "EVASIVE_MANEUVER",
+      actor: evasive.id,
+      payload: expect.objectContaining({ active: true, actualDisplacement: 2, attackModifier: -2, defenseModifier: 3 }),
+    }));
+    expect(evasiveRoll.payload.modified).toBe(Math.max(0, Number(evasiveRoll.payload.raw) - 2));
+    expect(attackOnEvasive.payload).toMatchObject({ targetId: evasive.id, evasiveDefenseModifier: 3, defense: 3 });
+  });
+
+  it("removes Evasive modifiers when hostile blocking stops the unit short", () => {
+    const evasive = makeDeployment("blocked-evasive", { q: 0, r: 0 }, "ALLIED", {
+      tags: ["GROUND", "VEHICLE", "EVASIVE"],
+      stats: { speed: 4 },
+    });
+    const blocker = makeDeployment("evasive-blocker", { q: 1, r: 0 }, "ENEMY");
+    const order = makeOrder(evasive, {
+      orderType: "EVASIVE",
+      route: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }],
+    });
+    const state = makeState(
+      [evasive, blocker],
+      [makeHex(0, 0), makeHex(1, 0), makeHex(2, 0)],
+      [order],
+    );
+
+    const output = resolveRound(makeRoundInput(state, [order]));
+
+    expect(output.events).toContainEqual(expect.objectContaining({
+      type: "EVASIVE_MANEUVER",
+      actor: evasive.id,
+      payload: expect.objectContaining({ active: false, actualDisplacement: 0, attackModifier: 0, defenseModifier: 0 }),
+    }));
   });
 
   it("rejects a duplicate ATTACK activation instead of resolving either action", () => {

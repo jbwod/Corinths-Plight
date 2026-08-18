@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { allDefinitions, unitClasses } from "../packages/rules-engine/src/catalogue";
+import { PUBLIC_V1_UNIT_PRICES } from "../packages/domain/src/economy-policy";
 
 const sourceHashes: Record<string, string> = {
   "rules/Meta - Core Rules (V5).md": "9076241b32332743307a1bbcdfac8becf44bbff371e4945a31af78a914d39345",
@@ -10,6 +11,7 @@ const sourceHashes: Record<string, string> = {
   "rules/Order Formatting - Needs Rework.html": "cf41d1d43dc5fbcc07072478c0d2f3adbf5027f7493c45f173c540633b0616fa",
   "rules/The Store - Equipment List.html": "f2ae75a8589edef9bb3633d0a1ce443ba34332a0b80309401f480652b7fabe8a",
   "gameplan.md": "ddee76a1e074e8ef9c94309b9facedc9a65dcccfbe00296ca65476a33d259fac",
+  "phase2-forces.md": "57aca68140cfc377850bd37b1c15f20eda612cb5a3f11cfe6b28d4d030ec32db",
 };
 
 const failures: string[] = [];
@@ -40,14 +42,50 @@ for (const [path, expected] of Object.entries(sourceHashes)) {
 }
 
 const seedSql = await readFile("seeds/v5-core-curated.sql", "utf8");
-const seedTupleLines = new Map<string, string>();
-for (const line of seedSql.split(/\r?\n/)) {
-  const match = line.match(/^\s*\('([^']+)'\s*,/);
-  if (!match) continue;
-  const [, id] = match;
-  if (seedTupleLines.has(id)) failures.push(`D1 seed contains duplicate definition tuple id: ${id}.`);
-  seedTupleLines.set(id, line);
+const phase2SeedSql = await readFile("seeds/v5-phase2-combined-arms.sql", "utf8");
+const classesSeedSql = await readFile("seeds/v5-classes-catalogue.sql", "utf8");
+const phase3MigrationSql = await readFile("migrations/0004_phase3_strategic_layer.sql", "utf8");
+const phase3SeedSql = await readFile("seeds/development-strategic-world.sql", "utf8");
+const equipmentMigrationSql = await readFile("migrations/0005_equipment_deployment_vertical_slice.sql", "utf8");
+const equipmentSeedSql = await readFile("seeds/v5-equipment-deployment.sql", "utf8");
+const storeSeedSql = await readFile("seeds/v5-store-catalogue.sql", "utf8");
+const spearheadSeedSql = await readFile("seeds/development-spearhead.sql", "utf8");
+const onboardingMigrationSql = await readFile("migrations/0007_guided_onboarding_and_battalions.sql", "utf8");
+const economyMigrationSql = await readFile("migrations/0017_public_v1_economy.sql", "utf8");
+const onboardingSeedSql = await readFile("seeds/onboarding-foundation.sql", "utf8");
+const combinedSeedSql = `${seedSql}\n${phase2SeedSql}\n${classesSeedSql}\n${equipmentSeedSql}\n${storeSeedSql}`;
+
+const definitionTables = new Set([
+  "unit_class_definitions",
+  "weapon_definitions",
+  "equipment_definitions",
+  "action_definitions",
+  "order_type_definitions",
+  "structure_definitions",
+  "terrain_definitions",
+  "ship_class_definitions",
+  "enemy_definitions",
+]);
+
+function collectDefinitionTupleLines(sql: string): Map<string, string> {
+  const tuples = new Map<string, string>();
+  let activeTable: string | undefined;
+  for (const line of sql.split(/\r?\n/)) {
+    const insert = line.match(/^INSERT INTO\s+([a-z_]+)/i);
+    if (insert) activeTable = definitionTables.has(insert[1]) ? insert[1] : undefined;
+    if (!activeTable) continue;
+    const tuple = line.match(/^\s*\('([^']+)'\s*,/);
+    if (tuple) {
+      const [, id] = tuple;
+      if (tuples.has(id)) failures.push(`D1 seeds contain duplicate definition tuple id: ${id}.`);
+      tuples.set(id, line);
+    }
+    if (/^ON CONFLICT|;\s*$/.test(line)) activeTable = undefined;
+  }
+  return tuples;
 }
+
+const seedTupleLines = collectDefinitionTupleLines(combinedSeedSql);
 
 for (const definition of allDefinitions) {
   const tuple = seedTupleLines.get(definition.id);
@@ -55,7 +93,12 @@ for (const definition of allDefinitions) {
     failures.push(`D1 seed is missing ${definition.id}.`);
     continue;
   }
-  if (!tuple.includes(`'${definition.status}'`)) {
+  const promotedEquipment = new Set(["equipment-flak-vests", "equipment-light-at"]);
+  const promotedByVerticalSlice = promotedEquipment.has(definition.id) && definition.status === "active" &&
+    equipmentSeedSql.includes(`id IN ('equipment-flak-vests','equipment-light-at')`);
+  const blockedOpticsByVerticalSlice = definition.id === "equipment-vehicle-optics" && definition.status === "experimental" &&
+    equipmentSeedSql.includes(`id = 'equipment-vehicle-optics'`);
+  if (!tuple.includes(`'${definition.status}'`) && !promotedByVerticalSlice && !blockedOpticsByVerticalSlice) {
     failures.push(
       `D1 seed status mismatch for ${definition.id}: runtime catalogue is ${definition.status}.`,
     );
@@ -63,12 +106,155 @@ for (const definition of allDefinitions) {
 }
 
 for (const [path, expected] of Object.entries(sourceHashes)) {
-  const tuple = [...seedTupleLines.values()].find((line) => line.includes(`'${path}'`));
-  if (!tuple) {
+  if (!combinedSeedSql.includes(`'${path}'`)) {
     failures.push(`D1 seed is missing source provenance for ${path}.`);
-  } else if (!tuple.includes(`'${expected}'`)) {
+  } else if (!combinedSeedSql.includes(`'${expected}'`)) {
     failures.push(`D1 seed source hash mismatch for ${path}.`);
   }
+}
+
+const phase2PlayerUnits = [
+  "unit-infantry-squad",
+  "unit-power-armoured-infantry",
+  "unit-combat-medic",
+  "unit-irregular",
+  "unit-special-forces",
+  "unit-engineers",
+  "unit-artillery",
+  "unit-logi-truck",
+  "unit-light-vehicle",
+  "unit-infantry-fighting-vehicle",
+  "unit-main-battle-tank",
+  "unit-light-mech",
+  "unit-aerospace-fighter",
+  "unit-aerospace-bomber",
+  "unit-vtol",
+  "unit-heavy-air-transport",
+] as const;
+
+const companionClassUnits = [
+  "unit-sappers",
+  "unit-mechanized-infantry",
+  "unit-light-battle-tank",
+  "unit-heavy-battle-tank",
+  "unit-super-heavy-tank",
+  "unit-light-artillery",
+  "unit-heavy-artillery",
+  "unit-self-propelled-artillery",
+  "unit-vtol-troop-airlift",
+  "unit-vtol-multipurpose-airlift",
+  "unit-vtol-heavy-lift",
+  "unit-medium-mech",
+  "unit-heavy-mech",
+] as const;
+
+const phase2Enemies = [
+  "enemy-bug-drone",
+  "enemy-bug-warrior",
+  "enemy-bug-spitter",
+  "enemy-bug-heavy",
+  "enemy-bug-burrower",
+  "enemy-bug-flyer",
+  "enemy-bug-artillery",
+] as const;
+
+const phase2RequiredDefinitions = [
+  ...phase2PlayerUnits,
+  ...companionClassUnits,
+  ...phase2Enemies,
+  "weapon-ifv-snub-autocannon",
+  "weapon-light-mech-laser",
+  "weapon-fighter-snub-hmg",
+  "weapon-bomber-ordnance",
+  "weapon-vtol-nose-gun",
+  "action-first-aid",
+  "action-deploy-platform",
+  "action-pack-platform",
+  "action-load-cargo",
+  "action-unload-cargo",
+  "action-transfer-supply",
+  "action-crew-repair",
+  "action-land",
+  "action-rearm-aerospace",
+  "action-airdrop",
+  "equipment-silent-smgs",
+  "equipment-k9-scouts",
+  "equipment-smoke-launcher",
+  "equipment-ap-ammo",
+  "equipment-mech-light-laser",
+  "equipment-aerospace-sidewinder",
+  "equipment-aerospace-afterburner",
+  "equipment-cluster-bombs",
+  "status-stealthed",
+  "status-packed",
+  "status-deployed",
+  "status-dug-in",
+  "status-evasive",
+  "status-airborne",
+  "status-landed",
+  "status-rearm-required",
+] as const;
+
+for (const id of phase2RequiredDefinitions) {
+  if (!combinedSeedSql.includes(`'${id}'`)) failures.push(`Phase 2 D1 seed is missing ${id}.`);
+}
+
+for (const unitId of phase2PlayerUnits) {
+  const tuple = seedTupleLines.get(unitId);
+  if (!tuple) {
+    failures.push(`Phase 2 D1 seed is missing unit definition ${unitId}.`);
+    continue;
+  }
+  const costAndStatus = tuple.match(/,\s*(NULL|\d+)\s*,\s*'(active|experimental|legacy|incomplete)'\s*,/);
+  const approvedPrice = PUBLIC_V1_UNIT_PRICES[unitId as keyof typeof PUBLIC_V1_UNIT_PRICES];
+  if (!costAndStatus) {
+    failures.push(`Cannot audit requisition cost for ${unitId}.`);
+  } else if (approvedPrice === undefined) {
+    if (costAndStatus[1] !== "NULL") failures.push(`Companion unit ${unitId} must remain unpriced.`);
+  } else if (Number(costAndStatus[1]) !== approvedPrice && !classesSeedSql.includes(`WHERE id='${unitId}'`)) {
+    failures.push(`Public-v1 unit ${unitId} price is ${costAndStatus[1]}; expected ${approvedPrice}.`);
+  }
+}
+
+for (const unitId of companionClassUnits) {
+  const tuple = seedTupleLines.get(unitId);
+  if (!tuple) failures.push(`Classes catalogue seed is missing ${unitId}.`);
+  const approvedPrice = PUBLIC_V1_UNIT_PRICES[unitId as keyof typeof PUBLIC_V1_UNIT_PRICES];
+  if (approvedPrice === undefined || !tuple?.includes(`, ${approvedPrice}, 'experimental',`)) {
+    failures.push(`Companion class ${unitId} must publish its approved public-v1 conversion price.`);
+  }
+  if (!classesSeedSql.includes(`'UNIT', '${unitId}'`)) failures.push(`Companion class ${unitId} is missing an implementation overlay.`);
+}
+
+for (const [unitId, price] of Object.entries(PUBLIC_V1_UNIT_PRICES)) {
+  if (!combinedSeedSql.includes(`'${unitId}'`)) failures.push(`Economy policy references missing unit ${unitId}.`);
+  if (!onboardingSeedSql.includes(`'${unitId}',${price},'PUBLISHED'`)) {
+    failures.push(`Economy policy seed is missing published price ${price} for ${unitId}.`);
+  }
+}
+
+for (const requiredTable of [
+  "movement_profile_definitions",
+  "durability_profile_definitions",
+  "cargo_profile_definitions",
+  "supply_profile_definitions",
+  "deployment_profile_definitions",
+  "tag_definitions",
+  "ability_definitions",
+  "status_effect_definitions",
+  "equipment_eligibility_rules",
+  "ruleset_implementation_overlays",
+  "ship_capability_definitions",
+  "ship_module_capability_grants",
+]) {
+  if (!phase2SeedSql.includes(`INSERT INTO ${requiredTable}`)) {
+    failures.push(`Phase 2 seed does not populate ${requiredTable}.`);
+  }
+}
+
+if (!phase2SeedSql.includes("ON CONFLICT")) failures.push("Phase 2 seed is not idempotent.");
+if (!phase2SeedSql.includes("equipment-road-building', 'ruleset-v5-core-curated-1', 'Road Building Equipment', 'ENGINEER', 'engineer', NULL")) {
+  failures.push("Road Building Equipment must retain its unpublished NULL requisition cost.");
 }
 
 const activeRulesetPattern =
@@ -77,6 +263,146 @@ if (!activeRulesetPattern.test(seedSql)) {
   failures.push("D1 seed does not select v5-core-curated@1 as the active ruleset explicitly.");
 }
 if (!seedSql.includes("rule_conflicts")) failures.push("D1 seed does not preserve rule conflicts.");
+
+for (const requiredTable of [
+  "strategic_locations",
+  "strategic_maps",
+  "strategic_nodes",
+  "strategic_routes",
+  "strategic_operations",
+  "task_forces",
+  "task_force_ships",
+  "task_force_battlegroups",
+  "strategic_supply_stores",
+  "strategic_supply_balances",
+  "strategic_rounds",
+  "strategic_orders",
+  "strategic_events",
+  "strategic_effect_receipts",
+  "strategic_war_variables",
+]) {
+  if (!phase3MigrationSql.includes(`CREATE TABLE ${requiredTable}`)) {
+    failures.push(`Phase 3 migration does not create ${requiredTable}.`);
+  }
+}
+
+for (const requiredId of [
+  "strategic-map-corinth",
+  "task-force-resolute",
+  "ship-corinth-ward",
+  "strategic-operation-iron-rain",
+  "strategic-operation-night-glass",
+  "strategic-operation-broken-road",
+  "strategic-operation-cold-horizon",
+  "battlegroup-hammer",
+  "battlegroup-raven",
+]) {
+  if (!phase3SeedSql.includes(`'${requiredId}'`)) {
+    failures.push(`Phase 3 development seed is missing ${requiredId}.`);
+  }
+}
+
+if (!phase3SeedSql.includes("'CSV Resolute'")) {
+  failures.push("Phase 3 development seed does not name CSV Resolute.");
+}
+if (!phase3SeedSql.includes("'supply-store-csv-resolute', 'LARGE', 3, 4")) {
+  failures.push("Phase 3 development seed must preserve the explicit CSV Resolute Large Supply fixture of 3 / 4.");
+}
+if (!phase3SeedSql.includes("0ebe472aa5bc16e551e2fd5e2b3d16f78a4c4e016cbe954f8a4687f72c2b5b01")) {
+  failures.push("Phase 3 development seed is missing the supplied brief provenance hash.");
+}
+if (!phase3SeedSql.includes("ON CONFLICT")) {
+  failures.push("Phase 3 development seed is not repeat-idempotent.");
+}
+
+for (const requiredTable of [
+  "onboarding_economy_policies",
+  "onboarding_progress",
+  "onboarding_command_receipts",
+  "battalion_recruitment_settings",
+  "battalion_creation_charters",
+  "battalion_email_invites",
+  "onboarding_starter_unit_grants",
+]) {
+  if (!onboardingMigrationSql.includes(`CREATE TABLE ${requiredTable}`)) {
+    failures.push(`Onboarding migration does not create ${requiredTable}.`);
+  }
+}
+for (const requiredId of [
+  "production-onboarding-v1",
+  "battalion-npc-corinth-line",
+  "battalion-npc-expeditionary-support",
+  "battalion-npc-nightwatch",
+]) {
+  if (!onboardingSeedSql.includes(`'${requiredId}'`)) failures.push(`Onboarding seed is missing ${requiredId}.`);
+}
+if (!onboardingSeedSql.includes("'production-onboarding-v1', 20, 20, 1, 1")) {
+  failures.push("Onboarding charter policy must match public-v1-economy@1: 20 grant / 20 creation cost / one-charter limit.");
+}
+for (const required of ["CREATE TABLE economy_policies", "CREATE TABLE economy_unit_prices"]) {
+  if (!economyMigrationSql.includes(required)) failures.push(`Economy migration is missing ${required}.`);
+}
+if (!onboardingSeedSql.includes("'public-v1-economy@1','ACTIVE',20,20,5,20,0")) {
+  failures.push("Public-v1 economy policy values are missing or drifted.");
+}
+if (!onboardingSeedSql.includes("ON CONFLICT")) failures.push("Onboarding seed is not repeat-idempotent.");
+if ((phase3SeedSql.match(/'SCENARIO_CONFIG'/g) ?? []).length < 9 ||
+    !phase3SeedSql.includes('"travelTiming":"CORINTH_DEVELOPMENT_SCENARIO"')) {
+  failures.push("Phase 3 development routes must publish explicit Corinth-scenario travel timing and provenance.");
+}
+if (phase3SeedSql.includes("NULL, 'BALANCE_REQUIRED'")) {
+  failures.push("Phase 3 development routes still contain unresolved travel timing.");
+}
+if (!phase3MigrationSql.includes("UNIQUE (actor_user_id, command_id)")) {
+  failures.push("Strategic-order idempotency must be scoped to the authenticated actor.");
+}
+if (phase3MigrationSql.includes("command_id TEXT NOT NULL UNIQUE")) {
+  failures.push("Phase 3 command IDs must not be globally unique across users.");
+}
+if (phase3MigrationSql.includes("ORBITAL_BOMBARDMENT")) {
+  failures.push("Full orbital combat orders are deferred and must fail closed in Phase 3.");
+}
+
+for (const requiredTable of [
+  "equipment_effect_definitions",
+  "player_equipment_inventory",
+  "deployment_method_definitions",
+  "campaign_insertion_zones",
+  "deployment_plans",
+  "deployment_plan_units",
+  "deployment_transport_assignments",
+  "campaign_loadout_snapshots",
+  "campaign_weapon_states",
+  "campaign_ability_states",
+  "deployment_mutation_receipts",
+  "campaign_effect_receipts",
+]) {
+  if (!equipmentMigrationSql.includes(`CREATE TABLE ${requiredTable}`)) {
+    failures.push(`Equipment/deployment migration does not create ${requiredTable}.`);
+  }
+}
+for (const requiredId of [
+  "weapon-light-at",
+  "action-deploy-drone",
+  "ability-deploy-drone",
+  "equipment-drone-operator",
+  "equipment-orbital-drop-training",
+  "STANDARD_GROUND",
+  "VEHICLE_TRANSPORT",
+  "VTOL_INSERTION",
+  "HEAVY_AIR_TRANSPORT",
+  "PARADROP",
+  "ORBITAL_DROP",
+]) {
+  if (!equipmentSeedSql.includes(`'${requiredId}'`)) failures.push(`Equipment/deployment seed is missing ${requiredId}.`);
+}
+if (!equipmentSeedSql.includes("'ORBITAL_DROP', 'ruleset-v5-core-curated-1', 'Orbital Drop', 'PARTIAL'")) {
+  failures.push("Orbital Drop must remain visibly partial and non-executable.");
+}
+for (const requiredId of ["operation-spearhead", "spearhead-zone-landing", "spearhead-zone-drop"]) {
+  if (!spearheadSeedSql.includes(`'${requiredId}'`)) failures.push(`Operation Spearhead fixture is missing ${requiredId}.`);
+}
+if (!spearheadSeedSql.includes("ON CONFLICT")) failures.push("Operation Spearhead fixture is not repeat-idempotent.");
 
 if (failures.length > 0) {
   console.error(failures.join("\n"));
@@ -89,6 +415,15 @@ if (failures.length > 0) {
         ruleset: "v5-core-curated@1",
         definitions: allDefinitions.length,
         activeDefinitions: allDefinitions.filter((definition) => definition.status === "active").length,
+        sqlDefinitions: seedTupleLines.size,
+        phase2PlayerUnits: phase2PlayerUnits.length,
+        companionClassUnits: companionClassUnits.length,
+        phase2EnemyRoles: phase2Enemies.length,
+        phase3Map: "strategic-map-corinth",
+        phase3Operations: 4,
+        equipmentEffects: 9,
+        deploymentMethods: 6,
+        developmentCampaign: "operation-spearhead",
         sourceHashes: Object.keys(sourceHashes).length,
       },
       null,

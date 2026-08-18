@@ -8,6 +8,8 @@ No entry in this document deletes or rewrites a source value. A disposition sele
 
 This register contains **72 stable conflict records**. Their status and disposition describe canonical source decisions, not implementation completion. In particular, `RESOLVED-MVP` means that the profile has selected a value; it does not mean every system using that value is executable in `foundation-0.1.0`. Current execution is the separate overlay below and in `GAME_SYSTEMS.md` section 1.3.
 
+The current D1 core seed is not a complete mirror of this register: it inserts 12 obsolete short conflict IDs, while Phase-2 definitions can cite the namespaced IDs used here. Until the catalogue/provenance reconciliation closes CP-200, this Markdown register remains the canonical decision audit and D1 conflict references must not be presented as complete or referentially sound.
+
 ## Status legend
 
 | Status | Meaning |
@@ -25,17 +27,36 @@ This overlay records current capability without adding, deleting, closing, or ch
 
 | Capability | Foundation status | Conflict-register relationship |
 |---|---|---|
-| Hold, Advance, Rush | Executable | Uses the selected V5 order/action economy and Rush decisions. Hold also commits submitted final facing. |
-| Attack | Executable basic subset | Seeded one-weapon Attack; Range/LOS; indirect fire only with a friendly live spotter that has LOS; ammo/cooldown; FS cap; Armor/AP/Defense; rear arc; Hits; Rush multiplier; simultaneous damage. Selected multiweapon, high-ground, Evasive, Rapid Fire, Subsystem, melee, and aerospace details remain deferred. |
-| Special orders | Explicitly deferred | Evasive, Melee Charge, and Stealth are canonical definitions with `executable=false`; the server and resolver reject them instead of accepting them as no-ops. |
-| Special/support actions | Explicitly deferred | Dig In, Heal, Repair, Construct, Bombardment/Funnel, Deploy/Pack Up, Load/Unload, Resupply, Reload, Garrison, Scan, Assault, Break Out, and other non-Attack actions do not execute. Isolated Supply/build/equipment helpers do not change this status. |
-| Movement simultaneity | Partial | Endpoint capacity and same-destination contests execute. The selected distance-increment hostile contention in `RC-V5-031` is not yet implemented. |
-| Server trust boundary | Executable | The worker resolves the unit definition, checks class `allowedOrders`/`allowedActions`, rejects non-executable definitions, and derives action economy/Speed cost from the pinned catalogue. Client values are not authority; the resolver revalidates normalized orders. |
-| Determinism/replay | Executable | Stable order sorting, exact order ID/revision lifecycle, same-round event sequence continuation, simultaneous damage, idempotent replay, and stable persistent-effect keys are tested. |
-| Seed secrecy and hidden information | Executable | Seeds remain in private resolution storage and are omitted from events, campaign views, public reports, and broadcasts. Side projections redact unseen deployments/orders and sensitive event/map payloads. |
-| Canonical roster and support/aerospace systems | Partial/catalogued | Five allied foundation unit definitions are present; the full thirteen-class canonical roster and its special systems are not yet executable. No legacy class may fill a missing canonical definition. |
+| Hold, Advance, Rush | Partial executable subset | Uses the selected V5 order/action economy and Rush decisions; Hold commits submitted final facing; Advance/Rush resolve routes at quarter-distance increments with symmetric hostile/capacity blocking and partial-route stops. The owner-approved custom-map application profile explicitly pins selected water, mountain, marsh, river, and bridge behavior; older unpinned scenario terrain defaults remain an implementation defect. |
+| Attack | Partial executable subset | Server-derived multiweapon Attack; Range/LOS; indirect fire only with a friendly live spotter that has LOS; ammo/cooldown; ground-only high-ground +1; Evasive outgoing -2/target Defense +3; FS cap; Rapid Fire versus Horde; Armor/AP/Defense; generated/scenario-marked non-stacking personnel Cover Armor; governed rear effects; Fighter forward travel-path arc; Bomber route-bound fly-over geometry; Hits; Rush multiplier; simultaneous damage; persistent natural-5/6 subsystem malfunctions. Split fire, directional cover, melee, and wider aerospace combat remain deferred. |
+| Special orders | Partial executable subset | Evasive is executable for governed capable units and loses its modifiers when simultaneous movement stops the unit below its minimum displacement. Melee Charge and Stealth remain `executable=false`. |
+| Special/support actions | Partial/deferred | Dig In, movement-derived building Garrison, Load/Unload, finite-weapon Reload, Combat Medic First Aid and field resupply, Engineer vehicle Repair, Engineer-assisted Artillery Dig In, Sandbag/Razor Wire/Tank Trap/Field Bridge construction and Infantry Trench Upgrade, Artillery Deploy/Pack Up/Bombardment, and class-derived Logi resupply for Medics/Engineers/Artillery have resolver/UI/persistence paths. A Field Bridge spends the published two Small Supply and marks one exact River edge without deleting the River; attack/repair/durability remains blocked. Eligible Infantry enter authored buildings for 0.25 Speed and derive `GARRISONED` occupancy; outside attacks receive the selected non-stacking +1 Cover Armor. Wire charges Infantry +0.5 Speed and Tank Traps charge vehicles +1 Speed on entry. Sandbags/Trenches grant Infantry +1 Armor against outside fire. Scan and Deploy Drone remain release-blocked. MASH, Funnel, unsupported-recipient resupply, Assault, Break Out, and other unmigrated actions remain deferred. |
+| Movement simultaneity | Partial executable subset | The selected `RC-V5-031` quarter-distance hostile contention, occupied-hostile stops, partial legal routes, Mech/Aerospace passage, and symmetric capacity contests execute. Melee defensive-fire and advanced domain interactions remain deferred. |
+| Server trust boundary | Partial | Tactical submission derives generated `@2` execution authority and the resolver revalidates normalized orders; unsupported D1-only classes fail closed before execution. Client values are not authority. Immutable D1 publication and removal of the legacy instance/validation identity remain catalogue-convergence work. |
+| Determinism/replay | Partial | The narrow pure resolver's exact accepted-revision behavior, same-round event sequence continuation, simultaneous damage, duplicate-resolution guard, and stable effect keys are tested. Campaign order upsert/cancellation/clock and global-grant-scoped Game Master pause/resume/resolve now have actor-scoped hashed receipts plus compare-and-set. Game Master DO mutation and D1 audit projection are retryable but not one transaction. Tactical ordering remains locale-sensitive, the digest non-cryptographic, and the seed predictable; the complete PREPARED journal remains open. |
+| Seed secrecy and hidden information | Partial/unsafe | Stored seeds are omitted from ordinary views and reports, and state projection redacts unseen deployments. Socket invalidations are per-viewer and identifier-free with bounded projected sequence catch-up. Reports still use present-time rather than event-time visibility. |
+| Canonical roster and support/aerospace systems | Partial/catalogued | D1 catalogues all thirteen canonical classes plus three companion-only classes, while generated tactical execution now covers a playable subset for every canonical allied class. Companion-only classes remain non-executable; no legacy class may fill those definitions. |
 
-At this reconciliation baseline, `npx vitest run packages/rules-engine/test` passes **7 test files / 62 tests**. That result verifies the overlay, not the unimplemented canonical rules described by the records below.
+At the current local reconciliation point, the full root suite passes **106 Vitest files / 849 tests** (the committed Phase-0 baseline was 32/201). Those results verify only the covered helpers and contracts, not the unimplemented canonical rules or release boundaries described below.
+
+## Phase 2 catalogue overlay (non-conflict)
+
+Migration `0003_phase2_persistent_forces.sql` and companion seed `v5-phase2-combined-arms.sql` add normalized force data without changing any of the 72 source decisions. Four independent database fields prevent a source record from becoming playable merely because it exists:
+
+| Axis | Values | Meaning in the Phase 2 seed |
+|---|---|---|
+| Definition status | Existing `active`, `experimental`, `legacy`, `incomplete` | What kind of source definition was imported. |
+| Implementation status | `IMPLEMENTED`, `PARTIAL`, `CATALOGUE_ONLY` | Whether the minimum defining mechanics exist in the current server/engine. |
+| Requisition status | `PUBLISHED`, `BALANCE_REQUIRED`, `NOT_APPLICABLE` | Whether a source-backed price exists. `BALANCE_REQUIRED` always keeps the price `NULL`. |
+| Availability status | `AVAILABLE`, `BLOCKED`, `DEV_ONLY`, `HIDDEN` | Whether production requisition may expose the definition. This is not inferred from implementation status. |
+
+The catalogue contains all thirteen non-orbital V5 starting classes plus all sixteen non-orbital companion classes named by `RC-UNIT-015`. Companion classes remain `CATALOGUE_ONLY`/`BLOCKED`; their exact raw profiles, slots, restrictions and prose are discoverable, but no companion FS vehicle/mech/aerospace value replaces a V5 Hits profile. Combat Medic uses the V5 heal selected by `RC-UNIT-002` and `RC-V5-009`; its companion MASH record remains catalogue-only.
+
+The seven Bug role records include Drone, Warrior, Spitter, Heavy, Burrower, Flyer, and Artillery. The four new roles contain tags/doctrine only and remain hidden catalogue entries because the product brief supplies no authoritative durability, weapon dice, range, or price. That is incomplete data, not a new conflicting value.
+
+The thirteen canonical non-orbital player classes have application prices under `public-v1-economy@1`; companion-only classes remain `NULL`/unavailable. Executable Store equipment retains published row prices, while Road Building Equipment and other blank/blocked entries remain `NULL`. Database checks prohibit `purchasable=1` unless both `requisition_status=PUBLISHED` and `availability_status=AVAILABLE`.
+
+No new conflict ID is introduced by this overlay. Cargo, aerospace, healing, construction, repair, and companion-class decisions all map to existing records (`RC-UNIT-002`–`RC-UNIT-015`, `RC-V5-010`, `RC-V5-017`, `RC-V5-018`, `RC-V5-023`, `RC-V5-024`, `RC-V5-029`, and `RC-V5-030`). A seed row or normalized profile is not evidence that its action resolves.
 
 ## Source locator conventions
 
@@ -158,14 +179,14 @@ At this reconciliation baseline, `npx vitest run packages/rules-engine/test` pas
 ### RC-UNIT-014 — Orbital Crew, Light Freighter, and hulls
 
 - **V5 value:** `V5 > Orbital Crew`: `FS 3, Speed 1, No Weapon`, two Req of orbital equipment; may refit to a 1 FS captain “that comes with a Light Freighter.” No Light Freighter or hull stat block is provided.
-- **Companion values:** `Classes > Corvette/Destroyer/Cruiser/Battleship`: each Health 10; Armor `2/3/4/5`; Speed `4/3/2/1`; Range 6; External/Internal slots `2/4`, `3/4`, `4/4`, `5/4`; cargo `2/4/6/8`; costs displayed as `0`, `..1`, `....2`, `......3`.
+- **Companion values:** `Classes > Corvette`, `Classes > Destroyer`, `Classes > Cruiser`, and `Classes > Battleship`: each Health 10; Armor `2/3/4/5`; Speed `4/3/2/1`; Range 6; External/Internal slots `2/4`, `3/4`, `4/4`, `5/4`; cargo `2/4/6/8`; costs displayed as `0`, `..1`, `....2`, `......3`.
 - **Disposition:** Orbital Crew and all hulls are catalogue-only/blocked. No automatic `Health → Hits`, dotted-cost parse, Light Freighter substitution, or cargo-size assumption is allowed.
 - **Status:** `BLOCKED`.
 
 ### RC-UNIT-015 — Expanded companion classes absent from V5
 
 - **Companion-only values:** Power Armored Infantry, Irregular Unit, Special Forces, Sappers, Light/Heavy/Super-Heavy Battle Tanks, Light/Heavy/SP Artillery, three VTOL refits, Medium/Heavy Mechs, and `[Redacted]` appear in `Classes.html` but not in V5 starting classes.
-- **Disposition:** preserve names, prose, and raw values; none is selectable or inherited by a V5 class.
+- **Disposition:** preserve names, prose, and raw values; none is selectable or inherited by a V5 class. The literal `[Redacted]` row has no usable identity or stat block and therefore remains provenance only rather than a fabricated runtime definition.
 - **Status:** `CATALOGUED`.
 
 ## 3. Action, map, and cover conflicts
@@ -207,7 +228,7 @@ At this reconciliation baseline, `npx vitest run packages/rules-engine/test` pas
 
 ### RC-MAP-003 — Hex occupancy and facing model
 
-- **Legacy value:** `Actions > Hex Position`: a hex has three unit sections, normally holds three units, and terrain reduces capacity; first infantry occupies a directed forward position. Infantry battlelines and rear weak-spot hex walls follow.
+- **Legacy value:** `Actions > Hex Postion` (source spelling): a hex has three unit sections, normally holds three units, and terrain reduces capacity; first infantry occupies a directed forward position. Infantry battlelines and rear weak-spot hex walls follow.
 - **V5 value:** mini/measurement agnostic; only direct rear attacks and submitted facing are mechanically specified.
 - **Disposition:** facing is active for flanking, but three-section occupancy, stacking limit, and battleline walls are rejected. Scenario occupancy remains explicit data.
 - **Status:** `RESOLVED-MVP`.
@@ -216,7 +237,7 @@ At this reconciliation baseline, `npx vitest run packages/rules-engine/test` pas
 
 - **V5 values:** `V5 > Structures / Cover and Forests`: building/woods protection `+1 Armor`; `Infantry Squad > Dig In`: `+2 Defense`; Change Log says Structure and Sandbag `+1 Defense` changed to `+1 Armor` and Dig In changed from `+3` to `+2 Defense`.
 - **Legacy values:** `Actions > Garrison Building`: “Entrenchment 2”/`+2 Armor`; `Build > Trenches`: Entrenched 1/`+1 Armor`; `Bunker Network`: Entrenched 2/`+2 Armor`.
-- **Disposition:** V5 `+1 Armor` cover and `+2 Defense` Dig In are active. Legacy Entrenchment tiers are not aliases.
+- **Disposition:** V5 `+1 Armor` cover and `+2 Defense` Dig In are active. Eligible Infantry enter an authored building for the V5 fixed `0.25 Speed` and occupancy is derived from ending movement inside it. Legacy Entrenchment tiers and the legacy Garrison action are not aliases.
 - **Status:** `RESOLVED-MVP`.
 
 ## 4. Construction and Supply conflicts
@@ -268,7 +289,7 @@ At this reconciliation baseline, `npx vitest run packages/rules-engine/test` pas
 ### RC-BUILD-007 — Repair in FS versus Hits
 
 - **V5 value:** `V5 > Engineers > Action Repair`: remove one vehicle Hit or fix one subsystem for one Supply.
-- **Legacy values:** `Classes > Combat Engineers/Sappers`: repair vehicles at `2 FS` per action; `Build > Vehicle Repair Center` and `VTOL Maintenance Landing Platform`: repair `2 FS` per turn/round; `Store > Mech Bay/Heavy Ground Vehicle Bay` also repair in FS.
+- **Legacy values:** `Classes > Combat Engineers` and `Classes > Sappers`: repair vehicles at `2 FS` per action; `Build > Vehicle Repair Center` and `VTOL Maintenance Landing Platform`: repair `2 FS` per turn/round; `Store > Mech Bay` and `Store > Heavy Ground Vehicle Bay` also repair in FS.
 - **Disposition:** the V5 engineer repair is active. Every FS-based vehicle repair effect is catalogue-only pending conversion to Hits and an action/Supply cost.
 - **Status:** `RESOLVED-MVP`/`BLOCKED` by item.
 
@@ -361,12 +382,14 @@ At this reconciliation baseline, `npx vitest run packages/rules-engine/test` pas
 
 - **Evidence:** `V5 > Combat Round` says each unit gets one attack roll, then immediately says a heavy mech with three weapons rolls three dice. `V5 > Damage` says each individual weapon must overcome mitigation.
 - **MVP disposition:** one attack activation per unit; roll once for every eligible weapon in that activation. A Primary Action/Rush consumes the whole activation.
+- **Implementation note:** the active foundation uses one declared target and derives every eligible fitted weapon server-side. Each fires once in stable identifier order; ammo, cooldown, Range and LOS are rechecked at resolution. Split fire remains inactive because the source does not define its declaration policy.
 - **Status:** `PROVISIONAL-MVP`.
 
 ### RC-V5-004 — Meaning of Evasive “-2 to attacks”
 
 - **Evidence:** `V5 > Evasive` describes lower accuracy as “-2 to attacks +3 to Defense,” but V5 has no separate accuracy/to-hit statistic.
 - **MVP disposition:** subtract 2 from each outgoing damage result, minimum zero; add 3 Defense.
+- **Implementation note:** a governed capable unit must declare at least half its Speed in axial displacement. The modifiers are active only if its resolved position still meets that displacement after simultaneous blocking.
 - **Status:** `PROVISIONAL-MVP`.
 
 ### RC-V5-005 — Cover's exact benefit
@@ -444,8 +467,8 @@ At this reconciliation baseline, `npx vitest run packages/rules-engine/test` pas
 ### RC-V5-016 — Req economy
 
 - **Evidence:** `V5 > Req Value` defines cost/value and links to a spreadsheet. V5 has no starting budget/income. Most companion class cost cells are blank; some are `0`, `..1`, `....2`, or `......3`; Store gear is mainly cost 1–2, with Road Building Equipment blank.
-- **Disposition:** preserve every raw cost string; purchasing/refits are blocked. Do not treat blank as zero or strip dots without migration approval.
-- **Status:** `BLOCKED`.
+- **Disposition:** preserve every raw source cost string. The owner-approved application profile `public-v1-economy@1` supplies a 20 Req opening grant/charter cost, 5 mission reward, 20 campaign-victory reward, and explicit prices for the thirteen canonical non-orbital classes (4/6/8/10/12/14 tiers). Executable Store equipment retains its literal published price; blank values remain unavailable. Loss is permanent with no refund/salvage, and replacement is a fresh purchase or explicit grant. These values are application balance policy, not reconstructed V5 numbers.
+- **Status:** `RESOLVED-MVP`.
 
 ### RC-V5-017 — VTOL infantry and Supply capacity
 

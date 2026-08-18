@@ -95,6 +95,9 @@ describe("routes, terrain, and pathing", () => {
           elevation: 1,
           river: 1,
           road: true,
+          bridge: false,
+          fieldwork: 0,
+          garrisonEntry: 0,
           total: 2.75,
         },
       ],
@@ -108,6 +111,33 @@ describe("routes, terrain, and pathing", () => {
     ).toBe(0.75);
   });
 
+  it("moves VTOL flight one unit per hex without ground terrain, river, road, or fieldwork costs", () => {
+    const start = makeHex(0, 0, { elevation: 0, edges: { roads: [2], rivers: [2] } });
+    const destination = makeHex(1, 0, {
+      elevation: 3,
+      movementCost: 2,
+      structureIds: ["structure-tank-traps:fixture"],
+    });
+    expect(calculateRouteCost([start.coord, destination.coord], [start, destination], {
+      unitTags: ["AEROSPACE", "VTOL", "VEHICLE"],
+    })).toEqual({
+      total: 1,
+      legal: true,
+      steps: [{
+        from: start.coord,
+        to: destination.coord,
+        base: 1,
+        elevation: 0,
+        river: 0,
+        road: false,
+        bridge: false,
+        fieldwork: 0,
+        garrisonEntry: 0,
+        total: 1,
+      }],
+    });
+  });
+
   it("recognizes a road or river edge recorded from either endpoint", () => {
     const west = makeHex(0, 0, { edges: { roads: [2], rivers: [2] } });
     const east = makeHex(1, 0);
@@ -116,6 +146,55 @@ describe("routes, terrain, and pathing", () => {
 
     expect(reverse.legal).toBe(true);
     expect(reverse.steps[0]).toMatchObject({ road: true, river: 1 });
+  });
+
+  it("charges source-defined fieldwork Speed on entry by unit domain", () => {
+    const start = makeHex(0, 0);
+    const wire = makeHex(1, 0, { structureIds: ["structure-razor-wire:test"] });
+    const traps = makeHex(0, 1, { structureIds: ["structure-tank-traps:test"] });
+
+    expect(calculateRouteCost([start.coord, wire.coord], [start, wire], { unitTags: ["INFANTRY"] }))
+      .toMatchObject({ total: 1.5, steps: [{ fieldwork: 0.5 }] });
+    expect(calculateRouteCost([start.coord, wire.coord], [start, wire], { unitTags: ["VEHICLE"] }).total).toBe(1);
+    expect(calculateRouteCost([start.coord, traps.coord], [start, traps], { unitTags: ["VEHICLE"] }))
+      .toMatchObject({ total: 2, steps: [{ fieldwork: 1 }] });
+    expect(calculateRouteCost([start.coord, traps.coord], [start, traps], { unitTags: ["INFANTRY"] }).total).toBe(1);
+    expect(calculateRouteCost([start.coord, wire.coord], [start, wire], { rush: true, unitTags: ["INFANTRY"] }).total).toBe(1);
+  });
+
+  it("charges eligible infantry exactly 0.25 Speed to enter or cross between authored buildings", () => {
+    const start = makeHex(0, 0);
+    const firstRoom = makeHex(1, 0, { environment: ["INFANTRY_GARRISON_BUILDING"] });
+    const secondRoom = makeHex(2, 0, {
+      movementCost: 2,
+      elevation: 2,
+      environment: ["INFANTRY_GARRISON_BUILDING"],
+    });
+    const infantry = ["GROUND", "PERSONNEL", "INFANTRY"];
+
+    expect(calculateRouteCost([start.coord, firstRoom.coord], [start, firstRoom], { unitTags: infantry }))
+      .toMatchObject({ total: 0.25, steps: [{ garrisonEntry: 0.25, total: 0.25 }] });
+    expect(calculateRouteCost([firstRoom.coord, secondRoom.coord], [firstRoom, secondRoom], {
+      rush: true,
+      unitTags: infantry,
+    })).toMatchObject({ total: 0.25, steps: [{ garrisonEntry: 0.25, total: 0.25 }] });
+    expect(calculateRouteCost([firstRoom.coord, start.coord], [start, firstRoom], { unitTags: infantry }).total)
+      .toBe(1);
+  });
+
+  it("does not grant the infantry building rate to vehicles or non-infantry personnel", () => {
+    const start = makeHex(0, 0);
+    const building = makeHex(1, 0, {
+      movementCost: 2,
+      environment: ["INFANTRY_GARRISON_BUILDING"],
+    });
+
+    expect(calculateRouteCost([start.coord, building.coord], [start, building], {
+      unitTags: ["GROUND", "VEHICLE", "INFANTRY"],
+    }).total).toBe(2);
+    expect(calculateRouteCost([start.coord, building.coord], [start, building], {
+      unitTags: ["GROUND", "PERSONNEL", "MEDICAL"],
+    }).total).toBe(2);
   });
 
   it("finds a shortest-hop detour around blocked hexes", () => {

@@ -3,8 +3,10 @@ import {
   LOCAL_DEMO_CAMPAIGN_ID,
   authConfigurationIsSafe,
   authorizeCampaign,
+  authorizeGameMaster,
   campaignAccessFromRow,
   demoAuthEnabled,
+  requestIsEmailVerificationNavigation,
   requestIsExplicitlyCrossOrigin,
   requestIsSameOrigin,
   requestRequiresSameOrigin,
@@ -18,7 +20,10 @@ function envWithRow(row: unknown): Env {
     ALLOW_DEMO_AUTH: "false",
     DEFAULT_ROUND_DURATION_MS: "86400000",
     ORDER_LOCK_LEAD_MS: "30000",
+    DEFAULT_STRATEGIC_ROUND_DURATION_MS: "86400000",
+    STRATEGIC_ORDER_LOCK_LEAD_MS: "30000",
     CAMPAIGN: {} as DurableObjectNamespace,
+    STRATEGIC_MAP: {} as DurableObjectNamespace,
     DB: {
       prepare: () => ({
         bind: () => ({ first: async () => row }),
@@ -57,6 +62,41 @@ describe("same-origin policy", () => {
     expect(requestIsExplicitlyCrossOrigin(crossOrigin)).toBe(true);
     expect(requestRequiresSameOrigin(socket)).toBe(true);
   });
+
+  it("permits only a top-level document navigation to stage an email verification token", () => {
+    const emailNavigation = new Request("https://game.example/api/auth/verify?token=secret", {
+      headers: {
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "cross-site",
+      },
+    });
+    const otherApiNavigation = new Request("https://game.example/api/auth/session", {
+      headers: {
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "cross-site",
+      },
+    });
+    const foreignOrigin = new Request("https://game.example/api/auth/verify?token=secret", {
+      headers: {
+        origin: "https://mail.example",
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "cross-site",
+      },
+    });
+    const confirmation = new Request("https://game.example/api/auth/verify", {
+      method: "POST",
+      headers: { origin: "https://game.example" },
+    });
+
+    expect(requestIsExplicitlyCrossOrigin(emailNavigation)).toBe(true);
+    expect(requestIsEmailVerificationNavigation(emailNavigation)).toBe(true);
+    expect(requestIsEmailVerificationNavigation(otherApiNavigation)).toBe(false);
+    expect(requestIsEmailVerificationNavigation(foreignOrigin)).toBe(false);
+    expect(requestIsEmailVerificationNavigation(confirmation)).toBe(false);
+  });
 });
 
 describe("campaign authorization", () => {
@@ -87,19 +127,27 @@ describe("campaign authorization", () => {
     ).toEqual({ allowed: false, reason: "ROLE_UNSUPPORTED" });
   });
 
-  it("allows a demo identity only into the explicit local demo campaign", async () => {
+  it("allows a locally enabled demo identity only into its D1-backed campaign memberships", async () => {
     const identity: AuthenticatedIdentity = {
       kind: "DEMO",
       viewer: { userId: "demo-user", side: "ALLIED", role: "PLAYER" },
     };
     const env = {
-      ...envWithRow(null),
+      ...envWithRow({
+        campaign_id: LOCAL_DEMO_CAMPAIGN_ID,
+        side: "ALLIED",
+        role: "PLAYER",
+        battalion_id: "battalion-demo",
+      }),
       ENVIRONMENT: "development",
       ALLOW_DEMO_AUTH: "true",
     } satisfies Env;
 
     await expect(authorizeCampaign(identity, LOCAL_DEMO_CAMPAIGN_ID, env)).resolves.toMatchObject({ allowed: true });
-    await expect(authorizeCampaign(identity, "invented-campaign", env)).resolves.toEqual({
+    await expect(authorizeCampaign(identity, "invented-campaign", {
+      ...env,
+      DB: envWithRow(null).DB,
+    })).resolves.toEqual({
       allowed: false,
       reason: "NOT_FOUND",
     });
@@ -122,5 +170,29 @@ describe("campaign authorization", () => {
       allowed: true,
       viewer: { userId: "user-1", side: "ENEMY", role: "PLAYER" },
     });
+  });
+});
+
+describe("global Game Master authorization", () => {
+  it("requires an explicit active grant for a production session", async () => {
+    await expect(authorizeGameMaster({ kind: "SESSION", userId: "gm-1" }, envWithRow({ user_id: "gm-1" })))
+      .resolves.toEqual({ allowed: true, userId: "gm-1", source: "GLOBAL_GRANT" });
+    await expect(authorizeGameMaster({ kind: "SESSION", userId: "commander-1" }, envWithRow(null)))
+      .resolves.toEqual({ allowed: false, userId: "commander-1" });
+  });
+
+  it("allows demo ADMIN only behind the existing development opt-in", async () => {
+    const admin: AuthenticatedIdentity = {
+      kind: "DEMO",
+      viewer: { userId: "demo-admin", side: "ALLIED", role: "ADMIN" },
+    };
+    const player: AuthenticatedIdentity = {
+      kind: "DEMO",
+      viewer: { userId: "demo-player", side: "ALLIED", role: "PLAYER" },
+    };
+    const local = { ...envWithRow(null), ENVIRONMENT: "development", ALLOW_DEMO_AUTH: "true" } satisfies Env;
+    await expect(authorizeGameMaster(admin, local)).resolves.toMatchObject({ allowed: true, source: "DEVELOPMENT_DEMO" });
+    await expect(authorizeGameMaster(player, local)).resolves.toEqual({ allowed: false, userId: "demo-player" });
+    await expect(authorizeGameMaster(admin, envWithRow(null))).resolves.toEqual({ allowed: false, userId: "demo-admin" });
   });
 });

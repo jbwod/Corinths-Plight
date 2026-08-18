@@ -57,12 +57,12 @@ INSERT INTO unit_class_definitions (
   id, ruleset_id, name, category, health_model, max_health, armor, defense,
   speed_quarters, sensor_range, requisition_cost, definition_status, source, notes, definition_json
 ) VALUES
-  ('unit-infantry-squad', 'ruleset-v5-core-curated-1', 'Infantry Squad', 'INFANTRY', 'FORCE_STRENGTH', 6, 0, 0, 4, 4, NULL, 'active', 'V5 / Starting Unit Classes / Infantry Squad', 'RC-001 selects V5 FS6.', '{"weaponIds":["weapon-infantry-rifle"],"slots":{"primary":4,"secondary":4},"allowedOrders":["HOLD","ADVANCE","RUSH","MELEE_CHARGE","STEALTH"]}'),
-  ('unit-engineers', 'ruleset-v5-core-curated-1', 'Engineers', 'ENGINEER', 'FORCE_STRENGTH', 4, 0, 0, 4, 4, NULL, 'active', 'V5 / Starting Unit Classes / Engineers', 'Non-combat; V5 supply model active.', '{"weaponIds":[],"supplyCapacity":"CURRENT_FS","allowedActions":["REPAIR","CONSTRUCT","DIG_IN"]}'),
-  ('unit-light-vehicle', 'ruleset-v5-core-curated-1', 'Light Vehicle', 'ARMOUR', 'HITS', 2, 0, 0, 16, 5, NULL, 'active', 'V5 / Starting Unit Classes / Light Vehicle', '', '{"weaponIds":["weapon-light-hmg"],"tags":["SUB_SYSTEM","EVASIVE"]}'),
-  ('unit-main-battle-tank', 'ruleset-v5-core-curated-1', 'Main Battle Tank', 'ARMOUR', 'HITS', 3, 3, 0, 8, 4, NULL, 'active', 'V5 / Starting Unit Classes / Main Battle Tank', '', '{"weaponIds":["weapon-mbt-cannon"],"tags":["SUB_SYSTEM","REAR_WEAK_SPOT"]}'),
-  ('unit-artillery', 'ruleset-v5-core-curated-1', 'Artillery', 'ARTILLERY', 'FORCE_STRENGTH', 3, 0, 0, 4, 3, NULL, 'active', 'V5 / Starting Unit Classes / Artillery', 'Barrage damage profile is experimental; control actions are canonical.', '{"weaponIds":["weapon-artillery-barrage"],"allowedActions":["DEPLOY","PACK_UP","BOMBARDMENT","RELOAD"]}')
-ON CONFLICT(id, ruleset_id) DO UPDATE SET definition_status = excluded.definition_status, definition_json = excluded.definition_json, notes = excluded.notes;
+  ('unit-infantry-squad', 'ruleset-v5-core-curated-1', 'Infantry Squad', 'INFANTRY', 'FORCE_STRENGTH', 6, 0, 0, 4, 4, 4, 'active', 'V5 / Starting Unit Classes / Infantry Squad', 'RC-001 selects V5 FS6; public-v1-economy@1 sets the application price.', '{"weaponIds":["weapon-infantry-rifle"],"slots":{"primary":4,"secondary":4},"allowedOrders":["HOLD","ADVANCE","RUSH","MELEE_CHARGE","STEALTH"]}'),
+  ('unit-engineers', 'ruleset-v5-core-curated-1', 'Engineers', 'ENGINEER', 'FORCE_STRENGTH', 4, 0, 0, 4, 4, 4, 'active', 'V5 / Starting Unit Classes / Engineers', 'Non-combat; V5 supply model active. public-v1-economy@1 sets the application price.', '{"weaponIds":[],"supplyCapacity":"CURRENT_FS","allowedActions":["REPAIR","CONSTRUCT","DIG_IN","ARTILLERY_DIG_IN"]}'),
+  ('unit-light-vehicle', 'ruleset-v5-core-curated-1', 'Light Vehicle', 'ARMOUR', 'HITS', 2, 0, 0, 16, 5, 8, 'active', 'V5 / Starting Unit Classes / Light Vehicle', 'public-v1-economy@1 sets the application price.', '{"weaponIds":["weapon-light-hmg"],"tags":["SUB_SYSTEM","EVASIVE"]}'),
+  ('unit-main-battle-tank', 'ruleset-v5-core-curated-1', 'Main Battle Tank', 'ARMOUR', 'HITS', 3, 3, 0, 8, 4, 10, 'active', 'V5 / Starting Unit Classes / Main Battle Tank', 'public-v1-economy@1 sets the application price.', '{"weaponIds":["weapon-mbt-cannon"],"tags":["SUB_SYSTEM","REAR_WEAK_SPOT"]}'),
+  ('unit-artillery', 'ruleset-v5-core-curated-1', 'Artillery', 'ARTILLERY', 'FORCE_STRENGTH', 3, 0, 0, 4, 3, 6, 'active', 'V5 / Starting Unit Classes / Artillery', 'Barrage damage profile is experimental; control actions are canonical. public-v1-economy@1 sets the application price.', '{"weaponIds":["weapon-artillery-barrage"],"allowedActions":["DEPLOY","PACK_UP","BOMBARDMENT","FUNNEL","RELOAD"]}')
+ON CONFLICT(id, ruleset_id) DO UPDATE SET requisition_cost = excluded.requisition_cost, definition_status = excluded.definition_status, definition_json = excluded.definition_json, notes = excluded.notes;
 
 INSERT INTO enemy_definitions (
   id, ruleset_id, name, faction_id, doctrine_json, unit_definition_json,
@@ -85,8 +85,10 @@ ON CONFLICT(id, ruleset_id) DO UPDATE SET definition_status = excluded.definitio
 INSERT INTO action_definitions (id, ruleset_id, name, economy, speed_cost_quarters, definition_status, source, notes, definition_json) VALUES
   ('action-attack', 'ruleset-v5-core-curated-1', 'Attack', 'STANDARD', 0, 'active', 'V5 / Combat Round', 'Uses the unit attack activation.', '{"usesAttack":true}'),
   ('action-dig-in', 'ruleset-v5-core-curated-1', 'Dig In', 'STANDARD', 4, 'active', 'V5 / Infantry Squad', 'Consumes Infantry total movement and grants +2 Defense.', '{"defenseModifier":2,"endsOnMove":true}'),
+  ('action-artillery-dig-in', 'ruleset-v5-core-curated-1', 'Dig In Artillery', 'STANDARD', 2, 'active', 'V5 / Artillery', 'RC-V5-025: an adjacent Engineer spends one Standard Action; the deployed artillery remains stationary.', '{"actorTag":"ENGINEER","targetTag":"ARTILLERY","requiresTargetState":"DEPLOYED","maximumRange":1,"defenseModifier":2,"smallSupplyCost":0}'),
   ('action-repair', 'ruleset-v5-core-curated-1', 'Repair', 'STANDARD', 2, 'active', 'V5 / Engineers', '', '{"smallSupplyCost":1,"repairsHits":1}'),
   ('action-construct', 'ruleset-v5-core-curated-1', 'Construct', 'STANDARD', 2, 'active', 'V5 / Engineers', 'Structure-specific values may be experimental.', '{"builderTag":"BUILDER"}'),
+  ('action-trench-upgrade', 'ruleset-v5-core-curated-1', 'Trench Upgrade', 'PRIMARY', 0, 'active', 'V5 / Engineers / Sandbag Line', 'Infantry convert an existing Sandbag Line; no additional Supply cost is stated.', '{"usesAttack":true,"requiresStructure":"structure-sandbag-line","resultStructure":"structure-trench"}'),
   ('action-bombardment', 'ruleset-v5-core-curated-1', 'Bombardment', 'PRIMARY', 0, 'active', 'V5 / Artillery', 'One Small Supply provisionally consumed per fire mission.', '{"usesAttack":true,"defenseModifier":-1,"areaRadius":1,"smallSupplyCost":1}'),
   ('action-reload', 'ruleset-v5-core-curated-1', 'Reload', 'STANDARD', 2, 'active', 'V5 / Actions and unit descriptions', '', '{"requiresSupply":true}')
 ON CONFLICT(id, ruleset_id) DO UPDATE SET definition_status = excluded.definition_status, definition_json = excluded.definition_json, notes = excluded.notes;
@@ -114,10 +116,14 @@ INSERT INTO structure_definitions (
   id, ruleset_id, name, build_cost_json, build_points, health,
   definition_status, source, notes, definition_json
 ) VALUES
-  ('structure-trench', 'ruleset-v5-core-curated-1', 'Trench Line', '{"smallSupply":1}', NULL, NULL, 'experimental', 'V5 Engineers plus Build sheet row 12', 'RC-009/RC-041: build conversion and health unresolved.', '{"infantryArmor":1,"preservesDigIn":true}'),
+  ('structure-sandbag-line', 'ruleset-v5-core-curated-1', 'Sandbag Line', '{"smallSupply":1}', NULL, NULL, 'active', 'V5 / Engineers / Action Construct: Sandbag Line', 'Immediate V5 field construction; other structures remain separately gated.', '{"infantryArmor":1,"capacityInfantrySquads":2,"constructRange":"ADJACENT_OR_CURRENT"}'),
+  ('structure-razor-wire', 'ruleset-v5-core-curated-1', 'Razor Wire', '{"smallSupply":1}', NULL, NULL, 'active', 'V5 / Engineers / Action Construct: Razor Wire', 'Source-complete movement fieldwork; durability remains unresolved under RC-BUILD-006.', '{"constructRange":"ADJACENT_OR_CURRENT","movementPenalty":{"unitTag":"INFANTRY","speed":0.5}}'),
+  ('structure-tank-traps', 'ruleset-v5-core-curated-1', 'Tank Traps', '{"smallSupply":1}', NULL, NULL, 'active', 'V5 / Engineers / Action Construct: Tank Traps', 'Source-complete movement fieldwork; durability remains unresolved under RC-BUILD-006.', '{"constructRange":"ADJACENT_OR_CURRENT","movementPenalty":{"unitTag":"VEHICLE","speed":1}}'),
+  ('structure-bridge', 'ruleset-v5-core-curated-1', 'Field Bridge', '{"smallSupply":2}', NULL, NULL, 'active', 'V5 / Engineers / Construct: Bridge', 'Immediate public-v1 river-edge crossing; combat damage lifecycle remains separately governed.', '{"constructRange":"ADJACENT_RIVER_EDGE","edgeCrossing":true,"applicationProfileId":"public-v1-engineer-bridge@1"}'),
+  ('structure-trench', 'ruleset-v5-core-curated-1', 'Trench Line', '{}', NULL, NULL, 'active', 'V5 Engineers / Trench Upgrade', 'V5 conversion is active; durability remains unresolved under RC-BUILD-006.', '{"infantryArmor":1,"preservesDigIn":true,"upgradeFrom":"structure-sandbag-line"}'),
   ('structure-supply-depot', 'ruleset-v5-core-curated-1', 'Supply Depot', '{}', 12, NULL, 'experimental', 'Build sheet row 15', 'Health and V5 supply conversion unresolved.', '{"stores":["SMALL_SUPPLY"]}'),
   ('structure-sensor-tower', 'ruleset-v5-core-curated-1', 'Sensor Tower', '{}', 7, NULL, 'experimental', 'Build sheet row 22', 'Reveal radius and health unresolved.', '{"ability":"REVEAL_AREA"}')
-ON CONFLICT(id, ruleset_id) DO UPDATE SET definition_status = excluded.definition_status, build_cost_json = excluded.build_cost_json, build_points = excluded.build_points, health = excluded.health, notes = excluded.notes;
+ON CONFLICT(id, ruleset_id) DO UPDATE SET definition_status = excluded.definition_status, build_cost_json = excluded.build_cost_json, build_points = excluded.build_points, health = excluded.health, notes = excluded.notes, definition_json = excluded.definition_json;
 
 INSERT INTO ship_class_definitions (
   id, ruleset_id, name, health, armor, speed, external_slots, internal_slots,

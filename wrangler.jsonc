@@ -8,13 +8,23 @@
     "head_sampling_rate": 1
   },
   "assets": {
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "triggers": {
+    "crons": ["0 * * * *"]
   },
   "vars": {
     "ENVIRONMENT": "development",
     "ALLOW_DEMO_AUTH": "true",
     "DEFAULT_ROUND_DURATION_MS": "300000",
-    "ORDER_LOCK_LEAD_MS": "30000"
+    "ORDER_LOCK_LEAD_MS": "30000",
+    "DEFAULT_STRATEGIC_ROUND_DURATION_MS": "300000",
+    "STRATEGIC_ORDER_LOCK_LEAD_MS": "30000",
+    "AUTH_BASE_URL": "http://127.0.0.1:5173",
+    "AUTH_FROM_EMAIL": "Corinth's Plight <register@corinth.qnetica.com.au>",
+    "AUTH_SESSION_TTL_SECONDS": "2592000",
+    "AUTH_CHALLENGE_TTL_SECONDS": "900"
   },
   "d1_databases": [
     {
@@ -29,6 +39,10 @@
       {
         "name": "CAMPAIGN",
         "class_name": "CampaignDurableObject"
+      },
+      {
+        "name": "STRATEGIC_MAP",
+        "class_name": "StrategicMapDurableObject"
       }
     ]
   },
@@ -36,16 +50,29 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["CampaignDurableObject"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["StrategicMapDurableObject"]
     }
   ],
   "env": {
     "preview": {
       "name": "corinths-plight-preview",
+      "triggers": {
+        "crons": ["0 * * * *"]
+      },
       "vars": {
         "ENVIRONMENT": "preview",
         "ALLOW_DEMO_AUTH": "false",
         "DEFAULT_ROUND_DURATION_MS": "1800000",
-        "ORDER_LOCK_LEAD_MS": "30000"
+        "ORDER_LOCK_LEAD_MS": "30000",
+        "DEFAULT_STRATEGIC_ROUND_DURATION_MS": "1800000",
+        "STRATEGIC_ORDER_LOCK_LEAD_MS": "30000",
+        "AUTH_BASE_URL": "https://corinths-plight-preview.workers.dev",
+        "AUTH_FROM_EMAIL": "Corinth's Plight <register@corinth.qnetica.com.au>",
+        "AUTH_SESSION_TTL_SECONDS": "2592000",
+        "AUTH_CHALLENGE_TTL_SECONDS": "900"
       },
       "d1_databases": [
         {
@@ -60,23 +87,43 @@
           {
             "name": "CAMPAIGN",
             "class_name": "CampaignDurableObject"
+          },
+          {
+            "name": "STRATEGIC_MAP",
+            "class_name": "StrategicMapDurableObject"
           }
         ]
       }
     },
     "production": {
       "name": "corinths-plight",
+      "triggers": {
+        "crons": ["0 * * * *"]
+      },
+      "workers_dev": true,
+      "routes": [
+        {
+          "pattern": "corinthplight.qnetica.com.au",
+          "custom_domain": true
+        }
+      ],
       "vars": {
         "ENVIRONMENT": "production",
         "ALLOW_DEMO_AUTH": "false",
         "DEFAULT_ROUND_DURATION_MS": "86400000",
-        "ORDER_LOCK_LEAD_MS": "30000"
+        "ORDER_LOCK_LEAD_MS": "30000",
+        "DEFAULT_STRATEGIC_ROUND_DURATION_MS": "86400000",
+        "STRATEGIC_ORDER_LOCK_LEAD_MS": "30000",
+        "AUTH_BASE_URL": "https://corinthplight.qnetica.com.au",
+        "AUTH_FROM_EMAIL": "Corinth's Plight <register@corinth.qnetica.com.au>",
+        "AUTH_SESSION_TTL_SECONDS": "2592000",
+        "AUTH_CHALLENGE_TTL_SECONDS": "900"
       },
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "corinths-plight-production",
-          "database_id": "00000000-0000-0000-0000-000000000003",
+          "database_id": "c75ca7bc-f10b-4987-853d-f387d377bdb9",
           "migrations_dir": "migrations"
         }
       ],
@@ -85,6 +132,10 @@
           {
             "name": "CAMPAIGN",
             "class_name": "CampaignDurableObject"
+          },
+          {
+            "name": "STRATEGIC_MAP",
+            "class_name": "StrategicMapDurableObject"
           }
         ]
       }

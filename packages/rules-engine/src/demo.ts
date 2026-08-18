@@ -8,6 +8,8 @@ import type {
 } from "../../domain/src";
 import { RULESET_VERSION } from "../../domain/src";
 import { getUnitClass } from "./catalogue";
+import { getTacticalCargoProfile } from "./tactical-unit-catalogue";
+import { INFANTRY_COVER_ARMOR_1, INFANTRY_GARRISON_BUILDING } from "./cover";
 import { ENGINE_VERSION } from "./resolver";
 
 const objectiveCoordinates = new Map([
@@ -40,7 +42,14 @@ function makeHex(q: number, r: number): BattlefieldHex {
     structureIds: q === 0 && r === 0 ? ["structure-outpost-k17"] : [],
     objectiveId: objectiveCoordinates.get(`${q},${r}`),
     control: q < -2 ? "ALLIED" : q > 2 ? "ENEMY" : "NEUTRAL",
-    environment: pattern % 9 === 0 ? ["ASH_STORM_EXPOSED"] : [],
+    environment: [
+      ...(pattern % 9 === 0 ? ["ASH_STORM_EXPOSED"] : []),
+      ...(q === 0 && r === 0 ? [INFANTRY_COVER_ARMOR_1, INFANTRY_GARRISON_BUILDING] : []),
+      ...(q === -2 && r === -3 ? ["LAND_AEROSPACE", "REARM_AEROSPACE"] : []),
+      ...(q === -3 && r === -2 ? ["LAND_VTOL"] : []),
+      ...(q === -4 && r === 1 ? ["HEADQUARTERS", "SUPPLY_POINT"] : []),
+      ...(q === -2 && r === 1 ? ["POPULATION_CENTER"] : []),
+    ],
     visibility: q <= 1 ? "OBSERVED" : "UNKNOWN",
   };
 }
@@ -74,6 +83,7 @@ function deployment(
     side,
     definitionId,
     callsign,
+    tags: [...definition.tags],
     status: "ACTIVE",
     position,
     facing,
@@ -86,8 +96,24 @@ function deployment(
         .map((weapon) => [weapon.id, weapon.ammoCapacity!]),
     ),
     cooldowns: {},
-    statuses: [],
+    statuses: definitionId === "unit-artillery" ? ["PACKED"] : [],
+    subsystems: definition.tags.includes("SUBSYSTEMS") || definition.tags.includes("SUB_SYSTEM")
+      ? [
+          { subsystemId: "WEAPONS", state: "OPERATIONAL" },
+          { subsystemId: "MOBILITY", state: "OPERATIONAL" },
+        ]
+      : undefined,
+    artilleryDeployment: definitionId === "unit-artillery" ? "PACKED" : undefined,
     equipmentIds: [],
+    supplies: definition.tags.includes("ENGINEER")
+      ? { SMALL_SUPPLY: definition.stats.maxHealth }
+      : definition.tags.includes("ARTILLERY")
+        ? { SMALL_SUPPLY: 2 }
+        : definitionId === "unit-logi-truck"
+          ? { SMALL_SUPPLY: 5 }
+          : undefined,
+    cargo: [],
+    cargoProfile: getTacticalCargoProfile(definitionId),
     battlegroupId: side === "ALLIED" ? "hammer" : undefined,
   };
 }
@@ -137,8 +163,16 @@ export function createDemoCampaignState(
     deployment("dep-rook-7", "unit-infantry-squad", "demo-user", "ALLIED", "ROOK-7", { q: -3, r: 1 }, 2),
     deployment("dep-bellator", "unit-main-battle-tank", "demo-user", "ALLIED", "BELLATOR", { q: -4, r: 3 }, 1),
     deployment("dep-keystone", "unit-engineers", "demo-user", "ALLIED", "KEYSTONE", { q: -4, r: 1 }, 2),
-    deployment("dep-longbow", "unit-artillery", "allied-user", "ALLIED", "LONGBOW", { q: -5, r: 2 }, 2),
-    deployment("dep-lantern", "unit-light-vehicle", "allied-user", "ALLIED", "LANTERN", { q: -2, r: -1 }, 2),
+    deployment("dep-longbow", "unit-artillery", "demo-user", "ALLIED", "LONGBOW", { q: -5, r: 2 }, 2),
+    deployment("dep-mule-3", "unit-logi-truck", "demo-user", "ALLIED", "MULE-3", { q: -5, r: 2 }, 2),
+    deployment("dep-lantern", "unit-light-vehicle", "demo-user", "ALLIED", "LANTERN", { q: -2, r: -1 }, 2),
+    deployment("dep-carrier-6", "unit-infantry-fighting-vehicle", "demo-user", "ALLIED", "CARR-6", { q: -3, r: 2 }, 2),
+    deployment("dep-strider", "unit-light-mech", "demo-user", "ALLIED", "STRIDER", { q: 0, r: -2 }, 2),
+    deployment("dep-skyhook", "unit-vtol", "demo-user", "ALLIED", "SKYHOOK", { q: -3, r: -2 }, 2),
+    deployment("dep-vulture-1", "unit-aerospace-fighter", "demo-user", "ALLIED", "VULT-1", { q: -2, r: -3 }, 2),
+    deployment("dep-havoc-2", "unit-aerospace-bomber", "demo-user", "ALLIED", "HAVOC-2", { q: -1, r: -3 }, 2),
+    deployment("dep-atlas-1", "unit-heavy-air-transport", "demo-user", "ALLIED", "ATLAS-1", { q: -3, r: -2 }, 2),
+    deployment("dep-raven-drop", "unit-infantry-squad", "demo-user", "ALLIED", "RAVEN-DROP", { q: -3, r: -2 }, 2),
     deployment("bug-drone-1", "enemy-bug-drone", "enemy-doctrine", "ENEMY", "SKITTER-9", { q: 1, r: -1 }, 5, false),
     deployment("bug-warrior-1", "enemy-bug-warrior", "enemy-doctrine", "ENEMY", "CHITIN-4", { q: 3, r: -1 }, 5, false),
     deployment("bug-heavy-1", "enemy-bug-heavy", "enemy-doctrine", "ENEMY", "BEHEMOTH", { q: 4, r: -2 }, 4, false),
@@ -146,12 +180,23 @@ export function createDemoCampaignState(
   deployments.forEach((item) => {
     item.campaignId = campaignId;
   });
+  const airTransport = deployments.find((item) => item.id === "dep-atlas-1")!;
+  const airDropTeam = deployments.find((item) => item.id === "dep-raven-drop")!;
+  airDropTeam.locationState = "EMBARKED";
+  airTransport.cargo = [{
+    id: `campaign-cargo:${campaignId}:${airDropTeam.id}`,
+    kind: "PERSONNEL",
+    quantity: airDropTeam.currentHealth,
+    tags: [...(airDropTeam.tags ?? [])],
+    transportMode: "AIRLIFTED",
+    unitId: airDropTeam.id,
+  }];
   const orders = [
-    demoOrder("order-longbow-18", "dep-longbow", "allied-user", round, "HOLD", [{ q: -5, r: 2 }], 2),
+    demoOrder("order-longbow-18", "dep-longbow", "demo-user", round, "HOLD", [{ q: -5, r: 2 }], 2),
     demoOrder(
       "order-lantern-18",
       "dep-lantern",
-      "allied-user",
+      "demo-user",
       round,
       "ADVANCE",
       [
@@ -169,6 +214,8 @@ export function createDemoCampaignState(
     campaignId,
     campaignName: "Outpost K-17",
     planetName: "Corinth",
+    scenarioId: "scenario-demo-outpost-k17",
+    scenarioVersion: 1,
     rulesetVersion: RULESET_VERSION,
     engineVersion: ENGINE_VERSION,
     round,
@@ -213,6 +260,18 @@ export function createDemoCampaignState(
         description: "Protect the western road and depot approaches.",
       },
     ],
+    scenarioPolicy: {
+      policyId: "HOLD_PRIMARY_OBJECTIVE",
+      version: 1,
+      startRound: 18,
+      maxRounds: 4,
+      primaryObjectiveId: "objective-outpost",
+      capturableObjectiveIds: [
+        "objective-nest",
+        "objective-outpost",
+        "objective-supply-route",
+      ],
+    },
     events: [
       {
         eventId: `${campaignId}:17:0001:ROUND_FINISHED`,

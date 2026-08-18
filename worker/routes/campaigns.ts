@@ -1,0 +1,428 @@
+import { authenticate } from "../auth";
+import {
+  AUTHORED_SCENARIO_CONTENT_SELECTIONS,
+  isAuthoredScenarioContentSelection,
+} from "../../packages/rules-engine/src";
+import type { Env } from "../env";
+import { errorResponse, json } from "../http";
+
+interface CampaignDirectoryRow {
+  campaign_id: string;
+  name: string;
+  status: string;
+  planet_name: string;
+  map_source_key: string;
+  scenario_content_key: string | null;
+  side: string;
+  role: string;
+  joined_at: number;
+  minimum_players: number;
+  maximum_players: number;
+  member_count: number;
+  deployment_count: number;
+  custom_scenario_available: number;
+  force_policy_json: string;
+  reinforcement_policy_json: string | null;
+  current_round: number;
+  result: "VICTORY" | "DEFEAT" | null;
+  outcome_reason: string | null;
+  result_round: number | null;
+  rewards_json: string | null;
+  resolved_at: number | null;
+}
+
+function reinforcementOpen(row: CampaignDirectoryRow): boolean {
+  if (row.status !== "ACTIVE") return false;
+  let force: { reinforcementStatus?: string } = {};
+  let operation: { status?: string; closesAfterTacticalRound?: number } = {};
+  try { force = JSON.parse(row.force_policy_json) as typeof force; } catch { /* fail closed */ }
+  try { operation = row.reinforcement_policy_json ? JSON.parse(row.reinforcement_policy_json) as typeof operation : {}; } catch { /* fail closed */ }
+  if (Number.isInteger(operation.closesAfterTacticalRound)) {
+    return row.current_round <= Number(operation.closesAfterTacticalRound) &&
+      (force.reinforcementStatus === "OPEN" || operation.status === "OPEN");
+  }
+  return force.reinforcementStatus === "OPEN" || operation.status === "OPEN";
+}
+
+interface PublicCampaignRow {
+  campaign_id: string;
+  name: string;
+  status: string;
+  planet_name: string;
+  map_source_key: string;
+  scenario_content_key: string | null;
+  minimum_players: number;
+  maximum_players: number;
+  member_count: number;
+  custom_scenario_available: number;
+}
+
+const joinPath = /^\/api\/campaigns\/([a-z0-9][a-z0-9-]{0,63})\/join$/;
+const withdrawPath = /^\/api\/campaigns\/([a-z0-9][a-z0-9-]{0,63})\/withdraw$/;
+const [outpostScenario, ironRainScenario, brokenRoadScenario, nightGlassScenario, coldHorizonScenario] =
+  AUTHORED_SCENARIO_CONTENT_SELECTIONS;
+
+function scenarioBriefing(mapSourceKey: string): Record<string, unknown> | undefined {
+  if (mapSourceKey === "fixture/outpost-k17") {
+    return {
+      threat: "MODERATE",
+      objectives: ["Hold Outpost K-17", "Destroy Bug Nest", "Keep Supply Route Open"],
+      durationRounds: 4,
+      recommendedCapabilities: ["GROUND_COMBAT", "ARMOURED", "ARTILLERY"],
+    };
+  }
+  if (mapSourceKey === "fixture/operation-iron-rain") {
+    return {
+      threat: "HIGH",
+      objectives: ["Hold Airfield", "Destroy Hive"],
+      durationRounds: 6,
+      recommendedCapabilities: ["GROUND_COMBAT", "ARMOURED", "ENGINEERING", "ARTILLERY"],
+    };
+  }
+  if (mapSourceKey === "fixture/operation-broken-road") {
+    return {
+      threat: "MODERATE",
+      objectives: ["Hold Junction 7", "Protect Supply Cache"],
+      durationRounds: 5,
+      recommendedCapabilities: ["GROUND_COMBAT", "ENGINEERING", "LOGISTICS", "ARTILLERY"],
+    };
+  }
+  if (mapSourceKey === "fixture/operation-night-glass") {
+    return {
+      threat: "HIGH",
+      objectives: ["Hold Sensor Array", "Clear Forward Burrow"],
+      durationRounds: 4,
+      recommendedCapabilities: ["GROUND_COMBAT", "RECON", "AIR_MOBILE", "ARTILLERY"],
+    };
+  }
+  if (mapSourceKey === "fixture/operation-cold-horizon") {
+    return {
+      threat: "HIGH",
+      objectives: ["Hold Colony Beacon", "Secure Landing Field"],
+      durationRounds: 5,
+      recommendedCapabilities: ["GROUND_COMBAT", "RECON", "ARMOURED", "ARTILLERY"],
+    };
+  }
+  return undefined;
+}
+
+function scenarioAvailable(row: Pick<CampaignDirectoryRow, "map_source_key" | "scenario_content_key" | "custom_scenario_available">): boolean {
+  return isAuthoredScenarioContentSelection(row.map_source_key, row.scenario_content_key) ||
+    Number(row.custom_scenario_available) === 1;
+}
+
+async function commandHash(value: unknown): Promise<string> {
+  const bytes = new TextEncoder().encode(JSON.stringify(value));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function joinCampaign(request: Request, env: Env, campaignId: string): Promise<Response> {
+  const identity = await authenticate(request, env);
+  if (!identity) return errorResponse(401, "AUTH_REQUIRED", "Sign in is required to join a campaign.");
+  const userId = identity.kind === "SESSION" ? identity.userId : identity.viewer.userId;
+  let body: unknown;
+  try { body = await request.json(); } catch { return errorResponse(400, "INVALID_JSON", "Request body is not valid JSON."); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return errorResponse(400, "INVALID_COMMAND", "Campaign join command is invalid.");
+  }
+  const record = body as Record<string, unknown>;
+  if (Object.keys(record).some((key) => key !== "commandId") ||
+      typeof record.commandId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/.test(record.commandId)) {
+    return errorResponse(400, "INVALID_COMMAND", "Campaign join command is invalid.");
+  }
+  const requestHash = await commandHash({ campaignId, userId });
+  const prior = await env.DB.prepare(`SELECT campaign_id,request_hash,response_json
+    FROM campaign_join_receipts WHERE user_id=?1 AND command_id=?2 LIMIT 1`)
+    .bind(userId, record.commandId).first<{ campaign_id: string; request_hash: string; response_json: string }>();
+  if (prior) {
+    if (prior.campaign_id !== campaignId || prior.request_hash !== requestHash) {
+      return errorResponse(409, "COMMAND_ID_REUSED", "commandId was already used for a different command.");
+    }
+    return json(JSON.parse(prior.response_json));
+  }
+  const response = { joined: true, campaignId };
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO campaign_memberships (campaign_id,user_id,battalion_id,side,role)
+      SELECT campaigns.id,?1,active.battalion_id,'ALLIED','PLAYER'
+      FROM campaigns JOIN user_active_battalions AS active ON active.user_id=?1
+      WHERE campaigns.id=?2 AND campaigns.status='RECRUITING'
+        AND ((campaigns.map_source_key=?3 AND campaigns.scenario_content_key=?4)
+          OR (campaigns.map_source_key=?5 AND campaigns.scenario_content_key=?6)
+          OR (campaigns.map_source_key=?7 AND campaigns.scenario_content_key=?8)
+          OR (campaigns.map_source_key=?9 AND campaigns.scenario_content_key=?10)
+          OR (campaigns.map_source_key=?11 AND campaigns.scenario_content_key=?12)
+          OR EXISTS (SELECT 1 FROM game_master_campaign_scenarios AS custom
+            JOIN game_master_map_revisions AS revisions ON revisions.id=custom.map_revision_id
+            JOIN game_master_maps AS maps ON maps.id=revisions.map_id
+            WHERE custom.campaign_id=campaigns.id
+              AND custom.scenario_id='scenario-' || campaigns.id
+              AND custom.scenario_version=2
+              AND custom.scenario_content_key=campaigns.scenario_content_key
+              AND custom.application_policy_key='game-master-skirmish@1'
+              AND custom.maximum_rounds=12
+              AND custom.reward_policy_id='public-v1-economy@1'
+              AND custom.map_revision_id=campaigns.game_master_map_revision_id
+              AND custom.map_content_hash=revisions.content_hash
+              AND campaigns.map_source_key='admin-map/' || maps.id || '@' || revisions.revision || ':' || revisions.content_hash
+              AND maps.status='PUBLISHED' AND maps.revision=revisions.revision
+              AND maps.content_hash=revisions.content_hash))
+        AND (SELECT COUNT(*) FROM campaign_memberships
+          WHERE campaign_id=campaigns.id AND role<>'GM') < campaigns.maximum_players
+      ON CONFLICT(campaign_id,user_id) DO NOTHING`)
+      .bind(
+        userId,
+        campaignId,
+        outpostScenario.mapSourceKey,
+        outpostScenario.scenarioContentKey,
+        ironRainScenario.mapSourceKey,
+        ironRainScenario.scenarioContentKey,
+        brokenRoadScenario.mapSourceKey,
+        brokenRoadScenario.scenarioContentKey,
+        nightGlassScenario.mapSourceKey,
+        nightGlassScenario.scenarioContentKey,
+        coldHorizonScenario.mapSourceKey,
+        coldHorizonScenario.scenarioContentKey,
+      ),
+    env.DB.prepare(`INSERT INTO campaign_join_receipts
+      (user_id,command_id,campaign_id,request_hash,response_json)
+      SELECT ?1,?2,?3,?4,?5 WHERE EXISTS (
+        SELECT 1 FROM campaign_memberships WHERE campaign_id=?6 AND user_id=?1)`)
+      .bind(userId, record.commandId, campaignId, requestHash, JSON.stringify(response), campaignId),
+  ]);
+  const committed = await env.DB.prepare(`SELECT response_json FROM campaign_join_receipts
+    WHERE user_id=?1 AND command_id=?2 AND campaign_id=?3 AND request_hash=?4 LIMIT 1`)
+    .bind(userId, record.commandId, campaignId, requestHash).first<{ response_json: string }>();
+  if (!committed) return errorResponse(409, "CAMPAIGN_JOIN_UNAVAILABLE", "The campaign is full, closed, or your active Battalion is missing.");
+  return json(JSON.parse(committed.response_json), { status: 201 });
+}
+
+async function withdrawCampaign(request: Request, env: Env, campaignId: string): Promise<Response> {
+  const identity = await authenticate(request, env);
+  if (!identity) return errorResponse(401, "AUTH_REQUIRED", "Sign in is required to leave a campaign.");
+  const userId = identity.kind === "SESSION" ? identity.userId : identity.viewer.userId;
+  let body: unknown;
+  try { body = await request.json(); } catch { return errorResponse(400, "INVALID_JSON", "Request body is not valid JSON."); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return errorResponse(400, "INVALID_COMMAND", "Campaign withdrawal command is invalid.");
+  }
+  const record = body as Record<string, unknown>;
+  if (Object.keys(record).some((key) => !["commandId", "expectedJoinedAt"].includes(key)) ||
+      typeof record.commandId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/.test(record.commandId) ||
+      !Number.isSafeInteger(record.expectedJoinedAt) || Number(record.expectedJoinedAt) < 1) {
+    return errorResponse(400, "INVALID_COMMAND", "Campaign withdrawal command is invalid.");
+  }
+  const expectedJoinedAt = Number(record.expectedJoinedAt);
+  const requestHash = await commandHash({ operation: "WITHDRAW_CAMPAIGN", campaignId, userId, expectedJoinedAt });
+  const prior = await env.DB.prepare(`SELECT campaign_id,request_hash,response_json
+    FROM campaign_join_receipts WHERE user_id=?1 AND command_id=?2 LIMIT 1`)
+    .bind(userId, record.commandId).first<{ campaign_id: string; request_hash: string; response_json: string }>();
+  if (prior) {
+    if (prior.campaign_id !== campaignId || prior.request_hash !== requestHash) {
+      return errorResponse(409, "COMMAND_ID_REUSED", "commandId was already used for a different command.");
+    }
+    return json(JSON.parse(prior.response_json));
+  }
+  const response = { withdrawn: true, campaignId };
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO campaign_join_receipts
+      (user_id,command_id,campaign_id,request_hash,response_json)
+      SELECT memberships.user_id,?1,memberships.campaign_id,?2,?3
+      FROM campaign_memberships AS memberships
+      JOIN campaigns ON campaigns.id=memberships.campaign_id
+      WHERE memberships.campaign_id=?4 AND memberships.user_id=?5
+        AND memberships.joined_at=?6 AND memberships.role='PLAYER'
+        AND campaigns.status='RECRUITING'
+        AND NOT EXISTS (
+          SELECT 1 FROM deployments
+          WHERE deployments.campaign_id=memberships.campaign_id
+            AND deployments.owner_id=memberships.user_id
+        )`)
+      .bind(record.commandId, requestHash, JSON.stringify(response), campaignId, userId, expectedJoinedAt),
+    env.DB.prepare(`UPDATE deployment_plans SET status='CANCELLED',revision=revision+1,updated_at=unixepoch()
+      WHERE campaign_id=?1 AND created_by=?2 AND status IN ('DRAFT','VALID','INVALID')
+        AND EXISTS (SELECT 1 FROM campaign_join_receipts
+          WHERE user_id=?2 AND command_id=?3 AND campaign_id=?1 AND request_hash=?4)`)
+      .bind(campaignId, userId, record.commandId, requestHash),
+    env.DB.prepare(`DELETE FROM campaign_memberships
+      WHERE campaign_id=?1 AND user_id=?2 AND joined_at=?3
+        AND EXISTS (SELECT 1 FROM campaign_join_receipts
+          WHERE user_id=?2 AND command_id=?4 AND campaign_id=?1 AND request_hash=?5)`)
+      .bind(campaignId, userId, expectedJoinedAt, record.commandId, requestHash),
+  ]);
+  const committed = await env.DB.prepare(`SELECT response_json FROM campaign_join_receipts
+    WHERE user_id=?1 AND command_id=?2 AND campaign_id=?3 AND request_hash=?4 LIMIT 1`)
+    .bind(userId, record.commandId, campaignId, requestHash).first<{ response_json: string }>();
+  if (!committed) {
+    return errorResponse(409, "CAMPAIGN_WITHDRAWAL_UNAVAILABLE", "Only an undeployed player may leave a recruiting campaign. The membership may also have changed.");
+  }
+  return json(JSON.parse(committed.response_json));
+}
+
+export async function routeCampaignDirectoryRequest(request: Request, env: Env): Promise<Response | null> {
+  const url = new URL(request.url);
+  const withdraw = url.pathname.match(withdrawPath);
+  if (withdraw) {
+    if (request.method !== "POST") return errorResponse(405, "METHOD_NOT_ALLOWED", "Use POST to leave a campaign.", { allowed: ["POST"] });
+    return withdrawCampaign(request, env, withdraw[1]);
+  }
+  const join = url.pathname.match(joinPath);
+  if (join) {
+    if (request.method !== "POST") return errorResponse(405, "METHOD_NOT_ALLOWED", "Use POST to join a campaign.", { allowed: ["POST"] });
+    return joinCampaign(request, env, join[1]);
+  }
+  if (url.pathname !== "/api/campaigns") return null;
+  if (request.method !== "GET") {
+    return errorResponse(405, "METHOD_NOT_ALLOWED", "Use GET for the campaign directory.", { allowed: ["GET"] });
+  }
+  const identity = await authenticate(request, env);
+  if (!identity) return errorResponse(401, "AUTH_REQUIRED", "Sign in is required to view campaigns.");
+  const userId = identity.kind === "SESSION" ? identity.userId : identity.viewer.userId;
+  const [result, available] = await Promise.all([
+    env.DB.prepare(`SELECT campaigns.id AS campaign_id, campaigns.name,
+      campaigns.status, planets.name AS planet_name, campaigns.map_source_key,
+      campaigns.scenario_content_key,
+      campaigns.force_policy_json,operations.reinforcement_policy_json,
+      COALESCE((SELECT MAX(round_number) + 1 FROM round_metadata WHERE campaign_id=campaigns.id),1) AS current_round,
+      memberships.side, memberships.role, memberships.joined_at,
+      campaigns.minimum_players, campaigns.maximum_players,
+      EXISTS (SELECT 1 FROM game_master_campaign_scenarios AS custom
+        JOIN game_master_map_revisions AS revisions ON revisions.id=custom.map_revision_id
+        JOIN game_master_maps AS maps ON maps.id=revisions.map_id
+        WHERE custom.campaign_id=campaigns.id
+          AND custom.scenario_id='scenario-' || campaigns.id
+          AND custom.scenario_version=2
+          AND custom.scenario_content_key=campaigns.scenario_content_key
+          AND custom.application_policy_key='game-master-skirmish@1'
+          AND custom.maximum_rounds=12
+          AND custom.reward_policy_id='public-v1-economy@1'
+          AND custom.map_revision_id=campaigns.game_master_map_revision_id
+          AND custom.map_content_hash=revisions.content_hash
+          AND campaigns.map_source_key='admin-map/' || maps.id || '@' || revisions.revision || ':' || revisions.content_hash
+          AND maps.status='PUBLISHED' AND maps.revision=revisions.revision
+          AND maps.content_hash=revisions.content_hash) AS custom_scenario_available,
+      results.result,results.reason AS outcome_reason,results.round_number AS result_round,
+      results.rewards_json,results.resolved_at,
+      (SELECT COUNT(*) FROM campaign_memberships AS members
+        WHERE members.campaign_id = campaigns.id AND members.role<>'GM') AS member_count,
+      (SELECT COUNT(*) FROM deployments
+        WHERE deployments.campaign_id=campaigns.id AND deployments.owner_id=?1
+          AND deployments.status IN ('READY','ACTIVE','IMMOBILISED')) AS deployment_count
+    FROM campaign_memberships AS memberships
+    JOIN campaigns ON campaigns.id = memberships.campaign_id
+    JOIN planets ON planets.id = campaigns.planet_id
+    LEFT JOIN strategic_operations AS operations ON operations.campaign_id=campaigns.id
+    LEFT JOIN campaign_results AS results ON results.campaign_id=campaigns.id
+    WHERE memberships.user_id = ?1
+      AND campaigns.status IN ('RECRUITING','ACTIVE','PAUSED','COMPLETE','FAILED')
+    ORDER BY CASE campaigns.status
+      WHEN 'ACTIVE' THEN 0 WHEN 'RECRUITING' THEN 1 WHEN 'PAUSED' THEN 2 ELSE 3 END,
+      campaigns.name, campaigns.id`).bind(userId).all<CampaignDirectoryRow>(),
+    env.DB.prepare(`SELECT campaigns.id AS campaign_id,campaigns.name,campaigns.status,
+        planets.name AS planet_name,campaigns.map_source_key,campaigns.scenario_content_key,
+        campaigns.minimum_players,
+        campaigns.maximum_players,(SELECT COUNT(*) FROM campaign_memberships AS members
+          WHERE members.campaign_id=campaigns.id AND members.role<>'GM') AS member_count,
+        EXISTS (SELECT 1 FROM game_master_campaign_scenarios AS custom
+          JOIN game_master_map_revisions AS revisions ON revisions.id=custom.map_revision_id
+          JOIN game_master_maps AS maps ON maps.id=revisions.map_id
+          WHERE custom.campaign_id=campaigns.id
+            AND custom.scenario_id='scenario-' || campaigns.id
+            AND custom.scenario_version=2
+            AND custom.scenario_content_key=campaigns.scenario_content_key
+            AND custom.application_policy_key='game-master-skirmish@1'
+            AND custom.maximum_rounds=12
+            AND custom.reward_policy_id='public-v1-economy@1'
+            AND custom.map_revision_id=campaigns.game_master_map_revision_id
+            AND custom.map_content_hash=revisions.content_hash
+            AND campaigns.map_source_key='admin-map/' || maps.id || '@' || revisions.revision || ':' || revisions.content_hash
+            AND maps.status='PUBLISHED' AND maps.revision=revisions.revision
+            AND maps.content_hash=revisions.content_hash) AS custom_scenario_available
+      FROM campaigns JOIN planets ON planets.id=campaigns.planet_id
+      WHERE campaigns.status='RECRUITING'
+        AND ((campaigns.map_source_key=?2 AND campaigns.scenario_content_key=?3)
+          OR (campaigns.map_source_key=?4 AND campaigns.scenario_content_key=?5)
+          OR (campaigns.map_source_key=?6 AND campaigns.scenario_content_key=?7)
+          OR (campaigns.map_source_key=?8 AND campaigns.scenario_content_key=?9)
+          OR (campaigns.map_source_key=?10 AND campaigns.scenario_content_key=?11)
+          OR EXISTS (SELECT 1 FROM game_master_campaign_scenarios AS custom
+            JOIN game_master_map_revisions AS revisions ON revisions.id=custom.map_revision_id
+            JOIN game_master_maps AS maps ON maps.id=revisions.map_id
+            WHERE custom.campaign_id=campaigns.id
+              AND custom.scenario_id='scenario-' || campaigns.id
+              AND custom.scenario_version=2
+              AND custom.scenario_content_key=campaigns.scenario_content_key
+              AND custom.application_policy_key='game-master-skirmish@1'
+              AND custom.maximum_rounds=12
+              AND custom.reward_policy_id='public-v1-economy@1'
+              AND custom.map_revision_id=campaigns.game_master_map_revision_id
+              AND custom.map_content_hash=revisions.content_hash
+              AND campaigns.map_source_key='admin-map/' || maps.id || '@' || revisions.revision || ':' || revisions.content_hash
+              AND maps.status='PUBLISHED' AND maps.revision=revisions.revision
+              AND maps.content_hash=revisions.content_hash))
+        AND NOT EXISTS (SELECT 1 FROM campaign_memberships AS mine
+          WHERE mine.campaign_id=campaigns.id AND mine.user_id=?1)
+        AND (SELECT COUNT(*) FROM campaign_memberships AS members
+          WHERE members.campaign_id=campaigns.id AND members.role<>'GM') < campaigns.maximum_players
+      ORDER BY campaigns.name,campaigns.id`)
+      .bind(
+        userId,
+        outpostScenario.mapSourceKey,
+        outpostScenario.scenarioContentKey,
+        ironRainScenario.mapSourceKey,
+        ironRainScenario.scenarioContentKey,
+        brokenRoadScenario.mapSourceKey,
+        brokenRoadScenario.scenarioContentKey,
+        nightGlassScenario.mapSourceKey,
+        nightGlassScenario.scenarioContentKey,
+        coldHorizonScenario.mapSourceKey,
+        coldHorizonScenario.scenarioContentKey,
+      ).all<PublicCampaignRow>(),
+  ]);
+  return json({
+    campaigns: result.results.map((row) => {
+      const available = scenarioAvailable(row);
+      return {
+      campaignId: row.campaign_id,
+      name: row.name,
+      planetName: row.planet_name,
+      status: row.status,
+      side: row.side,
+      role: row.role,
+      joinedAt: row.joined_at,
+      memberCount: Number(row.member_count),
+      deploymentCount: Number(row.deployment_count),
+      minimumPlayers: Number(row.minimum_players),
+      maximumPlayers: Number(row.maximum_players),
+      scenarioAvailable: available,
+      canReinforce: available && reinforcementOpen(row),
+      canWithdraw: row.status === "RECRUITING" && row.role === "PLAYER" && Number(row.deployment_count) === 0,
+      canEnter: available && Number(row.deployment_count) > 0 &&
+        ["RECRUITING", "ACTIVE", "PAUSED", "COMPLETE", "FAILED"].includes(row.status),
+      briefing: available ? scenarioBriefing(row.map_source_key) : undefined,
+      outcome: row.result ? {
+        result: row.result,
+        reason: row.outcome_reason,
+        round: Number(row.result_round),
+        rewards: row.rewards_json ? JSON.parse(row.rewards_json) : undefined,
+        resolvedAt: Number(row.resolved_at),
+      } : undefined,
+      };
+    }),
+    availableCampaigns: available.results.map((row) => {
+      const available = scenarioAvailable(row);
+      return {
+      campaignId: row.campaign_id,
+      name: row.name,
+      planetName: row.planet_name,
+      status: row.status,
+      memberCount: Number(row.member_count),
+      minimumPlayers: Number(row.minimum_players),
+      maximumPlayers: Number(row.maximum_players),
+      scenarioAvailable: available,
+      canJoin: available,
+      briefing: available ? scenarioBriefing(row.map_source_key) : undefined,
+      };
+    }),
+  });
+}

@@ -1,0 +1,72 @@
+import { describe, expect, it } from "vitest";
+
+import catalogue from "../rules/catalogue/v5-core-curated@2/catalogue.json";
+import {
+  TACTICAL_UNIT_GLYPH_PATHS,
+  UNIT_VISUALS,
+  findUnitVisual,
+  findTacticalSprite,
+  resolveUnitVisual,
+} from "./unit-visuals";
+
+describe("unit visual registry", () => {
+  it("covers every catalogued non-orbital unit with a stable asset and tactical glyph", () => {
+    expect(UNIT_VISUALS.map((visual) => visual.definitionId).sort()).toEqual(
+      [...catalogue.content.canonicalUnitIds, ...catalogue.content.companionUnitIds].sort(),
+    );
+    expect(new Set(UNIT_VISUALS.map((visual) => visual.assetKey)).size).toBe(UNIT_VISUALS.length);
+
+    for (const visual of UNIT_VISUALS) {
+      expect(visual.artSrc).toMatch(/\.png$/);
+      expect(visual.shortCode).toMatch(/^[A-Z]{3}$/);
+      expect(TACTICAL_UNIT_GLYPH_PATHS[visual.tacticalGlyph]).not.toHaveLength(0);
+    }
+  });
+
+  it("resolves retained class aliases to the canonical visual", () => {
+    expect(findUnitVisual("unit-combat-engineers")?.definitionId).toBe("unit-engineers");
+    expect(findUnitVisual("unit-light-artillery")?.definitionId).toBe("unit-light-artillery");
+    expect(findUnitVisual("unit-logistics-vehicle")?.definitionId).toBe("unit-logi-truck");
+    expect(findUnitVisual("unit-heavy-aerospace-transport")?.definitionId).toBe("unit-heavy-air-transport");
+  });
+
+  it("maps every catalogued class to a six-state tactical sprite sheet", () => {
+    for (const visual of UNIT_VISUALS) {
+      expect(findTacticalSprite(visual.definitionId), visual.definitionId).toMatch(/\.png$/);
+      for (const alias of visual.aliases) {
+        if (findUnitVisual(alias)?.definitionId === visual.definitionId) {
+          expect(findTacticalSprite(alias), alias).toBe(findTacticalSprite(visual.definitionId));
+        }
+      }
+    }
+  });
+
+  it("maps every source-catalogued enemy type to a six-state tactical sprite sheet", () => {
+    for (const enemy of catalogue.content.enemies) {
+      expect(findTacticalSprite(enemy.id), enemy.id).toMatch(/enemy-bug-.+\.png$/);
+    }
+  });
+
+  it("gives projected swarm contacts source-specific accessible labels and scale roles", () => {
+    expect(resolveUnitVisual({ definitionId: "enemy-bug-drone", side: "ENEMY" })).toMatchObject({
+      label: "Bug Drone",
+      shortCode: "DRN",
+      tacticalGlyph: "BIOLOGICAL",
+    });
+    expect(resolveUnitVisual({ definitionId: "enemy-bug-heavy", side: "ENEMY" }).tacticalGlyph).toBe("TANK");
+    expect(resolveUnitVisual({ definitionId: "enemy-bug-flyer", side: "ENEMY" }).tacticalGlyph).toBe("FIGHTER");
+  });
+
+  it("uses the QA-passed plan-view mech revisions", () => {
+    expect(findTacticalSprite("unit-light-mech")).toContain("unit-light-mech-v3");
+    expect(findTacticalSprite("unit-medium-mech")).toContain("unit-medium-mech-v4");
+    expect(findTacticalSprite("unit-heavy-mech")).toContain("unit-heavy-mech-v3");
+  });
+
+  it("fails visibly to a code-native tactical glyph when no portrait is registered", () => {
+    const enemy = resolveUnitVisual({ definitionId: "enemy-unknown", side: "ENEMY" });
+    expect(enemy.artSrc).toBeUndefined();
+    expect(enemy.tacticalGlyph).toBe("BIOLOGICAL");
+    expect(TACTICAL_UNIT_GLYPH_PATHS[enemy.tacticalGlyph]).not.toHaveLength(0);
+  });
+});
